@@ -3,6 +3,12 @@
 	"ignore": "test",
 	"package": [
 		{
+			"checksumSHA1": "fvVoeETRxg13N2GlxydO+5slZdM=",
+			"path": "github.com/bradfitz/gomemcache/memcache",
+			"revision": "1952afaa557dc08e8e0d89eafab110fb501c1a2b",
+			"revisionTime": "2017-02-08T21:30:04Z"
+		},
+		{
 			"checksumSHA1": "0gJ2MDfXKZ1tCEKRloMAkI3MDXM=",
 			"path": "github.com/gocql/gocql",
 			"revision": "1762cce65eafd098045e30ef2b7df2c289740971",
