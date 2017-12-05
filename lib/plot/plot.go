@@ -6,7 +6,7 @@ import (
 	"github.com/uol/gobol"
 	"github.com/uol/gobol/rubber"
 
-	"github.com/uol/mycenae/lib/memcached"
+	"github.com/uol/mycenae/lib/cache"
 	"github.com/uol/mycenae/lib/tsstats"
 )
 
@@ -20,7 +20,7 @@ func New(
 	sts *tsstats.StatsTS,
 	cass *gocql.Session,
 	es *rubber.Elastic,
-	mc *memcached.Memcached,
+	ks *cache.KeyspaceCache,
 	esIndex string,
 	maxTimeseries int,
 	maxConcurrentTimeseries int,
@@ -51,7 +51,7 @@ func New(
 		esIndex:           esIndex,
 		MaxTimeseries:     maxTimeseries,
 		LogQueryThreshold: logQueryTSthreshold,
-		memcached:         mc,
+		keyspaceCache:     ks,
 		persist:           persistence{cassandra: cass, esTs: es},
 		concTimeseries:    make(chan struct{}, maxConcurrentTimeseries),
 		concReads:         make(chan struct{}, maxConcurrentReads),
@@ -62,7 +62,7 @@ type Plot struct {
 	esIndex           string
 	MaxTimeseries     int
 	LogQueryThreshold int
-	memcached         *memcached.Memcached
+	keyspaceCache     *cache.KeyspaceCache
 	persist           persistence
 	concTimeseries    chan struct{}
 	concReads         chan struct{}

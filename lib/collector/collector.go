@@ -16,7 +16,7 @@ import (
 	"github.com/uol/gobol"
 	"github.com/uol/gobol/rubber"
 
-	"github.com/uol/mycenae/lib/memcached"
+	"github.com/uol/mycenae/lib/cache"
 	"github.com/uol/mycenae/lib/structs"
 	"github.com/uol/mycenae/lib/tsstats"
 )
@@ -31,7 +31,7 @@ func New(
 	sts *tsstats.StatsTS,
 	cass *gocql.Session,
 	es *rubber.Elastic,
-	mc *memcached.Memcached,
+	kc *cache.KeyspaceCache,
 	set *structs.Settings,
 ) (*Collector, error) {
 
@@ -44,14 +44,14 @@ func New(
 	stats = sts
 
 	collect := &Collector{
-		memcached:   mc,
-		persist:     persistence{cassandra: cass, esearch: es},
-		validKey:    regexp.MustCompile(`^[0-9A-Za-z-._%&#;/]+$`),
-		settings:    set,
-		concPoints:  make(chan struct{}, set.MaxConcurrentPoints),
-		concBulk:    make(chan struct{}, set.MaxConcurrentBulks),
-		metaChan:    make(chan Point, set.MetaBufferSize),
-		metaPayload: &bytes.Buffer{},
+		keyspaceCache: kc,
+		persist:       persistence{cassandra: cass, esearch: es},
+		validKey:      regexp.MustCompile(`^[0-9A-Za-z-._%&#;/]+$`),
+		settings:      set,
+		concPoints:    make(chan struct{}, set.MaxConcurrentPoints),
+		concBulk:      make(chan struct{}, set.MaxConcurrentBulks),
+		metaChan:      make(chan Point, set.MetaBufferSize),
+		metaPayload:   &bytes.Buffer{},
 	}
 
 	go collect.metaCoordinator(d)
@@ -60,10 +60,10 @@ func New(
 }
 
 type Collector struct {
-	memcached *memcached.Memcached
-	persist   persistence
-	validKey  *regexp.Regexp
-	settings  *structs.Settings
+	keyspaceCache *cache.KeyspaceCache
+	persist       persistence
+	validKey      *regexp.Regexp
+	settings      *structs.Settings
 
 	concPoints  chan struct{}
 	concBulk    chan struct{}

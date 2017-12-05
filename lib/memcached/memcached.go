@@ -3,9 +3,8 @@ package memcached
 import (
 	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/uol/gobol"
-	"github.com/uol/mycenae/lib/keyspace"
 	"github.com/uol/mycenae/lib/tsstats"
-	"net/http"
+	"time"
 )
 
 type Configuration struct {
@@ -14,19 +13,17 @@ type Configuration struct {
 }
 
 type Memcached struct {
-	keyspace *keyspace.Keyspace
-	client   *memcache.Client
-	TTL      int32
+	client *memcache.Client
+	ttl    int32
 }
 
-func New(s *tsstats.StatsTS, ks *keyspace.Keyspace, c *Configuration) (*Memcached, gobol.Error) {
+func New(s *tsstats.StatsTS, c *Configuration) (*Memcached, gobol.Error) {
 
 	stats = s
 
 	mc := &Memcached{
-		keyspace: ks,
-		client:   memcache.New(c.Pool...),
-		TTL:      c.TTL,
+		client: memcache.New(c.Pool...),
+		ttl:    c.TTL,
 	}
 
 	err := mc.Put("test", "test", []byte("test"))
@@ -38,73 +35,99 @@ func New(s *tsstats.StatsTS, ks *keyspace.Keyspace, c *Configuration) (*Memcache
 	return mc, nil
 }
 
-func (mc *Memcached) GetKeyspace(key string) (string, bool, gobol.Error) {
+func (mc *Memcached) fqn(items ...string) (string, gobol.Error) {
 
-	v, gerr := mc.Get("keyspace", key)
-	if gerr != nil {
-		return "", false, gerr
+	if items == nil || len(items) == 0 {
+		return "", errInternalServerErrorM("fqn", "No ")
 	}
 
-	if v != nil {
-		return string(v), true, nil
+	var result string
+
+	for _, item := range items {
+		result += item
+		result += "/"
 	}
 
-	ks, found, gerr := mc.keyspace.GetKeyspace(key)
-	if gerr != nil {
-		if gerr.StatusCode() == http.StatusNotFound {
-			return "", false, nil
-		}
-		return "", false, gerr
-	}
-
-	if !found {
-		return "", false, nil
-	}
-
-	value := "false"
-
-	if ks.TUUID {
-		value = "true"
-	}
-
-	gerr = mc.Put("keyspace", key, []byte(value))
-	if gerr != nil {
-		return "", false, gerr
-	}
-
-	return value, true, nil
+	return result, nil
 }
 
-func (mc *Memcached) GetTsNumber(key string, CheckTSID func(esType, id string) (bool, gobol.Error)) (bool, gobol.Error) {
-	return mc.getTSID("meta", "number", key, CheckTSID)
+func (mc *Memcached) Get(namespace, key string) ([]byte, gobol.Error) {
+
+	start := time.Now()
+
+	fqn, err := mc.fqn(namespace, key)
+
+	if err != nil {
+		return nil, err
+	}
+
+	item, error := mc.client.Get(fqn)
+
+	if error != nil && error.Error() != "memcache: cache miss" {
+		return nil, errInternalServerError("get", "error retrieving value from "+fqn, error)
+	}
+
+	if item == nil || item.Value == nil {
+		statsNotFound(namespace)
+		return nil, nil
+	}
+
+	error = mc.client.Touch(fqn, mc.ttl)
+
+	if error != nil {
+		return nil, errInternalServerError("touch", "error touching value from "+fqn, error)
+	}
+
+	statsSuccess("Get", namespace, time.Since(start))
+
+	return item.Value, nil
 }
 
-func (mc *Memcached) GetTsText(key string, CheckTSID func(esType, id string) (bool, gobol.Error)) (bool, gobol.Error) {
-	return mc.getTSID("metatext", "text", key, CheckTSID)
+func (mc *Memcached) Put(namespace, key string, value []byte) gobol.Error {
+
+	start := time.Now()
+
+	fqn, err := mc.fqn(namespace, key)
+
+	if err != nil {
+		return err
+	}
+
+	item := &memcache.Item{
+		Key:        fqn,
+		Value:      value,
+		Expiration: mc.ttl,
+	}
+
+	error := mc.client.Set(item)
+
+	if error != nil {
+		statsError("Put", namespace)
+		return errInternalServerError("put", "error adding data on "+fqn, err)
+	}
+
+	statsSuccess("put", namespace, time.Since(start))
+
+	return nil
 }
 
-func (mc *Memcached) getTSID(esType, bucket, key string, CheckTSID func(esType, id string) (bool, gobol.Error)) (bool, gobol.Error) {
+func (mc *Memcached) Delete(namespace, key string) gobol.Error {
 
-	v, gerr := mc.Get(bucket, key)
-	if gerr != nil {
-		return false, gerr
-	}
-	if v != nil {
-		return true, nil
-	}
+	start := time.Now()
 
-	found, gerr := CheckTSID(esType, key)
-	if gerr != nil {
-		return false, gerr
-	}
-	if !found {
-		return false, nil
+	fqn, err := mc.fqn(namespace, key)
+
+	if err != nil {
+		return err
 	}
 
-	gerr = mc.Put(bucket, key, []byte{})
-	if gerr != nil {
-		return false, gerr
+	error := mc.client.Delete(fqn)
+	if error != nil {
+		statsError("delete", namespace)
+		return errInternalServerError("delete", "error removing data on "+fqn, error)
 	}
 
-	return true, nil
+	statsSuccess("delete", namespace, time.Since(start))
+
+	return nil
 }

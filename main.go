@@ -25,6 +25,7 @@ import (
 	"github.com/uol/mycenae/lib/structs"
 	"github.com/uol/mycenae/lib/tsstats"
 	"github.com/uol/mycenae/lib/udp"
+	"github.com/uol/mycenae/lib/cache"
 )
 
 func main() {
@@ -94,13 +95,15 @@ func main() {
 		settings.TTL.Max,
 	)
 
-	mc, err := memcached.New(tssts, ks, &settings.Memcached)
+	mc, err := memcached.New(tssts, &settings.Memcached)
 	if err != nil {
 		tsLogger.General.Error(err)
 		os.Exit(1)
 	}
 
-	coll, err := collector.New(tsLogger, tssts, cass, es, mc, settings)
+	kc := cache.NewKeyspaceCache(mc, ks)
+
+	coll, err := collector.New(tsLogger, tssts, cass, es, kc, settings)
 	if err != nil {
 		log.Println(err)
 		return
@@ -118,7 +121,7 @@ func main() {
 		tssts,
 		cass,
 		es,
-		mc,
+		kc,
 		settings.ElasticSearch.Index,
 		settings.MaxTimeseries,
 		settings.MaxConcurrentTimeseries,

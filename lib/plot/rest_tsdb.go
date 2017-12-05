@@ -157,7 +157,7 @@ func (plot *Plot) Query(w http.ResponseWriter, r *http.Request, ps httprouter.Pa
 
 	rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace/api/query", "keyspace": keyspace})
 
-	strTUUID, found, gerr := plot.memcached.GetKeyspace(keyspace)
+	strTUUID, found, gerr := plot.keyspaceCache.GetKeyspace(keyspace)
 	if gerr != nil {
 		rip.Fail(w, gerr)
 		return
