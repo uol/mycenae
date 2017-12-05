@@ -9,8 +9,8 @@ import (
 )
 
 type persistence struct {
-	cassandra     *gocql.Session
-	esTs          *rubber.Elastic
+	cassandra *gocql.Session
+	esTs      *rubber.Elastic
 }
 
 func (persist *persistence) ListESTags(

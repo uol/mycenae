@@ -1,8 +1,8 @@
 package utils
 
 import (
-	"syscall"
 	"errors"
+	"syscall"
 )
 
 /**
@@ -41,6 +41,5 @@ func GetTimeNoMillis() int64 {
 
 	syscall.Gettimeofday(&tv)
 
-	return int64(tv.Sec)*1e3
+	return int64(tv.Sec) * 1e3
 }
-
