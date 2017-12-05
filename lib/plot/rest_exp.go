@@ -118,24 +118,6 @@ func (plot *Plot) expressionQuery(w http.ResponseWriter, r *http.Request, keyspa
 		return
 	}
 
-	strTUUID, found, gerr := plot.boltc.GetKeyspace(keyspace)
-	if gerr != nil {
-		rip.Fail(w, gerr)
-		return
-	}
-	if !found {
-		gerr := errNotFound("expressionQuery")
-		rip.Fail(w, gerr)
-		return
-	}
-
-	tuuid, err := strconv.ParseBool(strTUUID)
-	if err != nil {
-		gerr := errValidationE("expressionQuery", err)
-		rip.Fail(w, gerr)
-		return
-	}
-
 	tsdb := structs.TSDBquery{}
 
 	relative, gerr := parser.ParseExpression(expQuery.Expression, &tsdb)
@@ -170,8 +152,8 @@ func (plot *Plot) expressionQuery(w http.ResponseWriter, r *http.Request, keyspa
 		return
 	}
 
-	resps, gerr := plot.getTimeseries(keyspace, tuuid, payload)
-	if err != nil {
+	resps, gerr := plot.getTimeseries(keyspace, payload)
+	if gerr != nil {
 		rip.Fail(w, gerr)
 		return
 	}

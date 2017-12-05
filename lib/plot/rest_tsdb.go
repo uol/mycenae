@@ -157,33 +157,15 @@ func (plot *Plot) Query(w http.ResponseWriter, r *http.Request, ps httprouter.Pa
 
 	rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace/api/query", "keyspace": keyspace})
 
-	strTUUID, found, gerr := plot.boltc.GetKeyspace(keyspace)
-	if gerr != nil {
-		rip.Fail(w, gerr)
-		return
-	}
-	if !found {
-		gerr := errNotFound("Query")
-		rip.Fail(w, gerr)
-		return
-	}
-
-	tuuid, err := strconv.ParseBool(strTUUID)
-	if err != nil {
-		gerr := errValidationE("Query", err)
-		rip.Fail(w, gerr)
-		return
-	}
-
 	query := structs.TSDBqueryPayload{}
 
-	gerr = rip.FromJSON(r, &query)
+	gerr := rip.FromJSON(r, &query)
 	if gerr != nil {
 		rip.Fail(w, gerr)
 		return
 	}
 
-	resps, gerr := plot.getTimeseries(keyspace, tuuid, query)
+	resps, gerr := plot.getTimeseries(keyspace, query)
 	if gerr != nil {
 		rip.Fail(w, gerr)
 		return
@@ -200,7 +182,6 @@ func (plot *Plot) Query(w http.ResponseWriter, r *http.Request, ps httprouter.Pa
 
 func (plot *Plot) getTimeseries(
 	keyspace string,
-	tuuid bool,
 	query structs.TSDBqueryPayload,
 ) (resps TSDBresponses, gerr gobol.Error) {
 
@@ -423,7 +404,6 @@ func (plot *Plot) getTimeseries(
 				query.Start,
 				query.End,
 				opers,
-				tuuid,
 				query.MsResolution,
 				keepEmpty,
 			)

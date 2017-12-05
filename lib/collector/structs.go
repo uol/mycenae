@@ -4,7 +4,6 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/gocql/gocql"
 	"github.com/uol/gobol"
 
 	"github.com/uol/mycenae/lib/tserr"
@@ -57,9 +56,9 @@ type Point struct {
 	Bucket    string
 	KsID      string
 	Timestamp int64
-	Tuuid     bool
-	TimeUUID  gocql.UUID
-	Number    bool
+	//	Tuuid     bool
+	//	TimeUUID  gocql.UUID
+	Number bool
 }
 
 type StructV2Error struct {

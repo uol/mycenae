@@ -20,7 +20,6 @@ func (plot *Plot) GetTimeSeries(
 	start,
 	end int64,
 	opers structs.DataOperations,
-	tuuid,
 	ms,
 	keepEmpties bool,
 ) (serie TS, gerr gobol.Error) {
@@ -57,7 +56,6 @@ func (plot *Plot) GetTimeSeries(
 			buckets,
 			start,
 			end,
-			tuuid,
 			ms,
 			keepEmpties,
 			opers,
@@ -123,7 +121,6 @@ func (plot *Plot) getTimeSerie(
 	buckets []string,
 	start,
 	end int64,
-	tuuid,
 	ms,
 	keepEmpties bool,
 	opers structs.DataOperations,
@@ -143,11 +140,11 @@ func (plot *Plot) getTimeSerie(
 		for i, bucket := range buckets {
 			buckID := fmt.Sprintf("%v%v", bucket, key)
 			plot.concReads <- struct{}{}
-			go plot.getTimeSerieBucket(i, keyspace, buckID, start, end, tuuid, ms, bucketChan)
+			go plot.getTimeSerieBucket(i, keyspace, buckID, start, end, ms, bucketChan)
 		}
 	} else {
 		plot.concReads <- struct{}{}
-		go plot.getTimeSerieBucket(0, keyspace, key, start, end, tuuid, ms, bucketChan)
+		go plot.getTimeSerieBucket(0, keyspace, key, start, end, ms, bucketChan)
 	}
 
 	bucketList := make([]TS, chanSize)
@@ -206,12 +203,11 @@ func (plot *Plot) getTimeSerieBucket(
 	key string,
 	start,
 	end int64,
-	tuuid,
 	ms bool,
 	bucketChan chan TS,
 ) {
 
-	resultSet, count, gerr := plot.persist.GetTS(keyspace, key, start, end, tuuid, ms)
+	resultSet, count, gerr := plot.persist.GetTS(keyspace, key, start, end, ms)
 
 	bucketChan <- TS{
 		index: index,

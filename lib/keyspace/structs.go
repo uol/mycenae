@@ -14,7 +14,7 @@ type Config struct {
 	ReplicationFactor int    `json:"replicationFactor"`
 	Contact           string `json:"contact"`
 	TTL               int    `json:"ttl"`
-	TUUID             bool   `json:"tuuid"`
+	//TUUID             bool   `json:"tuuid"`
 }
 
 func (c *Config) Validate() gobol.Error {

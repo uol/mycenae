@@ -152,17 +152,13 @@ func (collect *Collector) HandlePacket(rcvMsg TSDBpoint, number bool) gobol.Erro
 	}
 
 	if number {
-		if packet.Tuuid {
-			gerr = collect.saveTUUIDvalue(packet)
-		} else {
-			gerr = collect.saveValue(packet)
-		}
+
+		gerr = collect.saveValue(packet)
+
 	} else {
-		if packet.Tuuid {
-			gerr = collect.saveTUUIDtext(packet)
-		} else {
-			gerr = collect.saveText(packet)
-		}
+
+		gerr = collect.saveText(packet)
+
 	}
 
 	if gerr != nil {

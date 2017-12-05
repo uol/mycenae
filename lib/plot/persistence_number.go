@@ -9,65 +9,9 @@ import (
 	"github.com/uol/gobol"
 )
 
-func (persist *persistence) GetTS(keyspace, key string, start, end int64, tuuid, ms bool) (Pnts, int, gobol.Error) {
-
-	if tuuid {
-		return persist.getTSuuid(keyspace, key, start, end, ms)
-	}
+func (persist *persistence) GetTS(keyspace, key string, start, end int64, ms bool) (Pnts, int, gobol.Error) {
 
 	return persist.getTStamp(keyspace, key, start, end, ms)
-}
-
-func (persist *persistence) getTSuuid(keyspace, key string, start, end int64, ms bool) ([]Pnt, int, gobol.Error) {
-	track := time.Now()
-	start--
-	end++
-
-	var date int64
-	var value float64
-	var err error
-
-	iter := persist.cassandra.Query(
-		fmt.Sprintf(
-			`SELECT toUnixTimestamp(date), value FROM %v.ts_number WHERE id= ? AND date > maxTimeuuid(?) AND date < minTimeuuid(?) ALLOW FILTERING`,
-			keyspace,
-		),
-		key,
-		start,
-		end,
-	).RoutingKey([]byte(key)).Iter()
-
-	points := []Pnt{}
-	var count int
-
-	for iter.Scan(&date, &value) {
-		count++
-		if !ms {
-			date = (date / 1000) * 1000
-		}
-		point := Pnt{
-			Date:  date,
-			Value: value,
-		}
-		points = append(points, point)
-	}
-
-	if err = iter.Close(); err != nil {
-
-		gblog.WithFields(logrus.Fields{
-			"package": "plot/persistence",
-			"func":    "getTSuuid",
-		}).Error(err)
-
-		if err == gocql.ErrNotFound {
-			statsSelect(keyspace, "ts_number", time.Since(track))
-			return []Pnt{}, 0, errNoContent("getTSuuid")
-		}
-		statsSelectFerror(keyspace, "ts_number")
-		return []Pnt{}, 0, errPersist("getTSuuid", err)
-	}
-	statsSelect(keyspace, "ts_number", time.Since(track))
-	return points, count, nil
 }
 
 func (persist *persistence) getTStamp(keyspace, key string, start, end int64, ms bool) ([]Pnt, int, gobol.Error) {

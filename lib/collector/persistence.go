@@ -43,29 +43,6 @@ func (persist *persistence) InsertPoint(ksid, tsid string, timestamp int64, valu
 	return nil
 }
 
-func (persist *persistence) InsertTUUIDpoint(ksid, tsid string, timeU gocql.UUID, value float64) gobol.Error {
-	start := time.Now()
-	var err error
-	if err = persist.cassandra.Query(
-		fmt.Sprintf(`INSERT INTO %v.ts_number (id, date , value) VALUES (?, ?, ?)`, ksid),
-		tsid,
-		timeU,
-		value,
-	).RoutingKey([]byte(tsid)).Exec(); err != nil {
-		statsInsertQerror(ksid, "ts_number")
-		gblog.WithFields(
-			logrus.Fields{
-				"package": "collector/persistence",
-				"func":    "InsertTUUIDpoint",
-			},
-		).Error(err)
-		statsInsertFBerror(ksid, "ts_number")
-		return errPersist("InsertTUUIDpoint", err)
-	}
-	statsInsert(ksid, "ts_number", time.Since(start))
-	return nil
-}
-
 func (persist *persistence) InsertText(ksid, tsid string, timestamp int64, text string) gobol.Error {
 	start := time.Now()
 	var err error
@@ -89,29 +66,6 @@ func (persist *persistence) InsertText(ksid, tsid string, timestamp int64, text 
 	return nil
 }
 
-func (persist *persistence) InsertTUUIDtext(ksid, tsid string, timeU gocql.UUID, text string) gobol.Error {
-	start := time.Now()
-	var err error
-	if err = persist.cassandra.Query(
-		fmt.Sprintf(`INSERT INTO %v.ts_text (id, date , value) VALUES (?, ?, ?)`, ksid),
-		tsid,
-		timeU,
-		text,
-	).RoutingKey([]byte(tsid)).Exec(); err != nil {
-		statsInsertQerror(ksid, "ts_text")
-		gblog.WithFields(
-			logrus.Fields{
-				"package": "collector/persistence",
-				"func":    "InsertTUUIDtext",
-			},
-		).Error(err)
-		statsInsertFBerror(ksid, "ts_text")
-		return errPersist("InsertTUUIDtext", err)
-	}
-	statsInsert(ksid, "ts_text", time.Since(start))
-	return nil
-
-}
 
 func (persist *persistence) HeadMetaFromES(index, eType, id string) (int, gobol.Error) {
 	start := time.Now()

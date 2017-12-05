@@ -23,28 +23,12 @@ func (plot *Plot) ListPoints(w http.ResponseWriter, r *http.Request, ps httprout
 
 	rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace/points", "keyspace": keyspace})
 
-	strTUUID, found, gerr := plot.boltc.GetKeyspace(keyspace)
-	if gerr != nil {
-		rip.Fail(w, gerr)
-		return
-	}
-	if !found {
-		gerr := errNotFound("ListPoints")
-		rip.Fail(w, gerr)
-		return
-	}
-
-	var tuuid bool
-
-	if strTUUID == "true" {
-		tuuid = true
-	}
 
 	query := structs.TsQuery{}
 
 	err := rip.FromJSON(r, &query)
 	if err != nil {
-		rip.Fail(w, gerr)
+		rip.Fail(w, err)
 		return
 	}
 
@@ -71,7 +55,6 @@ func (plot *Plot) ListPoints(w http.ResponseWriter, r *http.Request, ps httprout
 			query.Start,
 			query.End,
 			opers,
-			tuuid,
 			true,
 			true,
 		)
@@ -125,7 +108,6 @@ func (plot *Plot) ListPoints(w http.ResponseWriter, r *http.Request, ps httprout
 			query.Start,
 			query.End,
 			"",
-			tuuid,
 			true,
 			query.GetRe(),
 			query.Downsample,
@@ -190,7 +172,6 @@ func (plot *Plot) ListPoints(w http.ResponseWriter, r *http.Request, ps httprout
 					query.Start,
 					query.End,
 					ks.Option,
-					tuuid,
 					true,
 					query.GetRe(),
 					query.Downsample,
@@ -237,7 +218,6 @@ func (plot *Plot) ListPoints(w http.ResponseWriter, r *http.Request, ps httprout
 					query.Start,
 					query.End,
 					opers,
-					tuuid,
 					true,
 					true,
 				)
