@@ -98,9 +98,9 @@ func (collect *Collector) saveMeta(packet Point) {
 	ksts := fmt.Sprintf("%v|%v", packet.KsID, packet.ID)
 
 	if packet.Number {
-		found, gerr = collect.boltc.GetTsNumber(ksts, collect.CheckTSID)
+		found, gerr = collect.keyspaceCache.GetTsNumber(ksts, collect.CheckTSID)
 	} else {
-		found, gerr = collect.boltc.GetTsText(ksts, collect.CheckTSID)
+		found, gerr = collect.keyspaceCache.GetTsText(ksts, collect.CheckTSID)
 	}
 	if gerr != nil {
 		gblog.WithFields(logrus.Fields{

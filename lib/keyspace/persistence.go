@@ -15,8 +15,7 @@ type persistence struct {
 	esearch       *rubber.Elastic
 	usernameGrant string
 	keyspaceMain  string
-
-	compaction string
+	compaction    string
 }
 
 func (persist *persistence) createKeyspace(ksc Config, key string) gobol.Error {
@@ -158,7 +157,7 @@ func (persist *persistence) countByValueInColumn(column string, table string, na
 	var scanned string
 	for it.Scan(&scanned) {
 		if value == scanned {
-			count++;
+			count++
 		}
 	}
 

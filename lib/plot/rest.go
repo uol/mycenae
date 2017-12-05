@@ -23,7 +23,6 @@ func (plot *Plot) ListPoints(w http.ResponseWriter, r *http.Request, ps httprout
 
 	rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace/points", "keyspace": keyspace})
 
-
 	query := structs.TsQuery{}
 
 	err := rip.FromJSON(r, &query)

@@ -23,8 +23,6 @@ MaxTimeseries = 5000
 # Warning number of timeseries
 LogQueryTSthreshold = 1000
 
-BoltPath = "/tmp/mycenae/cache.db"
-
 # Max number of concurrent points being processed
 MaxConcurrentPoints = 1000
 
@@ -78,7 +76,7 @@ CompactionStrategy = "TimeWindowCompactionStrategy"
     logLevel = "DEBUG"
     rotationPeriod = "daily"
     timeFormat = "2006-01-02_15:04:03"
-    path = "/tmp/mycenae/mycenae.log"
+    path = "/tmp/mycenae-logs/mycenae.log"
 
 [logs.stats.file]
   writeTo = true
@@ -87,7 +85,7 @@ CompactionStrategy = "TimeWindowCompactionStrategy"
     logLevel = "DEBUG"
     rotationPeriod = "daily"
     timeFormat = "2006-01-02_15:04:03"
-    path = "/tmp/mycenae/mycenae-stats.log"
+    path = "/tmp/mycenae-logs/mycenae-stats.log"
 
 [stats]
   address = "0.0.0.0"
@@ -109,3 +107,7 @@ CompactionStrategy = "TimeWindowCompactionStrategy"
     seed = "172.17.0.6:9200"
     limit = 1024
     timeout = 15
+
+[memcached]
+  pool = ["172.17.0.7:11211","172.17.0.8:11211","172.17.0.9:11211"]
+  ttl = 3600
