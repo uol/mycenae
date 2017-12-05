@@ -5,8 +5,8 @@ import (
 
 	"github.com/uol/gobol"
 
-	"github.com/uol/mycenae/lib/tserr"
 	"errors"
+	"github.com/uol/mycenae/lib/tserr"
 )
 
 func errInternalServerErrorM(function, message string) gobol.Error {

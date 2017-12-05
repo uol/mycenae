@@ -6,6 +6,7 @@ import (
 	"github.com/uol/gobol/rubber"
 	"github.com/uol/gobol/saw"
 	"github.com/uol/gobol/snitch"
+	"github.com/uol/mycenae/lib/memcached"
 )
 
 type TsLog struct {
@@ -25,7 +26,6 @@ type SettingsUDP struct {
 }
 
 type Settings struct {
-	BoltPath                string
 	MaxTimeseries           int
 	MaxConcurrentTimeseries int
 	MaxConcurrentReads      int
@@ -47,7 +47,7 @@ type Settings struct {
 		General saw.Settings
 		Stats   saw.Settings
 	}
-	Stats     snitch.Settings
+	Stats         snitch.Settings
 	ElasticSearch struct {
 		Cluster rubber.Settings
 		Index   string
@@ -55,4 +55,5 @@ type Settings struct {
 	Probe struct {
 		Threshold float64
 	}
+	Memcached memcached.Configuration
 }

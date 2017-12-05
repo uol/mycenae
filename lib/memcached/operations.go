@@ -1,52 +1,10 @@
 package memcached
 
 import (
-	"time"
-	"github.com/uol/gobol"
-	"github.com/boltdb/bolt"
 	"github.com/bradfitz/gomemcache/memcache"
+	"github.com/uol/gobol"
+	"time"
 )
-
-func newBolt(path string) (*persistence, gobol.Error) {
-
-	var err error
-
-	db, err := bolt.Open(path, 0600, &bolt.Options{Timeout: 5 * time.Second})
-	if err != nil {
-		return nil, errPersist("New", err)
-	}
-
-	tx, err := db.Begin(true)
-	if err != nil {
-		return nil, errPersist("New", err)
-	}
-	defer tx.Rollback()
-
-	if _, err := tx.CreateBucketIfNotExists([]byte("keyspace")); err != nil {
-		return nil, errPersist("New", err)
-	}
-
-	if _, err := tx.CreateBucketIfNotExists([]byte("number")); err != nil {
-		return nil, errPersist("New", err)
-	}
-
-	if _, err := tx.CreateBucketIfNotExists([]byte("text")); err != nil {
-		return nil, errPersist("New", err)
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		return nil, errPersist("New", err)
-	}
-
-	return &persistence{
-		db: db,
-	}, nil
-}
-
-type persistence struct {
-	db *bolt.DB
-}
 
 func (mc *Memcached) fqn(items ...string) (string, gobol.Error) {
 
@@ -74,15 +32,21 @@ func (mc *Memcached) Get(namespace, key string) ([]byte, gobol.Error) {
 		return nil, err
 	}
 
-	item, error := mc.client.Get(fqn);
+	item, error := mc.client.Get(fqn)
 
-	if error != nil {
-		return nil, errInternalServerError("Get", "Error retrieving value from " + fqn, error)
+	if error != nil && error.Error() != "memcache: cache miss" {
+		return nil, errInternalServerError("get", "error retrieving value from "+fqn, error)
 	}
 
-	if item == nil {
+	if item == nil || item.Value == nil {
 		statsNotFound(namespace)
 		return nil, nil
+	}
+
+	error = mc.client.Touch(fqn, mc.TTL)
+
+	if error != nil {
+		return nil, errInternalServerError("touch", "error touching value from "+fqn, error)
 	}
 
 	statsSuccess("Get", namespace, time.Since(start))
@@ -101,8 +65,8 @@ func (mc *Memcached) Put(namespace, key string, value []byte) gobol.Error {
 	}
 
 	item := &memcache.Item{
-		Key: fqn,
-		Value: value,
+		Key:        fqn,
+		Value:      value,
 		Expiration: mc.TTL,
 	}
 
@@ -110,40 +74,31 @@ func (mc *Memcached) Put(namespace, key string, value []byte) gobol.Error {
 
 	if error != nil {
 		statsError("Put", namespace)
-		return errPersist("Put", err)
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		statsError("put", namespace)
-		return errPersist("Put", err)
+		return errInternalServerError("put", "error adding data on "+fqn, err)
 	}
 
 	statsSuccess("put", namespace, time.Since(start))
+
 	return nil
 }
 
-func (mc *Memcached) Delete(buckName, key string) gobol.Error {
+func (mc *Memcached) Delete(namespace, key string) gobol.Error {
+
 	start := time.Now()
-	tx, err := persist.db.Begin(true)
+
+	fqn, err := mc.fqn(namespace, key)
+
 	if err != nil {
-		statsError("begin", buckName)
-		return errPersist("Delete", err)
-	}
-	defer tx.Rollback()
-
-	bucket := tx.Bucket(buckName)
-	if err := bucket.Delete(key); err != nil {
-		statsError("delete", buckName)
-		return errPersist("delete", err)
+		return err
 	}
 
-	err = tx.Commit()
-	if err != nil {
-		statsError("delete", buckName)
-		return errPersist("delete", err)
+	error := mc.client.Delete(fqn)
+	if error != nil {
+		statsError("delete", namespace)
+		return errInternalServerError("delete", "error removing data on "+fqn, error)
 	}
 
-	statsSuccess("delete", buckName, time.Since(start))
+	statsSuccess("delete", namespace, time.Since(start))
+
 	return nil
 }

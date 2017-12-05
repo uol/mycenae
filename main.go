@@ -17,9 +17,9 @@ import (
 	"github.com/uol/gobol/saw"
 	"github.com/uol/gobol/snitch"
 
-	"github.com/uol/mycenae/lib/bcache"
 	"github.com/uol/mycenae/lib/collector"
 	"github.com/uol/mycenae/lib/keyspace"
+	"github.com/uol/mycenae/lib/memcached"
 	"github.com/uol/mycenae/lib/plot"
 	"github.com/uol/mycenae/lib/rest"
 	"github.com/uol/mycenae/lib/structs"
@@ -94,13 +94,13 @@ func main() {
 		settings.TTL.Max,
 	)
 
-	bc, err := bcache.New(tssts, ks, settings.BoltPath)
+	mc, err := memcached.New(tssts, ks, &settings.Memcached)
 	if err != nil {
 		tsLogger.General.Error(err)
 		os.Exit(1)
 	}
 
-	coll, err := collector.New(tsLogger, tssts, cass, es, bc, settings)
+	coll, err := collector.New(tsLogger, tssts, cass, es, mc, settings)
 	if err != nil {
 		log.Println(err)
 		return
@@ -118,7 +118,7 @@ func main() {
 		tssts,
 		cass,
 		es,
-		bc,
+		mc,
 		settings.ElasticSearch.Index,
 		settings.MaxTimeseries,
 		settings.MaxConcurrentTimeseries,
@@ -135,7 +135,7 @@ func main() {
 		sts,
 		p,
 		ks,
-		bc,
+		mc,
 		coll,
 		settings.HTTPserver,
 		settings.Probe.Threshold,

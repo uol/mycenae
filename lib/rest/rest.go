@@ -12,10 +12,10 @@ import (
 	"github.com/uol/gobol/rip"
 	"github.com/uol/gobol/snitch"
 
-	"github.com/uol/mycenae/lib/bcache"
 	"github.com/uol/mycenae/lib/collector"
 	"github.com/uol/mycenae/lib/config"
 	"github.com/uol/mycenae/lib/keyspace"
+	"github.com/uol/mycenae/lib/memcached"
 	"github.com/uol/mycenae/lib/plot"
 	"github.com/uol/mycenae/lib/structs"
 )
@@ -25,7 +25,7 @@ func New(
 	gbs *snitch.Stats,
 	p *plot.Plot,
 	keyspace *keyspace.Keyspace,
-	bc *bcache.Bcache,
+	mc *memcached.Memcached,
 	collector *collector.Collector,
 	set structs.SettingsHTTP,
 	probeThreshold float64,
@@ -36,13 +36,13 @@ func New(
 		probeStatus:    http.StatusOK,
 		closed:         make(chan struct{}),
 
-		gblog:    log.General,
-		sts:      gbs,
-		reader:   p,
-		kspace:   keyspace,
-		boltc:    bc,
-		writer:   collector,
-		settings: set,
+		gblog:     log.General,
+		sts:       gbs,
+		reader:    p,
+		kspace:    keyspace,
+		memcached: mc,
+		writer:    collector,
+		settings:  set,
 	}
 }
 
@@ -51,14 +51,14 @@ type REST struct {
 	probeStatus    int
 	closed         chan struct{}
 
-	gblog    *logrus.Logger
-	sts      *snitch.Stats
-	reader   *plot.Plot
-	kspace   *keyspace.Keyspace
-	boltc    *bcache.Bcache
-	writer   *collector.Collector
-	settings structs.SettingsHTTP
-	server   *http.Server
+	gblog     *logrus.Logger
+	sts       *snitch.Stats
+	reader    *plot.Plot
+	kspace    *keyspace.Keyspace
+	memcached *memcached.Memcached
+	writer    *collector.Collector
+	settings  structs.SettingsHTTP
+	server    *http.Server
 }
 
 func (trest *REST) Start() {

@@ -1,34 +1,34 @@
 package memcached
 
 import (
-	"time"
 	"github.com/uol/mycenae/lib/tsstats"
+	"time"
 )
 
 var (
 	stats *tsstats.StatsTS
 )
 
-func statsError(oper string, bucket string) {
+func statsError(oper string, namespace string) {
 	go statsIncrement(
 		"memcached.error",
-		map[string]string{"bucket": bucket, "operation": oper},
+		map[string]string{"bucket": namespace, "operation": oper},
 	)
 }
 
-func statsSuccess(oper string, bucket string, d time.Duration) {
-	go statsIncrement("bolt.query", map[string]string{"bucket": bucket, "operation": oper})
+func statsSuccess(oper string, namespace string, d time.Duration) {
+	go statsIncrement("bolt.query", map[string]string{"bucket": namespace, "operation": oper})
 	go statsValueAdd(
 		"memcached.duration",
-		map[string]string{"bucket": bucket, "operation": oper},
+		map[string]string{"bucket": namespace, "operation": oper},
 		float64(d.Nanoseconds())/float64(time.Millisecond),
 	)
 }
 
-func statsNotFound(bucket string) {
+func statsNotFound(namespace string) {
 	go statsIncrement(
-		"memcached.notfound",
-		map[string]string{"bucket": bucket},
+		"memcached.not_found",
+		map[string]string{"bucket": namespace},
 	)
 }
 

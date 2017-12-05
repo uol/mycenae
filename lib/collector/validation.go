@@ -82,7 +82,7 @@ func (collector *Collector) makePacket(packet *Point, rcvMsg TSDBpoint, number b
 		}
 	}
 
-	strTUUID, found, gerr := collector.boltc.GetKeyspace(packet.KsID)
+	strTUUID, found, gerr := collector.memcached.GetKeyspace(packet.KsID)
 	if !found {
 		return errValidation(`Keyspace not found`)
 	}

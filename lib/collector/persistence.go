@@ -16,8 +16,8 @@ const (
 )
 
 type persistence struct {
-	cassandra     *gocql.Session
-	esearch       *rubber.Elastic
+	cassandra *gocql.Session
+	esearch   *rubber.Elastic
 }
 
 func (persist *persistence) InsertPoint(ksid, tsid string, timestamp int64, value float64) gobol.Error {

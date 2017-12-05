@@ -118,7 +118,7 @@ func (plot *Plot) expressionQuery(w http.ResponseWriter, r *http.Request, keyspa
 		return
 	}
 
-	strTUUID, found, gerr := plot.boltc.GetKeyspace(keyspace)
+	strTUUID, found, gerr := plot.memcached.GetKeyspace(keyspace)
 	if gerr != nil {
 		rip.Fail(w, gerr)
 		return
@@ -247,7 +247,7 @@ func (plot *Plot) expressionParse(w http.ResponseWriter, expQuery ExpParse) {
 			return
 		}
 
-		_, found, gerr := plot.boltc.GetKeyspace(expQuery.Keyspace)
+		_, found, gerr := plot.memcached.GetKeyspace(expQuery.Keyspace)
 		if gerr != nil {
 			rip.Fail(w, gerr)
 			return
@@ -376,7 +376,7 @@ func (plot *Plot) expressionExpand(w http.ResponseWriter, keyspace string, expQu
 		return
 	}
 
-	_, found, gerr := plot.boltc.GetKeyspace(keyspace)
+	_, found, gerr := plot.memcached.GetKeyspace(keyspace)
 	if gerr != nil {
 		rip.Fail(w, gerr)
 		return

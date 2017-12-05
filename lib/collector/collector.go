@@ -16,7 +16,7 @@ import (
 	"github.com/uol/gobol"
 	"github.com/uol/gobol/rubber"
 
-	"github.com/uol/mycenae/lib/bcache"
+	"github.com/uol/mycenae/lib/memcached"
 	"github.com/uol/mycenae/lib/structs"
 	"github.com/uol/mycenae/lib/tsstats"
 )
@@ -31,7 +31,7 @@ func New(
 	sts *tsstats.StatsTS,
 	cass *gocql.Session,
 	es *rubber.Elastic,
-	bc *bcache.Bcache,
+	mc *memcached.Memcached,
 	set *structs.Settings,
 ) (*Collector, error) {
 
@@ -44,7 +44,7 @@ func New(
 	stats = sts
 
 	collect := &Collector{
-		boltc:       bc,
+		memcached:   mc,
 		persist:     persistence{cassandra: cass, esearch: es},
 		validKey:    regexp.MustCompile(`^[0-9A-Za-z-._%&#;/]+$`),
 		settings:    set,
@@ -60,10 +60,10 @@ func New(
 }
 
 type Collector struct {
-	boltc    *bcache.Bcache
-	persist  persistence
-	validKey *regexp.Regexp
-	settings *structs.Settings
+	memcached *memcached.Memcached
+	persist   persistence
+	validKey  *regexp.Regexp
+	settings  *structs.Settings
 
 	concPoints  chan struct{}
 	concBulk    chan struct{}

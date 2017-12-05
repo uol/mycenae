@@ -23,7 +23,7 @@ func (plot *Plot) ListPoints(w http.ResponseWriter, r *http.Request, ps httprout
 
 	rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace/points", "keyspace": keyspace})
 
-	strTUUID, found, gerr := plot.boltc.GetKeyspace(keyspace)
+	strTUUID, found, gerr := plot.memcached.GetKeyspace(keyspace)
 	if gerr != nil {
 		rip.Fail(w, gerr)
 		return
