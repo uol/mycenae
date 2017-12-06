@@ -27,6 +27,8 @@ func MilliToSeconds(t int64) (int64, error) {
 
 	if i > 10 {
 		return (t / 1000) * 1000, nil
+	} else if i < 10 {
+		return t * 1000, nil
 	}
 
 	return t, nil
