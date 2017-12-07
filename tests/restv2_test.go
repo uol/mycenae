@@ -373,27 +373,6 @@ func TestRESTv2PayloadWithMaxFloat32Value(t *testing.T) {
 	sendRESTPayloadAndAssertPoint(t, p, *p.Timestamp, *p.Timestamp)
 }
 
-func TestRESTv2PayloadWithBiggerThanFloat32Value(t *testing.T) {
-	t.Parallel()
-
-	value := math.MaxFloat32 * 2
-	metric, tagKey, tagValue, timestamp := mycenaeTools.Mycenae.GetRandomMetricTags()
-
-	payload := fmt.Sprintf(
-		`[{"value": %.1f, "metric": "%v", "tags": {"ksid": "%v", "%v": "%v"}, "timestamp": %v}]`,
-		value,
-		metric,
-		ksMycenae,
-		tagKey,
-		tagValue,
-		timestamp,
-	)
-
-	tags := map[string]string{tagKey: tagValue}
-
-	sendRESTPayloadStringAndAssertEmpty(t, payload, metric, tags, timestamp, timestamp)
-}
-
 func TestRESTv2PayloadsWithSameMetricTagsTimestamp(t *testing.T) {
 	t.Parallel()
 
@@ -745,7 +724,7 @@ func TestRESTv2PayloadWithInvalidKsid(t *testing.T) {
 
 	p.Tags["ksid"] = "ksMycenae"
 
-	errMessage := "Keyspace not found"
+	errMessage := "Keyspace ksmycenae does not exist"
 
 	sendRESTPayloadStringAndAssertErrorAndEmpty(t, errMessage, p.StringArray(), p.Tags["ksid"], p.Metric, p.Tags, *p.Timestamp, *p.Timestamp)
 }
@@ -1171,88 +1150,13 @@ func TestRESTv2BucketFuturePoints(t *testing.T) {
 		}
 
 		countValue := mycenaeTools.Cassandra.Timeseries.CountValueFromIDSTAMP(ksMycenae, currentBucket)
-		assert.Equal(t, 0, countValue)
+		assert.Equal(t, 1, countValue)
 
 		lastBucket = currentBucket
 		*p.Timestamp = time.Unix(*p.Timestamp, 0).AddDate(0, 0, 7).Unix()
 	}
 
 	assertElastic(t, ksMycenae, p.Metric, p.Tags, hashID)
-}
-
-func TestRESTv2BucketFuturePointsAtOnceAndThenPast(t *testing.T) {
-	t.Parallel()
-
-	payload := make([]tools.Payload, 3)
-
-	metric, tagk, tagv, now := mycenaeTools.Mycenae.GetRandomMetricTags()
-	tags := map[string]string{"ksid": ksMycenae, tagk: tagv}
-
-	for i := 0; i < len(payload); i++ {
-
-		value := float32(i)
-		timestamp := time.Unix(now, 0).AddDate(0, 0, i*7).Unix()
-
-		p := tools.Payload{
-			Value:     &value,
-			Metric:    metric,
-			Tags:      tags,
-			Timestamp: &timestamp,
-		}
-
-		payload[i] = p
-	}
-
-	ps := tools.PayloadSlice{PS: payload}
-
-	statusCode, _, _ := mycenaeTools.HTTP.POST("api/put", ps.Marshal())
-	assert.Equal(t, 204, statusCode)
-	time.Sleep(tools.Sleep3)
-
-	hashID := mycenaeTools.Cassandra.Timeseries.GetHashFromMetricAndTags(metric, tags)
-
-	for i, p := range payload {
-
-		assertMycenae(t, ksMycenae, *p.Timestamp, *p.Timestamp, *p.Value, hashID)
-
-		year, week := time.Unix(*p.Timestamp, 0).ISOWeek()
-		bucket := fmt.Sprintf("%v%v%v", year, week, hashID)
-
-		countValue := mycenaeTools.Cassandra.Timeseries.CountValueFromIDSTAMP(ksMycenae, bucket)
-
-		if i < len(payload)-1 {
-
-			assert.Equal(t, 1, countValue, bucket)
-
-		} else {
-
-			assert.Equal(t, 0, countValue, bucket)
-		}
-	}
-
-	assertElastic(t, ksMycenae, metric, tags, hashID)
-
-	value := float32(len(payload))
-	timestamp := time.Unix(now, 0).AddDate(0, 0, -7).Unix()
-
-	p := tools.Payload{
-		Value:     &value,
-		Metric:    metric,
-		Tags:      tags,
-		Timestamp: &timestamp,
-	}
-
-	year, week := time.Unix(*p.Timestamp, 0).ISOWeek()
-	bucket := fmt.Sprintf("%v%v%v", year, week, hashID)
-
-	statusCode, _ = mycenaeTools.HTTP.POSTstring("api/put", p.StringArray())
-	assert.Equal(t, 204, statusCode)
-	time.Sleep(tools.Sleep3)
-
-	assertMycenae(t, ksMycenae, *p.Timestamp, *p.Timestamp, *p.Value, hashID)
-
-	countValue := mycenaeTools.Cassandra.Timeseries.CountValueFromIDSTAMP(ksMycenae, bucket)
-	assert.Equal(t, 1, countValue)
 }
 
 func TestRESTv2BucketFuturePointsDifferentSeriesAtOnce(t *testing.T) {
@@ -1289,7 +1193,7 @@ func TestRESTv2BucketFuturePointsDifferentSeriesAtOnce(t *testing.T) {
 
 		countValue := mycenaeTools.Cassandra.Timeseries.CountValueFromIDSTAMP(ksMycenae, bucket)
 
-		assert.Equal(t, 0, countValue, bucket)
+		assert.Equal(t, 1, countValue, bucket)
 	}
 }
 

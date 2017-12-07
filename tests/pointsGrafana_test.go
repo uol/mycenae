@@ -556,7 +556,8 @@ func ts16TsdbQuery(keyspace string) {
 
 func TestTsdbQueryConcurrentPoints(t *testing.T) {
 
-	dateStart := int64(1448452800000)
+	dateStart := int64(1448452800)
+	dateStartMili := int64(1448452800000)
 
 	payload := fmt.Sprintf(`{
 		"start": %v,
@@ -566,7 +567,7 @@ func TestTsdbQueryConcurrentPoints(t *testing.T) {
     		"metric": "ts16tsdb",
     		"aggregator": "sum"
     	}]
-	}`, dateStart, dateStart+1560000)
+	}`, dateStartMili, dateStartMili+1560000)
 
 	keys, payloadPoints := postAPIQueryAndCheck(t, payload, "ts16tsdb", 1, 27, 1, 0, 1, "ts16TsdbQuery")
 
@@ -574,7 +575,7 @@ func TestTsdbQueryConcurrentPoints(t *testing.T) {
 
 		assert.Exactly(t, float32(i), float32(payloadPoints[0].Dps[key].(float64)))
 		assert.Exactly(t, strconv.FormatInt(dateStart, 10), key)
-		dateStart += 60000
+		dateStart += 60
 	}
 }
 
@@ -2641,8 +2642,8 @@ func TestTsdbQueryMergeTimeDiffDownsampleExactBeginAndEnd(t *testing.T) {
 func TestTsdbQueryMergeTimeDiffDownsample(t *testing.T) {
 
 	payload := `{
-		"start": 1448452800001,
-		"end": 1448458740001,
+		"start": 1448452800000,
+		"end": 1448458740000,
 		"showTSUIDs": true,
 		"queries": [{
 			"metric": "ts01_2tsdb",

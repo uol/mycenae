@@ -813,7 +813,7 @@ func TestRESTv2TextPayloadValuesWithOnlySpace(t *testing.T) {
 		)
 		tags := map[string]string{"ksid": space, tagKey: tagValue}
 
-		errMessage := "Wrong Format: Tag ksid ( ) is not well formed. NO information will be saved"
+		errMessage := "Wrong Format: Tag value ( ) is not well formed. NO information will be saved"
 
 		sendRESTextPayloadStringAndAssertErrorAndEmpty(t, errMessage, payload, space, metric, tags, timestamp, timestamp)
 		wg.Done()
@@ -909,7 +909,7 @@ func TestRESTv2TextPayloadWithInvalidKsid(t *testing.T) {
 
 	p.Tags["ksid"] = "ksMycenae"
 
-	errMessage := "Keyspace not found"
+	errMessage := "Keyspace ksmycenae does not exist"
 
 	sendRESTextPayloadStringAndAssertErrorAndEmpty(t, errMessage, p.StringArray(), p.Tags["ksid"], p.Metric, p.Tags, *p.Timestamp, *p.Timestamp)
 }
