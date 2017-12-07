@@ -67,7 +67,7 @@ CompactionStrategy = "TimeWindowCompactionStrategy"
 [HTTPserver]
   path = "/"
   port = "8787"
-  bind = "localhost"
+  bind = "0.0.0.0"
 
 [logs.general.file]
   writeTo = true
