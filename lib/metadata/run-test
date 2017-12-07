@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+#
+# Metadata testing script
+#
+ELASTIC_VERSION=""
+DOCKER_ID=$(docker run --detach "elasticsearch:${ELASTIC_VERSION}")
+
+#
+# Tear down
+#
+function cleanup() {
+    docker rm -f "${DOCKER_ID}"
+}
+trap cleanup EXIT
+
+#
+# Run testing
+#
+go test -v -a "./..."
