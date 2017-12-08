@@ -18,6 +18,6 @@ func Create(
 		logger: logger,
 
 		// TODO: fixme
-		backend: nil,
+		Backend: nil,
 	}, nil
 }
