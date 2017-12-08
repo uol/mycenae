@@ -1,9 +1,12 @@
 package metadata
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -12,14 +15,23 @@ func genericMetadataBackendTest(
 	backend Backend,
 	logger *logrus.Logger,
 ) {
+	var (
+		unique = strings.Replace(uuid.New(), "-", "", -1)
+
+		name = fmt.Sprintf("index-%s", unique)
+	)
 	if !assert.NotNil(t, backend, "There should be a backend to test") {
 		return
 	}
 
 	meta := &Storage{
-		backend: backend,
+		Backend: backend,
 		logger:  logger,
 	}
-	_ = meta
 
+	err := meta.CreateIndex(name)
+	assert.NoError(t, err)
+
+	err = meta.DeleteIndex(name)
+	assert.NoError(t, err)
 }
