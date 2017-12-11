@@ -22,8 +22,7 @@ func (backend *elasticBackend) statsIndex(
 	}
 	go backend.statsIncrement("elastic.request", tags)
 	go backend.statsValueAdd(
-		"elastic.request.duration",
-		tags,
+		"elastic.request.duration", tags,
 		float64(duration.Nanoseconds())/float64(time.Millisecond),
 	)
 }
