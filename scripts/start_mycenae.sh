@@ -4,9 +4,9 @@ POD_NAME="mycenae${1}"
 LOGS="/tmp/mycenae-logs/"
 docker rm -f "${POD_NAME}"
 
-#if ! make -C "${GOPATH}/src/github.com/uol/mycenae/" build ; then
-#    exit 1
-#fi
+if ! make -C "${GOPATH}/src/github.com/uol/mycenae/" build ; then
+    exit 1
+fi
 
 scyllaIPs=$(docker inspect --format "{{ .NetworkSettings.IPAddress }}" scylla1 scylla2 scylla3 | sed 's/^.*$/"&"/' | tr '\n' ',' | sed 's/.$//')
 memcachedIPs=$(docker inspect --format "{{ .NetworkSettings.IPAddress }}" memcached1 memcached2 memcached3 | sed 's/^.*$/"&:11211"/' | tr '\n' ',' | sed 's/.$//')
