@@ -46,5 +46,12 @@ func (backend *elasticBackend) CreateIndex(name string) gobol.Error {
 }
 
 func (backend *elasticBackend) DeleteIndex(name string) gobol.Error {
+	start := time.Now()
+	_, err := backend.client.DeleteIndex(name)
+	if err != nil {
+		backend.statsIndexError(name, "elasticBackend", "delete")
+		return newPersistenceError("DeleteIndex", "elasticBackend", err)
+	}
+	backend.statsIndex(name, "", "delete", time.Since(start))
 	return nil
 }
