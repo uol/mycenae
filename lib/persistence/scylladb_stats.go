@@ -2,7 +2,7 @@ package persistence
 
 import "time"
 
-func (backend *scyllaPersistence) statsQuery(
+func (backend *scylladb) statsQuery(
 	keyspace, column, operation string,
 	d time.Duration,
 ) {
@@ -18,7 +18,7 @@ func (backend *scyllaPersistence) statsQuery(
 	)
 }
 
-func (backend *scyllaPersistence) statsQueryError(
+func (backend *scylladb) statsQueryError(
 	keyspace, column, operation string,
 ) {
 	tags := map[string]string{"keyspace": keyspace, "operation": operation}
@@ -31,13 +31,13 @@ func (backend *scyllaPersistence) statsQueryError(
 	)
 }
 
-func (backend *scyllaPersistence) statsIncrement(
+func (backend *scylladb) statsIncrement(
 	metric string, tags map[string]string,
 ) {
 	backend.stats.Increment("keyspace/persistence", metric, tags)
 }
 
-func (backend *scyllaPersistence) statsValueAdd(
+func (backend *scylladb) statsValueAdd(
 	metric string, tags map[string]string, value float64,
 ) {
 	backend.stats.ValueAdd("keyspace/persistence", metric, tags, value)

@@ -1,9 +1,11 @@
 package persistence
 
 import (
+	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/pborman/uuid"
 	"github.com/uol/gobol"
 )
 
@@ -11,7 +13,7 @@ import (
 type Backend interface {
 	// CreateKeyspace should create a keyspace to store data
 	CreateKeyspace(
-		name, datacenter, contact string,
+		ksid, name, datacenter, contact string,
 		ttl time.Duration,
 	) gobol.Error
 
@@ -25,5 +27,12 @@ type Backend interface {
 // Storage is a storage for data
 type Storage struct {
 	logger *logrus.Logger
+
+	// Backend is the thing that actually does the specific work in the storage
 	Backend
+}
+
+// GenerateKeyspaceIdentifier generates the unique ID for keyspaces
+func GenerateKeyspaceIdentifier() string {
+	return "ts_" + strings.Replace(uuid.New(), "-", "_", 4)
 }

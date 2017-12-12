@@ -1,28 +1,28 @@
-package metadata
+package persistence
 
 import (
-	"fmt"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/gocql/gocql"
 	"github.com/stretchr/testify/assert"
-	"github.com/uol/gobol/rubber"
 	"github.com/uol/gobol/snitch"
 	"github.com/uol/mycenae/lib/tsstats"
 )
 
-func TestElasticBackend(t *testing.T) {
-	elasticAddress := os.Getenv("ELASTIC_IP")
-	if len(elasticAddress) <= 0 {
+func TestScylladbBackend(t *testing.T) {
+	scyllaAddress := os.Getenv("SCYLLA_IP")
+	if len(scyllaAddress) <= 0 {
 		t.SkipNow()
 	}
 
 	logger := logrus.New()
-	if assert.NotNil(t, logger) {
+	if !assert.NotNil(t, logger) {
 		return
 	}
+
 	gstats, err := snitch.New(logger, snitch.Settings{
 		Address:  "localhost",
 		Interval: "@every 1m",
@@ -43,14 +43,17 @@ func TestElasticBackend(t *testing.T) {
 		return
 	}
 
-	backend, err := newElasticBackend(logger, nil, rubber.Settings{
-		Seed:    fmt.Sprintf("%s:%d", elasticAddress, 9200),
-		Limit:   100,
-		Timeout: time.Minute,
-		Type:    rubber.ConfigWeightedBackend,
-	})
+	cluster := gocql.NewCluster(scyllaAddress)
+	cluster.ProtoVersion = 3
+	cluster.Timeout = 20 * time.Second
+	session, err := cluster.CreateSession()
+	if !assert.NotNil(t, stats) || !assert.NoError(t, err) {
+		return
+	}
+	defer session.Close()
 
+	backend, err := newScyllaPersistence(session, logger, stats)
 	if assert.NotNil(t, backend) && assert.NoError(t, err) {
-		genericMetadataBackendTest(t, backend, logger)
+		genericPersistenceBackendTest(t, backend, logger)
 	}
 }
