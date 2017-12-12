@@ -8,7 +8,8 @@ import (
 )
 
 func errBasic(
-	method, structure, message string, code int, err error,
+	method, structure, message string,
+	code int, err error,
 ) gobol.Error {
 	if err != nil {
 		return tserr.New(

@@ -16,7 +16,7 @@ trap cleanup EXIT
 #
 # Check docker components
 #
-sleep "5s"
+sleep "30s"
 SCYLLA_IP=$(docker inspect -f '{{ .NetworkSettings.IPAddress }}' "${DOCKER_ID}")
 export SCYLLA_IP
 

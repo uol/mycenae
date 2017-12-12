@@ -10,12 +10,14 @@ import (
 	"github.com/uol/mycenae/lib/tsstats"
 )
 
-type scyllaPersistence struct {
+type scylladb struct {
 	session *gocql.Session
 	logger  *logrus.Logger
 	stats   *tsstats.StatsTS
 
-	ksMngr string
+	ksMngr     string
+	ttl        time.Duration
+	compaction string
 }
 
 func newScyllaPersistence(
@@ -23,25 +25,58 @@ func newScyllaPersistence(
 	logger *logrus.Logger,
 	stats *tsstats.StatsTS,
 ) (Backend, error) {
-	return &scyllaPersistence{
+	return &scylladb{
 		session: session,
 		logger:  logger,
 		stats:   stats,
+
+		ksMngr:     "macs",
+		ttl:        30 * 24 * 60 * 60,
+		compaction: "SizeTieredCompactionStrategy",
 	}, nil
 }
 
-func (backend *scyllaPersistence) CreateKeyspace(
-	name, datacenter, contact string,
+func (backend *scylladb) CreateKeyspace(
+	ksid, name, datacenter, contact string,
 	ttl time.Duration,
 ) gobol.Error {
-	return newUnimplementedMethod("CreateKeyspace", "scyllaPersistence")
+	start := time.Now()
+	keyspace := Keyspace{
+		ID:      ksid,
+		Name:    name,
+		DC:      datacenter,
+		Contact: contact,
+	}
+	if err := backend.createKeyspace(keyspace); err != nil {
+		return err
+	}
+	if err := backend.createNumericTable(keyspace); err != nil {
+		return err
+	}
+	if err := backend.createTextTable(keyspace); err != nil {
+		return err
+	}
+	if err := backend.setPermissions(keyspace); err != nil {
+		return err
+	}
+
+	backend.statsQuery(keyspace.ID, "", "create", time.Since(start))
+	return nil
 }
 
-func (backend *scyllaPersistence) DeleteKeyspace(id string) gobol.Error {
-	return newUnimplementedMethod("DeleteKeyspace", "scyllaPersistence")
+func (backend *scylladb) DeleteKeyspace(id string) gobol.Error {
+	start := time.Now()
+	query := fmt.Sprintf(formatDeleteKeyspace, id)
+	if err := backend.session.Query(query).Exec(); err != nil {
+		backend.statsQueryError(id, "", "drop")
+		return errPersist("DeleteKeyspace", "scylladb", err)
+	}
+
+	backend.statsQuery(id, "", "drop", time.Since(start))
+	return nil
 }
 
-func (backend *scyllaPersistence) ListKeyspaces() ([]Keyspace, gobol.Error) {
+func (backend *scylladb) ListKeyspaces() ([]Keyspace, gobol.Error) {
 	query := `SELECT key, name, contact, datacenter, ks_ttl FROM %s.ts_keyspace`
 	start := time.Now()
 	iter := backend.session.Query(fmt.Sprintf(query, backend.ksMngr)).Iter()
@@ -71,14 +106,14 @@ func (backend *scyllaPersistence) ListKeyspaces() ([]Keyspace, gobol.Error) {
 			)
 			return []Keyspace{}, errNoContent(
 				"ListKeyspaces",
-				"scyllaPersistence",
+				"scylladb",
 			)
 		}
 
 		backend.statsQueryError(backend.ksMngr, "ts_keyspace", "select")
 		return []Keyspace{}, errPersist(
 			"ListKeyspaces",
-			"scyllaPersistence",
+			"scylladb",
 			err,
 		)
 	}
