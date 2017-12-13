@@ -16,11 +16,11 @@ type scylladb struct {
 	stats   *tsstats.StatsTS
 
 	ksMngr     string
-	ttl        time.Duration
 	compaction string
 }
 
 func newScyllaPersistence(
+	ksAdmin string,
 	session *gocql.Session,
 	logger *logrus.Logger,
 	stats *tsstats.StatsTS,
@@ -30,8 +30,7 @@ func newScyllaPersistence(
 		logger:  logger,
 		stats:   stats,
 
-		ksMngr:     "macs",
-		ttl:        30 * 24 * 60 * 60,
+		ksMngr:     ksAdmin,
 		compaction: "SizeTieredCompactionStrategy",
 	}, nil
 }
@@ -40,13 +39,19 @@ func (backend *scylladb) CreateKeyspace(
 	ksid, name, datacenter, contact string,
 	ttl time.Duration,
 ) gobol.Error {
-	start := time.Now()
 	keyspace := Keyspace{
 		ID:      ksid,
 		Name:    name,
 		DC:      datacenter,
 		Contact: contact,
 	}
+
+	// Timing for this management part is executed separately
+	if err := backend.addKeyspaceMetadata(keyspace); err != nil {
+		return err
+	}
+
+	start := time.Now()
 	if err := backend.createKeyspace(keyspace); err != nil {
 		return err
 	}
@@ -59,7 +64,6 @@ func (backend *scylladb) CreateKeyspace(
 	if err := backend.setPermissions(keyspace); err != nil {
 		return err
 	}
-
 	backend.statsQuery(keyspace.ID, "", "create", time.Since(start))
 	return nil
 }

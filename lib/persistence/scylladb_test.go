@@ -1,6 +1,7 @@
 package persistence
 
 import (
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -11,6 +12,16 @@ import (
 	"github.com/uol/gobol/snitch"
 	"github.com/uol/mycenae/lib/tsstats"
 )
+
+func createBasicTables(session *gocql.Session) error {
+	for _, query := range basicEnvironmentQueries {
+		if err := session.Query(query).Exec(); err != nil {
+			fmt.Fprintf(os.Stderr, "Query: %s\n", query)
+			return err
+		}
+	}
+	return nil
+}
 
 func TestScylladbBackend(t *testing.T) {
 	scyllaAddress := os.Getenv("SCYLLA_IP")
@@ -52,7 +63,14 @@ func TestScylladbBackend(t *testing.T) {
 	}
 	defer session.Close()
 
-	backend, err := newScyllaPersistence(session, logger, stats)
+	if !assert.NoError(t, createBasicTables(session)) {
+		return
+	}
+
+	backend, err := newScyllaPersistence(
+		scyllaMainKeyspace,
+		session, logger, stats,
+	)
 	if assert.NotNil(t, backend) && assert.NoError(t, err) {
 		genericPersistenceBackendTest(t, backend, logger)
 	}
