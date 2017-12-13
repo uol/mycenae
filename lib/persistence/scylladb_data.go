@@ -1,5 +1,7 @@
 package persistence
 
+const formatAddKeyspace = `INSERT INTO %s.ts_keyspace (key, name, contact, datacenter, ks_ttl) VALUES (?, ?, ?, ?, ?)`
+
 const formatCreateKeyspace = `
     CREATE KEYSPACE %s WITH replication={
         'class': 'NetworkTopologyStrategy',
