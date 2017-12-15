@@ -26,10 +26,20 @@ func genericPersistenceBackendTest(
 		logger:  logger,
 		Backend: backend,
 	}
+	_ = storage
 
-	err := storage.CreateKeyspace(unique, name, datacenter, contact, ttl)
+	err := backend.CreateKeyspace(unique, name, datacenter, contact, ttl)
 	if !assert.NoError(t, err) {
 		return
 	}
-	assert.NoError(t, storage.DeleteKeyspace(unique))
+
+	keyspace, found, err := backend.GetKeyspace(unique)
+	if assert.NoError(t, err) && assert.True(t, found) {
+		assert.Equal(t, name, keyspace.Name)
+		assert.Equal(t, datacenter, keyspace.DC)
+		assert.Equal(t, contact, keyspace.Contact)
+		assert.Equal(t, ttl, keyspace.TTL)
+	}
+
+	assert.NoError(t, backend.DeleteKeyspace(unique))
 }

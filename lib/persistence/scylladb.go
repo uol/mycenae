@@ -37,13 +37,14 @@ func newScyllaPersistence(
 
 func (backend *scylladb) CreateKeyspace(
 	ksid, name, datacenter, contact string,
-	ttl time.Duration,
+	ttl int,
 ) gobol.Error {
 	keyspace := Keyspace{
 		ID:      ksid,
 		Name:    name,
 		DC:      datacenter,
 		Contact: contact,
+		TTL:     ttl,
 	}
 
 	// Timing for this management part is executed separately
@@ -129,4 +130,19 @@ func (backend *scylladb) ListKeyspaces() ([]Keyspace, gobol.Error) {
 		time.Since(start),
 	)
 	return keyspaces, nil
+}
+
+func (backend *scylladb) GetKeyspace(id string) (Keyspace, bool, gobol.Error) {
+	var (
+		query = fmt.Sprintf(formatGetKeyspace, backend.ksMngr)
+		ks    = Keyspace{ID: id}
+	)
+	if err := backend.session.Query(query, id).Scan(
+		&ks.Name, &ks.Contact, &ks.DC, &ks.TTL,
+	); err == gocql.ErrNotFound {
+		return Keyspace{}, false, nil
+	} else if err != nil {
+		return Keyspace{}, false, errPersist("GetKeyspace", "scylladb", err)
+	}
+	return ks, true, nil
 }
