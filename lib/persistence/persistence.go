@@ -4,22 +4,21 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/gocql/gocql"
 	"github.com/pborman/uuid"
 	"github.com/uol/gobol"
 	"github.com/uol/mycenae/lib/metadata"
+	"github.com/uol/mycenae/lib/tsstats"
 )
 
 // Backend hides the underlying implementation of the persistence
 type Backend interface {
 	// CreateKeyspace should create a keyspace to store data
 	CreateKeyspace(ksid, name, datacenter, contact string, ttl int) gobol.Error
-
 	// DeleteKeyspace should delete a keyspace from the database
 	DeleteKeyspace(id string) gobol.Error
-
 	// ListKeyspaces should return a list of all available keyspaces
 	ListKeyspaces() ([]Keyspace, gobol.Error)
-
 	// GetKeyspace should return the management data regarding the keyspace
 	GetKeyspace(id string) (Keyspace, bool, gobol.Error)
 }
@@ -35,44 +34,24 @@ type Storage struct {
 
 // NewStorage creates a new storage persistence
 func NewStorage(
-	logger *logrus.Logger, metadata *metadata.Storage,
+	ksAdmin string,
+	logger *logrus.Logger,
+	session *gocql.Session,
+	metadata *metadata.Storage,
+	stats *tsstats.StatsTS,
 ) (*Storage, error) {
+	backend, err := newScyllaPersistence(ksAdmin, session, logger, stats)
+	if err != nil {
+		return nil, err
+	}
 	return &Storage{
 		logger:   logger,
 		metadata: metadata,
-		Backend:  nil,
+		Backend:  backend,
 	}, nil
 }
 
 // GenerateKeyspaceIdentifier generates the unique ID for keyspaces
 func GenerateKeyspaceIdentifier() string {
 	return "ts_" + strings.Replace(uuid.New(), "-", "_", 4)
-}
-
-// CreateKeyspace is a wrapper around the Backend in order to create metadata
-// with the actual keyspace creation
-func (storage *Storage) CreateKeyspace(
-	ksid, name, datacenter, contact string, ttl int,
-) gobol.Error {
-	if err := storage.metadata.CreateIndex(ksid); err != nil {
-		return err
-	}
-	if err := storage.Backend.CreateKeyspace(
-		ksid, name, datacenter, contact, ttl,
-	); err != nil {
-		return err
-	}
-	return nil
-}
-
-// DeleteKeyspace is a wrapper around keyspace deletion to ensure the metadata
-// is deleted with the keyspace
-func (storage *Storage) DeleteKeyspace(id string) gobol.Error {
-	if err := storage.metadata.DeleteIndex(id); err != nil {
-		return err
-	}
-	if err := storage.Backend.DeleteKeyspace(id); err != nil {
-		return err
-	}
-	return nil
 }

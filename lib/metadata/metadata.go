@@ -3,6 +3,8 @@ package metadata
 import (
 	"github.com/Sirupsen/logrus"
 	"github.com/uol/gobol"
+	"github.com/uol/gobol/rubber"
+	"github.com/uol/mycenae/lib/tsstats"
 )
 
 // Backend hides the underlying implementation of the metadata storage
@@ -20,4 +22,20 @@ type Storage struct {
 
 	// Backend is the thing that actually does the specific work in the storage
 	Backend
+}
+
+// Create creates a metadata handler
+func Create(
+	settings rubber.Settings,
+	logger *logrus.Logger,
+	stats *tsstats.StatsTS,
+) (*Storage, error) {
+	backend, err := newElasticBackend(logger, stats, settings)
+	if err != nil {
+		return nil, err
+	}
+	return &Storage{
+		logger:  logger,
+		Backend: backend,
+	}, nil
 }
