@@ -72,3 +72,5 @@ const formatCreateTextTable = `
 `
 
 const formatDeleteKeyspace = `DROP KEYSPACE IF EXISTS %s`
+
+const formatGetKeyspace = `SELECT name, contact, datacenter, ks_ttl FROM %s.ts_keyspace WHERE key = ?`
