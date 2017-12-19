@@ -20,6 +20,8 @@ import (
 	"github.com/uol/mycenae/lib/collector"
 	"github.com/uol/mycenae/lib/keyspace"
 	"github.com/uol/mycenae/lib/memcached"
+	"github.com/uol/mycenae/lib/metadata"
+	"github.com/uol/mycenae/lib/persistence"
 	"github.com/uol/mycenae/lib/plot"
 	"github.com/uol/mycenae/lib/rest"
 	"github.com/uol/mycenae/lib/structs"
@@ -82,6 +84,31 @@ func main() {
 	}
 	defer cass.Close()
 
+	// --- Including metadata and persistence ---
+	meta, err := metadata.Create(
+		settings.ElasticSearch.Cluster,
+		tsLogger.General,
+		tssts,
+	)
+	if err != nil {
+		tsLogger.General.Fatalf("Error creating metadata backend")
+	}
+
+	storage, err := persistence.NewStorage(
+		settings.Cassandra.Keyspace,
+		settings.Cassandra.Username,
+		tsLogger.General,
+		cass,
+		meta,
+		tssts,
+	)
+	if err != nil {
+		tsLogger.General.Fatalf("Error creating persistence backend")
+	}
+
+	_ = storage
+	// --- End of metadata and persistence ---
+
 	es, err := rubber.New(tsLogger.General, settings.ElasticSearch.Cluster)
 	if err != nil {
 		tsLogger.General.Error("ERROR - Connecting to elasticsearch: ", err)
@@ -96,27 +123,6 @@ func main() {
 		devMode,
 		settings.DefaultTTL,
 	)
-
-	if devMode {
-		tsLogger.General.Info("DEV MODE IS ENABLED!")
-	}
-
-	tsLogger.General.Info("Creating default keyspaces: ", settings.DefaultKeyspaces)
-	keyspaceTTLMap := map[uint8]string{}
-	for k, ttl := range settings.DefaultKeyspaces {
-		gerr := ks.CreateKeyspace(keyspace.Config{
-			TTL: ttl,
-			Name: k,
-			ReplicationFactor: settings.DefaultKeyspaceData.ReplicationFactor,
-			Datacenter: settings.DefaultKeyspaceData.Datacenter,
-			Contact: settings.DefaultKeyspaceData.Contact,
-		})
-		keyspaceTTLMap[ttl] = k
-		if gerr != nil && gerr.StatusCode() != http.StatusConflict {
-			tsLogger.General.Error(gerr)
-			os.Exit(1)
-		}
-	}
 
 	mc, err := memcached.New(tssts, &settings.Memcached)
 	if err != nil {

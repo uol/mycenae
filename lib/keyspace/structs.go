@@ -5,6 +5,7 @@ import (
 	"github.com/uol/gobol"
 )
 
+// Config is the json format for the keyspace configuration
 type Config struct {
 	Name              string `json:"name"`
 	Datacenter        string `json:"datacenter"`
@@ -13,6 +14,7 @@ type Config struct {
 	TTL               uint8  `json:"ttl"`
 }
 
+// Validate checks if config is valid
 func (c *Config) Validate() gobol.Error {
 
 	if c.Datacenter == "" {
@@ -37,6 +39,7 @@ func (c *Config) Validate() gobol.Error {
 	return nil
 }
 
+// Validate checks if the update to the keyspace will be valid
 func (c *ConfigUpdate) Validate() gobol.Error {
 
 	if !govalidator.IsEmail(c.Contact) {
@@ -46,14 +49,17 @@ func (c *ConfigUpdate) Validate() gobol.Error {
 	return nil
 }
 
+// ConfigUpdate is the json format for a keyspace update request
 type ConfigUpdate struct {
 	Contact string `json:"contact,omitempty"`
 }
 
+// CreateResponse is the json format for a keyspace creation endpoint response
 type CreateResponse struct {
 	Ksid string `json:"ksid,omitempty"`
 }
 
+// Response is a generic endpoint response
 type Response struct {
 	TotalRecords int         `json:"totalRecords,omitempty"`
 	Payload      interface{} `json:"payload,omitempty"`

@@ -47,3 +47,10 @@ func errNoContent(method, structure string) gobol.Error {
 func errPersist(method, structure string, err error) gobol.Error {
 	return errBasic(method, structure, err.Error(), http.StatusInternalServerError, err)
 }
+
+func errConflict(method, structure, message string) gobol.Error {
+	return errBasic(
+		method, structure, message,
+		http.StatusConflict, errors.New(message),
+	)
+}

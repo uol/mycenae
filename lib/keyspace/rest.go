@@ -5,8 +5,10 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/uol/gobol/rip"
+	storage "github.com/uol/mycenae/lib/persistence"
 )
 
+// Create is a rest endpoint to create a keyspace
 func (kspace *Keyspace) Create(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	ks := ps.ByName("keyspace")
@@ -16,8 +18,12 @@ func (kspace *Keyspace) Create(w http.ResponseWriter, r *http.Request, ps httpro
 		return
 	}
 
-	if !validKey.MatchString(ks) {
-		rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace"})
+	if !storage.ValidateKey(ks) {
+		rip.AddStatsMap(r,
+			map[string]string{
+				"path": "/keyspaces/#keyspace",
+			},
+		)
 		rip.Fail(w, errValidationS(
 			"CreateKeyspace",
 			`Wrong Format: Field "keyspaceName" is not well formed. NO information will be saved`,
@@ -61,6 +67,8 @@ func (kspace *Keyspace) Create(w http.ResponseWriter, r *http.Request, ps httpro
 	return
 }
 
+// Update is a rest endpoint that takes care of updating the keyspace metadata
+// information
 func (kspace *Keyspace) Update(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	ks := ps.ByName("keyspace")
@@ -92,6 +100,7 @@ func (kspace *Keyspace) Update(w http.ResponseWriter, r *http.Request, ps httpro
 	return
 }
 
+// GetAll is a rest endpoint that returns all the datacenters
 func (kspace *Keyspace) GetAll(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	keyspaces, total, gerr := kspace.listAllKeyspaces()
@@ -114,6 +123,7 @@ func (kspace *Keyspace) GetAll(w http.ResponseWriter, r *http.Request, ps httpro
 	return
 }
 
+// Check verifies if a keyspace exists
 func (kspace *Keyspace) Check(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	ks := ps.ByName("keyspace")
@@ -136,6 +146,7 @@ func (kspace *Keyspace) Check(w http.ResponseWriter, r *http.Request, ps httprou
 	return
 }
 
+// ListDC lists all the datacenters in the cassandra / scylladb cluster
 func (kspace *Keyspace) ListDC(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	datacenters, gerr := kspace.listDatacenters()

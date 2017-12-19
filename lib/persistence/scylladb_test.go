@@ -24,6 +24,10 @@ func createBasicTables(session *gocql.Session) error {
 }
 
 func TestScylladbBackend(t *testing.T) {
+	const (
+		username = ""
+		password = ""
+	)
 	scyllaAddress := os.Getenv("SCYLLA_IP")
 	if len(scyllaAddress) <= 0 {
 		t.SkipNow()
@@ -57,6 +61,10 @@ func TestScylladbBackend(t *testing.T) {
 	cluster := gocql.NewCluster(scyllaAddress)
 	cluster.ProtoVersion = 3
 	cluster.Timeout = 20 * time.Second
+	cluster.Authenticator = gocql.PasswordAuthenticator{
+		Username: username,
+		Password: password,
+	}
 	session, err := cluster.CreateSession()
 	if !assert.NotNil(t, stats) || !assert.NoError(t, err) {
 		return
@@ -68,7 +76,7 @@ func TestScylladbBackend(t *testing.T) {
 	}
 
 	backend, err := newScyllaPersistence(
-		scyllaMainKeyspace,
+		scyllaMainKeyspace, username,
 		session, logger, stats,
 	)
 	if assert.NotNil(t, backend) && assert.NoError(t, err) {

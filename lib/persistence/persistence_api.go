@@ -5,17 +5,18 @@ import "github.com/uol/gobol"
 // CreateKeyspace is a wrapper around the Backend in order to create metadata
 // with the actual keyspace creation
 func (storage *Storage) CreateKeyspace(
-	ksid, name, datacenter, contact string, ttl int,
-) gobol.Error {
+	name, datacenter, contact string, ttl int,
+) (string, gobol.Error) {
+	ksid := GenerateKeyspaceIdentifier()
 	if err := storage.metadata.CreateIndex(ksid); err != nil {
-		return err
+		return "", err
 	}
 	if err := storage.Backend.CreateKeyspace(
 		ksid, name, datacenter, contact, ttl,
 	); err != nil {
-		return err
+		return "", err
 	}
-	return nil
+	return ksid, nil
 }
 
 // DeleteKeyspace is a wrapper around keyspace deletion to ensure the metadata

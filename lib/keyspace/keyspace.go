@@ -1,11 +1,11 @@
 package keyspace
 
 import (
-	"fmt"
 	"regexp"
+	"strings"
 
-	"github.com/gocql/gocql"
 	"github.com/uol/gobol"
+	"github.com/uol/gobol/rubber"
 
 	"github.com/uol/mycenae/lib/tsstats"
 )
@@ -15,9 +15,10 @@ var (
 	stats    *tsstats.StatsTS
 )
 
+// New creates a new keyspace manager
 func New(
 	sts *tsstats.StatsTS,
-	cass *gocql.Session,
+	persist *storage.Storage,
 	usernameGrant,
 	keyspaceMain string,
 	devMode bool,
@@ -27,19 +28,21 @@ func New(
 	validKey = regexp.MustCompile(`^[A-Za-z]{1}[0-9A-Za-z_]+$`)
 	stats = sts
 
+	if compaction == "" {
+		compaction = DefaultCompaction
+	}
+
 	return &Keyspace{
-		persist: persistence{
-			cassandra:     cass,
-			usernameGrant: usernameGrant,
-			keyspaceMain:  keyspaceMain,
-		},
+		Storage: persist,
 		devMode:    devMode,
 		defaultTTL: defaultTTL,
 	}
 }
 
+// Keyspace is a structure that represents the functionality of this module
 type Keyspace struct {
-	persist    persistence
+	*storage.Storage
+	persist *persistence
 	devMode    bool
 	defaultTTL uint8
 }
@@ -116,6 +119,7 @@ func (keyspace Keyspace) checkKeyspace(key string) gobol.Error {
 	return keyspace.persist.checkKeyspace(key)
 }
 
+// GetKeyspace retrieves keyspace metadata
 func (keyspace Keyspace) GetKeyspace(key string) (Config, bool, gobol.Error) {
 	return keyspace.persist.getKeyspace(key)
 }
