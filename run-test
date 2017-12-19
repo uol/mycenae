@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+#
+# Unit testing script
+#
+ELASTIC_VERSION="2.4.1"
+ELASTIC_ID=$(docker run --detach "elasticsearch:${ELASTIC_VERSION}")
+
+SCYLLADB_VERSION="2.0.2"
+SCYLLADB_ID=$(docker run --detach "scylladb/scylla:${SCYLLADB_VERSION}")
+
+
+#
+# Tear down
+#
+function cleanup() {
+    docker rm -f "${ELASTIC_ID}" "${SCYLLADB_ID}" &> "/dev/null"
+}
+trap cleanup EXIT
+
+#
+# Check docker components
+#
+sleep "1m"
+
+FORMAT='{{ .NetworkSettings.IPAddress }}'
+ELASTIC_IP=$(docker inspect -f "${FORMAT}" "${ELASTIC_ID}")
+SCYLLA_IP=$(docker inspect -f "${FORMAT}" "${SCYLLADB_ID}")
+
+export ELASTIC_IP SCYLLA_IP
+
+#
+# Run testing
+#
+go test -v -a \
+    "github.com/uol/mycenae/lib/metadata/..." \
+    "github.com/uol/mycenae/lib/persistence/..."

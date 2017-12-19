@@ -74,3 +74,12 @@ const formatCreateTextTable = `
 const formatDeleteKeyspace = `DROP KEYSPACE IF EXISTS %s`
 
 const formatGetKeyspace = `SELECT name, contact, datacenter, ks_ttl FROM %s.ts_keyspace WHERE key = ?`
+
+const formatGetKeyspaceByName = `SELECT key, contact, datacenter, ks_ttl FROM %s.ts_keyspace WHERE name = ? ALLOW FILTERING`
+
+var formatGrants = []string{
+	`GRANT MODIFY ON KEYSPACE %s TO %s`,
+	`GRANT SELECT ON KEYSPACE %s TO %s`,
+}
+
+const formatUpdateKeyspace = `UPDATE %s.ts_keyspace SET name = ?, contact = ? WHERE key = ?`

@@ -10,18 +10,15 @@ import (
 )
 
 func errInit(s string) gobol.Error {
-
 	return tserr.New(
 		errors.New(s),
 		s,
 		http.StatusInternalServerError,
 		map[string]interface{}{
-			"package": "plot",
-			"func":    "New",
+			"package":  "plot",
+			"function": "New",
 		},
 	)
-
-	return nil
 }
 
 func errBasic(f, s string, code int, e error) gobol.Error {

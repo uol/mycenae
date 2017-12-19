@@ -17,15 +17,17 @@ import (
 	"github.com/uol/gobol/saw"
 	"github.com/uol/gobol/snitch"
 
+	"github.com/uol/mycenae/lib/cache"
 	"github.com/uol/mycenae/lib/collector"
 	"github.com/uol/mycenae/lib/keyspace"
 	"github.com/uol/mycenae/lib/memcached"
+	"github.com/uol/mycenae/lib/metadata"
+	"github.com/uol/mycenae/lib/persistence"
 	"github.com/uol/mycenae/lib/plot"
 	"github.com/uol/mycenae/lib/rest"
 	"github.com/uol/mycenae/lib/structs"
 	"github.com/uol/mycenae/lib/tsstats"
 	"github.com/uol/mycenae/lib/udp"
-	"github.com/uol/mycenae/lib/cache"
 )
 
 func main() {
@@ -78,6 +80,31 @@ func main() {
 		os.Exit(1)
 	}
 	defer cass.Close()
+
+	// --- Including metadata and persistence ---
+	meta, err := metadata.Create(
+		settings.ElasticSearch.Cluster,
+		tsLogger.General,
+		tssts,
+	)
+	if err != nil {
+		tsLogger.General.Fatalf("Error creating metadata backend")
+	}
+
+	storage, err := persistence.NewStorage(
+		settings.Cassandra.Keyspace,
+		settings.Cassandra.Username,
+		tsLogger.General,
+		cass,
+		meta,
+		tssts,
+	)
+	if err != nil {
+		tsLogger.General.Fatalf("Error creating persistence backend")
+	}
+
+	_ = storage
+	// --- End of metadata and persistence ---
 
 	es, err := rubber.New(tsLogger.General, settings.ElasticSearch.Cluster)
 	if err != nil {

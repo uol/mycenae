@@ -73,5 +73,16 @@ func (backend *scylladb) createTextTable(ks Keyspace) gobol.Error {
 }
 
 func (backend *scylladb) setPermissions(ks Keyspace) gobol.Error {
+	if len(backend.grantUsername) <= 0 {
+		return nil
+	}
+
+	for _, format := range formatGrants {
+		query := fmt.Sprintf(format, ks.ID, backend.grantUsername)
+		if err := backend.session.Query(query).Exec(); err != nil {
+			backend.statsQueryError(ks.ID, "", "create")
+			return errPersist("setPermissions", "scylladb", err)
+		}
+	}
 	return nil
 }

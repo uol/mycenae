@@ -5,19 +5,31 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/uol/gobol/rip"
+	storage "github.com/uol/mycenae/lib/persistence"
 )
 
-func (kspace *Keyspace) Create(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-
+// Create is a rest endpoint to create a keyspace
+func (kspace *Keyspace) Create(
+	w http.ResponseWriter, r *http.Request, ps httprouter.Params,
+) {
 	ks := ps.ByName("keyspace")
 	if ks == "" {
-		rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace", "keyspace": "empty"})
+		rip.AddStatsMap(r,
+			map[string]string{
+				"path":     "/keyspaces/#keyspace",
+				"keyspace": "empty",
+			},
+		)
 		rip.Fail(w, errNotFound("Create"))
 		return
 	}
 
-	if !validKey.MatchString(ks) {
-		rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace"})
+	if !storage.ValidateKey(ks) {
+		rip.AddStatsMap(r,
+			map[string]string{
+				"path": "/keyspaces/#keyspace",
+			},
+		)
 		rip.Fail(w, errValidationS(
 			"CreateKeyspace",
 			`Wrong Format: Field "keyspaceName" is not well formed. NO information will be saved`,
@@ -25,32 +37,41 @@ func (kspace *Keyspace) Create(w http.ResponseWriter, r *http.Request, ps httpro
 		return
 	}
 
-	rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace", "keyspace": ks})
+	rip.AddStatsMap(r,
+		map[string]string{
+			"path":     "/keyspaces/#keyspace",
+			"keyspace": ks,
+		},
+	)
 
-	ksc := Config{}
-
-	gerr := rip.FromJSON(r, &ksc)
-	if gerr != nil {
-		rip.Fail(w, gerr)
+	var ksc Config
+	err := rip.FromJSON(r, &ksc)
+	if err != nil {
+		rip.Fail(w, err)
 		return
 	}
-
 	ksc.Name = ks
-
-	keyspaceKey, gerr := kspace.createKeyspace(ksc)
-	if gerr != nil {
-		rip.Fail(w, gerr)
+	ksid, err := kspace.CreateKeyspace(
+		ksc.Name,
+		ksc.Datacenter,
+		ksc.Contact,
+		ksc.TTL,
+	)
+	if err != nil {
+		rip.Fail(w, err)
 		return
 	}
 
 	out := CreateResponse{
-		Ksid: keyspaceKey,
+		Ksid: ksid,
 	}
 
 	rip.SuccessJSON(w, http.StatusCreated, out)
 	return
 }
 
+// Update is a rest endpoint that takes care of updating the keyspace metadata
+// information
 func (kspace *Keyspace) Update(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	ks := ps.ByName("keyspace")
@@ -69,7 +90,7 @@ func (kspace *Keyspace) Update(w http.ResponseWriter, r *http.Request, ps httpro
 		return
 	}
 
-	gerr = kspace.updateKeyspace(ksc, ks)
+	gerr = kspace.UpdateKeyspace(ks, ksc.Name, ksc.Contact)
 	if gerr != nil {
 		rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace"})
 		rip.Fail(w, gerr)
@@ -82,6 +103,7 @@ func (kspace *Keyspace) Update(w http.ResponseWriter, r *http.Request, ps httpro
 	return
 }
 
+// GetAll is a rest endpoint that returns all the datacenters
 func (kspace *Keyspace) GetAll(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	keyspaces, total, gerr := kspace.listAllKeyspaces()
@@ -104,6 +126,7 @@ func (kspace *Keyspace) GetAll(w http.ResponseWriter, r *http.Request, ps httpro
 	return
 }
 
+// Check verifies if a keyspace exists
 func (kspace *Keyspace) Check(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	ks := ps.ByName("keyspace")
@@ -126,6 +149,7 @@ func (kspace *Keyspace) Check(w http.ResponseWriter, r *http.Request, ps httprou
 	return
 }
 
+// ListDC lists all the datacenters in the cassandra / scylladb cluster
 func (kspace *Keyspace) ListDC(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	datacenters, gerr := kspace.listDatacenters()

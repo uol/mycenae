@@ -130,23 +130,6 @@ func (persist *persistence) createKeyspaceMeta(ksc Config, key string) gobol.Err
 	return nil
 }
 
-func (persist *persistence) updateKeyspace(ksc ConfigUpdate, key string) gobol.Error {
-	start := time.Now()
-
-	if err := persist.cassandra.Query(
-		fmt.Sprintf(`UPDATE %s.ts_keyspace SET name = ?, contact = ? WHERE key = ?`, persist.keyspaceMain),
-		ksc.Name,
-		ksc.Contact,
-		key,
-	).Exec(); err != nil {
-		statsQueryError(persist.keyspaceMain, "ts_keyspace", "update")
-		return errPersist("UpdateKeyspace", err)
-	}
-
-	statsQuery(persist.keyspaceMain, "ts_keyspace", "update", time.Since(start))
-	return nil
-}
-
 func (persist *persistence) countByValueInColumn(column string, table string, namespace string, funcName string, value string) (int, gobol.Error) {
 
 	start := time.Now()

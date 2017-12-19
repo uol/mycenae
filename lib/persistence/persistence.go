@@ -21,6 +21,9 @@ type Backend interface {
 	ListKeyspaces() ([]Keyspace, gobol.Error)
 	// GetKeyspace should return the management data regarding the keyspace
 	GetKeyspace(id string) (Keyspace, bool, gobol.Error)
+	// UpdateKeyspace should update metadata and contact information about the
+	// keyspace
+	UpdateKeyspace(ksid, name, contact string) gobol.Error
 }
 
 // Storage is a storage for data
@@ -35,12 +38,15 @@ type Storage struct {
 // NewStorage creates a new storage persistence
 func NewStorage(
 	ksAdmin string,
+	grantUser string,
 	logger *logrus.Logger,
 	session *gocql.Session,
 	metadata *metadata.Storage,
 	stats *tsstats.StatsTS,
 ) (*Storage, error) {
-	backend, err := newScyllaPersistence(ksAdmin, session, logger, stats)
+	backend, err := newScyllaPersistence(
+		ksAdmin, grantUser, session, logger, stats,
+	)
 	if err != nil {
 		return nil, err
 	}

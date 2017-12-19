@@ -18,6 +18,7 @@ var (
             contact text,
             datacenter text,
             ks_ttl int
-        )`, scyllaMainKeyspace),
+		)`, scyllaMainKeyspace),
+		// fmt.Sprintf(`CREATE INDEX ts_keyspace_name_index ON %s.ts_keyspace (name)`, scyllaMainKeyspace),
 	}
 )

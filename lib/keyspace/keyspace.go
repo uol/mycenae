@@ -1,15 +1,13 @@
 package keyspace
 
 import (
-	"fmt"
 	"regexp"
 	"strings"
 
-	"github.com/gocql/gocql"
 	"github.com/pborman/uuid"
 	"github.com/uol/gobol"
-	"github.com/uol/gobol/rubber"
 
+	storage "github.com/uol/mycenae/lib/persistence"
 	"github.com/uol/mycenae/lib/tsstats"
 )
 
@@ -23,10 +21,10 @@ var (
 // will use for timeseries data
 const DefaultCompaction = "com.jeffjirsa.cassandra.db.compaction.TimeWindowCompactionStrategy"
 
+// New creates a new keyspace manager
 func New(
 	sts *tsstats.StatsTS,
-	cass *gocql.Session,
-	es *rubber.Elastic,
+	persist *storage.Storage,
 	usernameGrant,
 	keyspaceMain string,
 	compaction string,
@@ -42,114 +40,15 @@ func New(
 	}
 
 	return &Keyspace{
-		persist: persistence{
-			cassandra:     cass,
-			esearch:       es,
-			usernameGrant: usernameGrant,
-			keyspaceMain:  keyspaceMain,
-			compaction:    compaction,
-		},
+		Storage: persist,
 	}
 }
 
+// Keyspace is a structure that represents the functionality of this module
 type Keyspace struct {
-	persist persistence
-}
+	*storage.Storage
 
-func (keyspace Keyspace) createKeyspace(ksc Config) (string, gobol.Error) {
-
-	count, gerr := keyspace.persist.countKeyspaceByName(ksc.Name)
-	if gerr != nil {
-		return "", gerr
-	}
-	if count != 0 {
-		return "", errConflict(
-			"CreateKeyspace",
-			fmt.Sprintf(`Cannot create because keyspace "%s" already exists`, ksc.Name),
-		)
-	}
-
-	count, gerr = keyspace.persist.countDatacenterByName(ksc.Datacenter)
-	if gerr != nil {
-		return "", gerr
-	}
-	if count == 0 {
-		return "", errValidationS(
-			"CreateKeyspace",
-			fmt.Sprintf(`Cannot create because datacenter "%s" not exists`, ksc.Datacenter),
-		)
-	}
-
-	key := generateKey()
-
-	gerr = keyspace.persist.createKeyspace(ksc, key)
-	if gerr != nil {
-		gerr2 := keyspace.persist.dropKeyspace(key)
-		if gerr2 != nil {
-
-		}
-		return key, gerr
-	}
-
-	gerr = keyspace.createIndex(key)
-	if gerr != nil {
-		gerr2 := keyspace.persist.dropKeyspace(key)
-		if gerr2 != nil {
-
-		}
-		gerr2 = keyspace.deleteIndex(key)
-		if gerr2 != nil {
-
-		}
-		return key, gerr
-	}
-
-	gerr = keyspace.persist.createKeyspaceMeta(ksc, key)
-	if gerr != nil {
-		gerr2 := keyspace.persist.dropKeyspace(key)
-		if gerr2 != nil {
-
-		}
-		gerr2 = keyspace.deleteIndex(key)
-		if gerr2 != nil {
-
-		}
-		return key, gerr
-	}
-
-	return key, nil
-}
-
-func (keyspace Keyspace) updateKeyspace(ksc ConfigUpdate, key string) gobol.Error {
-
-	count, gerr := keyspace.persist.countKeyspaceByKey(key)
-	if gerr != nil {
-		return gerr
-	}
-	if count == 0 {
-		return errNotFound("UpdateKeyspace")
-
-	}
-
-	count, gerr = keyspace.persist.countKeyspaceByName(ksc.Name)
-	if gerr != nil {
-		return gerr
-	}
-	if count != 0 {
-		k, gerr := keyspace.persist.getKeyspaceKeyByName(ksc.Name)
-		if gerr != nil {
-			return gerr
-		}
-
-		if k != key {
-			return errConflict(
-				"UpdateKeyspace",
-				fmt.Sprintf(`Cannot update because keyspace "%s" already exists`, ksc.Name),
-			)
-		}
-	}
-
-	return keyspace.persist.updateKeyspace(ksc, key)
+	persist *persistence
 }
 
 func (keyspace Keyspace) listAllKeyspaces() ([]Config, int, gobol.Error) {
@@ -173,6 +72,7 @@ func (keyspace Keyspace) deleteIndex(esIndex string) gobol.Error {
 	return keyspace.persist.deleteIndex(esIndex)
 }
 
+// GetKeyspace retrieves keyspace metadata
 func (keyspace Keyspace) GetKeyspace(key string) (Config, bool, gobol.Error) {
 	return keyspace.persist.getKeyspace(key)
 }
