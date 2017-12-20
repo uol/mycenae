@@ -19,17 +19,12 @@ var (
 	stats    *tsstats.StatsTS
 )
 
-// DefaultCompaction defines the default compaction strategy that cassandra
-// will use for timeseries data
-const DefaultCompaction = "com.jeffjirsa.cassandra.db.compaction.TimeWindowCompactionStrategy"
-
 func New(
 	sts *tsstats.StatsTS,
 	cass *gocql.Session,
 	es *rubber.Elastic,
 	usernameGrant,
 	keyspaceMain string,
-	compaction string,
 	mTTL int,
 ) *Keyspace {
 
@@ -37,17 +32,12 @@ func New(
 	validKey = regexp.MustCompile(`^[0-9A-Za-z][0-9A-Za-z_]+$`)
 	stats = sts
 
-	if compaction == "" {
-		compaction = DefaultCompaction
-	}
-
 	return &Keyspace{
 		persist: persistence{
 			cassandra:     cass,
 			esearch:       es,
 			usernameGrant: usernameGrant,
 			keyspaceMain:  keyspaceMain,
-			compaction:    compaction,
 		},
 	}
 }
