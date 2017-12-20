@@ -37,8 +37,6 @@ MetaBufferSize = 100000
 
 MetaSaveInterval = "1s"
 
-CompactionStrategy = "TimeWindowCompactionStrategy"
-
 [cassandra]
   keyspace = "mycenae"
   consistency = "one"
