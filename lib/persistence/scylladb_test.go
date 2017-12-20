@@ -2,6 +2,7 @@ package persistence
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -34,6 +35,7 @@ func TestScylladbBackend(t *testing.T) {
 	}
 
 	logger := logrus.New()
+	logger.Out = ioutil.Discard
 	if !assert.NotNil(t, logger) {
 		return
 	}
@@ -60,7 +62,7 @@ func TestScylladbBackend(t *testing.T) {
 
 	cluster := gocql.NewCluster(scyllaAddress)
 	cluster.ProtoVersion = 3
-	cluster.Timeout = 20 * time.Second
+	cluster.Timeout = 2 * time.Minute
 	cluster.Authenticator = gocql.PasswordAuthenticator{
 		Username: username,
 		Password: password,

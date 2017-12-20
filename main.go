@@ -117,7 +117,7 @@ func main() {
 
 	ks := keyspace.New(
 		tssts,
-		cass,
+		storage,
 		settings.Cassandra.Username,
 		settings.Cassandra.Keyspace,
 		devMode,
