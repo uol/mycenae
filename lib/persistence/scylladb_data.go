@@ -83,3 +83,5 @@ var formatGrants = []string{
 }
 
 const formatUpdateKeyspace = `UPDATE %s.ts_keyspace SET name = ?, contact = ? WHERE key = ?`
+
+const formatListDatacenters = `SELECT datacenter FROM %s.ts_datacenter`

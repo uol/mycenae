@@ -24,6 +24,9 @@ type Backend interface {
 	// UpdateKeyspace should update metadata and contact information about the
 	// keyspace
 	UpdateKeyspace(ksid, name, contact string) gobol.Error
+
+	// ListDatacenters should list all available datacenters
+	ListDatacenters() ([]string, gobol.Error)
 }
 
 // Storage is a storage for data
