@@ -11,13 +11,6 @@ func statsUDPv1() {
 	)
 }
 
-func statsUDP(ks, vt string) {
-	go statsIncrement(
-		"points.received",
-		map[string]string{"protocol": "udp", "api": "v2", "keyspace": ks, "type": vt},
-	)
-}
-
 func statsProcTime(ks string, d time.Duration) {
 	go statsValueAdd(
 		"points.processes_time",
@@ -30,13 +23,6 @@ func statsLostMeta() {
 	go statsIncrement(
 		"meta.lost",
 		map[string]string{},
-	)
-}
-
-func statsUDPerror(ks, vt string) {
-	go statsIncrement(
-		"points.received.error",
-		map[string]string{"protocol": "udp", "api": "v2", "keyspace": ks, "type": vt},
 	)
 }
 
@@ -94,17 +80,17 @@ func statsInsert(ks, cf string, d time.Duration) {
 	)
 }
 
-func statsPoints(ks, vt string) {
+func statsPoints(ks, vt , protocol string) {
 	go statsIncrement(
 		"points.received",
-		map[string]string{"protocol": "http", "api": "v2", "keyspace": ks, "type": vt},
+		map[string]string{"protocol": protocol, "api": "v2", "keyspace": ks, "type": vt},
 	)
 }
 
-func statsPointsError(ks, vt string) {
+func statsPointsError(ks, vt, protocol string) {
 	go statsIncrement(
 		"points.received.error",
-		map[string]string{"protocol": "http", "api": "v2", "keyspace": ks, "type": vt},
+		map[string]string{"protocol": protocol, "api": "v2", "keyspace": ks, "type": vt},
 	)
 }
 

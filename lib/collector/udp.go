@@ -25,20 +25,10 @@ func (collector *Collector) HandleUDPpacket(buf []byte, addr string) {
 		return
 	}
 
-	msgKs := ""
+	logFields := map[string]string{}
+	logFields["addr"] = addr
 
-	if val, ok := rcvMsg.Tags["ksid"]; ok {
-		msgKs = val
-	}
-
-	isNumber := true
-
-	gerr = collector.HandlePacket(rcvMsg, isNumber)
-	if gerr != nil {
-		collector.fail(gerr, addr)
-	} else {
-		statsUDP(msgKs, "number")
-	}
+	collector.HandlePacket(rcvMsg, true, "udp", logFields)
 
 	go func() {
 		collector.saveMutex.Lock()

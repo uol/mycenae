@@ -105,7 +105,7 @@ func (collect *Collector) saveMeta(packet Point) {
 	if gerr != nil {
 		gblog.WithFields(logrus.Fields{
 			"func": "collector/saveMeta",
-		}).Error(gerr.Error())
+		}).Warn(gerr.Error())
 		collect.errMutex.Lock()
 		collect.errorsSinceLastProbe++
 		collect.errMutex.Unlock()

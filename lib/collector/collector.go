@@ -48,10 +48,14 @@ func New(
 		persist:       persistence{cassandra: cass, esearch: es},
 		validKey:      regexp.MustCompile(`^[0-9A-Za-z-._%&#;/]+$`),
 		settings:      set,
-		concPoints:    make(chan struct{}, set.MaxConcurrentPoints),
 		concBulk:      make(chan struct{}, set.MaxConcurrentBulks),
 		metaChan:      make(chan Point, set.MetaBufferSize),
 		metaPayload:   &bytes.Buffer{},
+		jobChannel:    make(chan workerData, set.MaxConcurrentPoints),
+	}
+
+	for i := 0; i < set.MaxConcurrentPoints; i++ {
+		go collect.worker(i, collect.jobChannel)
 	}
 
 	go collect.metaCoordinator(d)
@@ -65,7 +69,6 @@ type Collector struct {
 	validKey      *regexp.Regexp
 	settings      *structs.Settings
 
-	concPoints  chan struct{}
 	concBulk    chan struct{}
 	metaChan    chan Point
 	metaPayload *bytes.Buffer
@@ -77,6 +80,48 @@ type Collector struct {
 	saveMutex              sync.Mutex
 	recvMutex              sync.Mutex
 	errMutex               sync.Mutex
+	jobChannel             chan workerData
+}
+
+type workerData struct {
+	point     TSDBpoint
+	number    bool
+	source    string
+	logFields map[string]string
+}
+
+func (collect *Collector) getType(number bool) string {
+	if number {
+		return "number"
+	} else {
+		return "text"
+	}
+}
+
+func (collect *Collector) worker(id int, jobChannel <-chan workerData) {
+
+	for j := range jobChannel {
+		gblog.WithFields(logrus.Fields{
+			"func": "collector/worker",
+			"workerId": id,
+			"source": j.source,
+		}).Debug("Processing point...")
+		err := collect.processPacket(j.point, j.number)
+		if err != nil {
+			statsPointsError(j.point.Tags["ksid"], collect.getType(j.number), j.source)
+			fields := logrus.Fields{
+				"func": "collector/worker",
+			}
+			if j.logFields != nil && len(j.logFields) > 0 {
+				for k, v := range j.logFields {
+					fields[k] = v
+				}
+			}
+			gblog.WithFields(fields).Error("point lost:", j.point)
+		} else {
+			statsPoints(j.point.Tags["ksid"], collect.getType(j.number), j.source)
+		}
+	}
 }
 
 func (collect *Collector) CheckUDPbind() bool {
@@ -134,7 +179,7 @@ func (collect *Collector) Stop() {
 	}
 }
 
-func (collect *Collector) HandlePacket(rcvMsg TSDBpoint, number bool) gobol.Error {
+func (collect *Collector) processPacket(rcvMsg TSDBpoint, number bool) gobol.Error {
 
 	start := time.Now()
 
@@ -178,7 +223,18 @@ func (collect *Collector) HandlePacket(rcvMsg TSDBpoint, number bool) gobol.Erro
 	}
 
 	statsProcTime(packet.KsID, time.Since(start))
+
 	return nil
+}
+
+func (collect *Collector) HandlePacket(rcvMsg TSDBpoint, number bool, source string, logFields map[string]string) {
+
+	collect.jobChannel <- workerData{
+		point:     rcvMsg,
+		number:    number,
+		source:    source,
+		logFields: logFields,
+	}
 }
 
 func GenerateID(rcvMsg TSDBpoint) string {

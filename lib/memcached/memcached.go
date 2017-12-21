@@ -10,6 +10,8 @@ import (
 type Configuration struct {
 	Pool []string
 	TTL  int32
+	MaxIdleConns int
+	Timeout int
 }
 
 type Memcached struct {
@@ -26,11 +28,8 @@ func New(s *tsstats.StatsTS, c *Configuration) (*Memcached, gobol.Error) {
 		ttl:    c.TTL,
 	}
 
-	err := mc.Put("test", "test", []byte("test"))
-
-	if err != nil {
-		return nil, errInternalServerError("new", "no connection to memcached", err)
-	}
+	mc.client.MaxIdleConns = c.MaxIdleConns
+	mc.client.Timeout = time.Duration(c.Timeout) * time.Millisecond
 
 	return mc, nil
 }

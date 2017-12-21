@@ -109,3 +109,5 @@ MetaSaveInterval = "1s"
 [memcached]
   pool = ["172.17.0.7:11211","172.17.0.8:11211","172.17.0.9:11211"]
   ttl = 3600
+  maxIdleConns = 5
+  timeout = 1000
