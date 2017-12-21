@@ -52,14 +52,14 @@ func TestMain(m *testing.M) {
 
 	flag.Parse()
 
-	ksMycenae = mycenaeTools.Mycenae.CreateKeyspace("docker-dc", fmt.Sprint(time.Now().Unix()), "mycenae@mycenae.com", 90, 1)
+	ksMycenae = mycenaeTools.Mycenae.CreateKeyspace("dc_gt_a1", fmt.Sprint(time.Now().Unix()), "mycenae@mycenae.com", 90, 1)
 
 	if *setup {
 
 		var wg sync.WaitGroup
 
-		ksMycenaeMeta = mycenaeTools.Mycenae.CreateKeyspace("docker-dc", fmt.Sprint(time.Now().Unix()), "mycenae@mycenae.com", 90, 1)
-		ksMycenaeTsdb = mycenaeTools.Mycenae.CreateKeyspace("docker-dc", fmt.Sprint(time.Now().Unix()), "mycenae@mycenae.com", 90, 1)
+		ksMycenaeMeta = mycenaeTools.Mycenae.CreateKeyspace("dc_gt_a1", fmt.Sprint(time.Now().Unix()), "mycenae@mycenae.com", 90, 1)
+		ksMycenaeTsdb = mycenaeTools.Mycenae.CreateKeyspace("dc_gt_a1", fmt.Sprint(time.Now().Unix()), "mycenae@mycenae.com", 90, 1)
 
 		wg.Add(7)
 

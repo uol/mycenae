@@ -15,7 +15,7 @@ pod_arguments=(
     '--volume' "${GOPATH}/:/go/:ro"
 )
 
-docker run "${pod_arguments[@]}" test_mycenae:v2
+docker run "${pod_arguments[@]}" jenkins.macs.intranet:5000/mycenae/test-mycenae:v1
 
 cmd="docker exec -d -it testMycenae consul agent -server -node testMycenae -join ${consulServerIp} -data-dir /tmp/consul"
 curl --silent -XPUT -d '{"name":"testMycenae"}' --header "Content-type: application/json" "http://${consulServerIp}:8500/v1/agent/service/register"

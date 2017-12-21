@@ -52,7 +52,7 @@ type KeyspaceProperties struct {
 const (
 	cqlKeyspaceTables = `SELECT table_name FROM system_schema.tables WHERE keyspace_name = ?`
 	cqlExists = `SELECT keyspace_name FROM system_schema.keyspaces WHERE keyspace_name = ?`
-	cqlExistsInformation = `SELECT * FROM mycenae.ts_keyspace WHERE key = ? and name = ? and replication_factor = ? and datacenter = ? and ks_ttl = ? and ks_tuuid = ? and contact = ? ALLOW FILTERING`
+	cqlExistsInformation = `SELECT name, datacenter, contact, replication_factor, ks_ttl, ks_tuuid FROM mycenae.ts_keyspace WHERE key = ?`
 	cqlTableProperties = `SELECT bloom_filter_fp_chance, caching, comment, compaction, compression, dclocal_read_repair_chance, default_time_to_live, gc_grace_seconds, max_index_interval, memtable_flush_period_in_ms, min_index_interval, read_repair_chance, speculative_retry from system_schema.tables  where keyspace_name = ? and table_name = ?`
 	cqlKeyspaceProperties = `SELECT keyspace_name, durable_writes, replication from system_schema.keyspaces where keyspace_name = ?`
 	cqlDropKS = `DROP KEYSPACE %v`
@@ -424,19 +424,17 @@ func (ts *cassTs) Exists(keyspace string) bool {
 func (ts *cassTs) ExistsInformation(keyspace string, name string, replication_factor int, datacenter string, ttl int, tuuid bool, contact string) bool {
 	var err error
 	var count int
-	var scanned string
+	var scName, scDatacenter, scContact string
+	var scRepFactor, scTTL int
+	var scTUUID bool
 	it := ts.cql.Query(
 		cqlExistsInformation,
 		keyspace,
-		name,
-		replication_factor,
-		datacenter,
-		ttl,
-		tuuid,
-		contact,
 	).Iter()
-	for it.Scan(&scanned) {
-		if keyspace == scanned {
+	for it.Scan(&scName, &scDatacenter, &scContact, &scRepFactor, &scTTL, &scTUUID) {
+		if scName == name && scDatacenter == datacenter && scContact == contact &&
+		   scRepFactor == replication_factor && scTTL == ttl &&
+		   scTUUID == tuuid {
 			count++;
 		}
 	}

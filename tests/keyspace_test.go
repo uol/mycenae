@@ -25,7 +25,7 @@ func getKeyspace() tools.Keyspace {
 
 	data := tools.Keyspace{
 		Name:              getRandName(),
-		Datacenter:        "docker-dc",
+		Datacenter:        "dc_gt_a1",
 		ReplicationFactor: 1,
 		Contact:           fmt.Sprintf("test-%d@domain.com", time.Now().Unix()),
 		TTL:               90,
@@ -179,20 +179,19 @@ func checkKeyspacePropertiesAndIndex(data tools.Keyspace, t *testing.T) {
 		"rows_per_partition": "ALL",
 	}
 	var compaction = map[string]string{
-		"max_threshold":          "64",
-		"min_threshold":          "8",
-		"class":                  "TimeWindowCompactionStrategy",
-		"compaction_window_size": "7",
-		"compaction_window_unit": "DAYS",
+		"class":                "DateTieredCompactionStrategy",
+		"timestamp_resolution": "SECONDS",
+		"base_time_seconds":    "3600",
+		"max_sstable_age_days": "365",
 	}
 	var compression = map[string]string{
-		"crc_check_chance": "0.500000",
+		"crc_check_chance":    "0.500000",
 		"sstable_compression": "org.apache.cassandra.io.compress.LZ4Compressor",
 	}
 
 	var replication = map[string]string{
-		"class":       "org.apache.cassandra.locator.NetworkTopologyStrategy",
-		"docker-dc": fmt.Sprintf("%v", data.ReplicationFactor),
+		"class":    "NetworkTopologyStrategy",
+		"dc_gt_a1": fmt.Sprintf("%v", data.ReplicationFactor),
 	}
 
 	esIndexResponse := mycenaeTools.ElasticSearch.Keyspace.GetIndex(data.ID)
@@ -305,7 +304,7 @@ func TestKeyspaceCreateFailNameError(t *testing.T) {
 	var (
 		rf      = 1
 		ttl     = 90
-		dc      = "docker-dc"
+		dc      = "dc_gt_a1"
 		contact = fmt.Sprintf("test-%v@domain.com", time.Now().Unix())
 	)
 
@@ -329,7 +328,7 @@ func TestKeyspaceCreateFailRFError(t *testing.T) {
 
 	var (
 		ttl     = 90
-		dc      = "docker-dc"
+		dc      = "dc_gt_a1"
 		contact = fmt.Sprintf("test-%v@domain.com", time.Now().Unix())
 	)
 
@@ -355,7 +354,7 @@ func TestKeyspaceCreateFailTTLError(t *testing.T) {
 
 	var (
 		rf      = 1
-		dc      = "docker-dc"
+		dc      = "dc_gt_a1"
 		contact = fmt.Sprintf("test-%v@domain.com", time.Now().Unix())
 	)
 
@@ -388,7 +387,7 @@ func TestKeyspaceCreateFailContactError(t *testing.T) {
 	var (
 		rf  = 1
 		ttl = 90
-		dc  = "docker-dc"
+		dc  = "dc_gt_a1"
 	)
 
 	cases := map[string]tools.Keyspace{
@@ -452,7 +451,7 @@ func TestKeyspaceCreateInvalidRFString(t *testing.T) {
 	}
 
 	data := `{
-		"datacenter": "docker-dc",
+		"datacenter": "dc_gt_a1",
 		"replicationFactor": "a",
 		"ttl": 90,
 		"tuuid": false,
@@ -475,7 +474,7 @@ func TestKeyspaceCreateInvalidRFFloat(t *testing.T) {
 
 	rf := "1.1"
 	data := `{
-		"datacenter": "docker-dc",
+		"datacenter": "dc_gt_a1",
 		"replicationFactor": ` + rf + `,
 		"ttl": 90,
 		"tuuid": false,
@@ -497,7 +496,7 @@ func TestKeyspaceCreateInvalidTTLString(t *testing.T) {
 	}
 
 	data := `{
-		"datacenter": "docker-dc",
+		"datacenter": "dc_gt_a1",
 		"replicationFactor": 1,
 		"ttl": "a",
 		"tuuid": false,
@@ -520,7 +519,7 @@ func TestKeyspaceCreateInvalidTTLFloat(t *testing.T) {
 
 	ttl := "9.1"
 	data := `{
-		"datacenter": "docker-dc",
+		"datacenter": "dc_gt_a1",
 		"replicationFactor": 1,
 		"ttl": ` + ttl + `,
 		"tuuid": false,
@@ -556,7 +555,7 @@ func TestKeyspaceCreateInvalidPayload(t *testing.T) {
 	}
 
 	data := `{
-		"datacenter": "docker-dc",
+		"datacenter": "dc_gt_a1",
 		"replicationFactor": 1,
 		"ttl": 90,
 		"tuuid": false,

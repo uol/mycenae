@@ -25,17 +25,12 @@ func New(
 	persist *storage.Storage,
 	usernameGrant,
 	keyspaceMain string,
-	compaction string,
 	mTTL int,
 ) *Keyspace {
 
 	maxTTL = mTTL
 	validKey = regexp.MustCompile(`^[0-9A-Za-z][0-9A-Za-z_]+$`)
 	stats = sts
-
-	if compaction == "" {
-		compaction = DefaultCompaction
-	}
 
 	return &Keyspace{
 		storage: persist,
