@@ -3,7 +3,8 @@ package persistence
 import "fmt"
 
 const (
-	scyllaMainKeyspace = "mycenae"
+	scyllaMainKeyspace   = "mycenae"
+	scyllaTestDatacenter = "datacenter1"
 )
 
 var (
@@ -19,6 +20,11 @@ var (
             datacenter text,
             ks_ttl int
 		)`, scyllaMainKeyspace),
-		// fmt.Sprintf(`CREATE INDEX ts_keyspace_name_index ON %s.ts_keyspace (name)`, scyllaMainKeyspace),
+		fmt.Sprintf(`CREATE TABLE %s.ts_datacenter (
+			datacenter text PRIMARY KEY
+		)`, scyllaMainKeyspace),
+		fmt.Sprintf(`INSERT INTO %s.ts_datacenter (
+			datacenter
+		) VALUES ('%s')`, scyllaMainKeyspace, scyllaTestDatacenter),
 	}
 )
