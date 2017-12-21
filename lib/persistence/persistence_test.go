@@ -42,4 +42,12 @@ func genericPersistenceBackendTest(
 	}
 
 	assert.NoError(t, backend.DeleteKeyspace(unique))
+
+	datacenters, err := backend.ListDatacenters()
+	if assert.NoError(t, err) && assert.NotNil(t, datacenters) {
+		assert.NotEmpty(t, datacenters)
+		if assert.Len(t, datacenters, 1) {
+			assert.Equal(t, scyllaTestDatacenter, datacenters[0])
+		}
+	}
 }
