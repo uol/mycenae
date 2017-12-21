@@ -12,7 +12,7 @@ pod_arguments=(
      '-v' '/sys/fs/cgroup:/sys/fs/cgroup'
 )
 
-cmd="docker run ${pod_arguments[@]} teste-centos /usr/sbin/init"
+cmd="docker run ${pod_arguments[@]} jenkins.macs.intranet:5000/mycenae/scylla-centos:v1 /usr/sbin/init"
 eval "${cmd}"
 echo "${cmd}"
 
