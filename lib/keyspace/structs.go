@@ -1,12 +1,15 @@
 package keyspace
 
 import (
+	"fmt"
+
 	"github.com/asaskevich/govalidator"
 	"github.com/uol/gobol"
 )
 
 // Config is the json format for the keyspace configuration
 type Config struct {
+	Key               string `json:"key"`
 	Name              string `json:"name"`
 	Datacenter        string `json:"datacenter"`
 	ReplicationFactor int    `json:"replicationFactor"`
@@ -44,6 +47,13 @@ func (c *ConfigUpdate) Validate() gobol.Error {
 
 	if !govalidator.IsEmail(c.Contact) {
 		return errValidationS("CreateKeyspace", "Contact field should be a valid email address")
+	}
+
+	if !validKey.MatchString(c.Name) {
+		return errValidationS(
+			"CreateKeyspace",
+			`Wrong Format: Field "keyspaceName" is not well formed. NO information will be saved`,
+		)
 	}
 
 	return nil

@@ -137,7 +137,7 @@ func (ts *cassTs) CountValueFromIDSTAMP(ttl int, id string) (int) {
 	var scanned string
 	for it.Scan(&scanned) {
 		if id == scanned {
-			count++;
+			count++
 		}
 	}
 	if err := it.Close(); err != nil {
@@ -163,7 +163,7 @@ func (ts *cassTs) CountTextFromIDSTAMP(ttl int, id string) (int) {
 	var scanned string
 	for it.Scan(&scanned) {
 		if id == scanned {
-			count++;
+			count++
 		}
 	}
 	if err := it.Close(); err != nil {
@@ -222,7 +222,7 @@ func (ts *cassTs) CountValueFromIDAndDateSTAMP(ttl int, id string, date time.Tim
 	var scanned string
 	for it.Scan(&scanned) {
 		if id == scanned {
-			count++;
+			count++
 		}
 	}
 	if err := it.Close(); err != nil {
@@ -248,7 +248,7 @@ func (ts *cassTs) CountTextFromIDAndDateSTAMP(ttl int, id string, date time.Time
 	var scanned string
 	for it.Scan(&scanned) {
 		if id == scanned {
-			count++;
+			count++
 		}
 	}
 	if err := it.Close(); err != nil {
@@ -271,7 +271,6 @@ func GetHashFromMetricAndTags(metric string, tags map[string]string) string {
 
 	h := crc32.NewIEEE()
 	h.Write([]byte(metric))
-
 	mk := []string{}
 
 	for k := range tags {
@@ -419,15 +418,6 @@ func (ts *cassTs) Exists(keyspace string) bool {
 	return err == nil && count == 1
 }
 
-//func (ts *cassTs) Exists(keyspace string) bool {
-//	var count int
-//	err := ts.cql.Query(
-//		cqlExists,
-//		keyspace,
-//	).Scan(&count)
-//	return err == nil && count == 1
-//}
-
 func (ts *cassTs) ExistsInformation(keyspace string, replication_factor int, datacenter string, contact string) bool {
 	var err error
 	var count, scRepFactor int
@@ -448,22 +438,6 @@ func (ts *cassTs) ExistsInformation(keyspace string, replication_factor int, dat
 	return err == nil && count == 1
 
 }
-
-//func (ts *cassTs) ExistsInformation(keyspace string, name string, replication_factor int, datacenter string, ttl int, tuuid bool, contact string) bool {
-//	var count int
-//	err := ts.cql.Query(
-//		cqlExistsInformation,
-//		keyspace,
-//		name,
-//		replication_factor,
-//		datacenter,
-//		ttl,
-//		tuuid,
-//		contact,
-//	).Scan(&count)
-//	return err == nil && count == 1
-//
-//}
 
 func (ts *cassTs) TableProperties(keyspace string, table string) TableProperties {
 	var caching, compaction, compression map[string]string

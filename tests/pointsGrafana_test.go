@@ -3,48 +3,49 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/stretchr/testify/assert"
+	"github.com/uol/mycenae/tests/tools"
 	"log"
-	"net/http"
+	"math"
 	"sort"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/assert"
-
-	//"github.com/uol/mycenae/lib/structs"
-	"github.com/uol/mycenae/tests/tools"
-	"math"
 )
 
-var ts10IDTsdbQuery, ts12IDTsdbQuery, ts13IDTsdbQuery, ts13IDTsdbQuery2, ts13IDTsdbQuery3,
-	ts13IDTsdbQuery4, ts13IDTsdbQuery5, ts13IDTsdbQuery6, ts13IDTsdbQuery7, ts13IDTsdbQuery8 string
+var (
+	ts10IDTsdbQuery  string
+	ts12IDTsdbQuery  string
+	ts13IDTsdbQuery  string
+	ts13IDTsdbQuery2 string
+	ts13IDTsdbQuery3 string
+	ts13IDTsdbQuery4 string
+	ts13IDTsdbQuery5 string
+	ts13IDTsdbQuery6 string
+	ts13IDTsdbQuery7 string
+	ts13IDTsdbQuery8 string
+)
 
 var hashMap map[string]string
 
 // Helper
-
 func postAPIQueryAndCheck(t *testing.T, payload string, metric string, p, dps, tags, aggtags, tsuuidSize int, tsuuids ...string) ([]string, []tools.ResponseQuery) {
 
 	tags += 2 //ttl tag is automatically added if not sent, plus ksid tag
 	path := fmt.Sprintf("keysets/%s/api/query", ksMycenae)
 	code, response, err := mycenaeTools.HTTP.POST(path, []byte(payload))
-
-	if err != nil {
-		t.Error(err)
+	if !assert.NoError(t, err) {
 		t.SkipNow()
 	}
 
 	payloadPoints := []tools.ResponseQuery{}
 	err = json.Unmarshal(response, &payloadPoints)
-	if err != nil {
-		t.Error(err, string(response))
+	if !assert.NoError(t, err) {
 		t.SkipNow()
 	}
 
-	if len(payloadPoints) == 0 {
-		t.Error("No points were found")
+	if !assert.NotEmpty(t, payloadPoints) {
 		t.SkipNow()
 	}
 
@@ -1413,7 +1414,7 @@ func TestTsdbQueryFilterMoreThanOneTS(t *testing.T) {
 	sort.Strings(keys)
 
 	assert.Equal(t, 25, len(payloadPoints[1].Dps))
-	assert.Equal(t, 3, len(payloadPoints[1].Tags))
+	assert.Equal(t, 1, len(payloadPoints[1].Tags))
 	assert.Equal(t, 0, len(payloadPoints[1].AggTags))
 	assert.Equal(t, 1, len(payloadPoints[1].Tsuuids))
 	assert.Equal(t, "ts10tsdb", payloadPoints[1].Metric)
@@ -5087,15 +5088,15 @@ func TestTsdbQueryFilterGroupByWildcard(t *testing.T) {
 	}
 
 	payloadPoints := []tools.ResponseQuery{}
-
 	err = json.Unmarshal(response, &payloadPoints)
-	if err != nil {
-		t.Error(err)
+	if !assert.NoError(t, err) {
 		t.SkipNow()
 	}
 
 	assert.Equal(t, 200, code)
-	assert.Equal(t, 3, len(payloadPoints))
+	if !assert.Len(t, payloadPoints, 3) {
+		t.SkipNow()
+	}
 
 	for i := 0; i < 3; i++ {
 
@@ -5198,14 +5199,6 @@ func TestTsdbQueryFilterGroupByWildcard(t *testing.T) {
 			assert.Equal(t, "type", payloadPoints[i].AggTags[1])
 			assert.Equal(t, "host3", payloadPoints[i].Tags["host"])
 
-			//if ts13IDTsdbQuery5 == payloadPoints[i].Tsuuids[0] {
-			//	assert.Equal(t, ts13IDTsdbQuery6, payloadPoints[i].Tsuuids[1])
-			//
-			//} else {
-			//	assert.Equal(t, ts13IDTsdbQuery5, payloadPoints[i].Tsuuids[1])
-			//	assert.Equal(t, ts13IDTsdbQuery6, payloadPoints[i].Tsuuids[0])
-			//}
-
 			assert.Contains(t, payloadPoints[i].Tsuuids, ts13IDTsdbQuery5, "Tsuuid not found")
 			assert.Contains(t, payloadPoints[i].Tsuuids, ts13IDTsdbQuery6, "Tsuuid not found")
 			assert.Contains(t, payloadPoints[i].Tsuuids, ts13IDTsdbQuery7, "Tsuuid not found")
@@ -5214,25 +5207,20 @@ func TestTsdbQueryFilterGroupByWildcard(t *testing.T) {
 			var value float32 = 26.0
 			dateStart := 1448452800
 			for _, key := range keys {
-
 				assert.Exactly(t, value, float32(payloadPoints[i].Dps[key].(float64)))
 
 				assert.Exactly(t, strconv.Itoa(dateStart), key)
 				dateStart += 60
 
 				value += 26.0
-
 			}
-
 		default:
 			t.Error("not found")
 		}
-
 	}
 }
 
 func TestTsdbQueryFilterGroupByWildcardPartialName(t *testing.T) {
-
 	payload := `{
 		"start": 1448452740000,
 		"end": 1448453940000,
@@ -5264,7 +5252,9 @@ func TestTsdbQueryFilterGroupByWildcardPartialName(t *testing.T) {
 	}
 
 	assert.Equal(t, 200, code)
-	assert.Equal(t, 3, len(payloadPoints))
+	if !assert.Len(t, payloadPoints, 3) {
+		t.SkipNow()
+	}
 
 	for i := 0; i < 3; i++ {
 
@@ -5401,7 +5391,6 @@ func TestTsdbQueryFilterGroupByWildcardPartialName(t *testing.T) {
 }
 
 func TestTsdbQueryFilterGroupByWildcardTagWithDot(t *testing.T) {
-
 	payload := `{
 		"start": 1348452800000,
 		"end": 1348458770000,
@@ -5436,7 +5425,6 @@ func TestTsdbQueryFilterGroupByWildcardTagWithDot(t *testing.T) {
 }
 
 func TestTsdbQueryFilterGroupByWildcardTagWithDotPartialName(t *testing.T) {
-
 	payload := `{
 		"start": 1348452800000,
 		"end": 1348458770000,
@@ -8422,7 +8410,7 @@ func TestTsdbQueryFilterGroupByTagNotFound(t *testing.T) {
 //		"end": 1448453100000,
 //		"showTSUIDs": true,
 //		"queries": [{
-//			"metric": "ts12tsdb",
+//			"metric": "ts12-_/.%&#;tsdb",
 //			"rate": true,
 //			"rateOptions": {
 //				"counter": true,
@@ -8430,28 +8418,28 @@ func TestTsdbQueryFilterGroupByTagNotFound(t *testing.T) {
 //			},
 //			"aggregator": "sum",
 //			"tags": {
-//				"host": "test-grafana1"
+//				"hos-_/.%&#;t": "test-_/.%&#;1"
 //			}
 //		}],
 //		"showQuery": true
 //	}`
 //
-//	keys, payloadPoints := postAPIQueryAndCheck(t, payload, "ts12tsdb", 1, 5, 1, 0, 1)
+//	keys, payloadPoints := postAPIQueryAndCheck(t, payload, "ts12-_/.%&#;tsdb", 1, 5, 1, 0, 1)
 //
-//	assert.Equal(t, "test-grafana1", payloadPoints[0].Tags["host"])
+//	assert.Equal(t, "test-_/.%&#;1", payloadPoints[0].Tags["hos-_/.%&#;t"])
 //	assert.Equal(t, ts12IDTsdbQuery, payloadPoints[0].Tsuuids[0])
 //
 //	index, cM := 0, int64(15000)
 //	expected := structs.TSDBquery{
 //		Aggregator: "sum",
-//		Metric:     "ts12tsdb",
+//		Metric:     "ts12-_/.%&#;tsdb",
 //		Filters: []structs.TSDBfilter{{
-//			Tagk:        "host",
-//			Filter:      "test-grafana1",
+//			Tagk:        "hos-_/.%&#;t",
+//			Filter:      "test-_/.%&#;1",
 //			GroupByResp: false,
 //			Ftype:       "wildcard",
 //		}},
-//		Tags:        map[string]string{"host": "test-grafana1"},
+//		Tags:        map[string]string{"hos-_/.%&#;t": "test-_/.%&#;1"},
 //		Index:       &index,
 //		Rate:        true,
 //		RateOptions: &structs.TSDBrateOptions{Counter: true, CounterMax: &cM},
@@ -8489,7 +8477,7 @@ func TestTsdbQueryFilterGroupByTagNotFound(t *testing.T) {
 //		"end": 1448453100000,
 //		"showTSUIDs": true,
 //		"queries": [{
-//			"metric": "ts12tsdb",
+//			"metric": "ts12-_/.%&#;tsdb",
 //			"rate": true,
 //			"rateOptions": {
 //				"counter": true,
@@ -8497,28 +8485,28 @@ func TestTsdbQueryFilterGroupByTagNotFound(t *testing.T) {
 //			},
 //			"aggregator": "sum",
 //			"tags": {
-//				"host": "test-grafana1"
+//				"hos-_/.%&#;t": "test-_/.%&#;1"
 //			}
 //		}],
 //		"showQuery": true
 //	}`
 //
-//	keys, payloadPoints := postAPIQueryAndCheck(t, payload, "ts12tsdb", 1, 5, 1, 0, 1)
+//	keys, payloadPoints := postAPIQueryAndCheck(t, payload, "ts12-_/.%&#;tsdb", 1, 5, 1, 0, 1)
 //
-//	assert.Equal(t, "test-grafana1", payloadPoints[0].Tags["host"])
+//	assert.Equal(t, "test-_/.%&#;1", payloadPoints[0].Tags["hos-_/.%&#;t"])
 //	assert.Equal(t, ts12IDTsdbQuery, payloadPoints[0].Tsuuids[0])
 //
 //	index := 0
 //	expected := structs.TSDBquery{
 //		Aggregator: "sum",
-//		Metric:     "ts12tsdb",
+//		Metric:     "ts12-_/.%&#;tsdb",
 //		Filters: []structs.TSDBfilter{{
-//			Tagk:        "host",
-//			Filter:      "test-grafana1",
+//			Tagk:        "hos-_/.%&#;t",
+//			Filter:      "test-_/.%&#;1",
 //			GroupByResp: false,
 //			Ftype:       "wildcard",
 //		}},
-//		Tags:        map[string]string{"host": "test-grafana1"},
+//		Tags:        map[string]string{"hos-_/.%&#;t": "test-_/.%&#;1"},
 //		Index:       &index,
 //		Rate:        true,
 //		RateOptions: &structs.TSDBrateOptions{Counter: true, ResetValue: 10},

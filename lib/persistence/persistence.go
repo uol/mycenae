@@ -14,7 +14,10 @@ import (
 // Backend hides the underlying implementation of the persistence
 type Backend interface {
 	// CreateKeyspace should create a keyspace to store data
-	CreateKeyspace(ksid, name, datacenter, contact string, ttl int) gobol.Error
+	CreateKeyspace(
+		ksid, name, datacenter, contact string,
+		replication, ttl int,
+	) gobol.Error
 	// DeleteKeyspace should delete a keyspace from the database
 	DeleteKeyspace(id string) gobol.Error
 	// ListKeyspaces should return a list of all available keyspaces

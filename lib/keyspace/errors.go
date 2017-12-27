@@ -24,10 +24,6 @@ func errBasic(f, s string, code int, e error) gobol.Error {
 	return nil
 }
 
-func errConflict(f, s string) gobol.Error {
-	return errBasic(f, s, http.StatusConflict, errors.New(s))
-}
-
 func errValidationS(f, s string) gobol.Error {
 	return errBasic(f, s, http.StatusBadRequest, errors.New(s))
 }
@@ -38,8 +34,4 @@ func errNotFound(f string) gobol.Error {
 
 func errNoContent(f string) gobol.Error {
 	return errBasic(f, "", http.StatusNoContent, errors.New(""))
-}
-
-func errPersist(f string, e error) gobol.Error {
-	return errBasic(f, e.Error(), http.StatusInternalServerError, e)
 }

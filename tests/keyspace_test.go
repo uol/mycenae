@@ -3,13 +3,14 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"sort"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/uol/mycenae/tests/tools"
-	"github.com/uol/mycenae/lib/keyspace"
 )
 
 var errKsName = "Wrong Format: Field \"keyspaceName\" is not well formed. NO information will be saved"
@@ -24,13 +25,18 @@ func getKeyspace() tools.Keyspace {
 
 	data := tools.Keyspace{
 		Name:              tools.GenerateRandomName(),
-		Datacenter:        "dc_gt_a1",
+		Datacenter:        datacenter,
 		ReplicationFactor: 1,
 		Contact:           fmt.Sprintf("test-%d@domain.com", time.Now().Unix()),
 		TTL:               1,
 	}
 
 	return data
+}
+
+func getRandName() string {
+	rand.Seed(time.Now().UnixNano())
+	return fmt.Sprintf("%d", rand.Int())
 }
 
 func testKeyspaceCreation(data *tools.Keyspace, t *testing.T) {
@@ -131,8 +137,6 @@ func testKeyspaceEditionFail(id string, data []byte, status int, response tools.
 func checkKeyspacePropertiesAndIndex(data tools.Keyspace, t *testing.T) {
 
 	var tables = []string{"ts_number_stamp", "ts_text_stamp"}
-	//var elasticSearchIndexMeta = "\"meta\":{\"properties\":{\"tagsNested\":{\"type\":\"nested\",\"properties\":{\"tagKey\":{\"type\":\"string\"},\"tagValue\":{\"type\":\"string\"}}}}}"
-	//var elasticSearchIndexMetaText = "\"metatext\":{\"properties\":{\"tagsNested\":{\"type\":\"nested\",\"properties\":{\"tagKey\":{\"type\":\"string\"},\"tagValue\":{\"type\":\"string\"}}}}}"
 	var caching = map[string]string{
 		"keys":               "ALL",
 		"rows_per_partition": "ALL",
@@ -151,7 +155,7 @@ func checkKeyspacePropertiesAndIndex(data tools.Keyspace, t *testing.T) {
 
 	var replication = map[string]string{
 		"class":    "NetworkTopologyStrategy",
-		"dc_gt_a1": fmt.Sprintf("%v", data.ReplicationFactor),
+		datacenter: fmt.Sprintf("%v", data.ReplicationFactor),
 	}
 
 	ksProperties := mycenaeTools.Cassandra.Timeseries.KeyspaceProperties(data.Name)
@@ -181,8 +185,6 @@ func checkKeyspacePropertiesAndIndex(data tools.Keyspace, t *testing.T) {
 	sort.Strings(keyspaceCassandraTables)
 	sort.Strings(tables)
 	assert.Equal(t, tables, keyspaceCassandraTables)
-	//assert.Contains(t, string(esIndexResponse), elasticSearchIndexMeta)
-	//assert.Contains(t, string(esIndexResponse), elasticSearchIndexMetaText)
 }
 
 // CREATE
@@ -260,7 +262,7 @@ func TestKeyspaceCreateFailNameError(t *testing.T) {
 
 	var (
 		rf      = 1
-		dc      = "dc_gt_a1"
+		dc      = datacenter
 		contact = fmt.Sprintf("test-%v@domain.com", time.Now().Unix())
 	)
 
@@ -283,7 +285,7 @@ func TestKeyspaceCreateFailRFError(t *testing.T) {
 	}
 
 	var (
-		dc      = "dc_gt_a1"
+		dc      = datacenter
 		contact = fmt.Sprintf("test-%v@domain.com", time.Now().Unix())
 	)
 
@@ -301,6 +303,38 @@ func TestKeyspaceCreateFailRFError(t *testing.T) {
 	}
 }
 
+func TestKeyspaceCreateFailTTLError(t *testing.T) {
+	t.Parallel()
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
+	var (
+		rf      = 1
+		dc      = "dc_gt_a1"
+		contact = fmt.Sprintf("test-%v@domain.com", time.Now().Unix())
+	)
+
+	cases := map[string]tools.Keyspace{
+		"TTL0":        {Datacenter: dc, ReplicationFactor: rf, TTL: 0, Contact: contact, Name: getRandName()},
+		"TTLNil":      {Datacenter: dc, ReplicationFactor: rf, Contact: contact, Name: getRandName()},
+		"TTLAboveMax": {Datacenter: dc, ReplicationFactor: rf, TTL: 91, Contact: contact, Name: getRandName()},
+		"NegativeTTL": {Datacenter: dc, ReplicationFactor: rf, TTL: -10, Contact: contact, Name: getRandName()},
+	}
+
+	errTTL := tools.Error{Error: errKsTTL, Message: errKsTTL}
+	errTTLMax := tools.Error{Error: errKsTTLMax, Message: errKsTTLMax}
+
+	for test, ks := range cases {
+
+		if test == "TTLAboveMax" {
+			testKeyspaceCreationFail(ks.Marshal(), ks.Name, errTTLMax, test, t)
+		} else {
+			testKeyspaceCreationFail(ks.Marshal(), ks.Name, errTTL, test, t)
+		}
+	}
+}
+
 func TestKeyspaceCreateFailContactError(t *testing.T) {
 	t.Parallel()
 	if testing.Short() {
@@ -308,8 +342,8 @@ func TestKeyspaceCreateFailContactError(t *testing.T) {
 	}
 
 	var (
-		rf = 1
-		dc = "dc_gt_a1"
+		rf  = 1
+		dc  = datacenter
 	)
 
 	cases := map[string]tools.Keyspace{
@@ -438,7 +472,7 @@ func TestKeyspaceCreateInvalidTTLFloat(t *testing.T) {
 
 	ttl := "9.1"
 	data := `{
-		"datacenter": "dc_gt_a1",
+		"datacenter": "` + datacenter + `",
 		"replicationFactor": 1,
 		"contact": " ` + fmt.Sprintf("test-%v@domain.com", time.Now().Unix()) + `",
 		"ttl": ` + ttl + `
@@ -473,7 +507,7 @@ func TestKeyspaceCreateInvalidPayload(t *testing.T) {
 	}
 
 	data := `{
-		"datacenter": "dc_gt_a1",
+		"datacenter": "` + datacenter + `",
 		"replicationFactor": 1,
 		"contact": " ` + fmt.Sprintf("test-%v@domain.com", time.Now().Unix()) + `"
 	`

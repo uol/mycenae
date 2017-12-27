@@ -34,13 +34,13 @@ func newScyllaPersistence(
 
 		ksMngr:        ksAdmin,
 		grantUsername: grantUsername,
-		compaction:    "SizeTieredCompactionStrategy",
+		compaction:    "DateTieredCompactionStrategy",
 	}, nil
 }
 
 func (backend *scylladb) CreateKeyspace(
 	ksid, name, datacenter, contact string,
-	ttl int,
+	replication, ttl int,
 ) gobol.Error {
 	keyspace := Keyspace{
 		ID:      ksid,
@@ -48,13 +48,18 @@ func (backend *scylladb) CreateKeyspace(
 		DC:      datacenter,
 		Contact: contact,
 		TTL:     ttl,
+
+		Replication: replication,
 	}
 
 	if _, found, err := backend.GetKeyspace(ksid); err != nil {
 		return err
 	} else if found {
 		return errConflict("CreateKeyspace", "scylladb",
-			fmt.Sprintf("Keyspace `%s` already exists", ksid),
+			fmt.Sprintf(
+				"Cannot create because keyspace \"%s\" already exists",
+				name,
+			),
 		)
 	}
 
@@ -62,7 +67,10 @@ func (backend *scylladb) CreateKeyspace(
 		return err
 	} else if found {
 		return errConflict("CreateKeyspace", "scylladb",
-			fmt.Sprintf("Keyspace `%s` already exists", ksid),
+			fmt.Sprintf(
+				"Cannot create because keyspace \"%s\" already exists",
+				name,
+			),
 		)
 	}
 
@@ -102,7 +110,7 @@ func (backend *scylladb) DeleteKeyspace(id string) gobol.Error {
 }
 
 func (backend *scylladb) ListKeyspaces() ([]Keyspace, gobol.Error) {
-	query := `SELECT key, name, contact, datacenter, ks_ttl FROM %s.ts_keyspace`
+	query := `SELECT key, name, contact, datacenter, ks_ttl, replication_factor FROM %s.ts_keyspace`
 	start := time.Now()
 	iter := backend.session.Query(fmt.Sprintf(query, backend.ksMngr)).Iter()
 
@@ -116,6 +124,7 @@ func (backend *scylladb) ListKeyspaces() ([]Keyspace, gobol.Error) {
 		&current.Contact,
 		&current.DC,
 		&current.TTL,
+		&current.Replication,
 	) {
 		if current.ID != backend.ksMngr {
 			keyspaces = append(keyspaces, current)
@@ -158,7 +167,7 @@ func (backend *scylladb) GetKeyspace(id string) (Keyspace, bool, gobol.Error) {
 		ks    = Keyspace{ID: id}
 	)
 	if err := backend.session.Query(query, id).Scan(
-		&ks.Name, &ks.Contact, &ks.DC, &ks.TTL,
+		&ks.Name, &ks.Contact, &ks.DC, &ks.TTL, &ks.Replication,
 	); err == gocql.ErrNotFound {
 		return Keyspace{}, false, nil
 	} else if err != nil {
@@ -188,12 +197,21 @@ func (backend *scylladb) UpdateKeyspace(
 	start := time.Now()
 	query := fmt.Sprintf(formatUpdateKeyspace, backend.ksMngr)
 
+	if _, found, err := backend.GetKeyspace(ksid); err != nil {
+		return err
+	} else if !found {
+		return errNotFound("UpdateKeyspace", "scylladb", "")
+	}
+
 	if _, found, err := backend.GetKeyspaceByName(name); err != nil {
 		return err
 	} else if found {
 		return errConflict(
 			"UpdateKeyspace", "scylladb",
-			fmt.Sprintf("Keyspace already exist: %s", name),
+			fmt.Sprintf(
+				"Cannot update because keyspace \"%s\" already exists",
+				name,
+			),
 		)
 	}
 

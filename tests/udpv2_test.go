@@ -814,6 +814,7 @@ func TestUDPv2Bucket52WeeksYear(t *testing.T) {
 
 		*p.Value = float32(i)
 		*p.Timestamp = timestamps[i]
+		time.Sleep(time.Millisecond *50)
 		mycenaeTools.UDP.Send(p.Marshal())
 	}
 
@@ -852,6 +853,7 @@ func TestUDPv2BucketFullYear(t *testing.T) {
 		*p.Timestamp = day.Unix()
 		timestamps[i] = *p.Timestamp
 
+		time.Sleep(time.Millisecond *200)
 		mycenaeTools.UDP.Send(p.Marshal())
 
 		day = day.AddDate(0, 0, 7)

@@ -34,24 +34,24 @@ func TestMain(m *testing.M) {
 
 		DiscoverHosts:  true,
 		DiscoverySleep: 10,
-		Timeout:        "60s",
+		Timeout:        "1m",
 		ProtoVersion:   4,
 	})
 
-	mycenaeTools.InitHTTP("http://mycenae", "8080", time.Minute)
+	mycenaeTools.InitHTTP("http://mycenae", "8080", 3*time.Minute)
 
 	mycenaeTools.InitUDP("mycenae", "4243")
 
 	mycenaeTools.InitMycenae(tools.MycenaeSettings{
 		Node:    "http://mycenae",
 		Port:    "8080",
-		Timeout: time.Minute,
+		Timeout: 5 * time.Minute,
 	})
 
 	mycenaeTools.InitEs(tools.ElasticsearchSettings{
 		Node:    "http://elasticsearch",
 		Port:    "9200",
-		Timeout: 20 * time.Second,
+		Timeout: time.Minute,
 	})
 
 	flag.Parse()

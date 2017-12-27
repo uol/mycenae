@@ -96,7 +96,7 @@ func (kspace *Keyspace) Update(w http.ResponseWriter, r *http.Request, ps httpro
 		return
 	}
 
-	gerr = kspace.storage.UpdateKeyspace(ksc, ks)
+	gerr = kspace.UpdateKeyspace(ksc, ks)
 	if gerr != nil {
 		rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace"})
 		rip.Fail(w, gerr)
@@ -115,7 +115,7 @@ func (kspace *Keyspace) GetAll(
 	r *http.Request,
 	ps httprouter.Params,
 ) {
-	keyspaces, err := kspace.storage.ListKeyspaces()
+	keyspaces, err := kspace.ListKeyspaces()
 	if err != nil {
 		rip.Fail(w, err)
 		return
@@ -182,7 +182,6 @@ func (kspace *Keyspace) Check(
 		},
 	)
 	rip.Success(w, http.StatusOK, nil)
-	return
 }
 
 // ListDC lists all the datacenters in the cassandra / scylladb cluster
@@ -191,7 +190,7 @@ func (kspace *Keyspace) ListDC(
 	r *http.Request,
 	ps httprouter.Params,
 ) {
-	datacenters, err := kspace.storage.ListDatacenters()
+	datacenters, err := kspace.ListDatacenters()
 	if err != nil {
 		rip.Fail(w, err)
 		return

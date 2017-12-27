@@ -44,6 +44,20 @@ func errNoContent(method, structure string) gobol.Error {
 	return errBasic(method, structure, "", http.StatusNoContent, errors.New(""))
 }
 
+func errNoDatacenter(method, structure, message string) gobol.Error {
+	return errBasic(
+		method, structure, message,
+		http.StatusBadRequest, errors.New(message),
+	)
+}
+
+func errNotFound(method, structure, message string) gobol.Error {
+	return errBasic(
+		method, structure, message,
+		http.StatusNotFound, errors.New(message),
+	)
+}
+
 func errPersist(method, structure string, err error) gobol.Error {
 	return errBasic(method, structure, err.Error(), http.StatusInternalServerError, err)
 }
