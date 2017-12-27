@@ -210,7 +210,6 @@ func (m *mycenaeTool) CreateKeyspace(dc, name, contact string, ttl, repFactor in
 	var resp *KeyspaceResp
 
 	m.client.POSTjson(fmt.Sprintf("keyspaces/%s", name), req, &resp)
-
 	return resp.KSID
 }
 
@@ -220,8 +219,8 @@ func (m *mycenaeTool) GetPoints(keyspace string, start int64, end int64, id stri
 		"keys": [{
 			"tsid":"` + id + `"
 		}],
-		"start":` + strconv.FormatInt(start * 1000, 10)  + `,
-		"end":` + strconv.FormatInt(end* 1000, 10) + `
+		"start":` + strconv.FormatInt(start*1000, 10) + `,
+		"end":` + strconv.FormatInt(end*1000, 10) + `
 	}`
 
 	status, resp, err := m.client.POST(fmt.Sprintf("keyspaces/%s/points", keyspace), []byte(payload))

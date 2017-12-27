@@ -25,7 +25,7 @@ func getKeyspace() tools.Keyspace {
 
 	data := tools.Keyspace{
 		Name:              getRandName(),
-		Datacenter:        "dc_gt_a1",
+		Datacenter:        datacenter,
 		ReplicationFactor: 1,
 		Contact:           fmt.Sprintf("test-%d@domain.com", time.Now().Unix()),
 		TTL:               90,
@@ -191,7 +191,7 @@ func checkKeyspacePropertiesAndIndex(data tools.Keyspace, t *testing.T) {
 
 	var replication = map[string]string{
 		"class":    "NetworkTopologyStrategy",
-		"dc_gt_a1": fmt.Sprintf("%v", data.ReplicationFactor),
+		datacenter: fmt.Sprintf("%v", data.ReplicationFactor),
 	}
 
 	esIndexResponse := mycenaeTools.ElasticSearch.Keyspace.GetIndex(data.ID)
@@ -304,7 +304,7 @@ func TestKeyspaceCreateFailNameError(t *testing.T) {
 	var (
 		rf      = 1
 		ttl     = 90
-		dc      = "dc_gt_a1"
+		dc      = datacenter
 		contact = fmt.Sprintf("test-%v@domain.com", time.Now().Unix())
 	)
 
@@ -328,7 +328,7 @@ func TestKeyspaceCreateFailRFError(t *testing.T) {
 
 	var (
 		ttl     = 90
-		dc      = "dc_gt_a1"
+		dc      = datacenter
 		contact = fmt.Sprintf("test-%v@domain.com", time.Now().Unix())
 	)
 
@@ -354,7 +354,7 @@ func TestKeyspaceCreateFailTTLError(t *testing.T) {
 
 	var (
 		rf      = 1
-		dc      = "dc_gt_a1"
+		dc      = datacenter
 		contact = fmt.Sprintf("test-%v@domain.com", time.Now().Unix())
 	)
 
@@ -387,7 +387,7 @@ func TestKeyspaceCreateFailContactError(t *testing.T) {
 	var (
 		rf  = 1
 		ttl = 90
-		dc  = "dc_gt_a1"
+		dc  = datacenter
 	)
 
 	cases := map[string]tools.Keyspace{
@@ -519,7 +519,7 @@ func TestKeyspaceCreateInvalidTTLFloat(t *testing.T) {
 
 	ttl := "9.1"
 	data := `{
-		"datacenter": "dc_gt_a1",
+		"datacenter": "` + datacenter + `",
 		"replicationFactor": 1,
 		"ttl": ` + ttl + `,
 		"tuuid": false,

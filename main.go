@@ -102,8 +102,6 @@ func main() {
 	if err != nil {
 		tsLogger.General.Fatalf("Error creating persistence backend")
 	}
-
-	_ = storage
 	// --- End of metadata and persistence ---
 
 	es, err := rubber.New(tsLogger.General, settings.ElasticSearch.Cluster)
@@ -115,8 +113,6 @@ func main() {
 	ks := keyspace.New(
 		tssts,
 		storage,
-		settings.Cassandra.Username,
-		settings.Cassandra.Keyspace,
 		settings.TTL.Max,
 	)
 

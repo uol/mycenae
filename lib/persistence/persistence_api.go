@@ -1,18 +1,47 @@
 package persistence
 
-import "github.com/uol/gobol"
+import (
+	"fmt"
+
+	"github.com/uol/gobol"
+)
+
+// DatacenterExists checks whether a given datacenter exists
+func (storage *Storage) DatacenterExists(dc string) (bool, gobol.Error) {
+	datacenters, err := storage.ListDatacenters()
+	if err != nil {
+		return false, err
+	}
+	for _, datacenter := range datacenters {
+		if dc == datacenter {
+			return true, nil
+		}
+	}
+	return false, nil
+}
 
 // CreateKeyspace is a wrapper around the Backend in order to create metadata
 // with the actual keyspace creation
 func (storage *Storage) CreateKeyspace(
-	name, datacenter, contact string, ttl int,
+	name, datacenter, contact string,
+	replication, ttl int,
 ) (string, gobol.Error) {
 	ksid := GenerateKeyspaceIdentifier()
+	if exists, err := storage.DatacenterExists(datacenter); err != nil {
+		return "", err
+	} else if !exists {
+		return "", errNoDatacenter("CreateKeyspace", "Storage",
+			fmt.Sprintf(
+				"Cannot create because datacenter \"%s\" not exists",
+				datacenter,
+			),
+		)
+	}
 	if err := storage.metadata.CreateIndex(ksid); err != nil {
 		return "", err
 	}
 	if err := storage.Backend.CreateKeyspace(
-		ksid, name, datacenter, contact, ttl,
+		ksid, name, datacenter, contact, replication, ttl,
 	); err != nil {
 		return "", err
 	}

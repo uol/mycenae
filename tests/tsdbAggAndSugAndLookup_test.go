@@ -72,7 +72,7 @@ func sendPointsTsdbAggAndSugAndLookup(keyspace string) {
 
 	code, resp, err := mycenaeTools.HTTP.POST("api/put", []byte(point))
 	if err != nil || code != 204 {
-		log.Fatal("send points", code, string(resp), err)
+		log.Fatal("send points: ", code, string(resp), err)
 	}
 }
 

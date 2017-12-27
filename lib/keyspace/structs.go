@@ -16,6 +16,9 @@ type Config struct {
 	Contact           string `json:"contact"`
 	TTL               int    `json:"ttl"`
 	//TUUID             bool   `json:"tuuid"`
+
+	// Validation
+	maxTTL int
 }
 
 // Validate checks if config is valid
@@ -33,17 +36,25 @@ func (c *Config) Validate() gobol.Error {
 	}
 
 	if !govalidator.IsEmail(c.Contact) {
-		return errValidationS("CreateKeyspace", "Contact field should be a valid email address")
+		return errValidationS(
+			"CreateKeyspace",
+			"Contact field should be a valid email address",
+		)
 	}
 
 	if c.TTL <= 0 {
-		return errValidationS("CreateKeyspace", `TTL can not be less or equal to zero`)
+		return errValidationS(
+			"CreateKeyspace",
+			`TTL can not be less or equal to zero`,
+		)
 	}
 
-	if c.TTL > maxTTL {
-		return errValidationS("CreateKeyspace", fmt.Sprintf(`Max TTL allowed is %v`, maxTTL))
+	if c.TTL > c.maxTTL {
+		return errValidationS(
+			"CreateKeyspace",
+			fmt.Sprintf(`Max TTL allowed is %v`, c.maxTTL),
+		)
 	}
-
 	return nil
 }
 

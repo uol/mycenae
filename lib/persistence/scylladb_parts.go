@@ -19,6 +19,12 @@ func (backend *scylladb) addKeyspaceMetadata(ks Keyspace) gobol.Error {
 		ks.Contact,
 		ks.DC,
 		ks.TTL,
+
+		ks.Replication,
+		fmt.Sprintf(
+			`{'class': 'NetworkTopologyStrategy', '%s': %d}`,
+			ks.DC, ks.Replication,
+		),
 	).Exec(); err != nil {
 		backend.statsQueryError(backend.ksMngr, "ts_keyspace", "insert")
 		return errPersist("addKeyspaceMetadata", "scylladb", err)
@@ -33,7 +39,7 @@ func (backend *scylladb) addKeyspaceMetadata(ks Keyspace) gobol.Error {
 func (backend *scylladb) createKeyspace(ks Keyspace) gobol.Error {
 	query := fmt.Sprintf(
 		formatCreateKeyspace,
-		ks.ID, ks.DC, ks.TTL,
+		ks.ID, ks.DC, ks.Replication,
 	)
 	if err := backend.session.Query(query).Exec(); err != nil {
 		backend.statsQueryError(ks.ID, "", "create")
@@ -47,7 +53,7 @@ func (backend *scylladb) createNumericTable(ks Keyspace) gobol.Error {
 		formatCreateNumericTable,
 		ks.ID,
 		backend.compaction,
-		ks.TTL,
+		ks.TTL*86400,
 	)
 
 	if err := backend.session.Query(query).Exec(); err != nil {
@@ -63,7 +69,7 @@ func (backend *scylladb) createTextTable(ks Keyspace) gobol.Error {
 			formatCreateTextTable,
 			ks.ID,
 			backend.compaction,
-			ks.TTL,
+			ks.TTL*86400,
 		),
 	).Exec(); err != nil {
 		backend.statsQueryError(ks.ID, "", "create")

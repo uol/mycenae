@@ -3,45 +3,47 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/stretchr/testify/assert"
+	"github.com/uol/mycenae/tests/tools"
 	"log"
+	"math"
 	"sort"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/assert"
-
-	//"github.com/uol/mycenae/lib/structs"
-	"github.com/uol/mycenae/tests/tools"
-	"math"
 )
 
-var ts10IDTsdbQuery, ts12IDTsdbQuery, ts13IDTsdbQuery, ts13IDTsdbQuery2, ts13IDTsdbQuery3,
-	ts13IDTsdbQuery4, ts13IDTsdbQuery5, ts13IDTsdbQuery6, ts13IDTsdbQuery7, ts13IDTsdbQuery8 string
+var (
+	ts10IDTsdbQuery  string
+	ts12IDTsdbQuery  string
+	ts13IDTsdbQuery  string
+	ts13IDTsdbQuery2 string
+	ts13IDTsdbQuery3 string
+	ts13IDTsdbQuery4 string
+	ts13IDTsdbQuery5 string
+	ts13IDTsdbQuery6 string
+	ts13IDTsdbQuery7 string
+	ts13IDTsdbQuery8 string
+)
 
 var hashMap map[string]string
 
 // Helper
-
 func postAPIQueryAndCheck(t *testing.T, payload string, metric string, p, dps, tags, aggtags, tsuuidSize int, tsuuids ...string) ([]string, []tools.ResponseQuery) {
-
 	path := fmt.Sprintf("keyspaces/%s/api/query", ksMycenae)
 	code, response, err := mycenaeTools.HTTP.POST(path, []byte(payload))
-	if err != nil {
-		t.Error(err)
+	if !assert.NoError(t, err) {
 		t.SkipNow()
 	}
 
 	payloadPoints := []tools.ResponseQuery{}
 	err = json.Unmarshal(response, &payloadPoints)
-	if err != nil {
-		t.Error(err, string(response))
+	if !assert.NoError(t, err) {
 		t.SkipNow()
 	}
 
-	if len(payloadPoints) == 0 {
-		t.Error("No points were found")
+	if !assert.NotEmpty(t, payloadPoints) {
 		t.SkipNow()
 	}
 
@@ -5036,7 +5038,6 @@ func TestTsdbQueryRateTrueNoPoints(t *testing.T) {
 }
 
 func TestTsdbQueryFilterGroupByWildcard(t *testing.T) {
-
 	payload := `{
 		"start": 1448452740000,
 		"end": 1448453940000,
@@ -5060,34 +5061,31 @@ func TestTsdbQueryFilterGroupByWildcard(t *testing.T) {
 	}
 
 	payloadPoints := []tools.ResponseQuery{}
-
 	err = json.Unmarshal(response, &payloadPoints)
-	if err != nil {
-		t.Error(err)
+	if !assert.NoError(t, err) {
 		t.SkipNow()
 	}
 
 	assert.Equal(t, 200, code)
-	assert.Equal(t, 3, len(payloadPoints))
+	if !assert.Len(t, payloadPoints, 3) {
+		t.SkipNow()
+	}
 
 	for i := 0; i < 3; i++ {
-
 		switch payloadPoints[i].Tsuuids[0] {
-
 		case ts13IDTsdbQuery, ts13IDTsdbQuery2:
-
-			keys := []string{}
-
+			var keys []string
 			for key := range payloadPoints[i].Dps {
 				keys = append(keys, key)
 			}
 
 			sort.Strings(keys)
 
-			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 2, len(payloadPoints[i].Tags))
-			assert.Equal(t, 1, len(payloadPoints[i].AggTags))
-			assert.Equal(t, 2, len(payloadPoints[i].Tsuuids))
+			assert.Len(t, payloadPoints[i].Dps, 20)
+			assert.Len(t, payloadPoints[i].Tags, 2)
+			assert.Len(t, payloadPoints[i].AggTags, 1)
+			assert.Len(t, payloadPoints[i].Tsuuids, 2)
+
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
 			assert.Equal(t, "app", payloadPoints[i].AggTags[0])
 			assert.Equal(t, "host1", payloadPoints[i].Tags["host"])
@@ -5104,14 +5102,10 @@ func TestTsdbQueryFilterGroupByWildcard(t *testing.T) {
 			var value float32 = 3.0
 			dateStart := 1448452800
 			for _, key := range keys {
-
 				assert.Exactly(t, value, float32(payloadPoints[i].Dps[key].(float64)))
-
 				assert.Exactly(t, strconv.Itoa(dateStart), key)
 				dateStart += 60
-
 				value += 3.0
-
 			}
 		case ts13IDTsdbQuery3, ts13IDTsdbQuery4:
 			keys := []string{}
@@ -5123,9 +5117,9 @@ func TestTsdbQueryFilterGroupByWildcard(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 2, len(payloadPoints[i].Tags))
-			assert.Equal(t, 1, len(payloadPoints[i].AggTags))
-			assert.Equal(t, 2, len(payloadPoints[i].Tsuuids))
+			assert.Len(t, payloadPoints[i].Tags, 2)
+			assert.Len(t, payloadPoints[i].AggTags, 1)
+			assert.Len(t, payloadPoints[i].Tsuuids, 2)
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
 			assert.Equal(t, "app", payloadPoints[i].AggTags[0])
 			assert.Equal(t, "host2", payloadPoints[i].Tags["host"])
@@ -5162,22 +5156,15 @@ func TestTsdbQueryFilterGroupByWildcard(t *testing.T) {
 
 			sort.Strings(keys)
 
-			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 1, len(payloadPoints[i].Tags))
-			assert.Equal(t, 2, len(payloadPoints[i].AggTags))
-			assert.Equal(t, 4, len(payloadPoints[i].Tsuuids))
+			assert.Len(t, payloadPoints[i].Dps, 20)
+			assert.Len(t, payloadPoints[i].Tags, 1)
+			assert.Len(t, payloadPoints[i].AggTags, 2)
+			assert.Len(t, payloadPoints[i].Tsuuids, 4)
+
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
 			assert.Equal(t, "app", payloadPoints[i].AggTags[0])
 			assert.Equal(t, "type", payloadPoints[i].AggTags[1])
 			assert.Equal(t, "host3", payloadPoints[i].Tags["host"])
-
-			//if ts13IDTsdbQuery5 == payloadPoints[i].Tsuuids[0] {
-			//	assert.Equal(t, ts13IDTsdbQuery6, payloadPoints[i].Tsuuids[1])
-			//
-			//} else {
-			//	assert.Equal(t, ts13IDTsdbQuery5, payloadPoints[i].Tsuuids[1])
-			//	assert.Equal(t, ts13IDTsdbQuery6, payloadPoints[i].Tsuuids[0])
-			//}
 
 			assert.Contains(t, payloadPoints[i].Tsuuids, ts13IDTsdbQuery5, "Tsuuid not found")
 			assert.Contains(t, payloadPoints[i].Tsuuids, ts13IDTsdbQuery6, "Tsuuid not found")
@@ -5187,25 +5174,20 @@ func TestTsdbQueryFilterGroupByWildcard(t *testing.T) {
 			var value float32 = 26.0
 			dateStart := 1448452800
 			for _, key := range keys {
-
 				assert.Exactly(t, value, float32(payloadPoints[i].Dps[key].(float64)))
 
 				assert.Exactly(t, strconv.Itoa(dateStart), key)
 				dateStart += 60
 
 				value += 26.0
-
 			}
-
 		default:
 			t.Error("not found")
 		}
-
 	}
 }
 
 func TestTsdbQueryFilterGroupByWildcardPartialName(t *testing.T) {
-
 	payload := `{
 		"start": 1448452740000,
 		"end": 1448453940000,
@@ -5237,7 +5219,9 @@ func TestTsdbQueryFilterGroupByWildcardPartialName(t *testing.T) {
 	}
 
 	assert.Equal(t, 200, code)
-	assert.Equal(t, 3, len(payloadPoints))
+	if !assert.Len(t, payloadPoints, 3) {
+		t.SkipNow()
+	}
 
 	for i := 0; i < 3; i++ {
 
@@ -5374,7 +5358,6 @@ func TestTsdbQueryFilterGroupByWildcardPartialName(t *testing.T) {
 }
 
 func TestTsdbQueryFilterGroupByWildcardTagWithDot(t *testing.T) {
-
 	payload := `{
 		"start": 1348452800000,
 		"end": 1348458770000,
@@ -5409,7 +5392,6 @@ func TestTsdbQueryFilterGroupByWildcardTagWithDot(t *testing.T) {
 }
 
 func TestTsdbQueryFilterGroupByWildcardTagWithDotPartialName(t *testing.T) {
-
 	payload := `{
 		"start": 1348452800000,
 		"end": 1348458770000,

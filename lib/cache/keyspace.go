@@ -1,10 +1,11 @@
 package cache
 
 import (
+	"net/http"
+
 	"github.com/uol/gobol"
 	"github.com/uol/mycenae/lib/keyspace"
 	"github.com/uol/mycenae/lib/memcached"
-	"net/http"
 )
 
 type KeyspaceCache struct {

@@ -15,11 +15,14 @@ checkScyllaUpNodes () {
 ./start_scylla.sh 1
 ./start_scylla.sh 2
 ./start_scylla.sh 3
+sleep "1m"
 checkScyllaUpNodes 3
 
 docker cp $GOPATH/src/github.com/uol/mycenae/docs/scylladb.cql scylla1:/tmp/
 scyllaIP=$(docker inspect --format "{{ .NetworkSettings.IPAddress }}" scylla1)
-docker exec -it scylla1 sh -c "cqlsh ${scyllaIP} -u cassandra -p cassandra < /tmp/scylladb.cql"
+
+echo -ne "\nRunning: cqlsh\n"
+docker exec -it scylla1 sh -c "cqlsh --request-timeout=300 ${scyllaIP} -u cassandra -p cassandra < /tmp/scylladb.cql"
 consulServerIp=$(docker inspect --format "{{ .NetworkSettings.IPAddress }}" consulServer)
 
 for i in {1..3}

@@ -6,6 +6,7 @@ import (
 	"log"
 	"sort"
 	"time"
+
 	"github.com/gocql/gocql"
 )
 
@@ -50,16 +51,17 @@ type KeyspaceProperties struct {
 }
 
 const (
-	cqlKeyspaceTables = `SELECT table_name FROM system_schema.tables WHERE keyspace_name = ?`
-	cqlExists = `SELECT keyspace_name FROM system_schema.keyspaces WHERE keyspace_name = ?`
-	cqlExistsInformation = `SELECT name, datacenter, contact, replication_factor, ks_ttl, ks_tuuid FROM mycenae.ts_keyspace WHERE key = ?`
-	cqlTableProperties = `SELECT bloom_filter_fp_chance, caching, comment, compaction, compression, dclocal_read_repair_chance, default_time_to_live, gc_grace_seconds, max_index_interval, memtable_flush_period_in_ms, min_index_interval, read_repair_chance, speculative_retry from system_schema.tables  where keyspace_name = ? and table_name = ?`
+	cqlKeyspaceTables     = `SELECT table_name FROM system_schema.tables WHERE keyspace_name = ?`
+	cqlExists             = `SELECT keyspace_name FROM system_schema.keyspaces WHERE keyspace_name = ?`
+	cqlExistsInformation  = `SELECT name, datacenter, contact, replication_factor, ks_ttl FROM mycenae.ts_keyspace WHERE key = ?`
+	cqlTableProperties    = `SELECT bloom_filter_fp_chance, caching, comment, compaction, compression, dclocal_read_repair_chance, default_time_to_live, gc_grace_seconds, max_index_interval, memtable_flush_period_in_ms, min_index_interval, read_repair_chance, speculative_retry from system_schema.tables  where keyspace_name = ? and table_name = ?`
 	cqlKeyspaceProperties = `SELECT keyspace_name, durable_writes, replication from system_schema.keyspaces where keyspace_name = ?`
-	cqlDropKS = `DROP KEYSPACE %v`
-	cqlSelectKS = `SELECT name, replication_factor, datacenter, ks_ttl, ks_tuuid, contact, replication_factor_meta FROM mycenae.ts_keyspace WHERE key = ?`
-	cqlDeleteKS = `DELETE FROM mycenae.ts_keyspace WHERE key = '%v'`
-	cqlInsertKS = `INSERT INTO mycenae.ts_keyspace (key, name , datacenter , replication_factor, ks_ttl, ks_tuuid) VALUES ('%v', '%v', 'dc_gt_a1', 1, 90, false)`
+	cqlDropKS             = `DROP KEYSPACE %v`
+	cqlSelectKS           = `SELECT name, replication_factor, datacenter, ks_ttl, ks_tuuid, contact, replication_factor_meta FROM mycenae.ts_keyspace WHERE key = ?`
+	cqlDeleteKS           = `DELETE FROM mycenae.ts_keyspace WHERE key = '%v'`
+	cqlInsertKS           = `INSERT INTO mycenae.ts_keyspace (key, name , datacenter , replication_factor, ks_ttl, ks_tuuid) VALUES ('%v', '%v', 'dc_gt_a1', 1, 90, false)`
 )
+
 //
 //func (ts *cassTs) countByValueInColumn(column string, table string, namespace string, funcName string, value string) (int, gobol.Error) {
 //
@@ -109,14 +111,14 @@ func (ts *cassTs) GetTextFromDateSTAMP(keyspace, id string, date time.Time) (nVa
 	return
 }
 
-func (ts *cassTs) CountValueFromIDSTAMP(keyspace, id string) (int) {
-	it := ts.cql.Query(fmt.Sprintf("SELECT id FROM %s.ts_number_stamp WHERE id=?", keyspace),id,).Iter()
+func (ts *cassTs) CountValueFromIDSTAMP(keyspace, id string) int {
+	it := ts.cql.Query(fmt.Sprintf("SELECT id FROM %s.ts_number_stamp WHERE id=?", keyspace), id).Iter()
 
 	var count int
 	var scanned string
 	for it.Scan(&scanned) {
 		if id == scanned {
-			count++;
+			count++
 		}
 	}
 	if err := it.Close(); err != nil {
@@ -134,15 +136,14 @@ func (ts *cassTs) CountValueFromIDSTAMP(keyspace, id string) (int) {
 //	return
 //}
 
-
-func (ts *cassTs) CountTextFromIDSTAMP(keyspace, id string) (int) {
-	it := ts.cql.Query(fmt.Sprintf("SELECT id FROM %s.ts_text_stamp WHERE id=?", keyspace),id,).Iter()
+func (ts *cassTs) CountTextFromIDSTAMP(keyspace, id string) int {
+	it := ts.cql.Query(fmt.Sprintf("SELECT id FROM %s.ts_text_stamp WHERE id=?", keyspace), id).Iter()
 
 	var count int
 	var scanned string
 	for it.Scan(&scanned) {
 		if id == scanned {
-			count++;
+			count++
 		}
 	}
 	if err := it.Close(); err != nil {
@@ -194,14 +195,14 @@ func (ts *cassTs) GetTextFromTwoDatesSTAMP(keyspace, id string, dateBeforeReques
 	return
 }
 
-func (ts *cassTs) CountValueFromIDAndDateSTAMP(keyspace, id string, date time.Time) (int) {
+func (ts *cassTs) CountValueFromIDAndDateSTAMP(keyspace, id string, date time.Time) int {
 	it := ts.cql.Query(fmt.Sprintf("SELECT id FROM %s.ts_number_stamp WHERE id=? AND date=?", keyspace), id, date.Truncate(time.Second)).Iter()
 
 	var count int
 	var scanned string
 	for it.Scan(&scanned) {
 		if id == scanned {
-			count++;
+			count++
 		}
 	}
 	if err := it.Close(); err != nil {
@@ -220,14 +221,14 @@ func (ts *cassTs) CountValueFromIDAndDateSTAMP(keyspace, id string, date time.Ti
 //	return
 //}
 
-func (ts *cassTs) CountTextFromIDAndDateSTAMP(keyspace, id string, date time.Time) (int) {
+func (ts *cassTs) CountTextFromIDAndDateSTAMP(keyspace, id string, date time.Time) int {
 	it := ts.cql.Query(fmt.Sprintf("SELECT id FROM %s.ts_text_stamp WHERE id=? AND date=?", keyspace), id, date.Truncate(time.Second)).Iter()
 
 	var count int
 	var scanned string
 	for it.Scan(&scanned) {
 		if id == scanned {
-			count++;
+			count++
 		}
 	}
 	if err := it.Close(); err != nil {
@@ -288,13 +289,13 @@ func (ts *cassTs) GetTextHashFromMetricAndTags(metric string, tags map[string]st
 	return fmt.Sprint("T", h.Sum32())
 }
 
-func (ts *cassTs) CountKeyspaces() (int) {
+func (ts *cassTs) CountKeyspaces() int {
 	it := ts.cql.Query("SELECT id FROM system_schema.keyspaces").Iter()
 
 	var count int
 	var scanned string
 	for it.Scan(&scanned) {
-			count++;
+		count++
 	}
 	if err := it.Close(); err != nil {
 		log.Println(err)
@@ -309,13 +310,13 @@ func (ts *cassTs) CountKeyspaces() (int) {
 //	return
 //}
 
-func (ts *cassTs) CountTsKeyspaces() (int) {
+func (ts *cassTs) CountTsKeyspaces() int {
 	it := ts.cql.Query("SELECT id FROM mycenae.ts_keyspace").Iter()
 
 	var count int
 	var scanned string
 	for it.Scan(&scanned) {
-		count++;
+		count++
 	}
 	if err := it.Close(); err != nil {
 		log.Println(err)
@@ -330,14 +331,14 @@ func (ts *cassTs) CountTsKeyspaces() (int) {
 //	return
 //}
 
-func (ts *cassTs) CountTsKeyspaceByKsid(keyspace string) (int) {
-	it := ts.cql.Query("SELECT key FROM mycenae.ts_keyspace WHERE key=?",keyspace,).Iter()
+func (ts *cassTs) CountTsKeyspaceByKsid(keyspace string) int {
+	it := ts.cql.Query("SELECT key FROM mycenae.ts_keyspace WHERE key=?", keyspace).Iter()
 
 	var count int
 	var scanned string
 	for it.Scan(&scanned) {
 		if keyspace == scanned {
-			count++;
+			count++
 		}
 	}
 	if err := it.Close(); err != nil {
@@ -403,7 +404,7 @@ func (ts *cassTs) Exists(keyspace string) bool {
 	var scanned string
 	for it.Scan(&scanned) {
 		if keyspace == scanned {
-			count++;
+			count++
 		}
 	}
 	if err = it.Close(); err != nil {
@@ -411,31 +412,19 @@ func (ts *cassTs) Exists(keyspace string) bool {
 	}
 	return err == nil && count == 1
 }
-
-//func (ts *cassTs) Exists(keyspace string) bool {
-//	var count int
-//	err := ts.cql.Query(
-//		cqlExists,
-//		keyspace,
-//	).Scan(&count)
-//	return err == nil && count == 1
-//}
 
 func (ts *cassTs) ExistsInformation(keyspace string, name string, replication_factor int, datacenter string, ttl int, tuuid bool, contact string) bool {
 	var err error
 	var count int
 	var scName, scDatacenter, scContact string
 	var scRepFactor, scTTL int
-	var scTUUID bool
 	it := ts.cql.Query(
 		cqlExistsInformation,
 		keyspace,
 	).Iter()
-	for it.Scan(&scName, &scDatacenter, &scContact, &scRepFactor, &scTTL, &scTUUID) {
-		if scName == name && scDatacenter == datacenter && scContact == contact &&
-		   scRepFactor == replication_factor && scTTL == ttl &&
-		   scTUUID == tuuid {
-			count++;
+	for it.Scan(&scName, &scDatacenter, &scContact, &scRepFactor, &scTTL) {
+		if scName == name && scDatacenter == datacenter && scContact == contact && scRepFactor == replication_factor && scTTL == ttl {
+			count++
 		}
 	}
 	if err = it.Close(); err != nil {
@@ -445,27 +434,11 @@ func (ts *cassTs) ExistsInformation(keyspace string, name string, replication_fa
 
 }
 
-//func (ts *cassTs) ExistsInformation(keyspace string, name string, replication_factor int, datacenter string, ttl int, tuuid bool, contact string) bool {
-//	var count int
-//	err := ts.cql.Query(
-//		cqlExistsInformation,
-//		keyspace,
-//		name,
-//		replication_factor,
-//		datacenter,
-//		ttl,
-//		tuuid,
-//		contact,
-//	).Scan(&count)
-//	return err == nil && count == 1
-//
-//}
-
 func (ts *cassTs) TableProperties(keyspace string, table string) TableProperties {
 	var caching, compaction, compression map[string]string
 	var speculative_retry, comment string
 	var default_time_to_live, gc_grace_seconds, max_index_interval, memtable_flush_period_in_ms,
-	min_index_interval int
+		min_index_interval int
 	var bloom_filter_fp_chance, dclocal_read_repair_chance, read_repair_chance float64
 
 	if err := ts.cql.Query(cqlTableProperties,
@@ -558,6 +531,6 @@ func (ts *cassTs) KeyspaceProperties(keyspace string) KeyspaceProperties {
 	return KeyspaceProperties{
 		Keyspace_name:  keyspace_name,
 		Durable_writes: durable_writes,
-		Replication: replication,
+		Replication:    replication,
 	}
 }

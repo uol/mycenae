@@ -45,16 +45,19 @@ func (kspace *Keyspace) Create(
 	)
 
 	var ksc Config
+	ksc.maxTTL = kspace.maxTTL
+
 	err := rip.FromJSON(r, &ksc)
 	if err != nil {
 		rip.Fail(w, err)
 		return
 	}
 	ksc.Name = ks
-	ksid, err := kspace.storage.CreateKeyspace(
+	ksid, err := kspace.CreateKeyspace(
 		ksc.Name,
 		ksc.Datacenter,
 		ksc.Contact,
+		ksc.ReplicationFactor,
 		ksc.TTL,
 	)
 	if err != nil {
@@ -90,7 +93,7 @@ func (kspace *Keyspace) Update(w http.ResponseWriter, r *http.Request, ps httpro
 		return
 	}
 
-	gerr = kspace.storage.UpdateKeyspace(ks, ksc.Name, ksc.Contact)
+	gerr = kspace.UpdateKeyspace(ks, ksc.Name, ksc.Contact)
 	if gerr != nil {
 		rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace"})
 		rip.Fail(w, gerr)
@@ -109,7 +112,7 @@ func (kspace *Keyspace) GetAll(
 	r *http.Request,
 	ps httprouter.Params,
 ) {
-	keyspaces, err := kspace.storage.ListKeyspaces()
+	keyspaces, err := kspace.ListKeyspaces()
 	if err != nil {
 		rip.Fail(w, err)
 		return
@@ -150,7 +153,7 @@ func (kspace *Keyspace) Check(
 		return
 	}
 
-	_, found, err := kspace.storage.GetKeyspace(ks)
+	_, found, err := kspace.GetKeyspace(ks)
 	if err != nil {
 		rip.AddStatsMap(
 			r,
@@ -184,7 +187,7 @@ func (kspace *Keyspace) ListDC(
 	r *http.Request,
 	ps httprouter.Params,
 ) {
-	datacenters, err := kspace.storage.ListDatacenters()
+	datacenters, err := kspace.ListDatacenters()
 	if err != nil {
 		rip.Fail(w, err)
 		return

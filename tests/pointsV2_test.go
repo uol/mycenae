@@ -2094,7 +2094,7 @@ func TestPointsV22Merge(t *testing.T) {
 
 func TestPointsV2MoreThanOneTS(t *testing.T) {
 	t.Parallel()
-	
+
 	payload := `{
 		"keys": [{"tsid":"` + hashMapPV2["ts1"] + `"},{"tsid":"` + ts10ID + `"}
 		],

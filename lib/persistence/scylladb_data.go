@@ -1,11 +1,11 @@
 package persistence
 
-const formatAddKeyspace = `INSERT INTO %s.ts_keyspace (key, name, contact, datacenter, ks_ttl) VALUES (?, ?, ?, ?, ?)`
+const formatAddKeyspace = `INSERT INTO %s.ts_keyspace (key, name, contact, datacenter, ks_ttl, replication_factor, replication_factor_meta) VALUES (?, ?, ?, ?, ?, ?, ?)`
 
 const formatCreateKeyspace = `
     CREATE KEYSPACE %s WITH replication={
         'class': 'NetworkTopologyStrategy',
-        '%s':%d
+        '%s': %d
     } AND durable_writes=true
 `
 
@@ -22,10 +22,9 @@ const formatCreateNumericTable = `
         'rows_per_partition':'NONE'
     } AND comment = ''
     AND compaction={
-        'min_threshold': '8',
-        'max_threshold': '64',
-        'compaction_window_unit': 'DAYS',
-        'compaction_window_size': '7',
+        'timestamp_resolution': 'SECONDS',
+        'base_time_seconds': '3600',
+        'max_sstable_age_days': '365',
         'class': '%s'
     }
     AND compression = {
@@ -53,10 +52,9 @@ const formatCreateTextTable = `
         'rows_per_partition':'NONE'
     } AND comment = ''
     AND compaction={
-        'min_threshold': '8',
-        'max_threshold': '64',
-        'compaction_window_unit': 'DAYS',
-        'compaction_window_size': '7',
+        'timestamp_resolution': 'SECONDS',
+        'base_time_seconds': '3600',
+        'max_sstable_age_days': '365',
         'class': '%s'
     } AND compression = {
         'crc_check_chance': '0.5',
@@ -73,9 +71,7 @@ const formatCreateTextTable = `
 
 const formatDeleteKeyspace = `DROP KEYSPACE IF EXISTS %s`
 
-const formatGetKeyspace = `SELECT name, contact, datacenter, ks_ttl FROM %s.ts_keyspace WHERE key = ?`
-
-const formatGetKeyspaceByName = `SELECT key, contact, datacenter, ks_ttl FROM %s.ts_keyspace WHERE name = ? ALLOW FILTERING`
+const formatGetKeyspace = `SELECT name, contact, datacenter, ks_ttl, replication_factor FROM %s.ts_keyspace WHERE key = ?`
 
 var formatGrants = []string{
 	`GRANT MODIFY ON KEYSPACE %s TO %s`,

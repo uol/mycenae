@@ -15,6 +15,8 @@ var setup = flag.Bool("setup", true, "flag used to skip setup when set to false"
 var mycenaeTools tools.Tool
 var ksMycenae, ksMycenaeMeta, ksMycenaeTsdb string
 
+const datacenter = "dc_gt_a1"
+
 func TestMain(m *testing.M) {
 
 	mycenaeTools.InitCass(tools.CassandraSettings{
@@ -30,36 +32,36 @@ func TestMain(m *testing.M) {
 
 		DiscoverHosts:  true,
 		DiscoverySleep: 10,
-		Timeout:        "60s",
+		Timeout:        "1m",
 		ProtoVersion:   4,
 	})
 
-	mycenaeTools.InitHTTP("http://mycenae", "8787", time.Minute)
+	mycenaeTools.InitHTTP("http://mycenae", "8787", 3*time.Minute)
 
 	mycenaeTools.InitUDP("mycenae", "4243")
 
 	mycenaeTools.InitMycenae(tools.MycenaeSettings{
 		Node:    "http://mycenae",
 		Port:    "8787",
-		Timeout: time.Minute,
+		Timeout: 5 * time.Minute,
 	})
 
 	mycenaeTools.InitEs(tools.ElasticsearchSettings{
 		Node:    "http://elasticsearch",
 		Port:    "9200",
-		Timeout: 20 * time.Second,
+		Timeout: time.Minute,
 	})
 
 	flag.Parse()
 
-	ksMycenae = mycenaeTools.Mycenae.CreateKeyspace("dc_gt_a1", fmt.Sprint(time.Now().Unix()), "mycenae@mycenae.com", 90, 1)
+	ksMycenae = mycenaeTools.Mycenae.CreateKeyspace(datacenter, fmt.Sprint(time.Now().Unix()), "mycenae@mycenae.com", 90, 1)
 
 	if *setup {
 
 		var wg sync.WaitGroup
 
-		ksMycenaeMeta = mycenaeTools.Mycenae.CreateKeyspace("dc_gt_a1", fmt.Sprint(time.Now().Unix()), "mycenae@mycenae.com", 90, 1)
-		ksMycenaeTsdb = mycenaeTools.Mycenae.CreateKeyspace("dc_gt_a1", fmt.Sprint(time.Now().Unix()), "mycenae@mycenae.com", 90, 1)
+		ksMycenaeMeta = mycenaeTools.Mycenae.CreateKeyspace(datacenter, fmt.Sprint(time.Now().Unix()), "mycenae@mycenae.com", 90, 1)
+		ksMycenaeTsdb = mycenaeTools.Mycenae.CreateKeyspace(datacenter, fmt.Sprint(time.Now().Unix()), "mycenae@mycenae.com", 90, 1)
 
 		wg.Add(7)
 
