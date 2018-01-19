@@ -37,6 +37,25 @@ MetaBufferSize = 100000
 
 MetaSaveInterval = "1s"
 
+DefaultTTL = 1
+
+DefaultKeysets = ["mycenae"]
+
+# All default keyspaces
+[DefaultKeyspaces]
+  one_day = 1
+  three_days = 3
+  one_week = 7
+  two_weeks = 14
+  one_month = 30
+  three_months = 90
+
+#The default keyspace data used to create all default keyspaces
+[DefaultKeyspaceData]
+  Datacenter = "dc_gt_a1"
+  ReplicationFactor = 2
+  Contact = "l-pd-plat-servicos@uolinc.com"
+
 [cassandra]
   keyspace = "mycenae"
   consistency = "one"
@@ -50,9 +69,6 @@ MetaSaveInterval = "1s"
   pageSize = 5000
   timeout = "60s"
   protoVersion = 4
-
-[TTL]
-  max = 90
 
 [UDPserver]
   port = "4242"
@@ -89,11 +105,11 @@ MetaSaveInterval = "1s"
   address = "0.0.0.0"
   port = "4243"
   protocol = "udp"
-  ksid = "stats"
-  ttl = "5"
+  ksid = "mycenae"
   interval = "@every 1m"
   [stats.tags]
     service = "mycenae"
+    ttl = "7"
 
 [probe]
   threshold = 0.5

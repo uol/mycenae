@@ -7,6 +7,7 @@ import (
 	"github.com/uol/gobol/rubber"
 
 	"github.com/uol/mycenae/lib/cache"
+	"github.com/uol/mycenae/lib/keyset"
 	"github.com/uol/mycenae/lib/tsstats"
 )
 
@@ -26,6 +27,10 @@ func New(
 	maxConcurrentTimeseries int,
 	maxConcurrentReads int,
 	logQueryTSthreshold int,
+	keyspaceTTLMap map[uint8]string,
+	keySet *keyset.KeySet,
+	defaultTTL uint8,
+
 ) (*Plot, gobol.Error) {
 
 	gblog = gbl
@@ -55,6 +60,9 @@ func New(
 		persist:           persistence{cassandra: cass, esTs: es},
 		concTimeseries:    make(chan struct{}, maxConcurrentTimeseries),
 		concReads:         make(chan struct{}, maxConcurrentReads),
+		keyspaceTTLMap:    keyspaceTTLMap,
+		keySet:            keySet,
+		defaultTTL:        defaultTTL,
 	}, nil
 }
 
@@ -66,4 +74,7 @@ type Plot struct {
 	persist           persistence
 	concTimeseries    chan struct{}
 	concReads         chan struct{}
+	keyspaceTTLMap    map[uint8]string
+	keySet            *keyset.KeySet
+	defaultTTL        uint8
 }

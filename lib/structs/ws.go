@@ -133,6 +133,7 @@ func (query *TsQuery) Validate() gobol.Error {
 
 type Key struct {
 	TSid string `json:"tsid"`
+	TTL  uint8  `json:"ttl"`
 }
 
 type Merge struct {

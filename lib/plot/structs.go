@@ -932,7 +932,7 @@ type TSDBresponse struct {
 type ExpParse struct {
 	Expression string `json:"expression"`
 	Expand     bool   `json:"expand"`
-	Keyspace   string `json:"keyspace"`
+	Keyset     string `json:"ksid"`
 }
 
 func (expp ExpParse) Validate() gobol.Error {

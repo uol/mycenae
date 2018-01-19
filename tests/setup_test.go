@@ -13,7 +13,11 @@ import (
 
 var setup = flag.Bool("setup", true, "flag used to skip setup when set to false")
 var mycenaeTools tools.Tool
-var ksMycenae, ksMycenaeMeta, ksMycenaeTsdb string
+var ksMycenae, ksMycenaeMeta, ksMycenaeTsdb, ksTTLKeyspace string
+
+func createKeySetName() string {
+	return fmt.Sprintf("ts_%d", time.Now().Nanosecond())
+}
 
 func TestMain(m *testing.M) {
 
@@ -52,16 +56,17 @@ func TestMain(m *testing.M) {
 
 	flag.Parse()
 
-	ksMycenae = mycenaeTools.Mycenae.CreateKeyspace("dc_gt_a1", fmt.Sprint(time.Now().Unix()), "mycenae@mycenae.com", 90, 1)
+	ksMycenae = mycenaeTools.Mycenae.CreateKeySet(createKeySetName())
 
 	if *setup {
 
 		var wg sync.WaitGroup
 
-		ksMycenaeMeta = mycenaeTools.Mycenae.CreateKeyspace("dc_gt_a1", fmt.Sprint(time.Now().Unix()), "mycenae@mycenae.com", 90, 1)
-		ksMycenaeTsdb = mycenaeTools.Mycenae.CreateKeyspace("dc_gt_a1", fmt.Sprint(time.Now().Unix()), "mycenae@mycenae.com", 90, 1)
+		ksMycenaeMeta = mycenaeTools.Mycenae.CreateKeySet(createKeySetName())
+		ksMycenaeTsdb = mycenaeTools.Mycenae.CreateKeySet(createKeySetName())
+		ksTTLKeyspace = mycenaeTools.Mycenae.CreateKeySet(createKeySetName())
 
-		wg.Add(7)
+		wg.Add(8)
 
 		go func() { sendPointsExpandExp(ksMycenae); wg.Done() }()
 		go func() { sendPointsMetadata(ksMycenaeMeta); wg.Done() }()
@@ -71,6 +76,7 @@ func TestMain(m *testing.M) {
 		go func() { sendPointsTsdbAggAndSugAndLookup(ksMycenaeTsdb); wg.Done() }()
 		go func() { sendPointsV2(ksMycenae); wg.Done() }()
 		go func() { sendPointsV2Text(ksMycenae); wg.Done() }()
+		go func() { sendPointsToTTLKeyspace(ksTTLKeyspace); wg.Done() }()
 
 		wg.Wait()
 

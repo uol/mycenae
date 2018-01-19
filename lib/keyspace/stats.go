@@ -28,27 +28,6 @@ func statsQuery(ks, cf, oper string, d time.Duration) {
 	)
 }
 
-func statsIndexError(i, t, m string) {
-	tags := map[string]string{"index": i, "method": m}
-	if t != "" {
-		tags["type"] = t
-	}
-	go statsIncrement("elastic.request.error", tags)
-}
-
-func statsIndex(i, t, m string, d time.Duration) {
-	tags := map[string]string{"index": i, "method": m}
-	if t != "" {
-		tags["type"] = t
-	}
-	go statsIncrement("elastic.request", tags)
-	go statsValueAdd(
-		"elastic.request.duration",
-		tags,
-		float64(d.Nanoseconds())/float64(time.Millisecond),
-	)
-}
-
 func statsIncrement(metric string, tags map[string]string) {
 	stats.Increment("keyspace/persistence", metric, tags)
 }

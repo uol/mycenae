@@ -26,14 +26,17 @@ import (
 	"github.com/uol/mycenae/lib/tsstats"
 	"github.com/uol/mycenae/lib/udp"
 	"github.com/uol/mycenae/lib/cache"
+	"github.com/uol/mycenae/lib/keyset"
 )
 
 func main() {
 	fmt.Println("Starting Mycenae")
 	//Parse of command line arguments.
 	var confPath string
+	var devMode bool
 
 	flag.StringVar(&confPath, "config", "config.toml", "path to configuration file")
+	flag.BoolVar(&devMode, "devMode", false, "enable/disable dev mode (all ttls are configured to one day)")
 	flag.Parse()
 
 	//Load conf file.
@@ -88,11 +91,32 @@ func main() {
 	ks := keyspace.New(
 		tssts,
 		cass,
-		es,
 		settings.Cassandra.Username,
 		settings.Cassandra.Keyspace,
-		settings.TTL.Max,
+		devMode,
+		settings.DefaultTTL,
 	)
+
+	if devMode {
+		tsLogger.General.Info("DEV MODE IS ENABLED!")
+	}
+
+	tsLogger.General.Info("Creating default keyspaces: ", settings.DefaultKeyspaces)
+	keyspaceTTLMap := map[uint8]string{}
+	for k, ttl := range settings.DefaultKeyspaces {
+		gerr := ks.CreateKeyspace(keyspace.Config{
+			TTL: ttl,
+			Name: k,
+			ReplicationFactor: settings.DefaultKeyspaceData.ReplicationFactor,
+			Datacenter: settings.DefaultKeyspaceData.Datacenter,
+			Contact: settings.DefaultKeyspaceData.Contact,
+		})
+		keyspaceTTLMap[ttl] = k
+		if gerr != nil && gerr.StatusCode() != http.StatusConflict {
+			tsLogger.General.Error(gerr)
+			os.Exit(1)
+		}
+	}
 
 	mc, err := memcached.New(tssts, &settings.Memcached)
 	if err != nil {
@@ -101,8 +125,26 @@ func main() {
 	}
 
 	kc := cache.NewKeyspaceCache(mc, ks)
+	keySet := keyset.NewKeySet(es, tssts, mc)
 
-	coll, err := collector.New(tsLogger, tssts, cass, es, kc, settings)
+	tsLogger.General.Info("Creating default keysets:", settings.DefaultKeysets)
+	for _, v := range settings.DefaultKeysets {
+		exists, err := keySet.KeySetExists(v)
+		if err != nil {
+			tsLogger.General.Error("error checking keyset", v, "existence")
+			os.Exit(1)
+		}
+		if !exists {
+			tsLogger.General.Info("Creating default keyset:", v)
+			err = keySet.CreateIndex(v)
+			if err != nil {
+				tsLogger.General.Error("error creating keyset:", v)
+				os.Exit(1)
+			}
+		}
+	}
+
+	coll, err := collector.New(tsLogger, tssts, cass, es, kc, settings, keyspaceTTLMap, keySet)
 	if err != nil {
 		log.Println(err)
 		return
@@ -126,6 +168,9 @@ func main() {
 		settings.MaxConcurrentTimeseries,
 		settings.MaxConcurrentReads,
 		settings.LogQueryTSthreshold,
+		keyspaceTTLMap,
+		keySet,
+		settings.DefaultTTL,
 	)
 	if err != nil {
 		tsLogger.General.Error(err)
@@ -141,6 +186,7 @@ func main() {
 		coll,
 		settings.HTTPserver,
 		settings.Probe.Threshold,
+		keySet,
 	)
 	tsRest.Start()
 

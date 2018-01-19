@@ -8,6 +8,7 @@ import (
 	"github.com/uol/gobol"
 
 	"github.com/uol/mycenae/lib/structs"
+	"strconv"
 )
 
 const (
@@ -15,7 +16,7 @@ const (
 )
 
 func (plot *Plot) GetTimeSeries(
-	keyspace string,
+	ttl uint8,
 	keys []string,
 	start,
 	end int64,
@@ -23,6 +24,12 @@ func (plot *Plot) GetTimeSeries(
 	ms,
 	keepEmpties bool,
 ) (serie TS, gerr gobol.Error) {
+
+	var keyspace string
+	var ok bool
+	if keyspace, ok = plot.keyspaceTTLMap[ttl]; !ok {
+		return TS{}, errNotFound("invalid ttl found: " + strconv.Itoa(int(ttl)))
+	}
 
 	w := start
 

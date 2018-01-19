@@ -28,7 +28,7 @@ func (collector *Collector) HandleUDPpacket(buf []byte, addr string) {
 	logFields := map[string]string{}
 	logFields["addr"] = addr
 
-	collector.HandlePacket(rcvMsg, true, "udp", logFields)
+	collector.HandlePacket(rcvMsg, nil, true, "udp", logFields)
 
 	go func() {
 		collector.saveMutex.Lock()

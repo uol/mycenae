@@ -17,6 +17,7 @@ import (
 	"github.com/uol/gobol/rubber"
 
 	"github.com/uol/mycenae/lib/cache"
+	"github.com/uol/mycenae/lib/keyset"
 	"github.com/uol/mycenae/lib/structs"
 	"github.com/uol/mycenae/lib/tsstats"
 )
@@ -33,6 +34,8 @@ func New(
 	es *rubber.Elastic,
 	kc *cache.KeyspaceCache,
 	set *structs.Settings,
+	keyspaceTTLMap map[uint8]string,
+	ks *keyset.KeySet,
 ) (*Collector, error) {
 
 	d, err := time.ParseDuration(set.MetaSaveInterval)
@@ -44,14 +47,16 @@ func New(
 	stats = sts
 
 	collect := &Collector{
-		keyspaceCache: kc,
-		persist:       persistence{cassandra: cass, esearch: es},
-		validKey:      regexp.MustCompile(`^[0-9A-Za-z-._%&#;/]+$`),
-		settings:      set,
-		concBulk:      make(chan struct{}, set.MaxConcurrentBulks),
-		metaChan:      make(chan Point, set.MetaBufferSize),
-		metaPayload:   &bytes.Buffer{},
-		jobChannel:    make(chan workerData, set.MaxConcurrentPoints),
+		keyspaceCache:  kc,
+		persist:        persistence{cassandra: cass, esearch: es},
+		validKey:       regexp.MustCompile(`^[0-9A-Za-z-\._\%\&\#\;\/]+$`),
+		settings:       set,
+		concBulk:       make(chan struct{}, set.MaxConcurrentBulks),
+		metaChan:       make(chan Point, set.MetaBufferSize),
+		metaPayload:    &bytes.Buffer{},
+		jobChannel:     make(chan workerData, set.MaxConcurrentPoints),
+		keyspaceTTLMap: keyspaceTTLMap,
+		keySet:         ks,
 	}
 
 	for i := 0; i < set.MaxConcurrentPoints; i++ {
@@ -81,13 +86,16 @@ type Collector struct {
 	recvMutex              sync.Mutex
 	errMutex               sync.Mutex
 	jobChannel             chan workerData
+	keyspaceTTLMap         map[uint8]string
+	keySet                 *keyset.KeySet
 }
 
 type workerData struct {
-	point     TSDBpoint
-	number    bool
-	source    string
-	logFields map[string]string
+	point          TSDBpoint
+	validatedPoint *Point
+	number         bool
+	source         string
+	logFields      map[string]string
 }
 
 func (collect *Collector) getType(number bool) string {
@@ -101,14 +109,9 @@ func (collect *Collector) getType(number bool) string {
 func (collect *Collector) worker(id int, jobChannel <-chan workerData) {
 
 	for j := range jobChannel {
-		gblog.WithFields(logrus.Fields{
-			"func": "collector/worker",
-			"workerId": id,
-			"source": j.source,
-		}).Debug("Processing point...")
-		err := collect.processPacket(j.point, j.number)
+		err := collect.processPacket(j.point, j.validatedPoint, j.number)
 		if err != nil {
-			statsPointsError(j.point.Tags["ksid"], collect.getType(j.number), j.source)
+			statsPointsError(j.point.Tags["ksid"], collect.getType(j.number), j.source, j.point.Tags["ttl"])
 			fields := logrus.Fields{
 				"func": "collector/worker",
 			}
@@ -119,7 +122,7 @@ func (collect *Collector) worker(id int, jobChannel <-chan workerData) {
 			}
 			gblog.WithFields(fields).Error("point lost:", j.point)
 		} else {
-			statsPoints(j.point.Tags["ksid"], collect.getType(j.number), j.source)
+			statsPoints(j.point.Tags["ksid"], collect.getType(j.number), j.source, j.point.Tags["ttl"])
 		}
 	}
 }
@@ -179,9 +182,22 @@ func (collect *Collector) Stop() {
 	}
 }
 
-func (collect *Collector) processPacket(rcvMsg TSDBpoint, number bool) gobol.Error {
+func (collect *Collector) processPacket(rcvMsg TSDBpoint, point *Point, number bool) gobol.Error {
 
 	start := time.Now()
+
+	var gerr gobol.Error
+	var packet Point
+
+	if point == nil {
+		packet = Point{}
+		gerr := collect.makePacket(&packet, rcvMsg, number)
+		if gerr != nil {
+			return gerr
+		}
+	} else {
+		packet = *point
+	}
 
 	go func() {
 		collect.recvMutex.Lock()
@@ -189,21 +205,10 @@ func (collect *Collector) processPacket(rcvMsg TSDBpoint, number bool) gobol.Err
 		collect.recvMutex.Unlock()
 	}()
 
-	packet := Point{}
-
-	gerr := collect.makePacket(&packet, rcvMsg, number)
-	if gerr != nil {
-		return gerr
-	}
-
 	if number {
-
-		gerr = collect.saveValue(packet)
-
+		gerr = collect.saveValue(&packet)
 	} else {
-
-		gerr = collect.saveText(packet)
-
+		gerr = collect.saveText(&packet)
 	}
 
 	if gerr != nil {
@@ -214,7 +219,7 @@ func (collect *Collector) processPacket(rcvMsg TSDBpoint, number bool) gobol.Err
 	}
 
 	if len(collect.metaChan) < collect.settings.MetaBufferSize {
-		go collect.saveMeta(packet)
+		collect.saveMeta(packet)
 	} else {
 		gblog.WithFields(logrus.Fields{
 			"func": "collector/HandlePacket",
@@ -222,18 +227,19 @@ func (collect *Collector) processPacket(rcvMsg TSDBpoint, number bool) gobol.Err
 		statsLostMeta()
 	}
 
-	statsProcTime(packet.KsID, time.Since(start))
+	statsProcTime(packet.Keyset, time.Since(start))
 
 	return nil
 }
 
-func (collect *Collector) HandlePacket(rcvMsg TSDBpoint, number bool, source string, logFields map[string]string) {
+func (collect *Collector) HandlePacket(rcvMsg TSDBpoint, vp *Point, number bool, source string, logFields map[string]string) {
 
 	collect.jobChannel <- workerData{
-		point:     rcvMsg,
-		number:    number,
-		source:    source,
-		logFields: logFields,
+		point:          rcvMsg,
+		validatedPoint: vp,
+		number:         number,
+		source:         source,
+		logFields:      logFields,
 	}
 }
 
@@ -248,9 +254,7 @@ func GenerateID(rcvMsg TSDBpoint) string {
 	mk := []string{}
 
 	for k := range rcvMsg.Tags {
-		if k != "ksid" && k != "ttl" {
-			mk = append(mk, k)
-		}
+		mk = append(mk, k)
 	}
 
 	sort.Strings(mk)

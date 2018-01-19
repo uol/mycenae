@@ -83,6 +83,12 @@
 			"revisionTime": "2017-03-13T16:33:22Z"
 		},
 		{
+			"checksumSHA1": "33XXz2u1sZ2RvrpKqNpX681WeA4=",
+			"path": "github.com/uol/gobol",
+			"revision": "354a8f0c16c80dcac134db819db7e5403c4b3919",
+			"revisionTime": "2017-10-09T18:25:48Z"
+		},
+		{
 			"checksumSHA1": "1hwn8cgg4EVXhCpJIqmMbzqnUo0=",
 			"path": "golang.org/x/crypto/ed25519",
 			"revision": "d585fd2cc9195196078f516b69daff6744ef5e84",

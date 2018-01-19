@@ -72,14 +72,14 @@ func (plot *Plot) ExpressionCheck(w http.ResponseWriter, expQuery ExpQuery) {
 
 func (plot *Plot) ExpressionQueryPOST(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
-	keyspace := ps.ByName("keyspace")
-	if keyspace == "" {
-		rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace/query/expression", "keyspace": "empty"})
+	keyset := ps.ByName("keyset")
+	if keyset == "" {
+		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/query/expression", "keyset": "empty"})
 		rip.Fail(w, errNotFound("ExpressionQueryPOST"))
 		return
 	}
 
-	rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace/query/expression", "keyspace": keyspace})
+	rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/query/expression", "keyset": keyset})
 
 	expQuery := ExpQuery{}
 
@@ -89,28 +89,28 @@ func (plot *Plot) ExpressionQueryPOST(w http.ResponseWriter, r *http.Request, ps
 		return
 	}
 
-	plot.expressionQuery(w, r, keyspace, expQuery)
+	plot.expressionQuery(w, r, keyset, expQuery)
 }
 
 func (plot *Plot) ExpressionQueryGET(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
-	keyspace := ps.ByName("keyspace")
-	if keyspace == "" {
-		rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace/query/expression", "keyspace": "empty"})
+	keyset := ps.ByName("keyset")
+	if keyset == "" {
+		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/query/expression", "keyset": "empty"})
 		rip.Fail(w, errNotFound("ExpressionQueryGET"))
 		return
 	}
 
-	rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace/query/expression", "keyspace": keyspace})
+	rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/query/expression", "keyset": keyset})
 
 	expQuery := ExpQuery{
 		Expression: r.URL.Query().Get("exp"),
 	}
 
-	plot.expressionQuery(w, r, keyspace, expQuery)
+	plot.expressionQuery(w, r, keyset, expQuery)
 }
 
-func (plot *Plot) expressionQuery(w http.ResponseWriter, r *http.Request, keyspace string, expQuery ExpQuery) {
+func (plot *Plot) expressionQuery(w http.ResponseWriter, r *http.Request, keyset string, expQuery ExpQuery) {
 
 	if expQuery.Expression == "" {
 		gerr := errEmptyExpression("expressionQuery")
@@ -152,7 +152,7 @@ func (plot *Plot) expressionQuery(w http.ResponseWriter, r *http.Request, keyspa
 		return
 	}
 
-	resps, gerr := plot.getTimeseries(keyspace, payload)
+	resps, gerr := plot.getTimeseries(keyset, payload)
 	if gerr != nil {
 		rip.Fail(w, gerr)
 		return
@@ -167,7 +167,7 @@ func (plot *Plot) expressionQuery(w http.ResponseWriter, r *http.Request, keyspa
 	return
 }
 
-func (plot *Plot) ExpressionParsePOST(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+func (plot *Plot) ExpressionParsePOST(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	expQuery := ExpParse{}
 
@@ -177,8 +177,8 @@ func (plot *Plot) ExpressionParsePOST(w http.ResponseWriter, r *http.Request, _ 
 		return
 	}
 
-	if expQuery.Keyspace != "" {
-		rip.AddStatsMap(r, map[string]string{"keyspace": expQuery.Keyspace})
+	if expQuery.Keyset != "" {
+		rip.AddStatsMap(r, map[string]string{"ksid": expQuery.Keyset})
 	}
 
 	plot.expressionParse(w, expQuery)
@@ -190,11 +190,11 @@ func (plot *Plot) ExpressionParseGET(w http.ResponseWriter, r *http.Request, _ h
 
 	expQuery := ExpParse{
 		Expression: query.Get("exp"),
-		Keyspace:   query.Get("keyspace"),
+		Keyset:   query.Get("ksid"),
 	}
 
-	if expQuery.Keyspace != "" {
-		rip.AddStatsMap(r, map[string]string{"keyspace": expQuery.Keyspace})
+	if expQuery.Keyset != "" {
+		rip.AddStatsMap(r, map[string]string{"ksid": expQuery.Keyset})
 	}
 
 	expandStr := query.Get("expand")
@@ -223,19 +223,19 @@ func (plot *Plot) expressionParse(w http.ResponseWriter, expQuery ExpParse) {
 
 	if expQuery.Expand {
 
-		if expQuery.Keyspace == "" {
-			gerr := errValidationS("expressionParse", `When expand true, Keyspace can not be empty`)
+		if expQuery.Keyset == "" {
+			gerr := errValidationS("expressionParse", `When expand true, ksid can not be empty`)
 			rip.Fail(w, gerr)
 			return
 		}
 
-		_, found, gerr := plot.keyspaceCache.GetKeyspace(expQuery.Keyspace)
+		found, gerr := plot.keySet.KeySetExists(expQuery.Keyset)
 		if gerr != nil {
 			rip.Fail(w, gerr)
 			return
 		}
 		if !found {
-			gerr := errValidationS("expressionParse", `keyspace not found`)
+			gerr := errValidationS("expressionParse", `ksid not found`)
 			rip.Fail(w, gerr)
 			return
 		}
@@ -268,7 +268,7 @@ func (plot *Plot) expressionParse(w http.ResponseWriter, expQuery ExpParse) {
 		return
 	}
 
-	payloadExp, gerr := plot.expandStruct(expQuery.Keyspace, payload)
+	payloadExp, gerr := plot.expandStruct(expQuery.Keyset, payload)
 	if gerr != nil {
 		rip.Fail(w, gerr)
 		return
@@ -314,14 +314,14 @@ func (plot *Plot) ExpressionExpandPOST(w http.ResponseWriter, r *http.Request, p
 
 	expQuery := ExpQuery{}
 
-	keyspace := ps.ByName("keyspace")
-	if keyspace == "" {
-		rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace/expression/expand", "keyspace": "empty"})
+	keyset := ps.ByName("keyset")
+	if keyset == "" {
+		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/expression/expand", "keyset": "empty"})
 		rip.Fail(w, errNotFound("ExpressionExpandPOST"))
 		return
 	}
 
-	rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace/expression/expand", "keyspace": keyspace})
+	rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/expression/expand", "keyset": keyset})
 
 	gerr := rip.FromJSON(r, &expQuery)
 	if gerr != nil {
@@ -329,7 +329,7 @@ func (plot *Plot) ExpressionExpandPOST(w http.ResponseWriter, r *http.Request, p
 		return
 	}
 
-	plot.expressionExpand(w, keyspace, expQuery)
+	plot.expressionExpand(w, keyset, expQuery)
 }
 
 func (plot *Plot) ExpressionExpandGET(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
@@ -338,19 +338,19 @@ func (plot *Plot) ExpressionExpandGET(w http.ResponseWriter, r *http.Request, ps
 		Expression: r.URL.Query().Get("exp"),
 	}
 
-	keyspace := ps.ByName("keyspace")
-	if keyspace == "" {
-		rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace/expression/expand", "keyspace": "empty"})
+	keyset := ps.ByName("keyset")
+	if keyset == "" {
+		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/expression/expand", "keyset": "empty"})
 		rip.Fail(w, errNotFound("ExpressionExpandGET"))
 		return
 	}
 
-	rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace/expression/expand", "keyspace": keyspace})
+	rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/expression/expand", "keyset": keyset})
 
-	plot.expressionExpand(w, keyspace, expQuery)
+	plot.expressionExpand(w, keyset, expQuery)
 }
 
-func (plot *Plot) expressionExpand(w http.ResponseWriter, keyspace string, expQuery ExpQuery) {
+func (plot *Plot) expressionExpand(w http.ResponseWriter, keyset string, expQuery ExpQuery) {
 
 	if expQuery.Expression == "" {
 		gerr := errEmptyExpression("expressionExpand")
@@ -358,7 +358,7 @@ func (plot *Plot) expressionExpand(w http.ResponseWriter, keyspace string, expQu
 		return
 	}
 
-	_, found, gerr := plot.keyspaceCache.GetKeyspace(keyspace)
+	found, gerr := plot.keySet.KeySetExists(keyset)
 	if gerr != nil {
 		rip.Fail(w, gerr)
 		return
@@ -390,7 +390,7 @@ func (plot *Plot) expressionExpand(w http.ResponseWriter, keyspace string, expQu
 		return
 	}
 
-	payloadExp, gerr := plot.expandStruct(keyspace, payload)
+	payloadExp, gerr := plot.expandStruct(keyset, payload)
 	if gerr != nil {
 		rip.Fail(w, gerr)
 		return
@@ -410,7 +410,7 @@ func (plot *Plot) expressionExpand(w http.ResponseWriter, keyspace string, expQu
 }
 
 func (plot *Plot) expandStruct(
-	keyspace string,
+	keyset string,
 	tsdbq structs.TSDBqueryPayload,
 ) (groupQueries []structs.TSDBqueryPayload, err gobol.Error) {
 
@@ -434,7 +434,7 @@ func (plot *Plot) expandStruct(
 	if needExpand {
 
 		tsobs, total, gerr := plot.MetaFilterOpenTSDB(
-			keyspace,
+			keyset,
 			"",
 			tsdb.Metric,
 			tsdb.Filters,

@@ -14,14 +14,14 @@ import (
 
 func (plot *Plot) ListPoints(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
-	keyspace := ps.ByName("keyspace")
-	if keyspace == "" {
-		rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace/points", "keyspace": "empty"})
+	keyset := ps.ByName("keyset")
+	if keyset == "" {
+		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/points", "keyset": "empty"})
 		rip.Fail(w, errNotFound("ListPoints"))
 		return
 	}
 
-	rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace/points", "keyspace": keyspace})
+	rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/points", "keyset": keyset})
 
 	query := structs.TsQuery{}
 
@@ -39,6 +39,10 @@ func (plot *Plot) ListPoints(w http.ResponseWriter, r *http.Request, ps httprout
 
 		key := []string{k.TSid}
 
+		if k.TTL == 0 {
+			k.TTL = plot.defaultTTL
+		}
+
 		opers := structs.DataOperations{
 			Downsample: query.Downsample,
 			Order: []string{
@@ -49,7 +53,7 @@ func (plot *Plot) ListPoints(w http.ResponseWriter, r *http.Request, ps httprout
 		}
 
 		sPoints, gerr := plot.GetTimeSeries(
-			keyspace,
+			k.TTL,
 			key,
 			query.Start,
 			query.End,
@@ -101,8 +105,12 @@ func (plot *Plot) ListPoints(w http.ResponseWriter, r *http.Request, ps httprout
 
 		key := []string{k.TSid}
 
+		if k.TTL == 0 {
+			k.TTL = plot.defaultTTL
+		}
+
 		sPoints, gerr := plot.GetTextSeries(
-			keyspace,
+			k.TTL,
 			key,
 			query.Start,
 			query.End,
@@ -165,8 +173,13 @@ func (plot *Plot) ListPoints(w http.ResponseWriter, r *http.Request, ps httprout
 			sPoints := SeriesType{}
 
 			if ks.Keys[0].TSid[:1] == "T" {
+
+				if ks.Keys[0].TTL == 0 {
+					ks.Keys[0].TTL = plot.defaultTTL
+				}
+
 				serie, gerr := plot.GetTextSeries(
-					keyspace,
+					ks.Keys[0].TTL,
 					ids,
 					query.Start,
 					query.End,
@@ -211,8 +224,12 @@ func (plot *Plot) ListPoints(w http.ResponseWriter, r *http.Request, ps httprout
 					},
 				}
 
+				if ks.Keys[0].TTL == 0 {
+					ks.Keys[0].TTL = plot.defaultTTL
+				}
+
 				serie, gerr := plot.GetTimeSeries(
-					keyspace,
+					ks.Keys[0].TTL,
 					ids,
 					query.Start,
 					query.End,
@@ -251,7 +268,7 @@ func (plot *Plot) ListPoints(w http.ResponseWriter, r *http.Request, ps httprout
 
 			}
 
-			id := fmt.Sprintf("%v|merged:[%v]", keyspace, name)
+			id := fmt.Sprintf("%v|merged:[%v]", keyset, name)
 
 			series.Points = sPoints
 
@@ -276,24 +293,24 @@ func (plot *Plot) ListPoints(w http.ResponseWriter, r *http.Request, ps httprout
 }
 
 func (plot *Plot) ListTagsNumber(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	plot.listTags(w, r, ps, "tagk", map[string]string{"path": "/keyspaces/#keyspace/tags"})
+	plot.listTags(w, r, ps, "tagk", map[string]string{"path": "/keysets/#keyset/tags"})
 }
 
 func (plot *Plot) ListTagsText(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	plot.listTags(w, r, ps, "tagktext", map[string]string{"path": "keyspaces/#keyspace/text/tags"})
+	plot.listTags(w, r, ps, "tagktext", map[string]string{"path": "/keysets/#keyset/text/tags"})
 }
 
 func (plot *Plot) listTags(w http.ResponseWriter, r *http.Request, ps httprouter.Params, esType string, smap map[string]string) {
 
-	keyspace := ps.ByName("keyspace")
-	if keyspace == "" {
-		smap["keyspace"] = "empty"
+	keyset := ps.ByName("keyset")
+	if keyset == "" {
+		smap["keyset"] = "empty"
 		rip.AddStatsMap(r, smap)
 		rip.Fail(w, errNotFound("listTags"))
 		return
 	}
 
-	smap["keyspace"] = keyspace
+	smap["keyset"] = keyset
 	rip.AddStatsMap(r, smap)
 
 	q := r.URL.Query()
@@ -336,7 +353,7 @@ func (plot *Plot) listTags(w http.ResponseWriter, r *http.Request, ps httprouter
 		}
 	}
 
-	tags, total, gerr := plot.ListTags(keyspace, esType, q.Get("tag"), int64(size), int64(from))
+	tags, total, gerr := plot.ListTags(keyset, esType, q.Get("tag"), int64(size), int64(from))
 	if gerr != nil {
 		rip.Fail(w, gerr)
 		return
@@ -357,24 +374,24 @@ func (plot *Plot) listTags(w http.ResponseWriter, r *http.Request, ps httprouter
 }
 
 func (plot *Plot) ListMetricsNumber(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	plot.listMetrics(w, r, ps, "metric", map[string]string{"path": "/keyspaces/#keyspace/metrics"})
+	plot.listMetrics(w, r, ps, "metric", map[string]string{"path": "/keysets/#keyset/metrics"})
 }
 
 func (plot *Plot) ListMetricsText(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	plot.listMetrics(w, r, ps, "metrictext", map[string]string{"path": "keyspaces/#keyspace/text/metrics"})
+	plot.listMetrics(w, r, ps, "metrictext", map[string]string{"path": "/keysets/#keyset/text/metrics"})
 }
 
 func (plot *Plot) listMetrics(w http.ResponseWriter, r *http.Request, ps httprouter.Params, esType string, smap map[string]string) {
 
-	keyspace := ps.ByName("keyspace")
-	if keyspace == "" {
-		smap["keyspace"] = "empty"
+	keyset := ps.ByName("keyset")
+	if keyset == "" {
+		smap["keyset"] = "empty"
 		rip.AddStatsMap(r, smap)
 		rip.Fail(w, errNotFound("listMetrics"))
 		return
 	}
 
-	smap["keyspace"] = keyspace
+	smap["keyset"] = keyset
 	rip.AddStatsMap(r, smap)
 
 	q := r.URL.Query()
@@ -415,7 +432,7 @@ func (plot *Plot) listMetrics(w http.ResponseWriter, r *http.Request, ps httprou
 		}
 	}
 
-	metrics, total, gerr := plot.ListMetrics(keyspace, esType, q.Get("metric"), int64(size), int64(from))
+	metrics, total, gerr := plot.ListMetrics(keyset, esType, q.Get("metric"), int64(size), int64(from))
 	if gerr != nil {
 		rip.Fail(w, gerr)
 		return
@@ -436,24 +453,24 @@ func (plot *Plot) listMetrics(w http.ResponseWriter, r *http.Request, ps httprou
 }
 
 func (plot *Plot) ListMetaNumber(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	plot.listMeta(w, r, ps, "meta", map[string]string{"path": "/keyspaces/#keyspace/meta"})
+	plot.listMeta(w, r, ps, "meta", map[string]string{"path": "/keysets/#keyset/meta"})
 }
 
 func (plot *Plot) ListMetaText(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	plot.listMeta(w, r, ps, "metatext", map[string]string{"path": "keyspaces/#keyspace/text/meta"})
+	plot.listMeta(w, r, ps, "metatext", map[string]string{"path": "/keysets/#keyset/text/meta"})
 }
 
 func (plot *Plot) listMeta(w http.ResponseWriter, r *http.Request, ps httprouter.Params, esType string, smap map[string]string) {
 
-	keyspace := ps.ByName("keyspace")
-	if keyspace == "" {
-		smap["keyspace"] = "empty"
+	keyset := ps.ByName("keyset")
+	if keyset == "" {
+		smap["keyset"] = "empty"
 		rip.AddStatsMap(r, smap)
 		rip.Fail(w, errNotFound("listMeta"))
 		return
 	}
 
-	smap["keyspace"] = keyspace
+	smap["keyset"] = keyset
 	rip.AddStatsMap(r, smap)
 
 	q := r.URL.Query()
@@ -519,7 +536,7 @@ func (plot *Plot) listMeta(w http.ResponseWriter, r *http.Request, ps httprouter
 		tags[tag.Key] = tag.Value
 	}
 
-	keys, total, gerr := plot.ListMeta(keyspace, esType, query.Metric, tags, onlyids, int64(size), int64(from))
+	keys, total, gerr := plot.ListMeta(keyset, esType, query.Metric, tags, onlyids, int64(size), int64(from))
 	if gerr != nil {
 		rip.Fail(w, gerr)
 		return

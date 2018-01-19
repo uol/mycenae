@@ -11,16 +11,17 @@ func New(gbl *logrus.Logger, gbs *snitch.Stats, intvl string) (*StatsTS, error) 
 		return nil, err
 	}
 	return &StatsTS{
-		log:      gbl,
-		stats:    gbs,
-		interval: intvl,
+		log:           gbl,
+		stats:         gbs,
+		interval:      intvl,
 	}, nil
 }
 
 type StatsTS struct {
-	stats    *snitch.Stats
-	log      *logrus.Logger
-	interval string
+	stats         *snitch.Stats
+	log           *logrus.Logger
+	interval      string
+	DefaultKeySet string
 }
 
 func (sts *StatsTS) Increment(callerID string, metric string, tags map[string]string) {

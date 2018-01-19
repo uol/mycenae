@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"testing"
 	"time"
 
@@ -27,27 +28,27 @@ func tsPointsV2Text(keyspace string) {
 		numTotal   int
 	}{
 		"tsText1": {
-			map[string]string{"ksid": keyspace, "host": "test"},
+			map[string]string{"ksid": keyspace, "ttl": "1", "host": "test"},
 			"ts01", "test", 1448452800, 60, 1.0, 1, 100,
 		},
 		"tsText1_1": {
-			map[string]string{"ksid": keyspace, "host": "test"},
+			map[string]string{"ksid": keyspace, "ttl": "1", "host": "test"},
 			"ts01_1", "newtest", 1448452830, 60, 1.0, 1, 100,
 		},
 		"tsText3": {
-			map[string]string{"ksid": keyspace, "host": "test3"},
+			map[string]string{"ksid": keyspace, "ttl": "1", "host": "test3"},
 			"ts03", "test", 1448452800, 60, 1.0, 1, 25,
 		},
 		"tsText2": {
-			map[string]string{"ksid": keyspace, "host": "test1"},
+			map[string]string{"ksid": keyspace, "ttl": "1", "host": "test1"},
 			"ts02", "test", 1448452800, 60, 1.0, 1, 25,
 		},
 		"tsText2_1": {
-			map[string]string{"ksid": keyspace, "host": "test", "app": "app1"},
+			map[string]string{"ksid": keyspace, "ttl": "1", "host": "test", "app": "app1"},
 			"ts02", "test", 1448452800, 60, 1.0, 2, 25,
 		},
 		"tsText2_2": {
-			map[string]string{"ksid": keyspace, "host": "test", "app": "app1"},
+			map[string]string{"ksid": keyspace, "ttl": "1", "host": "test", "app": "app1"},
 			"ts02", "test", 1448452800, 60, 2.0, 2, 25,
 		},
 	}
@@ -71,7 +72,7 @@ func tsPointsV2Text(keyspace string) {
 		}
 
 		mycenaeTools.HTTP.POSTstring("v2/text", string(jsonPoints))
-		hashMapPV2T[test] = mycenaeTools.Cassandra.Timeseries.GetTextHashFromMetricAndTags(data.metric, data.tags)
+		hashMapPV2T[test] = tools.GetTextHashFromMetricAndTags(data.metric, data.tags)
 
 	}
 }
@@ -102,6 +103,7 @@ func tsText4(keyspace string) bool {
 		Points[i].Metric = metric
 		Points[i].Tags = map[string]string{
 			"ksid": keyspace,
+			"ttl":  "1",
 			tagKey: tagValue,
 		}
 		Points[i].Timestamp = int64(startTime)
@@ -111,6 +113,7 @@ func tsText4(keyspace string) bool {
 		Points[i].Metric = metric2
 		Points[i].Tags = map[string]string{
 			"ksid": keyspace,
+			"ttl":  "1",
 			tagKey: tagValue,
 		}
 		Points[i].Timestamp = int64(startTime)
@@ -123,8 +126,8 @@ func tsText4(keyspace string) bool {
 	}
 
 	mycenaeTools.HTTP.POSTstring("v2/text", string(jsonPoints))
-	hashMapPV2T["tsText4"] = mycenaeTools.Cassandra.Timeseries.GetTextHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue})
-	hashMapPV2T["tsText4_1"] = mycenaeTools.Cassandra.Timeseries.GetTextHashFromMetricAndTags(metric2, map[string]string{tagKey: tagValue})
+	hashMapPV2T["tsText4"] = tools.GetTextHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, "ksid": keyspace, "ttl": "1"})
+	hashMapPV2T["tsText4_1"] = tools.GetTextHashFromMetricAndTags(metric2, map[string]string{tagKey: tagValue, "ksid": keyspace, "ttl": "1"})
 
 	return true
 }
@@ -146,6 +149,7 @@ func tsText6(keyspace string) bool {
 		TextPoints[i].Metric = metric
 		TextPoints[i].Tags = map[string]string{
 			"ksid": keyspace,
+			"ttl":  "1",
 			tagKey: tagValue,
 		}
 		TextPoints[i].Timestamp = int64(startTime)
@@ -159,7 +163,7 @@ func tsText6(keyspace string) bool {
 	}
 
 	mycenaeTools.HTTP.POSTstring("v2/text", string(jsonPoints))
-	hashMapPV2T["tsText6"] = mycenaeTools.Cassandra.Timeseries.GetTextHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue})
+	hashMapPV2T["tsText6"] = tools.GetTextHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, "ksid": keyspace, "ttl": "1"})
 
 	count = 1.0
 	startTime = 1448452800
@@ -168,6 +172,7 @@ func tsText6(keyspace string) bool {
 		Points[i].Metric = metric
 		Points[i].Tags = map[string]string{
 			"ksid": keyspace,
+			"ttl":  "1",
 			tagKey: tagValue,
 		}
 		Points[i].Timestamp = int64(startTime)
@@ -181,28 +186,31 @@ func tsText6(keyspace string) bool {
 	}
 
 	mycenaeTools.HTTP.POST("api/put", jsonPoints)
-	hashMapPV2T["tsText6_1"] = mycenaeTools.Cassandra.Timeseries.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue})
+	hashMapPV2T["tsText6_1"] = tools.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, "ksid": keyspace, "ttl": "1"})
 
 	return true
 }
 
-func sendPointsV2Text(keyspace string) {
+func sendPointsV2Text(keySet string) {
 
 	fmt.Println("Setting up pointsV2Text_test.go tests...")
 
-	tsPointsV2Text(keyspace)
-	tsText4(keyspace)
-	tsText6(keyspace)
+	tsPointsV2Text(keySet)
+	tsText4(keySet)
+	tsText6(keySet)
 }
 
 func postPointsTextAndCheck(t *testing.T, payload, id string, code, count, total, ts int) tools.MycenaePointsText {
 
-	path := fmt.Sprintf("keyspaces/%s/points", ksMycenae)
+	path := fmt.Sprintf("keysets/%s/points", ksMycenae)
+
 	returnCode, response, err := mycenaeTools.HTTP.POST(path, []byte(payload))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
 	}
+
+	assert.Equal(t, code, returnCode)
 
 	payloadPoints := tools.MycenaePointsText{}
 
@@ -212,7 +220,6 @@ func postPointsTextAndCheck(t *testing.T, payload, id string, code, count, total
 		t.SkipNow()
 	}
 
-	assert.Equal(t, code, returnCode)
 	assert.Equal(t, count, payloadPoints.Payload[hashMapPV2T[id]].Points.Count)
 	assert.Equal(t, total, payloadPoints.Payload[hashMapPV2T[id]].Points.Total)
 	assert.Equal(t, ts, len(payloadPoints.Payload[hashMapPV2T[id]].Points.Ts))
@@ -378,14 +385,14 @@ func TestPointsV2TextNoPointsUpper(t *testing.T) {
 		"start": 1448458741000,
 		"end": 1448558740000
 	}`
-	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/points", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/points", []byte(payload))
 
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
 	}
 
-	assert.Equal(t, 204, code)
+	assert.Equal(t, http.StatusNoContent, code)
 	assert.Empty(t, string(response))
 }
 
@@ -397,7 +404,7 @@ func TestPointsV2TextNoPointsBelow(t *testing.T) {
 		"start": 1438458741000,
 		"end": 1448452700000
 	}`
-	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/points", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/points", []byte(payload))
 
 	if err != nil {
 		t.Error(err)
@@ -538,7 +545,7 @@ func TestPointsV2TextMergeText(t *testing.T) {
 		"start": 1148452800000,
   		"end": 1848458770000
 	}`
-	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/points", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/points", []byte(payload))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()

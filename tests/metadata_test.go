@@ -8,31 +8,32 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/uol/mycenae/tests/tools"
+	"net/http"
 )
 
 var lookupMetaIDs []string
 var lookupMetas map[string]tools.TsMeta
 
-func sendPointsMetadata(keyspace string) {
+func sendPointsMetadata(keySet string) {
 
 	fmt.Println("Setting up metadata_test.go tests...")
 
-	lookupMetaIDs = []string{"724801524", "1035465811", "3442582840", "3451804462"}
-
 	metricX := "os.cpuTest"
 	metricY := "execution.time"
-	metricZ := "os-_/.%&#;cpu"
+	metricZ := "os.cpu"
 
-	tagKx := "hos-_/.%&#;t"
-	tagVx := "a1-test-_/.%&#;Meta"
+	tagKx := "host"
+	tagVx := "a1-testMeta"
 	tagKy := "hostName"
 	tagVz := "a2-testMeta"
 
+	lookupMetaIDs = []string{"m1", "m2", "m3", "m4"}
+
 	lookupMetas = map[string]tools.TsMeta{
-		lookupMetaIDs[0]: {Metric: metricX, Tags: map[string]string{tagKx: tagVz}},
-		lookupMetaIDs[1]: {Metric: metricY, Tags: map[string]string{tagKy: tagVx}},
-		lookupMetaIDs[2]: {Metric: metricZ, Tags: map[string]string{tagKx: tagVx}},
-		lookupMetaIDs[3]: {Metric: metricZ, Tags: map[string]string{tagKx: tagVz}},
+		lookupMetaIDs[0]: {Metric: metricX, Tags: map[string]string{"ksid": keySet, "testid": lookupMetaIDs[0], "ttl": "1", tagKx: tagVz}},
+		lookupMetaIDs[1]: {Metric: metricY, Tags: map[string]string{"ksid": keySet, "testid": lookupMetaIDs[1], "ttl": "1", tagKy: tagVx}},
+		lookupMetaIDs[2]: {Metric: metricZ, Tags: map[string]string{"ksid": keySet, "testid": lookupMetaIDs[2], "ttl": "1", tagKx: tagVx}},
+		lookupMetaIDs[3]: {Metric: metricZ, Tags: map[string]string{"ksid": keySet, "testid": lookupMetaIDs[3], "ttl": "1", tagKx: tagVz}},
 	}
 
 	point := `[
@@ -40,16 +41,18 @@ func sendPointsMetadata(keyspace string) {
 		"value": 36.5,
 		"metric": "` + metricZ + `",
 		"tags": {
-		  "ksid": "` + keyspace + `",
-		  "` + tagKx + `":"` + tagVx + `"
+		  "ksid": "` + keySet + `",
+		  "` + tagKx + `":"` + tagVx + `",
+          "testid": "` + lookupMetaIDs[2] + `"
 		}
 	  },
 	  {
 		"value": 54.5,
 		"metric": "` + metricX + `",
 		"tags": {
-		  "ksid": "` + keyspace + `",
-	      "` + tagKx + `":"` + tagVz + `"
+		  "ksid": "` + keySet + `",
+	      "` + tagKx + `":"` + tagVz + `",
+          "testid": "` + lookupMetaIDs[0] + `"
 		},
 		"timestamp": 1444166564000
 	  },
@@ -57,8 +60,9 @@ func sendPointsMetadata(keyspace string) {
 		"value": 5.4,
 		"metric": "` + metricY + `",
 		"tags": {
-		  "ksid": "` + keyspace + `",
-	      "` + tagKy + `":"` + tagVx + `"
+		  "ksid": "` + keySet + `",
+	      "` + tagKy + `":"` + tagVx + `",
+          "testid": "` + lookupMetaIDs[1] + `"
 		},
 		"timestamp": 1444166564000
 	  },
@@ -66,8 +70,9 @@ func sendPointsMetadata(keyspace string) {
 		"value": 1.1,
 		"metric": "` + metricZ + `",
 		"tags": {
-		  "ksid": "` + keyspace + `",
-	      "` + tagKx + `":"` + tagVz + `"
+		  "ksid": "` + keySet + `",
+	      "` + tagKx + `":"` + tagVz + `",
+          "testid": "` + lookupMetaIDs[3] + `"
 		},
 		"timestamp": 1448315804000
 	  },
@@ -75,14 +80,15 @@ func sendPointsMetadata(keyspace string) {
 		"value": 50.1,
 		"metric": "` + metricZ + `",
 		"tags": {
-		  "ksid": "` + keyspace + `",
-	      "` + tagKx + `":"` + tagVx + `"
+		  "ksid": "` + keySet + `",
+	      "` + tagKx + `":"` + tagVx + `",
+		  "testid": "` + lookupMetaIDs[2] + `"
 		}
 	  }
 	]`
 
 	code, _, _ := mycenaeTools.HTTP.POST("api/put", []byte(point))
-	if code != 204 {
+	if code != http.StatusOK {
 		log.Fatal("Error sending points, code: ", code, " metadata_test.go")
 	}
 
@@ -91,16 +97,18 @@ func sendPointsMetadata(keyspace string) {
 		"text": "test1",
 		"metric": "` + metricZ + `",
 		"tags": {
-		  "ksid": "` + keyspace + `",
-	      "` + tagKx + `":"` + tagVx + `"
+		  "ksid": "` + keySet + `",
+	      "` + tagKx + `":"` + tagVx + `",
+		  "testid": "` + lookupMetaIDs[2] + `"
 		}
 	  },
 	  {
 		"text": "test2",
 		"metric": "` + metricX + `",
 		"tags": {
-		  "ksid": "` + keyspace + `",
-	      "` + tagKx + `":"` + tagVz + `"
+		  "ksid": "` + keySet + `",
+	      "` + tagKx + `":"` + tagVz + `",
+          "testid": "` + lookupMetaIDs[0] + `"
 		},
 		"timestamp": 1444166564000
 	  },
@@ -108,8 +116,9 @@ func sendPointsMetadata(keyspace string) {
 		"text": "test3",
 		"metric": "` + metricY + `",
 		"tags": {
-		  "ksid": "` + keyspace + `",
-	      "` + tagKy + `":"` + tagVx + `"
+		  "ksid": "` + keySet + `",
+	      "` + tagKy + `":"` + tagVx + `",
+          "testid": "` + lookupMetaIDs[1] + `"
 		},
 		"timestamp": 1444166564000
 	  },
@@ -117,8 +126,9 @@ func sendPointsMetadata(keyspace string) {
 		"text": "test4",
 		"metric": "` + metricZ + `",
 		"tags": {
-		  "ksid": "` + keyspace + `",
-	      "` + tagKx + `":"` + tagVz + `"
+		  "ksid": "` + keySet + `",
+	      "` + tagKx + `":"` + tagVz + `",
+          "testid": "` + lookupMetaIDs[3] + `"
 		},
 		"timestamp": 1448315804000
 	  },
@@ -126,14 +136,15 @@ func sendPointsMetadata(keyspace string) {
 		"text": "test5",
 		"metric": "` + metricZ + `",
 		"tags": {
-		  "ksid": "` + keyspace + `",
-	      "` + tagKx + `":"` + tagVx + `"
+		  "ksid": "` + keySet + `",
+	      "` + tagKx + `":"` + tagVx + `",
+          "testid": "` + lookupMetaIDs[2] + `"
 		}
 	  }
 	]`
 
 	code, _, _ = mycenaeTools.HTTP.POST("v2/text", []byte(pointT))
-	if code != 204 {
+	if code != http.StatusOK {
 		log.Fatal("Error sending text points, code: ", code, " metadata_test.go")
 	}
 }
@@ -144,7 +155,7 @@ func TestListMetadata(t *testing.T) {
 	  "metric":".*"
     }`
 
-	url := fmt.Sprintf("keyspaces/%s/meta", ksMycenaeMeta)
+	url := fmt.Sprintf("keysets/%s/meta", ksMycenaeMeta)
 	code, response := requestResponse(t, url, payload)
 
 	assert.Equal(t, 200, code)
@@ -152,7 +163,7 @@ func TestListMetadata(t *testing.T) {
 
 	for _, payload := range response.Payload {
 
-		switch payload.TsID {
+		switch payload.Tags["testid"] {
 		case lookupMetaIDs[0]:
 			assert.Equal(t, lookupMetas[lookupMetaIDs[0]].Metric, payload.Metric)
 			assert.Equal(t, lookupMetas[lookupMetaIDs[0]].Tags, payload.Tags)
@@ -166,11 +177,11 @@ func TestListMetadata(t *testing.T) {
 			assert.Equal(t, lookupMetas[lookupMetaIDs[3]].Metric, payload.Metric)
 			assert.Equal(t, lookupMetas[lookupMetaIDs[3]].Tags, payload.Tags)
 		default:
-			t.Error("Unexpected ID, ", payload.TsID)
+			t.Error("Unexpected ID, ", payload.Tags["testid"])
 		}
 	}
 
-	url = fmt.Sprintf("keyspaces/%s/text/meta", ksMycenaeMeta)
+	url = fmt.Sprintf("keysets/%s/text/meta", ksMycenaeMeta)
 	code, response = requestResponse(t, url, payload)
 
 	assert.Equal(t, 200, code)
@@ -178,21 +189,21 @@ func TestListMetadata(t *testing.T) {
 
 	for _, payload := range response.Payload {
 
-		switch payload.TsID {
-		case "T" + lookupMetaIDs[0]:
+		switch payload.Tags["testid"] {
+		case lookupMetaIDs[0]:
 			assert.Equal(t, lookupMetas[lookupMetaIDs[0]].Metric, payload.Metric)
 			assert.Equal(t, lookupMetas[lookupMetaIDs[0]].Tags, payload.Tags)
-		case "T" + lookupMetaIDs[1]:
+		case lookupMetaIDs[1]:
 			assert.Equal(t, lookupMetas[lookupMetaIDs[1]].Metric, payload.Metric)
 			assert.Equal(t, lookupMetas[lookupMetaIDs[1]].Tags, payload.Tags)
-		case "T" + lookupMetaIDs[2]:
+		case lookupMetaIDs[2]:
 			assert.Equal(t, lookupMetas[lookupMetaIDs[2]].Metric, payload.Metric)
 			assert.Equal(t, lookupMetas[lookupMetaIDs[2]].Tags, payload.Tags)
-		case "T" + lookupMetaIDs[3]:
+		case lookupMetaIDs[3]:
 			assert.Equal(t, lookupMetas[lookupMetaIDs[3]].Metric, payload.Metric)
 			assert.Equal(t, lookupMetas[lookupMetaIDs[3]].Tags, payload.Tags)
 		default:
-			t.Error("Unexpected ID, ", payload.TsID)
+			t.Error("Unexpected ID, ", payload.Tags["testid"])
 		}
 	}
 
@@ -201,16 +212,17 @@ func TestListMetadata(t *testing.T) {
 func TestListMetadataAllParameters(t *testing.T) {
 
 	payload := `{
-	  "metric":"os-_/.%\\&\\#;cpu",
+	  "metric":"os.cpu",
 	  "tags":[
 	    {
-	      "tagKey":"hos-_/.%\\&\\#;t",
-	      "tagValue":"a1-test-_/.%\\&\\#;Meta"
+	      "tagKey":"host",
+	      "tagValue":"a1-testMeta",
+          "testid":"m3"
 	    }
       ]
     }`
 
-	url := fmt.Sprintf("keyspaces/%s/meta", ksMycenaeMeta)
+	url := fmt.Sprintf("keysets/%s/meta", ksMycenaeMeta)
 	code, response := requestResponse(t, url, payload)
 
 	assert.Equal(t, 200, code)
@@ -218,16 +230,16 @@ func TestListMetadataAllParameters(t *testing.T) {
 
 	for _, payload := range response.Payload {
 
-		switch payload.TsID {
+		switch payload.Tags["testid"] {
 		case lookupMetaIDs[2]:
 			assert.Equal(t, lookupMetas[lookupMetaIDs[2]].Metric, payload.Metric)
 			assert.Equal(t, lookupMetas[lookupMetaIDs[2]].Tags, payload.Tags)
 		default:
-			t.Error("Unexpected ID, ", payload.TsID)
+			t.Error("Unexpected ID, ", payload.Tags["testid"])
 		}
 	}
 
-	url = fmt.Sprintf("keyspaces/%s/text/meta", ksMycenaeMeta)
+	url = fmt.Sprintf("keysets/%s/text/meta", ksMycenaeMeta)
 	code, response = requestResponse(t, url, payload)
 
 	assert.Equal(t, 200, code)
@@ -235,12 +247,12 @@ func TestListMetadataAllParameters(t *testing.T) {
 
 	for _, payload := range response.Payload {
 
-		switch payload.TsID {
-		case "T" + lookupMetaIDs[2]:
+		switch payload.Tags["testid"] {
+		case lookupMetaIDs[2]:
 			assert.Equal(t, lookupMetas[lookupMetaIDs[2]].Metric, payload.Metric)
 			assert.Equal(t, lookupMetas[lookupMetaIDs[2]].Tags, payload.Tags)
 		default:
-			t.Error("Unexpected ID, ", payload.TsID)
+			t.Error("Unexpected ID, ", payload.Tags["testid"])
 		}
 	}
 
@@ -252,7 +264,7 @@ func TestListMetadataMetricWithRegex(t *testing.T) {
 	  "metric":"os.*"
     }`
 
-	url := fmt.Sprintf("keyspaces/%s/meta", ksMycenaeMeta)
+	url := fmt.Sprintf("keysets/%s/meta", ksMycenaeMeta)
 	code, response := requestResponse(t, url, payload)
 
 	assert.Equal(t, 200, code)
@@ -260,7 +272,7 @@ func TestListMetadataMetricWithRegex(t *testing.T) {
 
 	for _, payload := range response.Payload {
 
-		switch payload.TsID {
+		switch payload.Tags["testid"] {
 		case lookupMetaIDs[0]:
 			assert.Equal(t, lookupMetas[lookupMetaIDs[0]].Metric, payload.Metric)
 			assert.Equal(t, lookupMetas[lookupMetaIDs[0]].Tags, payload.Tags)
@@ -271,11 +283,11 @@ func TestListMetadataMetricWithRegex(t *testing.T) {
 			assert.Equal(t, lookupMetas[lookupMetaIDs[3]].Metric, payload.Metric)
 			assert.Equal(t, lookupMetas[lookupMetaIDs[3]].Tags, payload.Tags)
 		default:
-			t.Error("Unexpected ID, ", payload.TsID)
+			t.Error("Unexpected ID, ", payload.Tags["testid"])
 		}
 	}
 
-	url = fmt.Sprintf("keyspaces/%s/text/meta", ksMycenaeMeta)
+	url = fmt.Sprintf("keysets/%s/text/meta", ksMycenaeMeta)
 	code, response = requestResponse(t, url, payload)
 
 	assert.Equal(t, 200, code)
@@ -283,18 +295,18 @@ func TestListMetadataMetricWithRegex(t *testing.T) {
 
 	for _, payload := range response.Payload {
 
-		switch payload.TsID {
-		case "T" + lookupMetaIDs[0]:
+		switch payload.Tags["testid"] {
+		case lookupMetaIDs[0]:
 			assert.Equal(t, lookupMetas[lookupMetaIDs[0]].Metric, payload.Metric)
 			assert.Equal(t, lookupMetas[lookupMetaIDs[0]].Tags, payload.Tags)
-		case "T" + lookupMetaIDs[2]:
+		case lookupMetaIDs[2]:
 			assert.Equal(t, lookupMetas[lookupMetaIDs[2]].Metric, payload.Metric)
 			assert.Equal(t, lookupMetas[lookupMetaIDs[2]].Tags, payload.Tags)
-		case "T" + lookupMetaIDs[3]:
+		case lookupMetaIDs[3]:
 			assert.Equal(t, lookupMetas[lookupMetaIDs[3]].Metric, payload.Metric)
 			assert.Equal(t, lookupMetas[lookupMetaIDs[3]].Tags, payload.Tags)
 		default:
-			t.Error("Unexpected ID, ", payload.TsID)
+			t.Error("Unexpected ID, ", payload.Tags["testid"])
 		}
 	}
 
@@ -310,7 +322,7 @@ func TestListMetadataTagKeyWithRegex(t *testing.T) {
       ]
     }`
 
-	url := fmt.Sprintf("keyspaces/%s/meta", ksMycenaeMeta)
+	url := fmt.Sprintf("keysets/%s/meta", ksMycenaeMeta)
 	code, response := requestResponse(t, url, payload)
 
 	assert.Equal(t, 200, code)
@@ -318,7 +330,7 @@ func TestListMetadataTagKeyWithRegex(t *testing.T) {
 
 	for _, payload := range response.Payload {
 
-		switch payload.TsID {
+		switch payload.Tags["testid"] {
 		case lookupMetaIDs[0]:
 			assert.Equal(t, lookupMetas[lookupMetaIDs[0]].Metric, payload.Metric)
 			assert.Equal(t, lookupMetas[lookupMetaIDs[0]].Tags, payload.Tags)
@@ -332,11 +344,11 @@ func TestListMetadataTagKeyWithRegex(t *testing.T) {
 			assert.Equal(t, lookupMetas[lookupMetaIDs[3]].Metric, payload.Metric)
 			assert.Equal(t, lookupMetas[lookupMetaIDs[3]].Tags, payload.Tags)
 		default:
-			t.Error("Unexpected ID, ", payload.TsID)
+			t.Error("Unexpected ID, ", payload.Tags["testid"])
 		}
 	}
 
-	url = fmt.Sprintf("keyspaces/%s/text/meta", ksMycenaeMeta)
+	url = fmt.Sprintf("keysets/%s/text/meta", ksMycenaeMeta)
 	code, response = requestResponse(t, url, payload)
 
 	assert.Equal(t, 200, code)
@@ -344,21 +356,21 @@ func TestListMetadataTagKeyWithRegex(t *testing.T) {
 
 	for _, payload := range response.Payload {
 
-		switch payload.TsID {
-		case "T" + lookupMetaIDs[0]:
+		switch payload.Tags["testid"] {
+		case lookupMetaIDs[0]:
 			assert.Equal(t, lookupMetas[lookupMetaIDs[0]].Metric, payload.Metric)
 			assert.Equal(t, lookupMetas[lookupMetaIDs[0]].Tags, payload.Tags)
-		case "T" + lookupMetaIDs[1]:
+		case lookupMetaIDs[1]:
 			assert.Equal(t, lookupMetas[lookupMetaIDs[1]].Metric, payload.Metric)
 			assert.Equal(t, lookupMetas[lookupMetaIDs[1]].Tags, payload.Tags)
-		case "T" + lookupMetaIDs[2]:
+		case lookupMetaIDs[2]:
 			assert.Equal(t, lookupMetas[lookupMetaIDs[2]].Metric, payload.Metric)
 			assert.Equal(t, lookupMetas[lookupMetaIDs[2]].Tags, payload.Tags)
-		case "T" + lookupMetaIDs[3]:
+		case lookupMetaIDs[3]:
 			assert.Equal(t, lookupMetas[lookupMetaIDs[3]].Metric, payload.Metric)
 			assert.Equal(t, lookupMetas[lookupMetaIDs[3]].Tags, payload.Tags)
 		default:
-			t.Error("Unexpected ID, ", payload.TsID)
+			t.Error("Unexpected ID, ", payload.Tags["testid"])
 		}
 	}
 
@@ -374,7 +386,7 @@ func TestListMetadataTagValueWithRegex(t *testing.T) {
       ]
     }`
 
-	url := fmt.Sprintf("keyspaces/%s/meta", ksMycenaeMeta)
+	url := fmt.Sprintf("keysets/%s/meta", ksMycenaeMeta)
 	code, response := requestResponse(t, url, payload)
 
 	assert.Equal(t, 200, code)
@@ -382,7 +394,7 @@ func TestListMetadataTagValueWithRegex(t *testing.T) {
 
 	for _, payload := range response.Payload {
 
-		switch payload.TsID {
+		switch payload.Tags["testid"] {
 		case lookupMetaIDs[0]:
 			assert.Equal(t, lookupMetas[lookupMetaIDs[0]].Metric, payload.Metric)
 			assert.Equal(t, lookupMetas[lookupMetaIDs[0]].Tags, payload.Tags)
@@ -396,11 +408,11 @@ func TestListMetadataTagValueWithRegex(t *testing.T) {
 			assert.Equal(t, lookupMetas[lookupMetaIDs[3]].Metric, payload.Metric)
 			assert.Equal(t, lookupMetas[lookupMetaIDs[3]].Tags, payload.Tags)
 		default:
-			t.Error("Unexpected ID, ", payload.TsID)
+			t.Error("Unexpected ID, ", payload.Tags["testid"])
 		}
 	}
 
-	url = fmt.Sprintf("keyspaces/%s/text/meta", ksMycenaeMeta)
+	url = fmt.Sprintf("keysets/%s/text/meta", ksMycenaeMeta)
 	code, response = requestResponse(t, url, payload)
 
 	assert.Equal(t, 200, code)
@@ -408,21 +420,21 @@ func TestListMetadataTagValueWithRegex(t *testing.T) {
 
 	for _, payload := range response.Payload {
 
-		switch payload.TsID {
-		case "T" + lookupMetaIDs[0]:
+		switch payload.Tags["testid"] {
+		case lookupMetaIDs[0]:
 			assert.Equal(t, lookupMetas[lookupMetaIDs[0]].Metric, payload.Metric)
 			assert.Equal(t, lookupMetas[lookupMetaIDs[0]].Tags, payload.Tags)
-		case "T" + lookupMetaIDs[1]:
+		case lookupMetaIDs[1]:
 			assert.Equal(t, lookupMetas[lookupMetaIDs[1]].Metric, payload.Metric)
 			assert.Equal(t, lookupMetas[lookupMetaIDs[1]].Tags, payload.Tags)
-		case "T" + lookupMetaIDs[2]:
+		case lookupMetaIDs[2]:
 			assert.Equal(t, lookupMetas[lookupMetaIDs[2]].Metric, payload.Metric)
 			assert.Equal(t, lookupMetas[lookupMetaIDs[2]].Tags, payload.Tags)
-		case "T" + lookupMetaIDs[3]:
+		case lookupMetaIDs[3]:
 			assert.Equal(t, lookupMetas[lookupMetaIDs[3]].Metric, payload.Metric)
 			assert.Equal(t, lookupMetas[lookupMetaIDs[3]].Tags, payload.Tags)
 		default:
-			t.Error("Unexpected ID, ", payload.TsID)
+			t.Error("Unexpected ID, ", payload.Tags["testid"])
 		}
 	}
 
@@ -434,7 +446,7 @@ func TestListMetadataNoResult(t *testing.T) {
 	  "metric":"invalidMetric"
     }`
 
-	code, response, err := mycenaeTools.HTTP.POST(fmt.Sprintf("keyspaces/%s/meta", ksMycenaeMeta), []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST(fmt.Sprintf("keysets/%s/meta", ksMycenaeMeta), []byte(payload))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
@@ -443,7 +455,7 @@ func TestListMetadataNoResult(t *testing.T) {
 	assert.Equal(t, 204, code)
 	assert.Empty(t, response)
 
-	code, response, err = mycenaeTools.HTTP.POST(fmt.Sprintf("keyspaces/%s/text/meta", ksMycenaeMeta), []byte(payload))
+	code, response, err = mycenaeTools.HTTP.POST(fmt.Sprintf("keysets/%s/text/meta", ksMycenaeMeta), []byte(payload))
 
 	if err != nil {
 		t.Error(err)
@@ -461,14 +473,14 @@ func TestListMetadataSizeOne(t *testing.T) {
 	  "metric":".*"
     }`
 
-	url := fmt.Sprintf("keyspaces/%s/meta?size=1", ksMycenaeMeta)
+	url := fmt.Sprintf("keysets/%s/meta?size=1", ksMycenaeMeta)
 	code, response := requestResponse(t, url, payload)
 
 	assert.Equal(t, 200, code)
 	assert.Equal(t, 4, response.TotalRecord)
 	assert.Equal(t, 1, len(response.Payload))
 
-	url = fmt.Sprintf("keyspaces/%s/text/meta?size=1", ksMycenaeMeta)
+	url = fmt.Sprintf("keysets/%s/text/meta?size=1", ksMycenaeMeta)
 	code, response = requestResponse(t, url, payload)
 
 	assert.Equal(t, 200, code)
@@ -483,14 +495,14 @@ func TestListMetadataSizeTwo(t *testing.T) {
 	  "metric":".*"
     }`
 
-	url := fmt.Sprintf("keyspaces/%s/text/meta?size=2", ksMycenaeMeta)
+	url := fmt.Sprintf("keysets/%s/text/meta?size=2", ksMycenaeMeta)
 	code, response := requestResponse(t, url, payload)
 
 	assert.Equal(t, 200, code)
 	assert.Equal(t, 4, response.TotalRecord)
 	assert.Equal(t, 2, len(response.Payload))
 
-	url = fmt.Sprintf("keyspaces/%s/text/meta?size=2", ksMycenaeMeta)
+	url = fmt.Sprintf("keysets/%s/text/meta?size=2", ksMycenaeMeta)
 	code, response = requestResponse(t, url, payload)
 
 	assert.Equal(t, 200, code)
@@ -505,14 +517,14 @@ func TestListMetadataFromOne(t *testing.T) {
 	  "metric":".*"
     }`
 
-	url := fmt.Sprintf("keyspaces/%s/meta?from=1", ksMycenaeMeta)
+	url := fmt.Sprintf("keysets/%s/meta?from=1", ksMycenaeMeta)
 	code, response := requestResponse(t, url, payload)
 
 	assert.Equal(t, 200, code)
 	assert.Equal(t, 4, response.TotalRecord)
 	assert.Equal(t, 3, len(response.Payload))
 
-	url = fmt.Sprintf("keyspaces/%s/text/meta?from=1", ksMycenaeMeta)
+	url = fmt.Sprintf("keysets/%s/text/meta?from=1", ksMycenaeMeta)
 	code, response = requestResponse(t, url, payload)
 
 	assert.Equal(t, 200, code)
@@ -527,14 +539,14 @@ func TestListMetadataFromTwo(t *testing.T) {
 	  "metric":".*"
     }`
 
-	url := fmt.Sprintf("keyspaces/%s/meta?from=2", ksMycenaeMeta)
+	url := fmt.Sprintf("keysets/%s/meta?from=2", ksMycenaeMeta)
 	code, response := requestResponse(t, url, payload)
 
 	assert.Equal(t, 200, code)
 	assert.Equal(t, 4, response.TotalRecord)
 	assert.Equal(t, 2, len(response.Payload))
 
-	url = fmt.Sprintf("keyspaces/%s/text/meta?from=2", ksMycenaeMeta)
+	url = fmt.Sprintf("keysets/%s/text/meta?from=2", ksMycenaeMeta)
 	code, response = requestResponse(t, url, payload)
 
 	assert.Equal(t, 200, code)
@@ -549,35 +561,18 @@ func TestListMetadataOnlyIDSTrue(t *testing.T) {
 	  "metric":".*"
     }`
 
-	url := fmt.Sprintf("keyspaces/%s/meta?onlyids=true", ksMycenaeMeta)
+	url := fmt.Sprintf("keysets/%s/meta?onlyids=true", ksMycenaeMeta)
 	code, response := requestResponse(t, url, payload)
 
 	assert.Equal(t, 200, code)
 	assert.Equal(t, 4, response.TotalRecord)
 
-	var emptyTag map[string]string
-
 	for _, payload := range response.Payload {
 
-		switch payload.TsID {
-		case lookupMetaIDs[0]:
-			assert.Equal(t, "", payload.Metric)
-			assert.Equal(t, emptyTag, payload.Tags)
-		case lookupMetaIDs[1]:
-			assert.Equal(t, "", payload.Metric)
-			assert.Equal(t, emptyTag, payload.Tags)
-		case lookupMetaIDs[2]:
-			assert.Equal(t, "", payload.Metric)
-			assert.Equal(t, emptyTag, payload.Tags)
-		case lookupMetaIDs[3]:
-			assert.Equal(t, "", payload.Metric)
-			assert.Equal(t, emptyTag, payload.Tags)
-		default:
-			t.Error("Unexpected ID, ", payload.TsID)
-		}
+		assert.True(t, payload.TsID != "")
 	}
 
-	url = fmt.Sprintf("keyspaces/%s/text/meta?onlyids=true", ksMycenaeMeta)
+	url = fmt.Sprintf("keysets/%s/text/meta?onlyids=true", ksMycenaeMeta)
 	code, response = requestResponse(t, url, payload)
 
 	assert.Equal(t, 200, code)
@@ -585,22 +580,7 @@ func TestListMetadataOnlyIDSTrue(t *testing.T) {
 
 	for _, payload := range response.Payload {
 
-		switch payload.TsID {
-		case "T" + lookupMetaIDs[0]:
-			assert.Equal(t, "", payload.Metric)
-			assert.Equal(t, emptyTag, payload.Tags)
-		case "T" + lookupMetaIDs[1]:
-			assert.Equal(t, "", payload.Metric)
-			assert.Equal(t, emptyTag, payload.Tags)
-		case "T" + lookupMetaIDs[2]:
-			assert.Equal(t, "", payload.Metric)
-			assert.Equal(t, emptyTag, payload.Tags)
-		case "T" + lookupMetaIDs[3]:
-			assert.Equal(t, "", payload.Metric)
-			assert.Equal(t, emptyTag, payload.Tags)
-		default:
-			t.Error("Unexpected ID, ", payload.TsID)
-		}
+		assert.True(t, payload.TsID != "")
 	}
 
 }
@@ -611,7 +591,7 @@ func TestListMetadataOnlyIDSFalse(t *testing.T) {
 	  "metric":".*"
     }`
 
-	url := fmt.Sprintf("keyspaces/%s/meta?onlyids=false", ksMycenaeMeta)
+	url := fmt.Sprintf("keysets/%s/meta?onlyids=false", ksMycenaeMeta)
 	code, response := requestResponse(t, url, payload)
 
 	assert.Equal(t, 200, code)
@@ -619,7 +599,7 @@ func TestListMetadataOnlyIDSFalse(t *testing.T) {
 
 	for _, payload := range response.Payload {
 
-		switch payload.TsID {
+		switch payload.Tags["testid"] {
 		case lookupMetaIDs[0]:
 			assert.Equal(t, lookupMetas[lookupMetaIDs[0]].Metric, payload.Metric)
 			assert.Equal(t, lookupMetas[lookupMetaIDs[0]].Tags, payload.Tags)
@@ -633,11 +613,11 @@ func TestListMetadataOnlyIDSFalse(t *testing.T) {
 			assert.Equal(t, lookupMetas[lookupMetaIDs[3]].Metric, payload.Metric)
 			assert.Equal(t, lookupMetas[lookupMetaIDs[3]].Tags, payload.Tags)
 		default:
-			t.Error("Unexpected ID, ", payload.TsID)
+			t.Error("Unexpected ID, ", payload.Tags["testid"])
 		}
 	}
 
-	url = fmt.Sprintf("keyspaces/%s/text/meta?onlyids=false", ksMycenaeMeta)
+	url = fmt.Sprintf("keysets/%s/text/meta?onlyids=false", ksMycenaeMeta)
 	code, response = requestResponse(t, url, payload)
 
 	assert.Equal(t, 200, code)
@@ -645,21 +625,21 @@ func TestListMetadataOnlyIDSFalse(t *testing.T) {
 
 	for _, payload := range response.Payload {
 
-		switch payload.TsID {
-		case "T" + lookupMetaIDs[0]:
+		switch payload.Tags["testid"] {
+		case lookupMetaIDs[0]:
 			assert.Equal(t, lookupMetas[lookupMetaIDs[0]].Metric, payload.Metric)
 			assert.Equal(t, lookupMetas[lookupMetaIDs[0]].Tags, payload.Tags)
-		case "T" + lookupMetaIDs[1]:
+		case lookupMetaIDs[1]:
 			assert.Equal(t, lookupMetas[lookupMetaIDs[1]].Metric, payload.Metric)
 			assert.Equal(t, lookupMetas[lookupMetaIDs[1]].Tags, payload.Tags)
-		case "T" + lookupMetaIDs[2]:
+		case lookupMetaIDs[2]:
 			assert.Equal(t, lookupMetas[lookupMetaIDs[2]].Metric, payload.Metric)
 			assert.Equal(t, lookupMetas[lookupMetaIDs[2]].Tags, payload.Tags)
-		case "T" + lookupMetaIDs[3]:
+		case lookupMetaIDs[3]:
 			assert.Equal(t, lookupMetas[lookupMetaIDs[3]].Metric, payload.Metric)
 			assert.Equal(t, lookupMetas[lookupMetaIDs[3]].Tags, payload.Tags)
 		default:
-			t.Error("Unexpected ID, ", payload.TsID)
+			t.Error("Unexpected ID, ", payload.Tags["testid"])
 		}
 	}
 

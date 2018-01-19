@@ -80,17 +80,17 @@ func statsInsert(ks, cf string, d time.Duration) {
 	)
 }
 
-func statsPoints(ks, vt , protocol string) {
+func statsPoints(ks, vt , protocol, ttl string) {
 	go statsIncrement(
 		"points.received",
-		map[string]string{"protocol": protocol, "api": "v2", "keyspace": ks, "type": vt},
+		map[string]string{"protocol": protocol, "api": "v2", "keyspace": ks, "type": vt, "time_to_live": ttl},
 	)
 }
 
-func statsPointsError(ks, vt, protocol string) {
+func statsPointsError(ks, vt, protocol, ttl string) {
 	go statsIncrement(
 		"points.received.error",
-		map[string]string{"protocol": protocol, "api": "v2", "keyspace": ks, "type": vt},
+		map[string]string{"protocol": protocol, "api": "v2", "keyspace": ks, "type": vt, "time_to_live": ttl},
 	)
 }
 

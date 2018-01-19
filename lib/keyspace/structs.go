@@ -1,20 +1,16 @@
 package keyspace
 
 import (
-	"fmt"
-
 	"github.com/asaskevich/govalidator"
 	"github.com/uol/gobol"
 )
 
 type Config struct {
-	Key               string `json:"key"`
 	Name              string `json:"name"`
 	Datacenter        string `json:"datacenter"`
 	ReplicationFactor int    `json:"replicationFactor"`
 	Contact           string `json:"contact"`
-	TTL               int    `json:"ttl"`
-	//TUUID             bool   `json:"tuuid"`
+	TTL               uint8  `json:"ttl"`
 }
 
 func (c *Config) Validate() gobol.Error {
@@ -35,11 +31,7 @@ func (c *Config) Validate() gobol.Error {
 	}
 
 	if c.TTL <= 0 {
-		return errValidationS("CreateKeyspace", `TTL can not be less or equal to zero`)
-	}
-
-	if c.TTL > maxTTL {
-		return errValidationS("CreateKeyspace", fmt.Sprintf(`Max TTL allowed is %v`, maxTTL))
+		return errValidationS("CreateKeyspace", "TTL cannot be less or equal to 0")
 	}
 
 	return nil
@@ -51,19 +43,11 @@ func (c *ConfigUpdate) Validate() gobol.Error {
 		return errValidationS("CreateKeyspace", "Contact field should be a valid email address")
 	}
 
-	if !validKey.MatchString(c.Name) {
-		return errValidationS(
-			"CreateKeyspace",
-			`Wrong Format: Field "keyspaceName" is not well formed. NO information will be saved`,
-		)
-	}
-
 	return nil
 }
 
 type ConfigUpdate struct {
-	Name    string `json:"name"`
-	Contact string `json:"contact"`
+	Contact string `json:"contact,omitempty"`
 }
 
 type CreateResponse struct {

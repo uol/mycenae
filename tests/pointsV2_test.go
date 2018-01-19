@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"testing"
 	"time"
 
@@ -15,12 +16,12 @@ var ts10ID string
 
 var hashMapPV2 map[string]string
 
-func sendPointsV2(keyspace string) {
+func sendPointsV2(keySet string) {
 
 	fmt.Println("Setting up pointsV2_test.go tests...")
 
-	tsPointsV2(keyspace)
-	ts10(keyspace)
+	tsPointsV2(keySet)
+	ts10(keySet)
 }
 
 func tsPointsV2(keyspace string) {
@@ -73,6 +74,7 @@ func tsPointsV2(keyspace string) {
 			Points[i].Metric = data.metric
 			Points[i].Tags = map[string]string{
 				"ksid": keyspace,
+				"ttl":  "1",
 				"host": data.tagValue,
 			}
 			Points[i].Timestamp = int64(data.startTime)
@@ -86,20 +88,20 @@ func tsPointsV2(keyspace string) {
 		}
 
 		code, _, _ := mycenaeTools.HTTP.POST("api/put", jsonPoints)
-		if code != 204 {
+		if code != http.StatusOK {
 			log.Fatal(test, code)
 		}
 
-		hashMapPV2[test] = mycenaeTools.Cassandra.Timeseries.GetHashFromMetricAndTags(data.metric, map[string]string{"host": data.tagValue})
+		hashMapPV2[test] = tools.GetHashFromMetricAndTags(data.metric, map[string]string{"host": data.tagValue, "ksid": keyspace, "ttl": "1"})
 	}
 }
 
 func ts10(keyspace string) {
 
-	metric := "t/s._-%10"
-	tagKey := "hos-_/.%t"
+	metric := "ts10"
+	tagKey := "host"
 	tagKey2 := "app"
-	tagValue := "test-_/.%1"
+	tagValue := "test1"
 	tagValue2 := "app1"
 	startTime := 1448452800
 	value := 0.0
@@ -132,6 +134,7 @@ func ts10(keyspace string) {
 		Points[i].Metric = metric
 		Points[i].Tags = map[string]string{
 			"ksid":  keyspace,
+			"ttl":   "1",
 			tagKey:  tagValue,
 			tagKey2: tagValue2,
 		}
@@ -148,16 +151,16 @@ func ts10(keyspace string) {
 	}
 
 	code, _, _ := mycenaeTools.HTTP.POST("api/put", jsonPoints)
-	if code != 204 {
+	if code != http.StatusOK {
 		log.Fatal(code)
 	}
 
-	ts10ID = mycenaeTools.Cassandra.Timeseries.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue})
+	ts10ID = tools.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, "ksid": keyspace, "ttl": "1"})
 }
 
 func postPointsAndCheck(t *testing.T, payload, id string, code, count, total, ts int) tools.MycenaePoints {
 
-	path := fmt.Sprintf("keyspaces/%s/points", ksMycenae)
+	path := fmt.Sprintf("keysets/%s/points", ksMycenae)
 	returnCode, response, err := mycenaeTools.HTTP.POST(path, []byte(payload))
 	if err != nil {
 		t.Error(err)
@@ -300,7 +303,7 @@ func TestPointsV2LimitTrueNoPoints(t *testing.T) {
 		"end": 1348452800000
 	}`
 
-	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/points", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/points", []byte(payload))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
@@ -327,11 +330,12 @@ func TestPointsV2LimitTrueAproxMedia(t *testing.T) {
 		"end": 1448458381000
 	}`
 
-	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/points", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/points", []byte(payload))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
 	}
+	assert.Equal(t, 200, code)
 
 	payloadPoints := tools.MycenaePoints{}
 
@@ -341,7 +345,6 @@ func TestPointsV2LimitTrueAproxMedia(t *testing.T) {
 		t.SkipNow()
 	}
 
-	assert.Equal(t, 200, code)
 	assert.Equal(t, 34, payloadPoints.Payload[hashMapPV2["ts2_3"]].Points.Count)
 	assert.Equal(t, 90, payloadPoints.Payload[hashMapPV2["ts2_3"]].Points.Total)
 	assert.Equal(t, 34, len(payloadPoints.Payload[hashMapPV2["ts2_3"]].Points.Ts))
@@ -414,7 +417,7 @@ func TestPointsV2LimitTrueAproxMin(t *testing.T) {
 		"end": 1448458381000
 	}`
 
-	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/points", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/points", []byte(payload))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
@@ -591,7 +594,7 @@ func TestPointsV2LimitTrueAproxMaxHour(t *testing.T) {
 		"end": 1449316800000
 	}`
 
-	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/points", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/points", []byte(payload))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
@@ -640,10 +643,12 @@ func TestPointsV2LimitTrueAproxMaxDay(t *testing.T) {
 
 	payloadPoints := postPointsAndCheck(t, payload, hashMapPV2["ts3"], 200, 6, 480, 6)
 	i := 355.0
-	dateStart := 1448409600000.0
+	dateStart := int64(1448409600000)
 	for _, value := range payloadPoints.Payload[hashMapPV2["ts3"]].Points.Ts {
 
-		if int64(value[0].(float64)) < 1449100800000 {
+		v := int64(value[0].(float64))
+
+		if v < 1449100800000 {
 
 			assert.Exactly(t, i, value[1])
 			i += 480.0
@@ -654,7 +659,7 @@ func TestPointsV2LimitTrueAproxMaxDay(t *testing.T) {
 			i += 120.0
 		}
 
-		assert.Exactly(t, dateStart, value[0])
+		assert.Exactly(t, dateStart, v)
 		dateStart += 172800000
 	}
 
@@ -1036,7 +1041,7 @@ func TestPointsV2MergeDateLimit(t *testing.T) {
 		"end": 1448458740000
 	}`
 
-	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/points", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/points", []byte(payload))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
@@ -1929,7 +1934,7 @@ func TestPointsV2BothValuesNullMergeAndDownsample(t *testing.T) {
 		"end": 1448458150000
 	}`
 
-	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/points", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/points", []byte(payload))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
@@ -2094,7 +2099,7 @@ func TestPointsV22Merge(t *testing.T) {
 
 func TestPointsV2MoreThanOneTS(t *testing.T) {
 	t.Parallel()
-	
+
 	payload := `{
 		"keys": [{"tsid":"` + hashMapPV2["ts1"] + `"},{"tsid":"` + ts10ID + `"}
 		],
@@ -2102,7 +2107,7 @@ func TestPointsV2MoreThanOneTS(t *testing.T) {
 		"end": 1548452700000
 	}`
 
-	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/points", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/points", []byte(payload))
 	assert.Equal(t, 200, code)
 
 	if err != nil {

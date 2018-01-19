@@ -13,8 +13,11 @@ checkScyllaUpNodes () {
 }
 
 ./start_scylla.sh 1
+sleep 2
 ./start_scylla.sh 2
+sleep 2
 ./start_scylla.sh 3
+sleep 2
 checkScyllaUpNodes 3
 
 docker cp $GOPATH/src/github.com/uol/mycenae/docs/scylladb.cql scylla1:/tmp/

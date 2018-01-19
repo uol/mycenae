@@ -56,8 +56,9 @@ func (hT *httpTool) POSTjson(url string, postData interface{}, respData interfac
 		log.Println("HTTPclient:", "postJSON:", "Marshal:", err)
 		return
 	}
+	headers := map[string]string{ "Content-Type": "application/json" }
+	statusCode, respBytes, _ := hT.request("POST", url, payload, false, headers)
 
-	statusCode, respBytes, _ := hT.POST(url, payload)
 	if len(respBytes) > 0 {
 		err = json.Unmarshal(respBytes, respData)
 		if err != nil {
@@ -65,7 +66,7 @@ func (hT *httpTool) POSTjson(url string, postData interface{}, respData interfac
 		}
 	}
 
-	return
+	return statusCode
 }
 
 func (hT *httpTool) GETjson(url string, respData interface{}) (statusCode int) {
@@ -79,22 +80,22 @@ func (hT *httpTool) GETjson(url string, respData interface{}) (statusCode int) {
 
 func (hT *httpTool) GET(url string) (statusCode int, respData []byte, err error) {
 	var payload []byte
-	return hT.request("GET", url, payload, false)
+	return hT.request("GET", url, payload, false, nil)
 }
 
 func (hT *httpTool) POST(url string, payload []byte) (statusCode int, respData []byte, err error) {
-	statusCode, respData, err = hT.request("POST", url, payload, false)
+	statusCode, respData, err = hT.request("POST", url, payload, false, nil)
 	return
 }
 
 func (hT *httpTool) POSTgziped(url string, payload []byte) (statusCode int, respData []byte, err error) {
-	statusCode, respData, err = hT.request("POST", url, payload, true)
+	statusCode, respData, err = hT.request("POST", url, payload, true, nil)
 	return
 }
 
 func (hT *httpTool) PUT(url string, payload []byte) (statusCode int, respData []byte, err error) {
 
-	statusCode, respData, err = hT.request("PUT", url, payload, false)
+	statusCode, respData, err = hT.request("PUT", url, payload, false, nil)
 
 	return
 
@@ -104,13 +105,13 @@ func (hT *httpTool) DELETE(url string) (statusCode int, respData []byte, err err
 
 	var payload []byte
 
-	statusCode, respData, err = hT.request("DELETE", url, payload, false)
+	statusCode, respData, err = hT.request("DELETE", url, payload, false, nil)
 
 	return
 
 }
 
-func (hT *httpTool) request(method string, url string, payload []byte, gzipit bool) (statusCode int, respData []byte, err error) {
+func (hT *httpTool) request(method string, url string, payload []byte, gzipit bool, headers map[string]string) (statusCode int, respData []byte, err error) {
 	fullPath := ""
 
 	if hT.port == "" {
@@ -160,6 +161,7 @@ func (hT *httpTool) request(method string, url string, payload []byte, gzipit bo
 		log.Println("HTTPclient:", method, "Do:", err)
 		return
 	}
+
 	defer resp.Body.Close()
 
 	statusCode = resp.StatusCode

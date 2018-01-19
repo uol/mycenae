@@ -54,11 +54,10 @@ type Point struct {
 	Message   TSDBpoint
 	ID        string
 	Bucket    string
-	KsID      string
+	Keyset    string
 	Timestamp int64
-	//	Tuuid     bool
-	//	TimeUUID  gocql.UUID
-	Number bool
+	Number    bool
+	TTL       uint8
 }
 
 type StructV2Error struct {

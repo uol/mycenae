@@ -6,6 +6,7 @@ import (
 	"github.com/uol/gobol/rubber"
 	"github.com/uol/gobol/saw"
 	"github.com/uol/gobol/snitch"
+	"github.com/uol/mycenae/lib/keyspace"
 	"github.com/uol/mycenae/lib/memcached"
 )
 
@@ -38,11 +39,12 @@ type Settings struct {
 	HTTPserver              SettingsHTTP
 	UDPserver               SettingsUDP
 	UDPserverV2             SettingsUDP
+	DefaultTTL				uint8
+	DefaultKeysets			[]string
+	DefaultKeyspaceData     keyspace.Config
+	DefaultKeyspaces        map[string]uint8
 	Cassandra               cassandra.Settings
-	TTL                     struct {
-		Max int
-	}
-	Logs struct {
+	Logs                    struct {
 		General saw.Settings
 		Stats   saw.Settings
 	}

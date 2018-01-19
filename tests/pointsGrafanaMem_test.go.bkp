@@ -165,9 +165,9 @@ total: 12
 */
 func ts12TsdbQueryMem(keyspace string) bool {
 
-	metric := "ts12-_/.%&#;tsdb"
-	tagKey := "hos-_/.%&#;t"
-	tagValue := "test-_/.%&#;1"
+	metric := "ts12tsdb"
+	tagKey := "host"
+	tagValue := "test1"
 	ts12TsdbQueryMemStartTime = time.Now().Truncate(time.Minute).Unix() - (60 * 100)
 	startTime := ts12TsdbQueryMemStartTime
 	var value float32 = 1.0
@@ -595,7 +595,7 @@ func sendPointsPointsGrafanaMem(keyspace string) {
 
 func postAPIQueryAndCheckMem(t *testing.T, payload string, metric string, p, dps, tags, aggtags, tsuuidSize int, tsuuids ...string) ([]string, []tools.ResponseQuery) {
 
-	path := fmt.Sprintf("keyspaces/%s/api/query", ksMycenae)
+	path := fmt.Sprintf("keysets/%s/api/query", ksMycenae)
 	code, response, err := mycenaeTools.HTTP.POST(path, []byte(payload))
 	if err != nil {
 		t.Error(err, string(response))
@@ -1451,19 +1451,19 @@ func TestTsdbQueryMemFilterRegexpValidChars(t *testing.T) {
 		"end": ` + strconv.FormatInt((ts12TsdbQueryMemStartTime+240), 10) + `,
 		"showTSUIDs": true,
 		"queries": [{
-    		"metric": "ts12-_/.%&#;tsdb",
+    		"metric": "ts12tsdb",
     		"aggregator": "sum",
     		"filters": [{
         		"type": "regexp",
-        		"tagk": "hos-_/.%&#;t",
+        		"tagk": "host",
         		"filter": "test-_/\\.%\\&\\#;1",
         		"groupBy": false
 	      	}]
 	    }]
 	}`
 
-	keys, payloadPoints := postAPIQueryAndCheckMem(t, payload, "ts12-_/.%&#;tsdb", 1, 5, 1, 0, 1, ts12IDTsdbQueryMem)
-	assert.Equal(t, "test-_/.%&#;1", payloadPoints[0].Tags["hos-_/.%&#;t"])
+	keys, payloadPoints := postAPIQueryAndCheckMem(t, payload, "ts12tsdb", 1, 5, 1, 0, 1, ts12IDTsdbQueryMem)
+	assert.Equal(t, "test1", payloadPoints[0].Tags["host"])
 
 	var i float32 = 1.0
 	dateStart := ts12TsdbQueryMemStartTime
@@ -1484,18 +1484,18 @@ func TestTsdbQueryMemFilterWildcardValidChars(t *testing.T) {
 		"end": ` + strconv.FormatInt((ts12TsdbQueryMemStartTime+240), 10) + `,
 		"showTSUIDs": true,
 		"queries": [{
-    		"metric": "ts12-_/.%&#;tsdb",
+    		"metric": "ts12tsdb",
     		"aggregator": "sum",
     		"filters": [{
         		"type": "wildcard",
-        		"tagk": "hos-_/.%&#;t",
-        		"filter": "test-_/.%&#;1",
+        		"tagk": "host",
+        		"filter": "test1",
         		"groupBy": false
 	      	}]
 	    }]
 	}`
-	keys, payloadPoints := postAPIQueryAndCheckMem(t, payload, "ts12-_/.%&#;tsdb", 1, 5, 1, 0, 1, ts12IDTsdbQueryMem)
-	assert.Equal(t, "test-_/.%&#;1", payloadPoints[0].Tags["hos-_/.%&#;t"])
+	keys, payloadPoints := postAPIQueryAndCheckMem(t, payload, "ts12tsdb", 1, 5, 1, 0, 1, ts12IDTsdbQueryMem)
+	assert.Equal(t, "test1", payloadPoints[0].Tags["host"])
 
 	var i float32 = 1.0
 	dateStart := ts12TsdbQueryMemStartTime
@@ -1516,18 +1516,18 @@ func TestTsdbQueryMemFilterLiteralOrValidChars(t *testing.T) {
 		"end": ` + strconv.FormatInt((ts12TsdbQueryMemStartTime+240), 10) + `,
 		"showTSUIDs": true,
 		"queries": [{
-    		"metric": "ts12-_/.%&#;tsdb",
+    		"metric": "ts12tsdb",
     		"aggregator": "sum",
     		"filters": [{
         		"type": "literal_or",
-        		"tagk": "hos-_/.%&#;t",
-        		"filter": "test-_/.%&#;1",
+        		"tagk": "host",
+        		"filter": "test1",
         		"groupBy": false
 	      	}]
 	    }]
 	}`
-	keys, payloadPoints := postAPIQueryAndCheckMem(t, payload, "ts12-_/.%&#;tsdb", 1, 5, 1, 0, 1, ts12IDTsdbQueryMem)
-	assert.Equal(t, "test-_/.%&#;1", payloadPoints[0].Tags["hos-_/.%&#;t"])
+	keys, payloadPoints := postAPIQueryAndCheckMem(t, payload, "ts12tsdb", 1, 5, 1, 0, 1, ts12IDTsdbQueryMem)
+	assert.Equal(t, "test1", payloadPoints[0].Tags["host"])
 
 	var i float32 = 1.0
 	dateStart := ts12TsdbQueryMemStartTime
@@ -1548,18 +1548,18 @@ func TestTsdbQueryMemFilterNotLiteralOrValidChars(t *testing.T) {
 		"end": ` + strconv.FormatInt(ts12TsdbQueryMemStartTime+240, 10) + `,
 		"showTSUIDs": true,
 		"queries": [{
-    		"metric": "ts12-_/.%&#;tsdb",
+    		"metric": "ts12tsdb",
     		"aggregator": "sum",
     		"filters": [{
         		"type": "not_literal_or",
-        		"tagk": "hos-_/.%&#;t",
-        		"filter": "test-_/.%&#;",
+        		"tagk": "host",
+        		"filter": "test",
         		"groupBy": false
 	      	}]
 	    }]
 	}`
-	keys, payloadPoints := postAPIQueryAndCheckMem(t, payload, "ts12-_/.%&#;tsdb", 1, 5, 1, 0, 1, ts12IDTsdbQueryMem)
-	assert.Equal(t, "test-_/.%&#;1", payloadPoints[0].Tags["hos-_/.%&#;t"])
+	keys, payloadPoints := postAPIQueryAndCheckMem(t, payload, "ts12tsdb", 1, 5, 1, 0, 1, ts12IDTsdbQueryMem)
+	assert.Equal(t, "test1", payloadPoints[0].Tags["host"])
 
 	var i float32 = 1.0
 	dateStart := ts12TsdbQueryMemStartTime
@@ -1615,7 +1615,7 @@ func TestTsdbQueryMemFilterRateTrueRateOptionsTrueCounter(t *testing.T) {
 		"end": ` + strconv.FormatInt((ts12TsdbQueryMemStartTime+240), 10) + `,
 		"showTSUIDs": true,
 		"queries": [{
-    		"metric": "ts12-_/.%&#;tsdb",
+    		"metric": "ts12tsdb",
     		"rate": true,
     		"rateOptions": {
       			"counter": true
@@ -1623,14 +1623,14 @@ func TestTsdbQueryMemFilterRateTrueRateOptionsTrueCounter(t *testing.T) {
     		"aggregator": "sum",
     		"filters": [{
         		"type": "regexp",
-        		"tagk": "hos-_/.%&#;t",
+        		"tagk": "host",
         		"filter": "test-_/\\.%\\&\\#;1",
         		"groupBy": false
 	      	}]
 	    }]
 	}`
-	keys, payloadPoints := postAPIQueryAndCheckMem(t, payload, "ts12-_/.%&#;tsdb", 1, 4, 1, 0, 1, ts12IDTsdbQueryMem)
-	assert.Equal(t, "test-_/.%&#;1", payloadPoints[0].Tags["hos-_/.%&#;t"])
+	keys, payloadPoints := postAPIQueryAndCheckMem(t, payload, "ts12tsdb", 1, 4, 1, 0, 1, ts12IDTsdbQueryMem)
+	assert.Equal(t, "test1", payloadPoints[0].Tags["host"])
 
 	var i float32 = 1.0
 	dateStart := ts12TsdbQueryMemStartTime
@@ -1653,7 +1653,7 @@ func TestTsdbQueryMemFilterRateTrueRateOptionsTrueCounterMax(t *testing.T) {
 		"end": ` + strconv.FormatInt(ts12TsdbQueryMemStartTime+300, 10) + `,
 		"showTSUIDs": true,
 		"queries": [{
-    		"metric": "ts12-_/.%&#;tsdb",
+    		"metric": "ts12tsdb",
     		"rate": true,
     		"rateOptions": {
       			"counter": true,
@@ -1662,14 +1662,14 @@ func TestTsdbQueryMemFilterRateTrueRateOptionsTrueCounterMax(t *testing.T) {
     		"aggregator": "sum",
     		"filters": [{
         		"type": "regexp",
-        		"tagk": "hos-_/.%&#;t",
+        		"tagk": "host",
         		"filter": "test-_/\\.%\\&\\#;1",
         		"groupBy": false
 	      	}]
 	    }]
 	}`
-	keys, payloadPoints := postAPIQueryAndCheckMem(t, payload, "ts12-_/.%&#;tsdb", 1, 5, 1, 0, 1, ts12IDTsdbQueryMem)
-	assert.Equal(t, "test-_/.%&#;1", payloadPoints[0].Tags["hos-_/.%&#;t"])
+	keys, payloadPoints := postAPIQueryAndCheckMem(t, payload, "ts12tsdb", 1, 5, 1, 0, 1, ts12IDTsdbQueryMem)
+	assert.Equal(t, "test1", payloadPoints[0].Tags["host"])
 
 	var i float32 = 1.0
 	dateStart := ts12TsdbQueryMemStartTime
@@ -1703,7 +1703,7 @@ func TestTsdbQueryMemFilterRateTrueRateOptionsTrueResetValue(t *testing.T) {
 		"end": ` + strconv.FormatInt(ts12TsdbQueryMemStartTime+300, 10) + `,
 		"showTSUIDs": true,
 		"queries": [{
-    		"metric": "ts12-_/.%&#;tsdb",
+    		"metric": "ts12tsdb",
     		"rate": true,
     		"rateOptions": {
       			"counter": true,
@@ -1712,14 +1712,14 @@ func TestTsdbQueryMemFilterRateTrueRateOptionsTrueResetValue(t *testing.T) {
     		"aggregator": "sum",
     		"filters": [{
         		"type": "regexp",
-        		"tagk": "hos-_/.%&#;t",
+        		"tagk": "host",
         		"filter": "test-_/\\.%\\&\\#;1",
         		"groupBy": false
 	      	}]
 	    }]
 	}`
-	keys, payloadPoints := postAPIQueryAndCheckMem(t, payload, "ts12-_/.%&#;tsdb", 1, 5, 1, 0, 1, ts12IDTsdbQueryMem)
-	assert.Equal(t, "test-_/.%&#;1", payloadPoints[0].Tags["hos-_/.%&#;t"])
+	keys, payloadPoints := postAPIQueryAndCheckMem(t, payload, "ts12tsdb", 1, 5, 1, 0, 1, ts12IDTsdbQueryMem)
+	assert.Equal(t, "test1", payloadPoints[0].Tags["host"])
 
 	var i float32 = 1.0
 	dateStart := ts12TsdbQueryMemStartTime
@@ -1751,7 +1751,7 @@ func TestTsdbQueryMemFilterRateTrueRateOptionsTrueCounterMaxAndResetValue(t *tes
 		"end": ` + strconv.FormatInt(ts12TsdbQueryMemStartTime+720, 10) + `,
 		"showTSUIDs": true,
 		"queries": [{
-    		"metric": "ts12-_/.%&#;tsdb",
+    		"metric": "ts12tsdb",
     		"rate": true,
     		"rateOptions": {
       			"counter": true,
@@ -1761,14 +1761,14 @@ func TestTsdbQueryMemFilterRateTrueRateOptionsTrueCounterMaxAndResetValue(t *tes
     		"aggregator": "sum",
     		"filters": [{
         		"type": "regexp",
-        		"tagk": "hos-_/.%&#;t",
+        		"tagk": "host",
         		"filter": "test-_/\\.%\\&\\#;1",
         		"groupBy": false
 	      	}]
 	    }]
 	}`
-	keys, payloadPoints := postAPIQueryAndCheckMem(t, payload, "ts12-_/.%&#;tsdb", 1, 11, 1, 0, 1, ts12IDTsdbQueryMem)
-	assert.Equal(t, "test-_/.%&#;1", payloadPoints[0].Tags["hos-_/.%&#;t"])
+	keys, payloadPoints := postAPIQueryAndCheckMem(t, payload, "ts12tsdb", 1, 11, 1, 0, 1, ts12IDTsdbQueryMem)
+	assert.Equal(t, "test1", payloadPoints[0].Tags["host"])
 
 	var i float32 = 1.0
 	dateStart := ts12TsdbQueryMemStartTime
@@ -4613,19 +4613,19 @@ func TestTsdbQueryMemRateTrueRateOptionsTrueCounter(t *testing.T) {
 		"end": ` + strconv.FormatInt(ts12TsdbQueryMemStartTime+240, 10) + `,
 		"showTSUIDs": true,
 		"queries": [{
-    		"metric": "ts12-_/.%&#;tsdb",
+    		"metric": "ts12tsdb",
     		"rate": true,
     		"rateOptions": {
       			"counter": true
 			},
     		"aggregator": "sum",
     		"tags": {
-      			"hos-_/.%&#;t": "test-_/.%&#;1"
+      			"host": "test1"
 			}
 		}]
 	}`
-	keys, payloadPoints := postAPIQueryAndCheckMem(t, payload, "ts12-_/.%&#;tsdb", 1, 4, 1, 0, 1, ts12IDTsdbQueryMem)
-	assert.Equal(t, "test-_/.%&#;1", payloadPoints[0].Tags["hos-_/.%&#;t"])
+	keys, payloadPoints := postAPIQueryAndCheckMem(t, payload, "ts12tsdb", 1, 4, 1, 0, 1, ts12IDTsdbQueryMem)
+	assert.Equal(t, "test1", payloadPoints[0].Tags["host"])
 
 	var i float32 = 1.0
 	dateStart := ts12TsdbQueryMemStartTime
@@ -4648,7 +4648,7 @@ func TestTsdbQueryMemRateTrueRateOptionsTrueCounterMax(t *testing.T) {
 		"end": ` + strconv.FormatInt(ts12TsdbQueryMemStartTime+300, 10) + `,
 		"showTSUIDs": true,
 		"queries": [{
-    		"metric": "ts12-_/.%&#;tsdb",
+    		"metric": "ts12tsdb",
     		"rate": true,
     		"rateOptions": {
       			"counter": true,
@@ -4656,12 +4656,12 @@ func TestTsdbQueryMemRateTrueRateOptionsTrueCounterMax(t *testing.T) {
       		},
     		"aggregator": "sum",
     		"tags": {
-      			"hos-_/.%&#;t": "test-_/.%&#;1"
+      			"host": "test1"
 			}
 		}]
 	}`
-	keys, payloadPoints := postAPIQueryAndCheckMem(t, payload, "ts12-_/.%&#;tsdb", 1, 5, 1, 0, 1, ts12IDTsdbQueryMem)
-	assert.Equal(t, "test-_/.%&#;1", payloadPoints[0].Tags["hos-_/.%&#;t"])
+	keys, payloadPoints := postAPIQueryAndCheckMem(t, payload, "ts12tsdb", 1, 5, 1, 0, 1, ts12IDTsdbQueryMem)
+	assert.Equal(t, "test1", payloadPoints[0].Tags["host"])
 
 	var i float32 = 1.0
 	dateStart := ts12TsdbQueryMemStartTime
@@ -4694,7 +4694,7 @@ func TestTsdbQueryMemRateTrueRateOptionsTrueResetValue(t *testing.T) {
 		"end": ` + strconv.FormatInt(ts12TsdbQueryMemStartTime+300, 10) + `,
 		"showTSUIDs": true,
 		"queries": [{
-    		"metric": "ts12-_/.%&#;tsdb",
+    		"metric": "ts12tsdb",
     		"rate": true,
     		"rateOptions": {
       			"counter": true,
@@ -4702,12 +4702,12 @@ func TestTsdbQueryMemRateTrueRateOptionsTrueResetValue(t *testing.T) {
       		},
     		"aggregator": "sum",
     		"tags": {
-      			"hos-_/.%&#;t": "test-_/.%&#;1"
+      			"host": "test1"
 			}
 		}]
 	}`
-	keys, payloadPoints := postAPIQueryAndCheckMem(t, payload, "ts12-_/.%&#;tsdb", 1, 5, 1, 0, 1, ts12IDTsdbQueryMem)
-	assert.Equal(t, "test-_/.%&#;1", payloadPoints[0].Tags["hos-_/.%&#;t"])
+	keys, payloadPoints := postAPIQueryAndCheckMem(t, payload, "ts12tsdb", 1, 5, 1, 0, 1, ts12IDTsdbQueryMem)
+	assert.Equal(t, "test1", payloadPoints[0].Tags["host"])
 
 	var i float32 = 1.0
 	dateStart := ts12TsdbQueryMemStartTime
@@ -4739,7 +4739,7 @@ func TestTsdbQueryMemRateTrueRateOptionsTrueCounterMaxAndResetValue(t *testing.T
 		"end": ` + strconv.FormatInt(ts12TsdbQueryMemStartTime+660, 10) + `,
 		"showTSUIDs": true,
 		"queries": [{
-    		"metric": "ts12-_/.%&#;tsdb",
+    		"metric": "ts12tsdb",
     		"rate": true,
     		"rateOptions": {
       			"counter": true,
@@ -4748,12 +4748,12 @@ func TestTsdbQueryMemRateTrueRateOptionsTrueCounterMaxAndResetValue(t *testing.T
       		},
     		"aggregator": "sum",
     		"tags": {
-      			"hos-_/.%&#;t": "test-_/.%&#;1"
+      			"host": "test1"
 			}
 		}]
 	}`
-	keys, payloadPoints := postAPIQueryAndCheckMem(t, payload, "ts12-_/.%&#;tsdb", 1, 11, 1, 0, 1, ts12IDTsdbQueryMem)
-	assert.Equal(t, "test-_/.%&#;1", payloadPoints[0].Tags["hos-_/.%&#;t"])
+	keys, payloadPoints := postAPIQueryAndCheckMem(t, payload, "ts12tsdb", 1, 11, 1, 0, 1, ts12IDTsdbQueryMem)
+	assert.Equal(t, "test1", payloadPoints[0].Tags["host"])
 
 	var i float32 = 1.0
 	dateStart := ts12TsdbQueryMemStartTime
@@ -8087,33 +8087,33 @@ func TestTsdbQueryMemFilterGroupByTagNotFound(t *testing.T) {
 //		"end": ` + strconv.FormatInt((ts12TsdbQueryMemStartTime+240), 10) + `,
 //		"showTSUIDs": true,
 //		"queries": [{
-//			"metric": "ts12-_/.%&#;tsdb",
+//			"metric": "ts12tsdb",
 //			"rate": true,
 //			"rateOptions": {
 //				  "counter": true
 //			},
 //			"aggregator": "sum",
 //			"tags": {
-//				"hos-_/.%&#;t": "test-_/.%&#;1"
+//				"host": "test1"
 //			}
 //		}],
 //		"showQuery": true
 //	}`
-//	keys, payloadPoints := postAPIQueryAndCheckMem(t, payload, "ts12-_/.%&#;tsdb", 1, 4, 1, 0, 1, ts12IDTsdbQueryMem)
-//	assert.Equal(t, "test-_/.%&#;1", payloadPoints[0].Tags["hos-_/.%&#;t"])
+//	keys, payloadPoints := postAPIQueryAndCheckMem(t, payload, "ts12tsdb", 1, 4, 1, 0, 1, ts12IDTsdbQueryMem)
+//	assert.Equal(t, "test1", payloadPoints[0].Tags["host"])
 //	assert.Equal(t, ts12IDTsdbQuery, payloadPoints[0].Tsuuids[0])
 //
 //	index := 0
 //	expected := structs.TSDBquery{
 //		Aggregator: "sum",
-//		Metric:     "ts12-_/.%&#;tsdb",
+//		Metric:     "ts12tsdb",
 //		Filters: []structs.TSDBfilter{{
-//			Tagk:        "hos-_/.%&#;t",
-//			Filter:      "test-_/.%&#;1",
+//			Tagk:        "host",
+//			Filter:      "test1",
 //			GroupByResp: false,
 //			Ftype:       "wildcard",
 //		}},
-//		Tags:        map[string]string{"hos-_/.%&#;t": "test-_/.%&#;1"},
+//		Tags:        map[string]string{"host": "test1"},
 //		Index:       &index,
 //		Rate:        true,
 //		RateOptions: &structs.TSDBrateOptions{Counter: true},
@@ -8141,7 +8141,7 @@ func TestTsdbQueryMemFilterGroupByTagNotFound(t *testing.T) {
 //		"end": ` + strconv.FormatInt(ts12TsdbQueryMemStartTime+300, 10) + `,
 //		"showTSUIDs": true,
 //		"queries": [{
-//			"metric": "ts12-_/.%&#;tsdb",
+//			"metric": "ts12tsdb",
 //			"rate": true,
 //			"rateOptions": {
 //				  "counter": true,
@@ -8149,26 +8149,26 @@ func TestTsdbQueryMemFilterGroupByTagNotFound(t *testing.T) {
 //			  },
 //			"aggregator": "sum",
 //			"tags": {
-//				"hos-_/.%&#;t": "test-_/.%&#;1"
+//				"host": "test1"
 //			}
 //		}],
 //		"showQuery": true
 //	}`
-//	keys, payloadPoints := postAPIQueryAndCheckMem(t, payload, "ts12-_/.%&#;tsdb", 1, 5, 1, 0, 1, ts12IDTsdbQueryMem)
-//	assert.Equal(t, "test-_/.%&#;1", payloadPoints[0].Tags["hos-_/.%&#;t"])
+//	keys, payloadPoints := postAPIQueryAndCheckMem(t, payload, "ts12tsdb", 1, 5, 1, 0, 1, ts12IDTsdbQueryMem)
+//	assert.Equal(t, "test1", payloadPoints[0].Tags["host"])
 //	assert.Equal(t, ts12IDTsdbQuery, payloadPoints[0].Tsuuids[0])
 //
 //	index, cM := 0, int64(15000)
 //	expected := structs.TSDBquery{
 //		Aggregator: "sum",
-//		Metric:     "ts12-_/.%&#;tsdb",
+//		Metric:     "ts12tsdb",
 //		Filters: []structs.TSDBfilter{{
-//			Tagk:        "hos-_/.%&#;t",
-//			Filter:      "test-_/.%&#;1",
+//			Tagk:        "host",
+//			Filter:      "test1",
 //			GroupByResp: false,
 //			Ftype:       "wildcard",
 //		}},
-//		Tags:        map[string]string{"hos-_/.%&#;t": "test-_/.%&#;1"},
+//		Tags:        map[string]string{"host": "test1"},
 //		Index:       &index,
 //		Rate:        true,
 //		RateOptions: &structs.TSDBrateOptions{Counter: true, CounterMax: &cM},
@@ -8207,7 +8207,7 @@ func TestTsdbQueryMemFilterGroupByTagNotFound(t *testing.T) {
 //		"end": ` + strconv.FormatInt(ts12TsdbQueryMemStartTime+300, 10) + `,
 //		"showTSUIDs": true,
 //		"queries": [{
-//			"metric": "ts12-_/.%&#;tsdb",
+//			"metric": "ts12tsdb",
 //			"rate": true,
 //			"rateOptions": {
 //				"counter": true,
@@ -8215,26 +8215,26 @@ func TestTsdbQueryMemFilterGroupByTagNotFound(t *testing.T) {
 //			},
 //			"aggregator": "sum",
 //			"tags": {
-//				"hos-_/.%&#;t": "test-_/.%&#;1"
+//				"host": "test1"
 //			}
 //		}],
 //		"showQuery": true
 //	}`
-//	keys, payloadPoints := postAPIQueryAndCheckMem(t, payload, "ts12-_/.%&#;tsdb", 1, 5, 1, 0, 1, ts12IDTsdbQueryMem)
-//	assert.Equal(t, "test-_/.%&#;1", payloadPoints[0].Tags["hos-_/.%&#;t"])
+//	keys, payloadPoints := postAPIQueryAndCheckMem(t, payload, "ts12tsdb", 1, 5, 1, 0, 1, ts12IDTsdbQueryMem)
+//	assert.Equal(t, "test1", payloadPoints[0].Tags["host"])
 //	assert.Equal(t, ts12IDTsdbQuery, payloadPoints[0].Tsuuids[0])
 //
 //	index := 0
 //	expected := structs.TSDBquery{
 //		Aggregator: "sum",
-//		Metric:     "ts12-_/.%&#;tsdb",
+//		Metric:     "ts12tsdb",
 //		Filters: []structs.TSDBfilter{{
-//			Tagk:        "hos-_/.%&#;t",
-//			Filter:      "test-_/.%&#;1",
+//			Tagk:        "host",
+//			Filter:      "test1",
 //			GroupByResp: false,
 //			Ftype:       "wildcard",
 //		}},
-//		Tags:        map[string]string{"hos-_/.%&#;t": "test-_/.%&#;1"},
+//		Tags:        map[string]string{"host": "test1"},
 //		Index:       &index,
 //		Rate:        true,
 //		RateOptions: &structs.TSDBrateOptions{Counter: true, ResetValue: 10},
@@ -8271,7 +8271,7 @@ func TestTsdbQueryMemFilterGroupByTagNotFound(t *testing.T) {
 //		"end": ` + strconv.FormatInt(ts12TsdbQueryMemStartTime+720, 10) + `,
 //		"showTSUIDs": true,
 //		"queries": [{
-//			"metric": "ts12-_/.%&#;tsdb",
+//			"metric": "ts12tsdb",
 //			"rate": true,
 //			"rateOptions": {
 //				"counter": true,
@@ -8280,27 +8280,27 @@ func TestTsdbQueryMemFilterGroupByTagNotFound(t *testing.T) {
 //			},
 //			"aggregator": "sum",
 //			"tags": {
-//				"hos-_/.%&#;t": "test-_/.%&#;1"
+//				"host": "test1"
 //			}
 //		}],
 //		"showQuery": true
 //		}]
 //	}`
-//	keys, payloadPoints := postAPIQueryAndCheckMem(t, payload, "ts12-_/.%&#;tsdb", 1, 11, 1, 0, 1, ts12IDTsdbQueryMem)
-//	assert.Equal(t, "test-_/.%&#;1", payloadPoints[0].Tags["hos-_/.%&#;t"])
+//	keys, payloadPoints := postAPIQueryAndCheckMem(t, payload, "ts12tsdb", 1, 11, 1, 0, 1, ts12IDTsdbQueryMem)
+//	assert.Equal(t, "test1", payloadPoints[0].Tags["host"])
 //	assert.Equal(t, ts12IDTsdbQuery, payloadPoints[0].Tsuuids[0])
 //
 //	index, cM := 0, int64(15000)
 //	expected := structs.TSDBquery{
 //		Aggregator: "sum",
-//		Metric:     "ts12-_/.%&#;tsdb",
+//		Metric:     "ts12tsdb",
 //		Filters: []structs.TSDBfilter{{
-//			Tagk:        "hos-_/.%&#;t",
-//			Filter:      "test-_/.%&#;1",
+//			Tagk:        "host",
+//			Filter:      "test1",
 //			GroupByResp: false,
 //			Ftype:       "wildcard",
 //		}},
-//		Tags:        map[string]string{"hos-_/.%&#;t": "test-_/.%&#;1"},
+//		Tags:        map[string]string{"host": "test1"},
 //		Index:       &index,
 //		Rate:        true,
 //		RateOptions: &structs.TSDBrateOptions{true, &cM, 233},
@@ -8389,7 +8389,7 @@ func TestTsdbQueryMemTagsInvalidTagKey(t *testing.T) {
 		"end": 1448458150000,
 		"showTSUIDs": true,
 		"queries": [{
-    		"metric": "ts12-_/.%&#;tsdb",
+    		"metric": "ts12tsdb",
     		"rate": "false",
     		"rateOptions": {
       			"counter": true,
@@ -8397,7 +8397,7 @@ func TestTsdbQueryMemTagsInvalidTagKey(t *testing.T) {
       		},
     		"aggregator": "sum",
     		"tags": {
-      			"": "test-_/.%&#;1"
+      			"": "test1"
 			}
 		}]
 	}`
@@ -8424,7 +8424,7 @@ func TestTsdbQueryMemTagsInvalidTagValue(t *testing.T) {
 		"end": 1448458150000,
 		"showTSUIDs": true,
 		"queries": [{
-    		"metric": "ts12-_/.%&#;tsdb",
+    		"metric": "ts12tsdb",
     		"rate": "false",
     		"rateOptions": {
       			"counter": true,
@@ -8432,7 +8432,7 @@ func TestTsdbQueryMemTagsInvalidTagValue(t *testing.T) {
       		},
     		"aggregator": "sum",
     		"tags": {
-      			"hos-_/.%&#;t": ""
+      			"host": ""
 			}
 		}]
 	}`
@@ -8860,7 +8860,7 @@ func TestTsdbQueryMemInvalidRate(t *testing.T) {
 		"end": 1448458150000,
 		"showTSUIDs": true,
 		"queries": [{
-    		"metric": "ts12-_/.%&#;tsdb",
+    		"metric": "ts12tsdb",
     		"rate": "a",
     		"rateOptions": {
       			"counter": true,
@@ -8868,7 +8868,7 @@ func TestTsdbQueryMemInvalidRate(t *testing.T) {
       		},
     		"aggregator": "sum",
     		"tags": {
-      			"hos-_/.%&#;t": "test-_/.%&#;1"
+      			"host": "test1"
 			}
 		}]
 	}`
@@ -8895,7 +8895,7 @@ func TestTsdbQueryMemInvalidRateOptionCounter(t *testing.T) {
 		"end": 1448458150000,
 		"showTSUIDs": true,
 		"queries": [{
-    		"metric": "ts12-_/.%&#;tsdb",
+    		"metric": "ts12tsdb",
     		"rate": true,
     		"rateOptions": {
       			"counter": "a",
@@ -8903,7 +8903,7 @@ func TestTsdbQueryMemInvalidRateOptionCounter(t *testing.T) {
       		},
     		"aggregator": "sum",
     		"tags": {
-      			"hos-_/.%&#;t": "test-_/.%&#;1"
+      			"host": "test1"
 			}
 		}]
 	}`
@@ -8930,7 +8930,7 @@ func TestTsdbQueryMemInvalidRateOptionCounterMax(t *testing.T) {
 		"end": 1448458150000,
 		"showTSUIDs": true,
 		"queries": [{
-    		"metric": "ts12-_/.%&#;tsdb",
+    		"metric": "ts12tsdb",
     		"rate": true,
     		"rateOptions": {
       			"counter": true,
@@ -8938,7 +8938,7 @@ func TestTsdbQueryMemInvalidRateOptionCounterMax(t *testing.T) {
       		},
     		"aggregator": "sum",
     		"tags": {
-      			"hos-_/.%&#;t": "test-_/.%&#;1"
+      			"host": "test1"
 			}
 		}]
 	}`
@@ -8965,7 +8965,7 @@ func TestTsdbQueryMemInvalidRateOptionCounterMaxNegative(t *testing.T) {
 		"end": 1448458150000,
 		"showTSUIDs": true,
 		"queries": [{
-    		"metric": "ts12-_/.%&#;tsdb",
+    		"metric": "ts12tsdb",
     		"rate": true,
     		"rateOptions": {
       			"counter": true,
@@ -8973,7 +8973,7 @@ func TestTsdbQueryMemInvalidRateOptionCounterMaxNegative(t *testing.T) {
       		},
     		"aggregator": "sum",
     		"tags": {
-      			"hos-_/.%&#;t": "test-_/.%&#;1"
+      			"host": "test1"
 			}
 		}]
 	}`
@@ -9000,7 +9000,7 @@ func TestTsdbQueryMemInvalidRateOptionResetValue(t *testing.T) {
 		"end": 1448458150000,
 		"showTSUIDs": true,
 		"queries": [{
-    		"metric": "ts12-_/.%&#;tsdb",
+    		"metric": "ts12tsdb",
     		"rate": true,
     		"rateOptions": {
       			"counter": true,
@@ -9008,7 +9008,7 @@ func TestTsdbQueryMemInvalidRateOptionResetValue(t *testing.T) {
       		},
     		"aggregator": "sum",
     		"tags": {
-      			"hos-_/.%&#;t": "test-_/.%&#;1"
+      			"host": "test1"
 			}
 		}]
 	}`

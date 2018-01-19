@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"net/http"
 	"net/url"
 	"sort"
 	"strconv"
@@ -23,7 +24,7 @@ func sendPointsExpression(msg string, points interface{}) {
 	}
 
 	code, resp, _ := mycenaeTools.HTTP.POST("api/put", jsonPoints)
-	if code != 204 {
+	if code != http.StatusOK {
 		log.Fatal(msg, " sendPointsExpression ", code, " resp ", string(resp))
 	}
 
@@ -49,6 +50,7 @@ func ts1TsdbExpression(startTime int) (string, string) {
 		Points[i].Tags = map[string]string{
 			"ksid": ksMycenae,
 			"host": "test",
+			"ttl":  "1",
 		}
 		Points[i].Timestamp = int64(startTime)
 		value++
@@ -57,7 +59,7 @@ func ts1TsdbExpression(startTime int) (string, string) {
 
 	sendPointsExpression("ts1TsdbExpression", Points)
 
-	ts1IDTsdbExpression := mycenaeTools.Cassandra.Timeseries.GetHashFromMetricAndTags(ts01tsdbexpression, map[string]string{"host": "test"})
+	ts1IDTsdbExpression := tools.GetHashFromMetricAndTags(ts01tsdbexpression, map[string]string{"host": "test", "ksid": ksMycenae, "ttl": "1"})
 
 	return ts01tsdbexpression, ts1IDTsdbExpression
 }
@@ -83,6 +85,7 @@ func ts1_1TsdbExpression(startTime int) (string, string, string) {
 		Points[i].Tags = map[string]string{
 			"ksid": ksMycenae,
 			"host": "test",
+			"ttl":  "1",
 		}
 		Points[i].Timestamp = int64(dateStart)
 		value++
@@ -91,7 +94,7 @@ func ts1_1TsdbExpression(startTime int) (string, string, string) {
 
 	sendPointsExpression("ts1_1TsdbExpression", Points)
 
-	ts1_1IDTsdbExpression := mycenaeTools.Cassandra.Timeseries.GetHashFromMetricAndTags(ts01_1tsdbexpression, map[string]string{"host": "test"})
+	ts1_1IDTsdbExpression := tools.GetHashFromMetricAndTags(ts01_1tsdbexpression, map[string]string{"host": "test", "ksid": ksMycenae, "ttl": "1"})
 
 	//startTime = 1448452800
 	dateStart = startTime
@@ -104,6 +107,7 @@ func ts1_1TsdbExpression(startTime int) (string, string, string) {
 		Points[i].Tags = map[string]string{
 			"ksid": ksMycenae,
 			"host": "test2",
+			"ttl":  "1",
 		}
 		Points[i].Timestamp = int64(dateStart)
 		value++
@@ -112,7 +116,7 @@ func ts1_1TsdbExpression(startTime int) (string, string, string) {
 
 	sendPointsExpression("ts1_1TsdbExpression", Points)
 
-	ts1_1IDTsdbExpression2 := mycenaeTools.Cassandra.Timeseries.GetHashFromMetricAndTags(ts01_1tsdbexpression, map[string]string{"host": "test2"})
+	ts1_1IDTsdbExpression2 := tools.GetHashFromMetricAndTags(ts01_1tsdbexpression, map[string]string{"host": "test2", "ksid": ksMycenae, "ttl": "1"})
 
 	return ts01_1tsdbexpression, ts1_1IDTsdbExpression, ts1_1IDTsdbExpression2
 }
@@ -135,6 +139,7 @@ func ts2TsdbExpression(startTime int) (string, string) {
 		Points[i].Tags = map[string]string{
 			"ksid": ksMycenae,
 			"host": "test",
+			"ttl":  "1",
 		}
 		Points[i].Timestamp = int64(startTime)
 		startTime += 60
@@ -144,6 +149,7 @@ func ts2TsdbExpression(startTime int) (string, string) {
 		Points[i].Tags = map[string]string{
 			"ksid": ksMycenae,
 			"host": "test",
+			"ttl":  "1",
 		}
 		Points[i].Timestamp = int64(startTime)
 		i++
@@ -153,6 +159,7 @@ func ts2TsdbExpression(startTime int) (string, string) {
 		Points[i].Tags = map[string]string{
 			"ksid": ksMycenae,
 			"host": "test",
+			"ttl":  "1",
 		}
 		Points[i].Timestamp = int64(startTime)
 		value++
@@ -161,7 +168,7 @@ func ts2TsdbExpression(startTime int) (string, string) {
 
 	sendPointsExpression("ts2TsdbExpression", Points)
 
-	ts2IDTsdbExpression := mycenaeTools.Cassandra.Timeseries.GetHashFromMetricAndTags(ts02tsdbexpression, map[string]string{"host": "test"})
+	ts2IDTsdbExpression := tools.GetHashFromMetricAndTags(ts02tsdbexpression, map[string]string{"host": "test", "ksid": ksMycenae, "ttl": "1"})
 
 	return ts02tsdbexpression, ts2IDTsdbExpression
 }
@@ -186,6 +193,7 @@ func ts3TsdbExpression(startTime int) (string, string) {
 		Points[i].Tags = map[string]string{
 			"ksid": ksMycenae,
 			"host": "test",
+			"ttl":  "1",
 		}
 		Points[i].Timestamp = int64(startTime)
 		value += 5
@@ -194,7 +202,7 @@ func ts3TsdbExpression(startTime int) (string, string) {
 
 	sendPointsExpression("ts3TsdbExpression", Points)
 
-	ts3IDTsdbExpression := mycenaeTools.Cassandra.Timeseries.GetHashFromMetricAndTags(ts03tsdbexpression, map[string]string{"host": "test"})
+	ts3IDTsdbExpression := tools.GetHashFromMetricAndTags(ts03tsdbexpression, map[string]string{"host": "test", "ksid": ksMycenae, "ttl": "1"})
 
 	return ts03tsdbexpression, ts3IDTsdbExpression
 }
@@ -219,6 +227,7 @@ func ts4TsdbExpression(startTime int) (string, string) {
 		Points[i].Tags = map[string]string{
 			"ksid": ksMycenae,
 			"host": "test",
+			"ttl":  "1",
 		}
 		Points[i].Timestamp = int64(startTime)
 		value += 0.5
@@ -227,14 +236,14 @@ func ts4TsdbExpression(startTime int) (string, string) {
 
 	sendPointsExpression("ts4TsdbExpression", Points)
 
-	ts4IDTsdbExpression := mycenaeTools.Cassandra.Timeseries.GetHashFromMetricAndTags(ts04tsdbexpression, map[string]string{"host": "test"})
+	ts4IDTsdbExpression := tools.GetHashFromMetricAndTags(ts04tsdbexpression, map[string]string{"host": "test", "ksid": ksMycenae, "ttl": "1"})
 
 	return ts04tsdbexpression, ts4IDTsdbExpression
 }
 
 func postExpressionAndCheck(t *testing.T, expression, metric string, p, dps, tags, aggtags, tsuuidSize int) ([]tools.ResponseQuery, []string) {
 
-	path := fmt.Sprintf("keyspaces/%s/query/expression?tsuid=true&exp=%s", ksMycenae, expression)
+	path := fmt.Sprintf("keysets/%s/query/expression?tsuid=true&exp=%s", ksMycenae, expression)
 	code, response, err := mycenaeTools.HTTP.GET(path)
 	if err != nil {
 		t.Error(err)
@@ -276,7 +285,7 @@ func TestTsdbExpressionFilterPeriodMin(t *testing.T) {
 	metric, tsid := ts1TsdbExpression(startTime - 5940)
 
 	expression := fmt.Sprintf(`merge(sum,query(%v,{host=test},10m))`, metric)
-	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 10, 1, 0, 1)
+	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 10, 3, 0, 1)
 
 	assert.Equal(t, "test", queryPoints[0].Tags["host"])
 	assert.Equal(t, tsid, queryPoints[0].Tsuuids[0])
@@ -301,7 +310,7 @@ func TestTsdbExpressionFilterPeriodSec(t *testing.T) {
 	metric, tsid := ts1TsdbExpression(startTime - 5940)
 
 	expression := fmt.Sprintf(`merge(sum,query(%v,{host=test},599s))`, metric)
-	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 10, 1, 0, 1)
+	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 10, 3, 0, 1)
 
 	assert.Equal(t, "test", queryPoints[0].Tags["host"])
 	assert.Equal(t, tsid, queryPoints[0].Tsuuids[0])
@@ -326,7 +335,7 @@ func TestTsdbExpressionFilterPeriodMs(t *testing.T) {
 	metric, tsid := ts1TsdbExpression(startTime - 5940)
 
 	expression := fmt.Sprintf(`merge(sum,query(%v,{host=test},600000ms))`, metric)
-	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 10, 1, 0, 1)
+	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 10, 3, 0, 1)
 
 	assert.Equal(t, "test", queryPoints[0].Tags["host"])
 	assert.Equal(t, tsid, queryPoints[0].Tsuuids[0])
@@ -358,7 +367,7 @@ func TestTsdbExpressionFilterDownsampleAvg(t *testing.T) {
 	}
 
 	expression := fmt.Sprintf(`merge(avg, downsample(3m, avg, none, query(%v,{host=test},%s)))`, metric, offset)
-	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 30, 1, 0, 1)
+	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 30, 3, 0, 1)
 
 	assert.Equal(t, "test", queryPoints[0].Tags["host"])
 	assert.Equal(t, tsid, queryPoints[0].Tsuuids[0])
@@ -394,7 +403,7 @@ func TestTsdbExpressionFilterDownsampleMin(t *testing.T) {
 	}
 
 	expression := fmt.Sprintf(`merge(min, downsample(3m, min, none, query(%v,{host=test},%s)))`, metric, offset)
-	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 30, 1, 0, 1)
+	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 30, 3, 0, 1)
 
 	assert.Equal(t, "test", queryPoints[0].Tags["host"])
 	assert.Equal(t, tsid, queryPoints[0].Tsuuids[0])
@@ -428,7 +437,7 @@ func TestTsdbExpressionFilterDownsampleMax(t *testing.T) {
 	}
 
 	expression := fmt.Sprintf(`merge(max, downsample(3m, max, none, query(%v,{host=test},%s)))`, metric, offset)
-	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 30, 1, 0, 1)
+	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 30, 3, 0, 1)
 
 	assert.Equal(t, "test", queryPoints[0].Tags["host"])
 	assert.Equal(t, tsid, queryPoints[0].Tsuuids[0])
@@ -459,7 +468,7 @@ func TestTsdbExpressionFilterDownsampleSum(t *testing.T) {
 	}
 
 	expression := fmt.Sprintf(`merge(sum, downsample(3m, sum, none, query(%v,{host=test},%s)))`, metric, offset)
-	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 30, 1, 0, 1)
+	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 30, 3, 0, 1)
 
 	assert.Equal(t, "test", queryPoints[0].Tags["host"])
 	assert.Equal(t, tsid, queryPoints[0].Tsuuids[0])
@@ -484,7 +493,7 @@ func TestTsdbExpressionFilterDownsampleMaxHour(t *testing.T) {
 	metric, tsid := ts3TsdbExpression(startTime)
 
 	expression := fmt.Sprintf(`merge(max, downsample(2h, max, none, query(%v,{host=test},240h)))`, metric)
-	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 120, 1, 0, 1)
+	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 120, 3, 0, 1)
 
 	assert.Equal(t, "test", queryPoints[0].Tags["host"])
 	assert.Equal(t, tsid, queryPoints[0].Tsuuids[0])
@@ -510,7 +519,7 @@ func TestTsdbExpressionFilterDownsampleMaxDay(t *testing.T) {
 	metric, tsid := ts3TsdbExpression(startTime)
 
 	expression := fmt.Sprintf(`merge(max, downsample(2d, max, none, query(%v,{host=test},10d)))`, metric)
-	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 5, 1, 0, 1)
+	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 5, 3, 0, 1)
 
 	assert.Equal(t, "test", queryPoints[0].Tags["host"])
 	assert.Equal(t, tsid, queryPoints[0].Tsuuids[0])
@@ -537,7 +546,7 @@ func TestTsdbExpressionFilterDownsampleMaxWeek(t *testing.T) {
 	metric, tsid := ts4TsdbExpression(startTime)
 
 	expression := fmt.Sprintf(`merge(max, downsample(4w, max, none, query(%v,{host=test},207w)))`, metric)
-	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 52, 1, 0, 1)
+	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 52, 3, 0, 1)
 
 	assert.Equal(t, "test", queryPoints[0].Tags["host"])
 	assert.Equal(t, tsid, queryPoints[0].Tsuuids[0])
@@ -565,7 +574,7 @@ func TestTsdbExpressionFilterRateTrueNoPoints(t *testing.T) {
 
 	expression := url.QueryEscape(fmt.Sprintf(`rate(true, null, 0, merge(sum, query(%v,{host=test1},1s)))`, metric))
 
-	code, response, _ := mycenaeTools.HTTP.GET("keyspaces/" + ksMycenae + "/query/expression?tsuid=true&exp=" + expression)
+	code, response, _ := mycenaeTools.HTTP.GET("keysets/" + ksMycenae + "/query/expression?tsuid=true&exp=" + expression)
 
 	assert.Equal(t, 200, code)
 	assert.Equal(t, "[]", string(response))
@@ -579,7 +588,7 @@ func TestTsdbExpressionMergeDateLimit(t *testing.T) {
 	metric, tsid1, tsid2 := ts1_1TsdbExpression(startTime - 5940)
 
 	expression := fmt.Sprintf(`merge(sum, query(%v,null,10m))`, metric)
-	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 10, 0, 1, 2)
+	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 10, 2, 1, 2)
 
 	assert.Equal(t, "host", queryPoints[0].AggTags[0])
 	assert.Contains(t, queryPoints[0].Tsuuids, tsid1, "Tsuuid not found")
@@ -633,7 +642,7 @@ func TestTsdbExpressionError(t *testing.T) {
 
 	for test, data := range cases {
 
-		path := fmt.Sprintf("keyspaces/%s/query/expression?tsuid=true&exp=%s", ksMycenae, url.QueryEscape(data.query))
+		path := fmt.Sprintf("keysets/%s/query/expression?tsuid=true&exp=%s", ksMycenae, url.QueryEscape(data.query))
 		code, response, err := mycenaeTools.HTTP.GET(path)
 		if err != nil {
 			t.Error(err, test)

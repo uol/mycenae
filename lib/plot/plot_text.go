@@ -9,10 +9,11 @@ import (
 	"github.com/uol/gobol"
 
 	"github.com/uol/mycenae/lib/structs"
+	"strconv"
 )
 
 func (plot *Plot) GetTextSeries(
-	keyspace string,
+	ttl uint8,
 	keys []string,
 	start,
 	end int64,
@@ -21,6 +22,12 @@ func (plot *Plot) GetTextSeries(
 	search *regexp.Regexp,
 	downsample structs.Downsample,
 ) (serie TST, gerr gobol.Error) {
+
+	var keyspace string
+	var ok bool
+	if keyspace, ok = plot.keyspaceTTLMap[ttl]; !ok {
+		return TST{}, errNotFound("invalid ttl found: " + strconv.Itoa(int(ttl)))
+	}
 
 	w := start
 

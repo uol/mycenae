@@ -35,16 +35,26 @@ func (kspace *Keyspace) Create(w http.ResponseWriter, r *http.Request, ps httpro
 		return
 	}
 
+	if ksc.TTL <= 0 {
+		rip.Fail(w, errValidationS("CreateKeyspace", "'ttl' is required"))
+	} else if ksc.Contact == "" {
+		rip.Fail(w, errValidationS("CreateKeyspace", "'contact' is required"))
+	} else if ksc.Datacenter == "" {
+		rip.Fail(w, errValidationS("CreateKeyspace", "'datacenter' is required"))
+	} else if ksc.ReplicationFactor <= 0 {
+		rip.Fail(w, errValidationS("CreateKeyspace", "'replicationFactor' is required"))
+	}
+
 	ksc.Name = ks
 
-	keyspaceKey, gerr := kspace.createKeyspace(ksc)
+	gerr = kspace.CreateKeyspace(ksc)
 	if gerr != nil {
 		rip.Fail(w, gerr)
 		return
 	}
 
 	out := CreateResponse{
-		Ksid: keyspaceKey,
+		Ksid: ks,
 	}
 
 	rip.SuccessJSON(w, http.StatusCreated, out)

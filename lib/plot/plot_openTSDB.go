@@ -60,7 +60,7 @@ func (plot Plot) GetGroups(filters []structs.TSDBfilter, tsobs []TSDBobj) (group
 }
 
 func (plot *Plot) MetaOpenTSDB(
-	keyspace,
+	keyset,
 	id,
 	metric string,
 	tags map[string][]string,
@@ -127,7 +127,7 @@ func (plot *Plot) MetaOpenTSDB(
 
 	var esResp EsResponseMeta
 
-	gerr := plot.persist.ListESMeta(keyspace, esType, esQuery, &esResp)
+	gerr := plot.persist.ListESMeta(keyset, esType, esQuery, &esResp)
 
 	total := esResp.Hits.Total
 
@@ -154,7 +154,7 @@ func (plot *Plot) MetaOpenTSDB(
 }
 
 func (plot *Plot) MetaFilterOpenTSDB(
-	keyspace,
+	keyset,
 	id,
 	metric string,
 	filters []structs.TSDBfilter,
@@ -228,7 +228,7 @@ func (plot *Plot) MetaFilterOpenTSDB(
 
 	var esResp EsResponseMeta
 
-	gerr := plot.persist.ListESMeta(keyspace, esType, esQuery, &esResp)
+	gerr := plot.persist.ListESMeta(keyset, esType, esQuery, &esResp)
 
 	total := esResp.Hits.Total
 
