@@ -69,7 +69,7 @@ func main() {
 		log.Fatalln("ERROR - Starting stats: ", err)
 	}
 
-	tssts, err := tsstats.New(tsLogger.General, sts, settings.Stats.Interval)
+	tssts, err := tsstats.New(tsLogger.General, sts, settings.Stats.Interval, settings.Stats.KSID, settings.Stats.Tags["ttl"])
 	if err != nil {
 		tsLogger.General.Error(err)
 		os.Exit(1)
@@ -131,7 +131,7 @@ func main() {
 	for _, v := range settings.DefaultKeysets {
 		exists, err := keySet.KeySetExists(v)
 		if err != nil {
-			tsLogger.General.Error("error checking keyset", v, "existence")
+			tsLogger.General.Error("error checking keyset ", v, " existence: ", err)
 			os.Exit(1)
 		}
 		if !exists {

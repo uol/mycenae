@@ -42,4 +42,4 @@ docker exec testMycenae /bin/sh -c "echo $scylla3 scylla3 >> /etc/hosts"
 docker exec testMycenae /bin/sh -c "echo $elastic elasticsearch >> /etc/hosts"
 docker exec testMycenae /bin/sh -c "echo $mycenae mycenae >> /etc/hosts"
 
-docker exec testMycenae go test -run TestTTLKeyspace -timeout 20m -v ../tests/
+docker exec testMycenae go test -timeout 20m -v ../tests/

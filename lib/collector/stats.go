@@ -14,7 +14,7 @@ func statsUDPv1() {
 func statsProcTime(ks string, d time.Duration) {
 	go statsValueAdd(
 		"points.processes_time",
-		map[string]string{"keyspace": ks},
+		map[string]string{"target_keyspace": ks},
 		float64(d.Nanoseconds())/float64(time.Millisecond),
 	)
 }
@@ -29,14 +29,14 @@ func statsLostMeta() {
 func statsInsertQerror(ks, cf string) {
 	go statsIncrement(
 		"cassandra.query.error",
-		map[string]string{"keyspace": ks, "column_family": cf, "operation": "insert"},
+		map[string]string{"target_keyspace": ks, "column_family": cf, "operation": "insert"},
 	)
 }
 
 func statsInsertFBerror(ks, cf string) {
 	go statsIncrement(
 		"cassandra.fallback.error",
-		map[string]string{"keyspace": ks, "column_family": cf, "operation": "insert"},
+		map[string]string{"target_keyspace": ks, "column_family": cf, "operation": "insert"},
 	)
 }
 
@@ -72,10 +72,10 @@ func statsBulkPoints() {
 }
 
 func statsInsert(ks, cf string, d time.Duration) {
-	go statsIncrement("cassandra.query", map[string]string{"keyspace": ks, "column_family": cf, "operation": "insert"})
+	go statsIncrement("cassandra.query", map[string]string{"target_keyspace": ks, "column_family": cf, "operation": "insert"})
 	go statsValueAdd(
 		"cassandra.query.duration",
-		map[string]string{"keyspace": ks, "column_family": cf, "operation": "insert"},
+		map[string]string{"target_keyspace": ks, "column_family": cf, "operation": "insert"},
 		float64(d.Nanoseconds())/float64(time.Millisecond),
 	)
 }
@@ -83,14 +83,14 @@ func statsInsert(ks, cf string, d time.Duration) {
 func statsPoints(ks, vt , protocol, ttl string) {
 	go statsIncrement(
 		"points.received",
-		map[string]string{"protocol": protocol, "api": "v2", "keyspace": ks, "type": vt, "time_to_live": ttl},
+		map[string]string{"protocol": protocol, "api": "v2", "target_keyspace": ks, "type": vt, "target_time_to_live": ttl},
 	)
 }
 
 func statsPointsError(ks, vt, protocol, ttl string) {
 	go statsIncrement(
 		"points.received.error",
-		map[string]string{"protocol": protocol, "api": "v2", "keyspace": ks, "type": vt, "time_to_live": ttl},
+		map[string]string{"protocol": protocol, "api": "v2", "target_keyspace": ks, "type": vt, "target_time_to_live": ttl},
 	)
 }
 

@@ -39,7 +39,7 @@ MetaSaveInterval = "1s"
 
 DefaultTTL = 1
 
-DefaultKeysets = ["mycenae"]
+DefaultKeysets = ["stats", "scollector"]
 
 # All default keyspaces
 [DefaultKeyspaces]
@@ -80,7 +80,7 @@ DefaultKeysets = ["mycenae"]
 
 [HTTPserver]
   path = "/"
-  port = "8787"
+  port = "8080"
   bind = "0.0.0.0"
 
 [logs.general.file]
@@ -105,11 +105,12 @@ DefaultKeysets = ["mycenae"]
   address = "0.0.0.0"
   port = "4243"
   protocol = "udp"
-  ksid = "mycenae"
+  ksid = "stats"
   interval = "@every 1m"
   [stats.tags]
     service = "mycenae"
     ttl = "7"
+    ksid = "stats"
 
 [probe]
   threshold = 0.5

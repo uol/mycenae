@@ -17,7 +17,7 @@ func statsError(oper string, namespace string) {
 }
 
 func statsSuccess(oper string, namespace string, d time.Duration) {
-	go statsIncrement("bolt.query", map[string]string{"bucket": namespace, "operation": oper})
+	go statsIncrement("memcached.query", map[string]string{"bucket": namespace, "operation": oper})
 	go statsValueAdd(
 		"memcached.duration",
 		map[string]string{"bucket": namespace, "operation": oper},

@@ -9,9 +9,9 @@ import (
 
 func Aggregators(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	if keyset := ps.ByName("keyset"); keyset == "" {
-		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/aggregators", "keyspace": "empty"})
+		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/aggregators", "keyset": "empty"})
 	} else {
-		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/aggregators", "keyspace": keyset})
+		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/aggregators", "keyset": keyset})
 	}
 	rip.SuccessJSON(w, http.StatusOK, GetAggregators())
 }
