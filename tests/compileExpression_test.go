@@ -18,18 +18,18 @@ func TestCompileValidExpression(t *testing.T) {
 			`{
 				"relative": "5m",
 				"queries": [{
-					"metric": "os-%&#;_/.cpu",
+					"metric": "os.cpu",
 					"aggregator": "sum",
 					"downsample": "30s-min-none",
 					"filters": [{
 						"type": "wildcard",
-						"tagk": "ap-%&#;_/.p",
-						"filter": "tes-%&#;_/.t",
+						"tagk": "app",
+						"filter": "test",
 						"groupBy": false
 					}]
 				}]
 			}`,
-			"[\"merge(sum,downsample(30s,min,none,query(os-%\\u0026#;_/.cpu,{ap-%\\u0026#;_/.p=tes-%\\u0026#;_/.t},5m)))\"]",
+			"[\"merge(sum,downsample(30s,min,none,query(os.cpu,{app=test},5m)))\"]",
 		},
 		"DownsampleSec": {
 			`{

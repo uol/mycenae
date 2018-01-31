@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net/http"
 	"encoding/json"
 	"fmt"
 	"github.com/stretchr/testify/assert"
@@ -31,7 +32,9 @@ var hashMap map[string]string
 
 // Helper
 func postAPIQueryAndCheck(t *testing.T, payload string, metric string, p, dps, tags, aggtags, tsuuidSize int, tsuuids ...string) ([]string, []tools.ResponseQuery) {
-	path := fmt.Sprintf("keyspaces/%s/api/query", ksMycenae)
+
+	tags += 2 //ttl tag is automatically added if not sent, plus ksid tag
+	path := fmt.Sprintf("keysets/%s/api/query", ksMycenae)
 	code, response, err := mycenaeTools.HTTP.POST(path, []byte(payload))
 	if !assert.NoError(t, err) {
 		t.SkipNow()
@@ -69,15 +72,15 @@ func postAPIQueryAndCheck(t *testing.T, payload string, metric string, p, dps, t
 	return keys, payloadPoints
 }
 
-func sendPointsPointsGrafana(keyspace string) {
+func sendPointsPointsGrafana(keySet string) {
 
 	fmt.Println("Setting up pointsGrafana_test.go tests...")
 
-	tsInsert(keyspace)
-	ts10TsdbQuery(keyspace)
-	ts12TsdbQuery(keyspace)
-	ts13TsdbQuery(keyspace)
-	ts16TsdbQuery(keyspace)
+	tsInsert(keySet)
+	ts10TsdbQuery(keySet)
+	ts12TsdbQuery(keySet)
+	ts13TsdbQuery(keySet)
+	ts16TsdbQuery(keySet)
 }
 
 func round(val float64, roundOn float64, places int) float64 {
@@ -146,7 +149,7 @@ func roundValue(price float64) float64 {
 //
 //}
 
-func tsInsert(keyspace string) {
+func tsInsert(keySet string) {
 
 	hashMap = map[string]string{}
 	cases := map[string]struct {
@@ -159,52 +162,52 @@ func tsInsert(keyspace string) {
 		numTotal   int
 	}{
 		// serie: 0,1,2,3,4...
-		"ts1TsdbQuery":    {"ts01tsdb", "test", 1448452800, 60, 0.0, 1.0, 100},
-		"ts1_1TsdbQuery":  {"ts01_1tsdb", "test", 1448452800, 60, 0.0, 1.0, 100},
-		"ts1_1TsdbQuery2": {"ts01_1tsdb", "test2", 1448452800, 60, 0.0, 1.0, 100},
-		"ts1_2TsdbQuery":  {"ts01_2tsdb", "test1", 1448452830, 60, 0.0, 1.0, 100},
-		"ts1_2TsdbQuery2": {"ts01_2tsdb", "test2", 1448452800, 60, 0.0, 1.0, 100},
-		"ts1_3TsdbQuery":  {"ts01_3tsdb", "test.1", 1348452830, 60, 0.0, 1.0, 100},
-		"ts1_3TsdbQuery2": {"ts01_3tsdb", "test.2", 1348452800, 60, 0.0, 1.0, 100},
+		"ts1TsdbQuery":    {"ts01tsdb", "test", 1448452800000, 60000, 0.0, 1.0, 100},
+		"ts1_1TsdbQuery":  {"ts01_1tsdb", "test", 1448452800000, 60000, 0.0, 1.0, 100},
+		"ts1_1TsdbQuery2": {"ts01_1tsdb", "test2", 1448452800000, 60000, 0.0, 1.0, 100},
+		"ts1_2TsdbQuery":  {"ts01_2tsdb", "test1", 1448452830000, 60000, 0.0, 1.0, 100},
+		"ts1_2TsdbQuery2": {"ts01_2tsdb", "test2", 1448452800000, 60000, 0.0, 1.0, 100},
+		"ts1_3TsdbQuery":  {"ts01_3tsdb", "test.1", 1348452830000, 60000, 0.0, 1.0, 100},
+		"ts1_3TsdbQuery2": {"ts01_3tsdb", "test.2", 1348452800000, 60000, 0.0, 1.0, 100},
 		// serie: 0,1,2,1,2,3,2,3,4...
-		"ts2TsdbQuery":  {"ts02tsdb", "test", 1448452800, 180, 0.0, 1.0, 30},
-		"ts2TsdbQuery2": {"ts02tsdb", "test", 1448452860, 180, 1.0, 1.0, 30},
-		"ts2TsdbQuery3": {"ts02tsdb", "test", 1448452920, 180, 2.0, 1.0, 30},
+		"ts2TsdbQuery":  {"ts02tsdb", "test", 1448452800000, 180000, 0.0, 1.0, 30},
+		"ts2TsdbQuery2": {"ts02tsdb", "test", 1448452860000, 180000, 1.0, 1.0, 30},
+		"ts2TsdbQuery3": {"ts02tsdb", "test", 1448452920000, 180000, 2.0, 1.0, 30},
 		// serie: 0,5,10,15,20...
-		"ts3TsdbQuery": {"ts03tsdb", "test", 1448452800, 1800, 0.0, 5, 480},
+		"ts3TsdbQuery": {"ts03tsdb", "test", 1448452800000, 1800000, 0.0, 5, 480},
 		// serie: 0.5,1.0,1.5,2.0...
-		"ts4TsdbQuery": {"ts04tsdb", "test", 1448452800, 604800, 0.0, 0.5, 208},
+		"ts4TsdbQuery": {"ts04tsdb", "test", 1448452800000, 604800000, 0.0, 0.5, 208},
 		// serie: 0, 2, 4, 6, 8...
-		"ts5TsdbQuery":  {"ts05tsdb", "test1", 1448452800, 120, 0.0, 2.0, 45},
-		"ts5TsdbQuery2": {"ts05tsdb", "test2", 1448452860, 120, 1.0, 2.0, 45},
-		"ts5TsdbQuery3": {"ts05tsdb", "test3", 1448452800, 60, 0.0, 1.0, 90},
+		"ts5TsdbQuery":  {"ts05tsdb", "test1", 1448452800000, 120000, 0.0, 2.0, 45},
+		"ts5TsdbQuery2": {"ts05tsdb", "test2", 1448452860000, 120000, 1.0, 2.0, 45},
+		"ts5TsdbQuery3": {"ts05tsdb", "test3", 1448452800000, 60000, 0.0, 1.0, 90},
 		// serie: 1, 3, 5, 7, 9...
-		"ts6TsdbQuery": {"ts06tsdb", "test1", 1448452860, 120, 1.0, 2.0, 45},
+		"ts6TsdbQuery": {"ts06tsdb", "test1", 1448452860000, 120000, 1.0, 2.0, 45},
 		// serie: 0, 1, 2, 3, 4...
-		"ts7TsdbQuery":    {"ts07tsdb", "test1", 1448452800, 60, 0.0, 1.0, 90},
-		"ts7TsdbQuery2":   {"ts07tsdb", "test2", 1448452800, 60, 0.0, 5.0, 90},
-		"ts7_1TsdbQuery":  {"ts07_1tsdb", "test1", 1448452800, 60, 0.0, 1.0, 90},
-		"ts7_1TsdbQuery2": {"ts07_1tsdb", "test2", 1448452800, 60, 0.0, 1.0, 15},
-		"ts7_1TsdbQuery3": {"ts07_1tsdb", "test2", 1448457300, 60, 75, 1.0, 15},
-		"ts7_2TsdbQuery":  {"ts07_2tsdb", "test1", 1448452800, 60, 0.0, 1.0, 90},
-		"ts7_2TsdbQuery2": {"ts07_2tsdb", "test2", 1448452801, 60, 0.0, 5.0, 90},
+		"ts7TsdbQuery":    {"ts07tsdb", "test1", 1448452800000, 60000, 0.0, 1.0, 90},
+		"ts7TsdbQuery2":   {"ts07tsdb", "test2", 1448452800000, 60000, 0.0, 5.0, 90},
+		"ts7_1TsdbQuery":  {"ts07_1tsdb", "test1", 1448452800000, 60000, 0.0, 1.0, 90},
+		"ts7_1TsdbQuery2": {"ts07_1tsdb", "test2", 1448452800000, 60000, 0.0, 1.0, 15},
+		"ts7_1TsdbQuery3": {"ts07_1tsdb", "test2", 1448457300000, 60000, 75, 1.0, 15},
+		"ts7_2TsdbQuery":  {"ts07_2tsdb", "test1", 1448452800000, 60000, 0.0, 1.0, 90},
+		"ts7_2TsdbQuery2": {"ts07_2tsdb", "test2", 1448452801000, 60000, 0.0, 5.0, 90},
 		// serie: 0, 5, 10, 15, 20...
-		"ts8TsdbQuery": {"ts08tsdb", "test", 1448452800, 60, 0.0, 5.0, 90},
+		"ts8TsdbQuery": {"ts08tsdb", "test", 1448452800000, 60000, 0.0, 5.0, 90},
 		// serie: 0, 1, 2, 3,...,14,15,75,76,77,...,88,89
-		"ts9TsdbQuery":    {"ts09tsdb", "test", 1448452800, 60, 0.0, 1.0, 15},
-		"ts9TsdbQuery2":   {"ts09tsdb", "test", 1448457300, 60, 75, 1.0, 15},
-		"ts9_1TsdbQuery":  {"ts09_1tsdb", "test", 1448452800, 60, 0.0, 1.0, 15},
-		"ts9_1TsdbQuery2": {"ts09_1tsdb", "test", 1448457300, 60, 75, 1.0, 15},
-		"ts9_1TsdbQuery3": {"ts09_1tsdb", "test2", 1448452800, 60, 0.0, 1.0, 15},
-		"ts9_1TsdbQuery4": {"ts09_1tsdb", "test2", 1448457300, 60, 75, 1.0, 15},
-		"ts11TsdbQuery":   {"ts11tsdb", "test3", 1448452800, 60, 0.0, 1.0, 25},
+		"ts9TsdbQuery":    {"ts09tsdb", "test", 1448452800000, 60000, 0.0, 1.0, 15},
+		"ts9TsdbQuery2":   {"ts09tsdb", "test", 1448457300000, 60000, 75, 1.0, 15},
+		"ts9_1TsdbQuery":  {"ts09_1tsdb", "test", 1448452800000, 60000, 0.0, 1.0, 15},
+		"ts9_1TsdbQuery2": {"ts09_1tsdb", "test", 1448457300000, 60000, 75, 1.0, 15},
+		"ts9_1TsdbQuery3": {"ts09_1tsdb", "test2", 1448452800000, 60000, 0.0, 1.0, 15},
+		"ts9_1TsdbQuery4": {"ts09_1tsdb", "test2", 1448457300000, 60000, 75, 1.0, 15},
+		"ts11TsdbQuery":   {"ts11tsdb", "test3", 1448452800000, 60000, 0.0, 1.0, 25},
 		// serie: 0, 1, 2, 3, 4...
-		"ts14TsdbQuery":  {"ts14tsdb", "test1", 1448452800, 200, 0.0, 1.0, 90},
-		"ts14TsdbQuery2": {"ts14tsdb", "test2", 1448452830, 200, 0.0, 1.0, 90},
+		"ts14TsdbQuery":  {"ts14tsdb", "test1", 1448452800000, 200000, 0.0, 1.0, 90},
+		"ts14TsdbQuery2": {"ts14tsdb", "test2", 1448452830000, 200000, 0.0, 1.0, 90},
 		// serie: 0,1,2,3,4...
-		"ts15TsdbQuery":   {"ts15tsdb", "test", 1451649702, 604800, 1.0, 1.0, 53},
-		"ts17TsdbQuery":   {"ts17tsdb", "test", 1448452800, 60, 0.0, 1.0, 5},
-		"ts17_1TsdbQuery": {"ts17tsdb", "test2", 1448452800, 60, 0.0, 1.0, 5},
+		"ts15TsdbQuery":   {"ts15tsdb", "test", 1451649702000, 604800000, 1.0, 1.0, 53},
+		"ts17TsdbQuery":   {"ts17tsdb", "test", 1448452800000, 60000, 0.0, 1.0, 5},
+		"ts17_1TsdbQuery": {"ts17tsdb", "test2", 1448452800000, 60000, 0.0, 1.0, 5},
 	}
 
 	for test, data := range cases {
@@ -215,7 +218,8 @@ func tsInsert(keyspace string) {
 			Points[i].Value = float32(data.value)
 			Points[i].Metric = data.metric
 			Points[i].Tags = map[string]string{
-				"ksid": keyspace,
+				"ksid": keySet,
+				"ttl":  "1",
 				"host": data.tagValue,
 			}
 			Points[i].Timestamp = int64(data.startTime)
@@ -224,8 +228,9 @@ func tsInsert(keyspace string) {
 		}
 
 		sendPointsGrafana(test, Points)
+		time.Sleep(20 * time.Millisecond)
 
-		hashMap[test] = mycenaeTools.Cassandra.Timeseries.GetHashFromMetricAndTags(data.metric, map[string]string{"host": data.tagValue})
+		hashMap[test] = tools.GetHashFromMetricAndTags(data.metric, map[string]string{"host": data.tagValue, "ksid": keySet, "ttl": "1"})
 	}
 }
 
@@ -237,12 +242,12 @@ func sendPointsGrafana(msg string, points interface{}) {
 	}
 
 	code, resp, _ := mycenaeTools.HTTP.POST("api/put", jsonPoints)
-	if code != 204 {
+	if code != http.StatusOK {
 		log.Fatal(msg, code, string(resp))
 	}
 }
 
-func ts10TsdbQuery(keyspace string) {
+func ts10TsdbQuery(keySet string) {
 
 	metric := "ts10tsdb"
 	tagKey := "host"
@@ -259,7 +264,8 @@ func ts10TsdbQuery(keyspace string) {
 		Points[i].Value = float32(value)
 		Points[i].Metric = metric
 		Points[i].Tags = map[string]string{
-			"ksid": keyspace,
+			"ksid": keySet,
+			"ttl":  "1",
 			tagKey: tagValue,
 		}
 		Points[i].Timestamp = int64(startTime)
@@ -268,7 +274,8 @@ func ts10TsdbQuery(keyspace string) {
 		Points[i].Value = float32(value2)
 		Points[i].Metric = metric
 		Points[i].Tags = map[string]string{
-			"ksid":  keyspace,
+			"ksid":  keySet,
+			"ttl":   "1",
 			tagKey:  tagValue2,
 			tagKey2: tagValue3,
 		}
@@ -281,16 +288,16 @@ func ts10TsdbQuery(keyspace string) {
 
 	sendPointsGrafana("ts10tsdb:", Points)
 
-	ts10IDTsdbQuery = mycenaeTools.Cassandra.Timeseries.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue})
+	ts10IDTsdbQuery = tools.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, "ksid": keySet, "ttl": "1"})
 
 }
 
 // serie: 1, 10, 100, 1000, 1000, 1,..,10000, 3000.
-func ts12TsdbQuery(keyspace string) {
+func ts12TsdbQuery(keySet string) {
 
-	metric := "ts12-_/.%&#;tsdb"
-	tagKey := "hos-_/.%&#;t"
-	tagValue := "test-_/.%&#;1"
+	metric := "ts12tsdb"
+	tagKey := "host"
+	tagValue := "test-grafana1"
 	startTime := 1448452800
 	value := 1.0
 	const numTotal int = 12
@@ -302,7 +309,8 @@ func ts12TsdbQuery(keyspace string) {
 			Points[i].Value = float32(value)
 			Points[i].Metric = metric
 			Points[i].Tags = map[string]string{
-				"ksid": keyspace,
+				"ksid": keySet,
+				"ttl":  "1",
 				tagKey: tagValue,
 			}
 			Points[i].Timestamp = int64(startTime)
@@ -312,7 +320,8 @@ func ts12TsdbQuery(keyspace string) {
 			Points[i].Value = 1000.0
 			Points[i].Metric = metric
 			Points[i].Tags = map[string]string{
-				"ksid": keyspace,
+				"ksid": keySet,
+				"ttl":  "1",
 				tagKey: tagValue,
 			}
 			Points[i].Timestamp = int64(startTime)
@@ -322,7 +331,8 @@ func ts12TsdbQuery(keyspace string) {
 			Points[i].Value = float32(value)
 			Points[i].Metric = metric
 			Points[i].Tags = map[string]string{
-				"ksid": keyspace,
+				"ksid": keySet,
+				"ttl":  "1",
 				tagKey: tagValue,
 			}
 			Points[i].Timestamp = int64(startTime)
@@ -332,7 +342,8 @@ func ts12TsdbQuery(keyspace string) {
 			Points[i].Value = 3000.0
 			Points[i].Metric = metric
 			Points[i].Tags = map[string]string{
-				"ksid": keyspace,
+				"ksid": keySet,
+				"ttl":  "1",
 				tagKey: tagValue,
 			}
 			Points[i].Timestamp = int64(startTime)
@@ -344,11 +355,11 @@ func ts12TsdbQuery(keyspace string) {
 
 	sendPointsGrafana("ts12tsdb:", Points)
 
-	ts12IDTsdbQuery = mycenaeTools.Cassandra.Timeseries.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue})
+	ts12IDTsdbQuery = tools.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, "ksid": keySet, "ttl": "1"})
 
 }
 
-func ts13TsdbQuery(keyspace string) {
+func ts13TsdbQuery(keySet string) {
 
 	metric := "ts13tsdb"
 	tagKey := "host"
@@ -367,7 +378,8 @@ func ts13TsdbQuery(keyspace string) {
 		Points[i].Value = float32(value)
 		Points[i].Metric = metric
 		Points[i].Tags = map[string]string{
-			"ksid":  keyspace,
+			"ksid":  keySet,
+			"ttl":   "1",
 			tagKey:  tagValue,
 			tagKey2: tagValue2,
 			tagKey3: tagValue3,
@@ -378,7 +390,8 @@ func ts13TsdbQuery(keyspace string) {
 		Points[i].Value = float32(value * 2)
 		Points[i].Metric = metric
 		Points[i].Tags = map[string]string{
-			"ksid":  keyspace,
+			"ksid":  keySet,
+			"ttl":   "1",
 			tagKey:  tagValue,
 			tagKey2: tagValue4,
 		}
@@ -390,8 +403,8 @@ func ts13TsdbQuery(keyspace string) {
 
 	sendPointsGrafana("ts13tsdb1:", Points)
 
-	ts13IDTsdbQuery = mycenaeTools.Cassandra.Timeseries.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, tagKey2: tagValue2, tagKey3: tagValue3})
-	ts13IDTsdbQuery2 = mycenaeTools.Cassandra.Timeseries.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, tagKey2: tagValue4})
+	ts13IDTsdbQuery = tools.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, tagKey2: tagValue2, tagKey3: tagValue3, "ksid": keySet, "ttl": "1"})
+	ts13IDTsdbQuery2 = tools.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, tagKey2: tagValue4, "ksid": keySet, "ttl": "1"})
 
 	tagValue = "host2"
 	tagValue3 = "type2"
@@ -403,7 +416,8 @@ func ts13TsdbQuery(keyspace string) {
 		Points[i].Value = float32(value * 3)
 		Points[i].Metric = metric
 		Points[i].Tags = map[string]string{
-			"ksid":  keyspace,
+			"ksid":  keySet,
+			"ttl":   "1",
 			tagKey:  tagValue,
 			tagKey2: tagValue2,
 			tagKey3: tagValue3,
@@ -414,7 +428,8 @@ func ts13TsdbQuery(keyspace string) {
 		Points[i].Value = float32(value * 4)
 		Points[i].Metric = metric
 		Points[i].Tags = map[string]string{
-			"ksid":  keyspace,
+			"ksid":  keySet,
+			"ttl":   "1",
 			tagKey:  tagValue,
 			tagKey2: tagValue4,
 		}
@@ -425,8 +440,8 @@ func ts13TsdbQuery(keyspace string) {
 
 	sendPointsGrafana("ts13tsdb2:", Points)
 
-	ts13IDTsdbQuery3 = mycenaeTools.Cassandra.Timeseries.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, tagKey2: tagValue2, tagKey3: tagValue3})
-	ts13IDTsdbQuery4 = mycenaeTools.Cassandra.Timeseries.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, tagKey2: tagValue4})
+	ts13IDTsdbQuery3 = tools.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, tagKey2: tagValue2, tagKey3: tagValue3, "ksid": keySet, "ttl": "1"})
+	ts13IDTsdbQuery4 = tools.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, tagKey2: tagValue4, "ksid": keySet, "ttl": "1"})
 
 	tagValue = "host3"
 	tagValue3 = "type3"
@@ -438,7 +453,8 @@ func ts13TsdbQuery(keyspace string) {
 		Points[i].Value = float32(value * 5)
 		Points[i].Metric = metric
 		Points[i].Tags = map[string]string{
-			"ksid":  keyspace,
+			"ksid":  keySet,
+			"ttl":   "1",
 			tagKey:  tagValue,
 			tagKey2: tagValue2,
 			tagKey3: tagValue3,
@@ -449,7 +465,8 @@ func ts13TsdbQuery(keyspace string) {
 		Points[i].Value = float32(value * 6)
 		Points[i].Metric = metric
 		Points[i].Tags = map[string]string{
-			"ksid":  keyspace,
+			"ksid":  keySet,
+			"ttl":   "1",
 			tagKey:  tagValue,
 			tagKey2: tagValue4,
 		}
@@ -460,8 +477,8 @@ func ts13TsdbQuery(keyspace string) {
 
 	sendPointsGrafana("ts13tsdb3:", Points)
 
-	ts13IDTsdbQuery5 = mycenaeTools.Cassandra.Timeseries.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, tagKey2: tagValue2, tagKey3: tagValue3})
-	ts13IDTsdbQuery6 = mycenaeTools.Cassandra.Timeseries.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, tagKey2: tagValue4})
+	ts13IDTsdbQuery5 = tools.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, tagKey2: tagValue2, tagKey3: tagValue3, "ksid": keySet, "ttl": "1"})
+	ts13IDTsdbQuery6 = tools.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, tagKey2: tagValue4, "ksid": keySet, "ttl": "1"})
 
 	startTime = 1448452800
 	value = 1.0
@@ -474,7 +491,8 @@ func ts13TsdbQuery(keyspace string) {
 		Points[i].Value = float32(value * 7)
 		Points[i].Metric = metric
 		Points[i].Tags = map[string]string{
-			"ksid":  keyspace,
+			"ksid":  keySet,
+			"ttl":   "1",
 			tagKey:  tagValue,
 			tagKey3: tagValue3,
 		}
@@ -484,7 +502,8 @@ func ts13TsdbQuery(keyspace string) {
 		Points[i].Value = float32(value * 8)
 		Points[i].Metric = metric
 		Points[i].Tags = map[string]string{
-			"ksid":  keyspace,
+			"ksid":  keySet,
+			"ttl":   "1",
 			tagKey:  tagValue,
 			tagKey3: tagValue5,
 		}
@@ -495,12 +514,12 @@ func ts13TsdbQuery(keyspace string) {
 
 	sendPointsGrafana("ts13tsdb4:", Points)
 
-	ts13IDTsdbQuery7 = mycenaeTools.Cassandra.Timeseries.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, tagKey3: tagValue3})
-	ts13IDTsdbQuery8 = mycenaeTools.Cassandra.Timeseries.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, tagKey3: tagValue5})
+	ts13IDTsdbQuery7 = tools.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, tagKey3: tagValue3, "ksid": keySet, "ttl": "1"})
+	ts13IDTsdbQuery8 = tools.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, tagKey3: tagValue5, "ksid": keySet, "ttl": "1"})
 
 }
 
-func ts16TsdbQuery(keyspace string) {
+func ts16TsdbQuery(keySet string) {
 
 	startTime := int64(1448452800)
 	var start, end sync.WaitGroup
@@ -517,7 +536,8 @@ func ts16TsdbQuery(keyspace string) {
 					Value:  float32(i),
 					Metric: "ts16tsdb",
 					Tags: map[string]string{
-						"ksid": keyspace,
+						"ksid": keySet,
+						"ttl":  "1",
 						"host": "test",
 					},
 					Timestamp: startTime,
@@ -526,7 +546,8 @@ func ts16TsdbQuery(keyspace string) {
 					Value:  float32(i + 9),
 					Metric: "ts16tsdb",
 					Tags: map[string]string{
-						"ksid": keyspace,
+						"ksid": keySet,
+						"ttl":  "1",
 						"host": "test",
 					},
 					Timestamp: startTime + 540,
@@ -535,7 +556,8 @@ func ts16TsdbQuery(keyspace string) {
 					Value:  float32(i + 18),
 					Metric: "ts16tsdb",
 					Tags: map[string]string{
-						"ksid": keyspace,
+						"ksid": keySet,
+						"ttl":  "1",
 						"host": "test",
 					},
 					Timestamp: startTime + 1080,
@@ -551,14 +573,14 @@ func ts16TsdbQuery(keyspace string) {
 	start.Done()
 	end.Wait()
 
-	hashMap["ts16TsdbQuery"] = mycenaeTools.Cassandra.Timeseries.GetHashFromMetricAndTags("ts16tsdb", map[string]string{"host": "test"})
+	hashMap["ts16TsdbQuery"] = tools.GetHashFromMetricAndTags("ts16tsdb", map[string]string{"host": "test", "ksid": keySet, "ttl": "1"})
 }
 
 // Concurrency
 
 func TestTsdbQueryConcurrentPoints(t *testing.T) {
 
-	dateStart := int64(1448452800)
+	dateStart := int64(1448452800000)
 	dateStartMili := int64(1448452800000)
 
 	payload := fmt.Sprintf(`{
@@ -576,8 +598,8 @@ func TestTsdbQueryConcurrentPoints(t *testing.T) {
 	for i, key := range keys {
 
 		assert.Exactly(t, float32(i), float32(payloadPoints[0].Dps[key].(float64)))
-		assert.Exactly(t, strconv.FormatInt(dateStart, 10), key)
-		dateStart += 60
+		assert.Exactly(t, strconv.FormatInt(dateStart/1000, 10), key)
+		dateStart += 60000
 	}
 }
 
@@ -1046,11 +1068,12 @@ func TestTsdbQueryFilterDownsampleCountSec(t *testing.T) {
 		}]
 	}`
 
-	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/api/query", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/api/query", []byte(payload))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
 	}
+
 	payloadPoints := []tools.ResponseQuery{}
 
 	err = json.Unmarshal(response, &payloadPoints)
@@ -1075,7 +1098,7 @@ func TestTsdbQueryFilterDownsampleCountSec(t *testing.T) {
 	assert.Equal(t, 200, code)
 	assert.Equal(t, 1, len(payloadPoints))
 	assert.Equal(t, 180, len(payloadPoints[0].Dps))
-	assert.Equal(t, 1, len(payloadPoints[0].Tags))
+	assert.Equal(t, 3, len(payloadPoints[0].Tags))
 	assert.Equal(t, 0, len(payloadPoints[0].AggTags))
 	assert.Equal(t, 1, len(payloadPoints[0].Tsuuids))
 
@@ -1392,7 +1415,7 @@ func TestTsdbQueryFilterMoreThanOneTS(t *testing.T) {
 	sort.Strings(keys)
 
 	assert.Equal(t, 25, len(payloadPoints[1].Dps))
-	assert.Equal(t, 1, len(payloadPoints[1].Tags))
+	assert.Equal(t, 3, len(payloadPoints[1].Tags))
 	assert.Equal(t, 0, len(payloadPoints[1].AggTags))
 	assert.Equal(t, 1, len(payloadPoints[1].Tsuuids))
 	assert.Equal(t, "ts10tsdb", payloadPoints[1].Metric)
@@ -1417,20 +1440,20 @@ func TestTsdbQueryFilterRegexpValidChars(t *testing.T) {
 		"end": 1448453040000,
 		"showTSUIDs": true,
 		"queries": [{
-			"metric": "ts12-_/.%&#;tsdb",
+			"metric": "ts12tsdb",
 			"aggregator": "sum",
 			"filters": [{
 				"type": "regexp",
-				"tagk": "hos-_/.%&#;t",
-				"filter": "test-_/\\.%\\&\\#;1",
+				"tagk": "host",
+				"filter": "test\\-.*",
 				"groupBy": false
 			}]
 		}]
 	}`
 
-	keys, payloadPoints := postAPIQueryAndCheck(t, payload, "ts12-_/.%&#;tsdb", 1, 5, 1, 0, 1)
+	keys, payloadPoints := postAPIQueryAndCheck(t, payload, "ts12tsdb", 1, 5, 1, 0, 1)
 
-	assert.Equal(t, "test-_/.%&#;1", payloadPoints[0].Tags["hos-_/.%&#;t"])
+	assert.Equal(t, "test-grafana1", payloadPoints[0].Tags["host"])
 	assert.Equal(t, ts12IDTsdbQuery, payloadPoints[0].Tsuuids[0])
 
 	var i float32 = 1.0
@@ -1452,20 +1475,20 @@ func TestTsdbQueryFilterWildcardValidChars(t *testing.T) {
 		"end": 1448453040000,
 		"showTSUIDs": true,
 		"queries": [{
-			"metric": "ts12-_/.%&#;tsdb",
+			"metric": "ts12tsdb",
 			"aggregator": "sum",
 			"filters": [{
 				"type": "wildcard",
-				"tagk": "hos-_/.%&#;t",
-				"filter": "test-_/.%&#;1",
+				"tagk": "host",
+				"filter": "test-grafana1",
 				"groupBy": false
 			}]
 		}]
 	}`
 
-	keys, payloadPoints := postAPIQueryAndCheck(t, payload, "ts12-_/.%&#;tsdb", 1, 5, 1, 0, 1)
+	keys, payloadPoints := postAPIQueryAndCheck(t, payload, "ts12tsdb", 1, 5, 1, 0, 1)
 
-	assert.Equal(t, "test-_/.%&#;1", payloadPoints[0].Tags["hos-_/.%&#;t"])
+	assert.Equal(t, "test-grafana1", payloadPoints[0].Tags["host"])
 	assert.Equal(t, ts12IDTsdbQuery, payloadPoints[0].Tsuuids[0])
 
 	var i float32 = 1.0
@@ -1487,20 +1510,20 @@ func TestTsdbQueryFilterLiteralOrValidChars(t *testing.T) {
 		"end": 1448453040000,
 		"showTSUIDs": true,
 		"queries": [{
-			"metric": "ts12-_/.%&#;tsdb",
+			"metric": "ts12tsdb",
 			"aggregator": "sum",
 			"filters": [{
 				"type": "literal_or",
-				"tagk": "hos-_/.%&#;t",
-				"filter": "test-_/.%&#;1",
+				"tagk": "host",
+				"filter": "test-grafana1",
 				"groupBy": false
 			}]
 		}]
 	}`
 
-	keys, payloadPoints := postAPIQueryAndCheck(t, payload, "ts12-_/.%&#;tsdb", 1, 5, 1, 0, 1)
+	keys, payloadPoints := postAPIQueryAndCheck(t, payload, "ts12tsdb", 1, 5, 1, 0, 1)
 
-	assert.Equal(t, "test-_/.%&#;1", payloadPoints[0].Tags["hos-_/.%&#;t"])
+	assert.Equal(t, "test-grafana1", payloadPoints[0].Tags["host"])
 	assert.Equal(t, ts12IDTsdbQuery, payloadPoints[0].Tsuuids[0])
 
 	var i float32 = 1.0
@@ -1522,20 +1545,20 @@ func TestTsdbQueryFilterNotLiteralOrValidChars(t *testing.T) {
 		"end": 1448453040000,
 		"showTSUIDs": true,
 		"queries": [{
-			"metric": "ts12-_/.%&#;tsdb",
+			"metric": "ts12tsdb",
 			"aggregator": "sum",
 			"filters": [{
 				"type": "not_literal_or",
-				"tagk": "hos-_/.%&#;t",
-				"filter": "test-_/.%&#;",
+				"tagk": "host",
+				"filter": "test1",
 				"groupBy": false
 			}]
 		}]
 	}`
 
-	keys, payloadPoints := postAPIQueryAndCheck(t, payload, "ts12-_/.%&#;tsdb", 1, 5, 1, 0, 1)
+	keys, payloadPoints := postAPIQueryAndCheck(t, payload, "ts12tsdb", 1, 5, 1, 0, 1)
 
-	assert.Equal(t, "test-_/.%&#;1", payloadPoints[0].Tags["hos-_/.%&#;t"])
+	assert.Equal(t, "test-grafana1", payloadPoints[0].Tags["host"])
 	assert.Equal(t, ts12IDTsdbQuery, payloadPoints[0].Tsuuids[0])
 
 	var i float32 = 1.0
@@ -1594,7 +1617,7 @@ func TestTsdbQueryFilterRateTrueRateOptionsTrueCounter(t *testing.T) {
 		"end": 1448453040000,
 		"showTSUIDs": true,
 		"queries": [{
-			"metric": "ts12-_/.%&#;tsdb",
+			"metric": "ts12tsdb",
 			"rate": true,
 			"rateOptions": {
 				"counter": true
@@ -1602,16 +1625,16 @@ func TestTsdbQueryFilterRateTrueRateOptionsTrueCounter(t *testing.T) {
 			"aggregator": "sum",
 			"filters": [{
 				"type": "regexp",
-				"tagk": "hos-_/.%&#;t",
-				"filter": "test-_/\\.%\\&\\#;1",
+				"tagk": "host",
+				"filter": "test-grafana1",
 				"groupBy": false
 			}]
 		}]
 	}`
 
-	keys, payloadPoints := postAPIQueryAndCheck(t, payload, "ts12-_/.%&#;tsdb", 1, 4, 1, 0, 1)
+	keys, payloadPoints := postAPIQueryAndCheck(t, payload, "ts12tsdb", 1, 4, 1, 0, 1)
 
-	assert.Equal(t, "test-_/.%&#;1", payloadPoints[0].Tags["hos-_/.%&#;t"])
+	assert.Equal(t, "test-grafana1", payloadPoints[0].Tags["host"])
 	assert.Equal(t, ts12IDTsdbQuery, payloadPoints[0].Tsuuids[0])
 
 	var i float32 = 1.0
@@ -1635,7 +1658,7 @@ func TestTsdbQueryFilterRateTrueRateOptionsTrueCounterMax(t *testing.T) {
 		"end": 1448453100000,
 		"showTSUIDs": true,
 		"queries": [{
-			"metric": "ts12-_/.%&#;tsdb",
+			"metric": "ts12tsdb",
 			"rate": true,
 			"rateOptions": {
 				"counter": true,
@@ -1644,16 +1667,16 @@ func TestTsdbQueryFilterRateTrueRateOptionsTrueCounterMax(t *testing.T) {
 			"aggregator": "sum",
 			"filters": [{
 				"type": "regexp",
-				"tagk": "hos-_/.%&#;t",
-				"filter": "test-_/\\.%\\&\\#;1",
+				"tagk": "host",
+				"filter": "test-grafana1",
 				"groupBy": false
 			}]
 		}]
 	}`
 
-	keys, payloadPoints := postAPIQueryAndCheck(t, payload, "ts12-_/.%&#;tsdb", 1, 5, 1, 0, 1)
+	keys, payloadPoints := postAPIQueryAndCheck(t, payload, "ts12tsdb", 1, 5, 1, 0, 1)
 
-	assert.Equal(t, "test-_/.%&#;1", payloadPoints[0].Tags["hos-_/.%&#;t"])
+	assert.Equal(t, "test-grafana1", payloadPoints[0].Tags["host"])
 	assert.Equal(t, ts12IDTsdbQuery, payloadPoints[0].Tsuuids[0])
 
 	var i float32 = 1.0
@@ -1687,7 +1710,7 @@ func TestTsdbQueryFilterRateTrueRateOptionsTrueResetValue(t *testing.T) {
 		"end": 1448453100000,
 		"showTSUIDs": true,
 		"queries": [{
-			"metric": "ts12-_/.%&#;tsdb",
+			"metric": "ts12tsdb",
 			"rate": true,
 			"rateOptions": {
 				"counter": true,
@@ -1696,16 +1719,16 @@ func TestTsdbQueryFilterRateTrueRateOptionsTrueResetValue(t *testing.T) {
 			"aggregator": "sum",
 			"filters": [{
 				"type": "regexp",
-				"tagk": "hos-_/.%&#;t",
-				"filter": "test-_/\\.%\\&\\#;1",
+				"tagk": "host",
+				"filter": "test-grafana1",
 				"groupBy": false
 			}]
 		}]
 	}`
 
-	keys, payloadPoints := postAPIQueryAndCheck(t, payload, "ts12-_/.%&#;tsdb", 1, 5, 1, 0, 1)
+	keys, payloadPoints := postAPIQueryAndCheck(t, payload, "ts12tsdb", 1, 5, 1, 0, 1)
 
-	assert.Equal(t, "test-_/.%&#;1", payloadPoints[0].Tags["hos-_/.%&#;t"])
+	assert.Equal(t, "test-grafana1", payloadPoints[0].Tags["host"])
 	assert.Equal(t, ts12IDTsdbQuery, payloadPoints[0].Tsuuids[0])
 
 	var i float32 = 1.0
@@ -1738,7 +1761,7 @@ func TestTsdbQueryFilterRateTrueRateOptionsTrueCounterMaxAndResetValue(t *testin
 		"end": 1448453460000,
 		"showTSUIDs": true,
 		"queries": [{
-			"metric": "ts12-_/.%&#;tsdb",
+			"metric": "ts12tsdb",
 			"rate": true,
 			"rateOptions": {
 				"counter": true,
@@ -1748,16 +1771,16 @@ func TestTsdbQueryFilterRateTrueRateOptionsTrueCounterMaxAndResetValue(t *testin
 			"aggregator": "sum",
 			"filters": [{
 				"type": "regexp",
-				"tagk": "hos-_/.%&#;t",
-				"filter": "test-_/\\.%\\&\\#;1",
+				"tagk": "host",
+				"filter": "test-grafana1",
 				"groupBy": false
 			}]
 		}]
 	}`
 
-	keys, payloadPoints := postAPIQueryAndCheck(t, payload, "ts12-_/.%&#;tsdb", 1, 11, 1, 0, 1)
+	keys, payloadPoints := postAPIQueryAndCheck(t, payload, "ts12tsdb", 1, 11, 1, 0, 1)
 
-	assert.Equal(t, "test-_/.%&#;1", payloadPoints[0].Tags["hos-_/.%&#;t"])
+	assert.Equal(t, "test-grafana1", payloadPoints[0].Tags["host"])
 	assert.Equal(t, ts12IDTsdbQuery, payloadPoints[0].Tsuuids[0])
 
 	var i float32 = 1.0
@@ -1826,7 +1849,7 @@ func TestTsdbQueryFilterRateTrueNoPoints(t *testing.T) {
 		}]
 	}`
 
-	code, response, _ := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/api/query", []byte(payload))
+	code, response, _ := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/api/query", []byte(payload))
 
 	assert.Equal(t, 200, code)
 	assert.Equal(t, "[]", string(response))
@@ -2105,11 +2128,11 @@ func TestTsdbQueryAproxMaxDay(t *testing.T) {
 	assert.Equal(t, "test", payloadPoints[0].Tags["host"])
 
 	var i float32 = 355.0
-	dateStart := 1448409600
+	dateStart := int64(1448409600)
 
 	for _, key := range keys {
 
-		date, _ := strconv.Atoi(key)
+		date, _ := strconv.ParseInt(key, 10, 64)
 
 		if date < 1449100800 {
 
@@ -2122,7 +2145,7 @@ func TestTsdbQueryAproxMaxDay(t *testing.T) {
 			i += 120.0
 		}
 
-		assert.Exactly(t, strconv.Itoa(dateStart), key)
+		assert.Exactly(t, dateStart, date)
 		dateStart += 172800
 	}
 }
@@ -2408,7 +2431,7 @@ func TestTsdbQueryMergeMax(t *testing.T) {
 			"aggregator": "max"
 		}]
 	}`
-	path := fmt.Sprintf("keyspaces/%s/api/query", ksMycenae)
+	path := fmt.Sprintf("keysets/%s/api/query", ksMycenae)
 	code, response, err := mycenaeTools.HTTP.POST(path, []byte(payload))
 	if err != nil {
 		t.Error(err)
@@ -2817,11 +2840,12 @@ func TestTsdbQueryNullValuesDownsampleNan(t *testing.T) {
 		}]
 	}`
 
-	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/api/query", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/api/query", []byte(payload))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
 	}
+
 	payloadPoints := []tools.ResponseQuery{}
 	err = json.Unmarshal(response, &payloadPoints)
 	if err != nil {
@@ -2845,7 +2869,7 @@ func TestTsdbQueryNullValuesDownsampleNan(t *testing.T) {
 	assert.Equal(t, 200, code)
 	assert.Equal(t, 1, len(payloadPoints))
 	assert.Equal(t, 30, len(payloadPoints[0].Dps))
-	assert.Equal(t, 1, len(payloadPoints[0].Tags))
+	assert.Equal(t, 3, len(payloadPoints[0].Tags))
 	assert.Equal(t, 0, len(payloadPoints[0].AggTags))
 	assert.Equal(t, 1, len(payloadPoints[0].Tsuuids))
 
@@ -2886,11 +2910,12 @@ func TestTsdbQueryNullValuesDownsampleZero(t *testing.T) {
 		}]
 	}`
 
-	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/api/query", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/api/query", []byte(payload))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
 	}
+
 	payloadPoints := []tools.ResponseQuery{}
 	err = json.Unmarshal(response, &payloadPoints)
 	if err != nil {
@@ -2914,7 +2939,7 @@ func TestTsdbQueryNullValuesDownsampleZero(t *testing.T) {
 	assert.Equal(t, 200, code)
 	assert.Equal(t, 1, len(payloadPoints))
 	assert.Equal(t, 30, len(payloadPoints[0].Dps))
-	assert.Equal(t, 1, len(payloadPoints[0].Tags))
+	assert.Equal(t, 3, len(payloadPoints[0].Tags))
 	assert.Equal(t, 0, len(payloadPoints[0].AggTags))
 	assert.Equal(t, 1, len(payloadPoints[0].Tsuuids))
 
@@ -3120,11 +3145,12 @@ func TestTsdbQueryBothValuesNullMergeAndDownsampleNull(t *testing.T) {
 		}]
 	}`
 
-	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/api/query", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/api/query", []byte(payload))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
 	}
+
 	payloadPoints := []tools.ResponseQuery{}
 
 	err = json.Unmarshal(response, &payloadPoints)
@@ -3149,7 +3175,7 @@ func TestTsdbQueryBothValuesNullMergeAndDownsampleNull(t *testing.T) {
 	assert.Equal(t, 200, code)
 	assert.Equal(t, 1, len(payloadPoints))
 	assert.Equal(t, 30, len(payloadPoints[0].Dps))
-	assert.Equal(t, 0, len(payloadPoints[0].Tags))
+	assert.Equal(t, 2, len(payloadPoints[0].Tags))
 	assert.Equal(t, 1, len(payloadPoints[0].AggTags))
 	assert.Equal(t, 2, len(payloadPoints[0].Tsuuids))
 
@@ -3191,11 +3217,12 @@ func TestTsdbQueryBothValuesNullMergeAndDownsampleNan(t *testing.T) {
 		}]
 	}`
 
-	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/api/query", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/api/query", []byte(payload))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
 	}
+
 	payloadPoints := []tools.ResponseQuery{}
 
 	err = json.Unmarshal(response, &payloadPoints)
@@ -3220,7 +3247,7 @@ func TestTsdbQueryBothValuesNullMergeAndDownsampleNan(t *testing.T) {
 	assert.Equal(t, 200, code)
 	assert.Equal(t, 1, len(payloadPoints))
 	assert.Equal(t, 30, len(payloadPoints[0].Dps))
-	assert.Equal(t, 0, len(payloadPoints[0].Tags))
+	assert.Equal(t, 2, len(payloadPoints[0].Tags))
 	assert.Equal(t, 1, len(payloadPoints[0].AggTags))
 	assert.Equal(t, 2, len(payloadPoints[0].Tsuuids))
 
@@ -3522,7 +3549,7 @@ func TestTsdbQueryTwoTSMerge(t *testing.T) {
 		dateStart += 180
 	}
 
-	assert.Equal(t, 0, len(payloadPoints[1].Tags))
+	assert.Equal(t, 2, len(payloadPoints[1].Tags))
 	assert.Equal(t, 1, len(payloadPoints[1].AggTags))
 	assert.Equal(t, 30, len(payloadPoints[1].Dps))
 	assert.Equal(t, 2, len(payloadPoints[1].Tsuuids))
@@ -3604,7 +3631,7 @@ func TestTsdbQueryMoreThanOneTS(t *testing.T) {
 	sort.Strings(keys)
 
 	assert.Equal(t, 25, len(payloadPoints[1].Dps))
-	assert.Equal(t, 1, len(payloadPoints[1].Tags))
+	assert.Equal(t, 3, len(payloadPoints[1].Tags))
 	assert.Equal(t, 0, len(payloadPoints[1].AggTags))
 	assert.Equal(t, 1, len(payloadPoints[1].Tsuuids))
 	assert.Equal(t, "ts10tsdb", payloadPoints[1].Metric)
@@ -4664,7 +4691,7 @@ func TestTsdbQueryDefaultOrder(t *testing.T) {
 		}]
 	}`
 
-	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/api/query", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/api/query", []byte(payload))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
@@ -4693,7 +4720,7 @@ func TestTsdbQueryDefaultOrder(t *testing.T) {
 	assert.Equal(t, 200, code)
 	assert.Equal(t, 1, len(payloadPoints))
 	assert.Equal(t, 29, len(payloadPoints[0].Dps))
-	assert.Equal(t, 0, len(payloadPoints[0].Tags))
+	assert.Equal(t, 2, len(payloadPoints[0].Tags))
 	assert.Equal(t, 1, len(payloadPoints[0].AggTags))
 	assert.Equal(t, 2, len(payloadPoints[0].Tsuuids))
 
@@ -4809,21 +4836,21 @@ func TestTsdbQueryRateTrueRateOptionsTrueCounter(t *testing.T) {
 		"end": 1448453040000,
 		"showTSUIDs": true,
 		"queries": [{
-			"metric": "ts12-_/.%&#;tsdb",
+			"metric": "ts12tsdb",
 			"rate": true,
 			"rateOptions": {
 				"counter": true
 			},
 			"aggregator": "sum",
 			"tags": {
-				"hos-_/.%&#;t": "test-_/.%&#;1"
+				"host": "test-grafana1"
 			}
 		}]
 	}`
 
-	keys, payloadPoints := postAPIQueryAndCheck(t, payload, "ts12-_/.%&#;tsdb", 1, 4, 1, 0, 1)
+	keys, payloadPoints := postAPIQueryAndCheck(t, payload, "ts12tsdb", 1, 4, 1, 0, 1)
 
-	assert.Equal(t, "test-_/.%&#;1", payloadPoints[0].Tags["hos-_/.%&#;t"])
+	assert.Equal(t, "test-grafana1", payloadPoints[0].Tags["host"])
 	assert.Equal(t, ts12IDTsdbQuery, payloadPoints[0].Tsuuids[0])
 
 	var i float32 = 1.0
@@ -4847,7 +4874,7 @@ func TestTsdbQueryRateTrueRateOptionsTrueCounterMax(t *testing.T) {
 		"end": 1448453100000,
 		"showTSUIDs": true,
 		"queries": [{
-			"metric": "ts12-_/.%&#;tsdb",
+			"metric": "ts12tsdb",
 			"rate": true,
 			"rateOptions": {
 				"counter": true,
@@ -4855,14 +4882,14 @@ func TestTsdbQueryRateTrueRateOptionsTrueCounterMax(t *testing.T) {
 			},
 			"aggregator": "sum",
 			"tags": {
-				"hos-_/.%&#;t": "test-_/.%&#;1"
+				"host": "test-grafana1"
 			}
 		}]
 	}`
 
-	keys, payloadPoints := postAPIQueryAndCheck(t, payload, "ts12-_/.%&#;tsdb", 1, 5, 1, 0, 1)
+	keys, payloadPoints := postAPIQueryAndCheck(t, payload, "ts12tsdb", 1, 5, 1, 0, 1)
 
-	assert.Equal(t, "test-_/.%&#;1", payloadPoints[0].Tags["hos-_/.%&#;t"])
+	assert.Equal(t, "test-grafana1", payloadPoints[0].Tags["host"])
 	assert.Equal(t, ts12IDTsdbQuery, payloadPoints[0].Tsuuids[0])
 
 	var i float32 = 1.0
@@ -4896,7 +4923,7 @@ func TestTsdbQueryRateTrueRateOptionsTrueResetValue(t *testing.T) {
 		"end": 1448453100000,
 		"showTSUIDs": true,
 		"queries": [{
-			"metric": "ts12-_/.%&#;tsdb",
+			"metric": "ts12tsdb",
 			"rate": true,
 			"rateOptions": {
 				"counter": true,
@@ -4904,14 +4931,14 @@ func TestTsdbQueryRateTrueRateOptionsTrueResetValue(t *testing.T) {
 			},
 			"aggregator": "sum",
 			"tags": {
-				"hos-_/.%&#;t": "test-_/.%&#;1"
+				"host": "test-grafana1"
 			}
 		}]
 	}`
 
-	keys, payloadPoints := postAPIQueryAndCheck(t, payload, "ts12-_/.%&#;tsdb", 1, 5, 1, 0, 1)
+	keys, payloadPoints := postAPIQueryAndCheck(t, payload, "ts12tsdb", 1, 5, 1, 0, 1)
 
-	assert.Equal(t, "test-_/.%&#;1", payloadPoints[0].Tags["hos-_/.%&#;t"])
+	assert.Equal(t, "test-grafana1", payloadPoints[0].Tags["host"])
 	assert.Equal(t, ts12IDTsdbQuery, payloadPoints[0].Tsuuids[0])
 
 	var i float32 = 1.0
@@ -4944,7 +4971,7 @@ func TestTsdbQueryRateTrueRateOptionsTrueCounterMaxAndResetValue(t *testing.T) {
 		"end": 1448453460000,
 		"showTSUIDs": true,
 		"queries": [{
-			"metric": "ts12-_/.%&#;tsdb",
+			"metric": "ts12tsdb",
 			"rate": true,
 			"rateOptions": {
 				"counter": true,
@@ -4953,14 +4980,14 @@ func TestTsdbQueryRateTrueRateOptionsTrueCounterMaxAndResetValue(t *testing.T) {
 			},
 			"aggregator": "sum",
 			"tags": {
-				"hos-_/.%&#;t": "test-_/.%&#;1"
+				"host": "test-grafana1"
 			}
 		}]
 	}`
 
-	keys, payloadPoints := postAPIQueryAndCheck(t, payload, "ts12-_/.%&#;tsdb", 1, 11, 1, 0, 1)
+	keys, payloadPoints := postAPIQueryAndCheck(t, payload, "ts12tsdb", 1, 11, 1, 0, 1)
 
-	assert.Equal(t, "test-_/.%&#;1", payloadPoints[0].Tags["hos-_/.%&#;t"])
+	assert.Equal(t, "test-grafana1", payloadPoints[0].Tags["host"])
 	assert.Equal(t, ts12IDTsdbQuery, payloadPoints[0].Tsuuids[0])
 
 	var i float32 = 1.0
@@ -5026,7 +5053,7 @@ func TestTsdbQueryRateTrueNoPoints(t *testing.T) {
 		}]
 	}`
 
-	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/api/query", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/api/query", []byte(payload))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
@@ -5038,6 +5065,7 @@ func TestTsdbQueryRateTrueNoPoints(t *testing.T) {
 }
 
 func TestTsdbQueryFilterGroupByWildcard(t *testing.T) {
+
 	payload := `{
 		"start": 1448452740000,
 		"end": 1448453940000,
@@ -5054,7 +5082,7 @@ func TestTsdbQueryFilterGroupByWildcard(t *testing.T) {
 		}]
 	}`
 
-	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/api/query", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/api/query", []byte(payload))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
@@ -5072,20 +5100,23 @@ func TestTsdbQueryFilterGroupByWildcard(t *testing.T) {
 	}
 
 	for i := 0; i < 3; i++ {
+
 		switch payloadPoints[i].Tsuuids[0] {
+
 		case ts13IDTsdbQuery, ts13IDTsdbQuery2:
-			var keys []string
+
+			keys := []string{}
+
 			for key := range payloadPoints[i].Dps {
 				keys = append(keys, key)
 			}
 
 			sort.Strings(keys)
 
-			assert.Len(t, payloadPoints[i].Dps, 20)
-			assert.Len(t, payloadPoints[i].Tags, 2)
-			assert.Len(t, payloadPoints[i].AggTags, 1)
-			assert.Len(t, payloadPoints[i].Tsuuids, 2)
-
+			assert.Equal(t, 20, len(payloadPoints[i].Dps))
+			assert.Equal(t, 4, len(payloadPoints[i].Tags))
+			assert.Equal(t, 1, len(payloadPoints[i].AggTags))
+			assert.Equal(t, 2, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
 			assert.Equal(t, "app", payloadPoints[i].AggTags[0])
 			assert.Equal(t, "host1", payloadPoints[i].Tags["host"])
@@ -5102,10 +5133,14 @@ func TestTsdbQueryFilterGroupByWildcard(t *testing.T) {
 			var value float32 = 3.0
 			dateStart := 1448452800
 			for _, key := range keys {
+
 				assert.Exactly(t, value, float32(payloadPoints[i].Dps[key].(float64)))
+
 				assert.Exactly(t, strconv.Itoa(dateStart), key)
 				dateStart += 60
+
 				value += 3.0
+
 			}
 		case ts13IDTsdbQuery3, ts13IDTsdbQuery4:
 			keys := []string{}
@@ -5117,9 +5152,9 @@ func TestTsdbQueryFilterGroupByWildcard(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Len(t, payloadPoints[i].Tags, 2)
-			assert.Len(t, payloadPoints[i].AggTags, 1)
-			assert.Len(t, payloadPoints[i].Tsuuids, 2)
+			assert.Equal(t, 4, len(payloadPoints[i].Tags))
+			assert.Equal(t, 1, len(payloadPoints[i].AggTags))
+			assert.Equal(t, 2, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
 			assert.Equal(t, "app", payloadPoints[i].AggTags[0])
 			assert.Equal(t, "host2", payloadPoints[i].Tags["host"])
@@ -5156,11 +5191,10 @@ func TestTsdbQueryFilterGroupByWildcard(t *testing.T) {
 
 			sort.Strings(keys)
 
-			assert.Len(t, payloadPoints[i].Dps, 20)
-			assert.Len(t, payloadPoints[i].Tags, 1)
-			assert.Len(t, payloadPoints[i].AggTags, 2)
-			assert.Len(t, payloadPoints[i].Tsuuids, 4)
-
+			assert.Equal(t, 20, len(payloadPoints[i].Dps))
+			assert.Equal(t, 3, len(payloadPoints[i].Tags))
+			assert.Equal(t, 2, len(payloadPoints[i].AggTags))
+			assert.Equal(t, 4, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
 			assert.Equal(t, "app", payloadPoints[i].AggTags[0])
 			assert.Equal(t, "type", payloadPoints[i].AggTags[1])
@@ -5204,7 +5238,7 @@ func TestTsdbQueryFilterGroupByWildcardPartialName(t *testing.T) {
 		}]
 	}`
 
-	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/api/query", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/api/query", []byte(payload))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
@@ -5238,7 +5272,7 @@ func TestTsdbQueryFilterGroupByWildcardPartialName(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 2, len(payloadPoints[i].Tags))
+			assert.Equal(t, 4, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 2, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -5276,7 +5310,7 @@ func TestTsdbQueryFilterGroupByWildcardPartialName(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 2, len(payloadPoints[i].Tags))
+			assert.Equal(t, 4, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 2, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -5316,7 +5350,7 @@ func TestTsdbQueryFilterGroupByWildcardPartialName(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 1, len(payloadPoints[i].Tags))
+			assert.Equal(t, 3, len(payloadPoints[i].Tags))
 			assert.Equal(t, 2, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 4, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -5445,7 +5479,7 @@ func TestTsdbQueryFilterGroupByWildcardTagWithoutDot(t *testing.T) {
 		}]
 	}`
 
-	code, response, _ := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/api/query", []byte(payload))
+	code, response, _ := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/api/query", []byte(payload))
 
 	assert.Equal(t, 200, code)
 	assert.Equal(t, "[]", string(response))
@@ -5470,7 +5504,7 @@ func TestTsdbQueryFilterGroupByLiteralOr(t *testing.T) {
 		}]
 	}`
 
-	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/api/query", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/api/query", []byte(payload))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
@@ -5502,7 +5536,7 @@ func TestTsdbQueryFilterGroupByLiteralOr(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 2, len(payloadPoints[i].Tags))
+			assert.Equal(t, 4, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 2, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -5540,7 +5574,7 @@ func TestTsdbQueryFilterGroupByLiteralOr(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 2, len(payloadPoints[i].Tags))
+			assert.Equal(t, 4, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 2, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -5594,7 +5628,7 @@ func TestTsdbQueryFilterGroupByNotLiteralOr(t *testing.T) {
 		}]
 	}`
 
-	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/api/query", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/api/query", []byte(payload))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
@@ -5619,7 +5653,7 @@ func TestTsdbQueryFilterGroupByNotLiteralOr(t *testing.T) {
 	sort.Strings(keys)
 
 	assert.Equal(t, 20, len(payloadPoints[0].Dps))
-	assert.Equal(t, 1, len(payloadPoints[0].Tags))
+	assert.Equal(t, 3, len(payloadPoints[0].Tags))
 	assert.Equal(t, 2, len(payloadPoints[0].AggTags))
 	assert.Equal(t, 4, len(payloadPoints[0].Tsuuids))
 	assert.Equal(t, "ts13tsdb", payloadPoints[0].Metric)
@@ -5662,7 +5696,7 @@ func TestTsdbQueryFilterGroupByRegexp(t *testing.T) {
 		}]
 	}`
 
-	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/api/query", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/api/query", []byte(payload))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
@@ -5694,7 +5728,7 @@ func TestTsdbQueryFilterGroupByRegexp(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 2, len(payloadPoints[i].Tags))
+			assert.Equal(t, 4, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 2, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -5732,7 +5766,7 @@ func TestTsdbQueryFilterGroupByRegexp(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 2, len(payloadPoints[i].Tags))
+			assert.Equal(t, 4, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 2, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -5772,7 +5806,7 @@ func TestTsdbQueryFilterGroupByRegexp(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 1, len(payloadPoints[i].Tags))
+			assert.Equal(t, 3, len(payloadPoints[i].Tags))
 			assert.Equal(t, 2, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 4, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -5831,7 +5865,7 @@ func TestTsdbQueryFilterGroupByRegexpNumbers(t *testing.T) {
 		}]
 	}`
 
-	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/api/query", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/api/query", []byte(payload))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
@@ -5863,7 +5897,7 @@ func TestTsdbQueryFilterGroupByRegexpNumbers(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 2, len(payloadPoints[i].Tags))
+			assert.Equal(t, 4, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 2, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -5901,7 +5935,7 @@ func TestTsdbQueryFilterGroupByRegexpNumbers(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 2, len(payloadPoints[i].Tags))
+			assert.Equal(t, 4, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 2, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -5941,7 +5975,7 @@ func TestTsdbQueryFilterGroupByRegexpNumbers(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 1, len(payloadPoints[i].Tags))
+			assert.Equal(t, 3, len(payloadPoints[i].Tags))
 			assert.Equal(t, 2, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 4, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -6000,7 +6034,7 @@ func TestTsdbQueryFilterGroupByILiteralOr(t *testing.T) {
 		}]
 	}`
 
-	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/api/query", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/api/query", []byte(payload))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
@@ -6032,7 +6066,7 @@ func TestTsdbQueryFilterGroupByILiteralOr(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 2, len(payloadPoints[i].Tags))
+			assert.Equal(t, 4, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 2, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -6070,7 +6104,7 @@ func TestTsdbQueryFilterGroupByILiteralOr(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 2, len(payloadPoints[i].Tags))
+			assert.Equal(t, 4, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 2, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -6110,7 +6144,7 @@ func TestTsdbQueryFilterGroupByILiteralOr(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 1, len(payloadPoints[i].Tags))
+			assert.Equal(t, 3, len(payloadPoints[i].Tags))
 			assert.Equal(t, 2, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 4, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -6174,7 +6208,7 @@ func TestTsdbQueryFilterGroupByAllEspecificTag(t *testing.T) {
 		}]
 	}`
 
-	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/api/query", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/api/query", []byte(payload))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
@@ -6206,7 +6240,7 @@ func TestTsdbQueryFilterGroupByAllEspecificTag(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 3, len(payloadPoints[i].Tags))
+			assert.Equal(t, 5, len(payloadPoints[i].Tags))
 			assert.Equal(t, 0, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -6237,7 +6271,7 @@ func TestTsdbQueryFilterGroupByAllEspecificTag(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 3, len(payloadPoints[i].Tags))
+			assert.Equal(t, 5, len(payloadPoints[i].Tags))
 			assert.Equal(t, 0, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -6270,7 +6304,7 @@ func TestTsdbQueryFilterGroupByAllEspecificTag(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 3, len(payloadPoints[i].Tags))
+			assert.Equal(t, 5, len(payloadPoints[i].Tags))
 			assert.Equal(t, 0, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -6323,7 +6357,7 @@ func TestTsdbQueryFilterGroupByIsntTheFirstFilter(t *testing.T) {
 		}]
 	}`
 
-	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/api/query", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/api/query", []byte(payload))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
@@ -6355,7 +6389,7 @@ func TestTsdbQueryFilterGroupByIsntTheFirstFilter(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 3, len(payloadPoints[i].Tags))
+			assert.Equal(t, 5, len(payloadPoints[i].Tags))
 			assert.Equal(t, 0, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -6386,7 +6420,7 @@ func TestTsdbQueryFilterGroupByIsntTheFirstFilter(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 3, len(payloadPoints[i].Tags))
+			assert.Equal(t, 5, len(payloadPoints[i].Tags))
 			assert.Equal(t, 0, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -6419,7 +6453,7 @@ func TestTsdbQueryFilterGroupByIsntTheFirstFilter(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 3, len(payloadPoints[i].Tags))
+			assert.Equal(t, 5, len(payloadPoints[i].Tags))
 			assert.Equal(t, 0, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -6472,7 +6506,7 @@ func TestTsdbQueryFilterGroupByLiteralOrEspecificTag(t *testing.T) {
 		}]
 	}`
 
-	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/api/query", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/api/query", []byte(payload))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
@@ -6504,7 +6538,7 @@ func TestTsdbQueryFilterGroupByLiteralOrEspecificTag(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 3, len(payloadPoints[i].Tags))
+			assert.Equal(t, 5, len(payloadPoints[i].Tags))
 			assert.Equal(t, 0, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -6535,7 +6569,7 @@ func TestTsdbQueryFilterGroupByLiteralOrEspecificTag(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 3, len(payloadPoints[i].Tags))
+			assert.Equal(t, 5, len(payloadPoints[i].Tags))
 			assert.Equal(t, 0, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -6588,7 +6622,7 @@ func TestTsdbQueryFilterGroupByWildcardTwoTags(t *testing.T) {
 		}]
 	}`
 
-	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/api/query", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/api/query", []byte(payload))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
@@ -6620,7 +6654,7 @@ func TestTsdbQueryFilterGroupByWildcardTwoTags(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 3, len(payloadPoints[i].Tags))
+			assert.Equal(t, 5, len(payloadPoints[i].Tags))
 			assert.Equal(t, 0, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -6653,7 +6687,7 @@ func TestTsdbQueryFilterGroupByWildcardTwoTags(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 3, len(payloadPoints[i].Tags))
+			assert.Equal(t, 5, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
 			assert.Equal(t, "host2", payloadPoints[i].Tags["host"])
@@ -6686,7 +6720,7 @@ func TestTsdbQueryFilterGroupByWildcardTwoTags(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 3, len(payloadPoints[i].Tags))
+			assert.Equal(t, 5, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
 			assert.Equal(t, "host3", payloadPoints[i].Tags["host"])
@@ -6807,7 +6841,7 @@ func TestTsdbQueryFilterGroupByWildcardTwoTagsFiltersOutOfOrder1(t *testing.T) {
 		}]
 	}`
 
-	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/api/query", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/api/query", []byte(payload))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
@@ -6839,7 +6873,7 @@ func TestTsdbQueryFilterGroupByWildcardTwoTagsFiltersOutOfOrder1(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 3, len(payloadPoints[i].Tags))
+			assert.Equal(t, 5, len(payloadPoints[i].Tags))
 			assert.Equal(t, 0, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -6872,7 +6906,7 @@ func TestTsdbQueryFilterGroupByWildcardTwoTagsFiltersOutOfOrder1(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 3, len(payloadPoints[i].Tags))
+			assert.Equal(t, 5, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
 			assert.Equal(t, "host2", payloadPoints[i].Tags["host"])
@@ -6905,7 +6939,7 @@ func TestTsdbQueryFilterGroupByWildcardTwoTagsFiltersOutOfOrder1(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 3, len(payloadPoints[i].Tags))
+			assert.Equal(t, 5, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
 			assert.Equal(t, "host3", payloadPoints[i].Tags["host"])
@@ -6961,7 +6995,7 @@ func TestTsdbQueryFilterGroupByWildcardTwoTagsFiltersOutOfOrder2(t *testing.T) {
 		}]
 	}`
 
-	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/api/query", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/api/query", []byte(payload))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
@@ -6993,7 +7027,7 @@ func TestTsdbQueryFilterGroupByWildcardTwoTagsFiltersOutOfOrder2(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 3, len(payloadPoints[i].Tags))
+			assert.Equal(t, 5, len(payloadPoints[i].Tags))
 			assert.Equal(t, 0, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -7026,7 +7060,7 @@ func TestTsdbQueryFilterGroupByWildcardTwoTagsFiltersOutOfOrder2(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 3, len(payloadPoints[i].Tags))
+			assert.Equal(t, 5, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
 			assert.Equal(t, "host2", payloadPoints[i].Tags["host"])
@@ -7059,7 +7093,7 @@ func TestTsdbQueryFilterGroupByWildcardTwoTagsFiltersOutOfOrder2(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 3, len(payloadPoints[i].Tags))
+			assert.Equal(t, 5, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
 			assert.Equal(t, "host3", payloadPoints[i].Tags["host"])
@@ -7115,7 +7149,7 @@ func TestTsdbQueryFilterGroupByWildcardTwoTagsFiltersOutOfOrder3(t *testing.T) {
 		}]
 	}`
 
-	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/api/query", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/api/query", []byte(payload))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
@@ -7147,7 +7181,7 @@ func TestTsdbQueryFilterGroupByWildcardTwoTagsFiltersOutOfOrder3(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 3, len(payloadPoints[i].Tags))
+			assert.Equal(t, 5, len(payloadPoints[i].Tags))
 			assert.Equal(t, 0, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -7180,7 +7214,7 @@ func TestTsdbQueryFilterGroupByWildcardTwoTagsFiltersOutOfOrder3(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 3, len(payloadPoints[i].Tags))
+			assert.Equal(t, 5, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
 			assert.Equal(t, "host2", payloadPoints[i].Tags["host"])
@@ -7213,7 +7247,7 @@ func TestTsdbQueryFilterGroupByWildcardTwoTagsFiltersOutOfOrder3(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 3, len(payloadPoints[i].Tags))
+			assert.Equal(t, 5, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
 			assert.Equal(t, "host3", payloadPoints[i].Tags["host"])
@@ -7264,7 +7298,7 @@ func TestTsdbQueryFilterGroupBySameTagk(t *testing.T) {
 		}]
 	}`
 
-	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/api/query", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/api/query", []byte(payload))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
@@ -7290,7 +7324,7 @@ func TestTsdbQueryFilterGroupBySameTagk(t *testing.T) {
 	sort.Strings(payloadPoints[0].AggTags)
 
 	assert.Equal(t, 20, len(payloadPoints[0].Dps))
-	assert.Equal(t, 1, len(payloadPoints[0].Tags))
+	assert.Equal(t, 3, len(payloadPoints[0].Tags))
 	assert.Equal(t, 2, len(payloadPoints[0].AggTags))
 	assert.Equal(t, "app", payloadPoints[0].AggTags[0])
 	assert.Equal(t, "type", payloadPoints[0].AggTags[1])
@@ -7343,7 +7377,7 @@ func TestTsdbQueryFilterSameTagkOnGroupByAndTags(t *testing.T) {
 		}]
 	}`
 
-	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/api/query", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/api/query", []byte(payload))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
@@ -7369,7 +7403,7 @@ func TestTsdbQueryFilterSameTagkOnGroupByAndTags(t *testing.T) {
 	sort.Strings(payloadPoints[0].AggTags)
 
 	assert.Equal(t, 20, len(payloadPoints[0].Dps))
-	assert.Equal(t, 1, len(payloadPoints[0].Tags))
+	assert.Equal(t, 3, len(payloadPoints[0].Tags))
 	assert.Equal(t, 2, len(payloadPoints[0].AggTags))
 	assert.Equal(t, "app", payloadPoints[0].AggTags[0])
 	assert.Equal(t, "type", payloadPoints[0].AggTags[1])
@@ -7417,7 +7451,7 @@ func TestTsdbQueryFilterGroupByNoPoints(t *testing.T) {
 		}]
 	}`
 
-	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/api/query", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/api/query", []byte(payload))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
@@ -7453,7 +7487,7 @@ func TestTsdbQueryFilterGroupByTagNotFound(t *testing.T) {
 		}]
 	}`
 
-	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/api/query", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/api/query", []byte(payload))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
@@ -7520,7 +7554,7 @@ func TestTsdbQueryFilterGroupByTagNotFound(t *testing.T) {
 //		"showQuery": true
 //	}`
 //
-//	code, response, _ := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/api/query", []byte(payload))
+//	code, response, _ := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/api/query", []byte(payload))
 //
 //	assert.Equal(t, 200, code)
 //	assert.Equal(t, "[]", string(response))
@@ -7877,7 +7911,7 @@ func TestTsdbQueryFilterGroupByTagNotFound(t *testing.T) {
 //			"showQuery": true
 //		}`
 //
-//	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/api/query", []byte(payload))
+//	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/api/query", []byte(payload))
 //	if err != nil {
 //		t.Error(err)
 //		t.SkipNow()
@@ -8096,7 +8130,7 @@ func TestTsdbQueryFilterGroupByTagNotFound(t *testing.T) {
 //		"showQuery": true
 //	}`
 //
-//	code, response, _ := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/api/query", []byte(payload))
+//	code, response, _ := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/api/query", []byte(payload))
 //
 //	assert.Equal(t, 200, code)
 //	assert.Equal(t, "[]", string(response))
@@ -8122,7 +8156,7 @@ func TestTsdbQueryFilterGroupByTagNotFound(t *testing.T) {
 //		"showQuery": true
 //	}`
 //
-//	code, response, _ := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/api/query", []byte(payload))
+//	code, response, _ := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/api/query", []byte(payload))
 //
 //	assert.Equal(t, 200, code)
 //	assert.Equal(t, "[]", string(response))
@@ -8321,35 +8355,35 @@ func TestTsdbQueryFilterGroupByTagNotFound(t *testing.T) {
 //		"end": 1448453040000,
 //		"showTSUIDs": true,
 //		"queries": [{
-//			"metric": "ts12-_/.%&#;tsdb",
+//			"metric": "ts12tsdb",
 //			"rate": true,
 //			"rateOptions": {
 //				"counter": true
 //			},
 //			"aggregator": "sum",
 //			"tags": {
-//				"hos-_/.%&#;t": "test-_/.%&#;1"
+//				"host": "test-grafana1"
 //			}
 //		}],
 //		"showQuery": true
 //	}`
 //
-//	keys, payloadPoints := postAPIQueryAndCheck(t, payload, "ts12-_/.%&#;tsdb", 1, 4, 1, 0, 1)
+//	keys, payloadPoints := postAPIQueryAndCheck(t, payload, "ts12tsdb", 1, 4, 1, 0, 1)
 //
-//	assert.Equal(t, "test-_/.%&#;1", payloadPoints[0].Tags["hos-_/.%&#;t"])
+//	assert.Equal(t, "test-grafana1", payloadPoints[0].Tags["host"])
 //	assert.Equal(t, ts12IDTsdbQuery, payloadPoints[0].Tsuuids[0])
 //
 //	index := 0
 //	expected := structs.TSDBquery{
 //		Aggregator: "sum",
-//		Metric:     "ts12-_/.%&#;tsdb",
+//		Metric:     "ts12tsdb",
 //		Filters: []structs.TSDBfilter{{
-//			Tagk:        "hos-_/.%&#;t",
-//			Filter:      "test-_/.%&#;1",
+//			Tagk:        "host",
+//			Filter:      "test-grafana1",
 //			GroupByResp: false,
 //			Ftype:       "wildcard",
 //		}},
-//		Tags:        map[string]string{"hos-_/.%&#;t": "test-_/.%&#;1"},
+//		Tags:        map[string]string{"host": "test-grafana1"},
 //		Index:       &index,
 //		Rate:        true,
 //		RateOptions: &structs.TSDBrateOptions{Counter: true},
@@ -8510,7 +8544,7 @@ func TestTsdbQueryFilterGroupByTagNotFound(t *testing.T) {
 //		"end": 1448453460000,
 //		"showTSUIDs": true,
 //		"queries": [{
-//			"metric": "ts12-_/.%&#;tsdb",
+//			"metric": "ts12tsdb",
 //			"rate": true,
 //			"rateOptions": {
 //				"counter": true,
@@ -8519,28 +8553,28 @@ func TestTsdbQueryFilterGroupByTagNotFound(t *testing.T) {
 //			},
 //			"aggregator": "sum",
 //			"tags": {
-//				"hos-_/.%&#;t": "test-_/.%&#;1"
+//				"host": "test-grafana1"
 //			}
 //		}],
 //		"showQuery": true
 //	}`
 //
-//	keys, payloadPoints := postAPIQueryAndCheck(t, payload, "ts12-_/.%&#;tsdb", 1, 11, 1, 0, 1)
+//	keys, payloadPoints := postAPIQueryAndCheck(t, payload, "ts12tsdb", 1, 11, 1, 0, 1)
 //
-//	assert.Equal(t, "test-_/.%&#;1", payloadPoints[0].Tags["hos-_/.%&#;t"])
+//	assert.Equal(t, "test-grafana1", payloadPoints[0].Tags["host"])
 //	assert.Equal(t, ts12IDTsdbQuery, payloadPoints[0].Tsuuids[0])
 //
 //	index, cM := 0, int64(15000)
 //	expected := structs.TSDBquery{
 //		Aggregator: "sum",
-//		Metric:     "ts12-_/.%&#;tsdb",
+//		Metric:     "ts12tsdb",
 //		Filters: []structs.TSDBfilter{{
-//			Tagk:        "hos-_/.%&#;t",
-//			Filter:      "test-_/.%&#;1",
+//			Tagk:        "host",
+//			Filter:      "test-grafana1",
 //			GroupByResp: false,
 //			Ftype:       "wildcard",
 //		}},
-//		Tags:        map[string]string{"hos-_/.%&#;t": "test-_/.%&#;1"},
+//		Tags:        map[string]string{"host": "test-grafana1"},
 //		Index:       &index,
 //		Rate:        true,
 //		RateOptions: &structs.TSDBrateOptions{true, &cM, 233},
@@ -8611,7 +8645,7 @@ func TestTsdbQueryFilterGroupByTagNotFound(t *testing.T) {
 //			"showQuery": true
 //		}`
 //
-//	code, response, err := mycenaeTools.HTTP.POST("keyspaces/"+ksMycenae+"/api/query", []byte(payload))
+//	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ksMycenae+"/api/query", []byte(payload))
 //	if err != nil {
 //		t.Error(err)
 //		t.SkipNow()
@@ -8634,7 +8668,7 @@ func TestTsdbQueryInvalid(t *testing.T) {
 				"end": 1448458150000,
 				"showTSUIDs": true,
 				"queries": [{
-					"metric": "ts12-_/.%&#;tsdb",
+					"metric": "ts12tsdb",
 					"rate": "false",
 					"rateOptions": {
 						"counter": true,
@@ -8642,7 +8676,7 @@ func TestTsdbQueryInvalid(t *testing.T) {
 					},
 					"aggregator": "sum",
 					"tags": {
-						"": "test-_/.%&#;1"
+						"": "test-grafana1"
 					}
 				}]
 			}`,
@@ -8654,7 +8688,7 @@ func TestTsdbQueryInvalid(t *testing.T) {
 					"end": 1448458150000,
 					"showTSUIDs": true,
 					"queries": [{
-						"metric": "ts12-_/.%&#;tsdb",
+						"metric": "ts12tsdb",
 						"rate": "false",
 						"rateOptions": {
 							"counter": true,
@@ -8662,7 +8696,7 @@ func TestTsdbQueryInvalid(t *testing.T) {
 						},
 						"aggregator": "sum",
 						"tags": {
-							"hos-_/.%&#;t": ""
+							"host": ""
 						}
 					}]
 				}`,
@@ -8872,7 +8906,7 @@ func TestTsdbQueryInvalid(t *testing.T) {
 			"end": 1448458150000,
 			"showTSUIDs": true,
 			"queries": [{
-				"metric": "ts12-_/.%&#;tsdb",
+				"metric": "ts12tsdb",
 				"rate": "a",
 				"rateOptions": {
 					"counter": true,
@@ -8880,7 +8914,7 @@ func TestTsdbQueryInvalid(t *testing.T) {
 				},
 				"aggregator": "sum",
 				"tags": {
-					"hos-_/.%&#;t": "test-_/.%&#;1"
+					"host": "test-grafana1"
 				}
 			}]
 		}`,
@@ -8892,7 +8926,7 @@ func TestTsdbQueryInvalid(t *testing.T) {
 				"end": 1448458150000,
 				"showTSUIDs": true,
 				"queries": [{
-					"metric": "ts12-_/.%&#;tsdb",
+					"metric": "ts12tsdb",
 					"rate": true,
 					"rateOptions": {
 						"counter": "a",
@@ -8900,7 +8934,7 @@ func TestTsdbQueryInvalid(t *testing.T) {
 					},
 					"aggregator": "sum",
 					"tags": {
-						"hos-_/.%&#;t": "test-_/.%&#;1"
+						"host": "test-grafana1"
 					}
 				}]
 			}`,
@@ -8912,7 +8946,7 @@ func TestTsdbQueryInvalid(t *testing.T) {
 				"end": 1448458150000,
 				"showTSUIDs": true,
 				"queries": [{
-					"metric": "ts12-_/.%&#;tsdb",
+					"metric": "ts12tsdb",
 					"rate": true,
 					"rateOptions": {
 						"counter": true,
@@ -8920,7 +8954,7 @@ func TestTsdbQueryInvalid(t *testing.T) {
 					},
 					"aggregator": "sum",
 					"tags": {
-						"hos-_/.%&#;t": "test-_/.%&#;1"
+						"host": "test-grafana1"
 					}
 				}]
 			}`,
@@ -8932,7 +8966,7 @@ func TestTsdbQueryInvalid(t *testing.T) {
 				"end": 1448458150000,
 				"showTSUIDs": true,
 				"queries": [{
-					"metric": "ts12-_/.%&#;tsdb",
+					"metric": "ts12tsdb",
 					"rate": true,
 					"rateOptions": {
 						"counter": true,
@@ -8940,7 +8974,7 @@ func TestTsdbQueryInvalid(t *testing.T) {
 					},
 					"aggregator": "sum",
 					"tags": {
-						"hos-_/.%&#;t": "test-_/.%&#;1"
+						"host": "test-grafana1"
 					}
 				}]
 			}`,
@@ -8952,7 +8986,7 @@ func TestTsdbQueryInvalid(t *testing.T) {
 				"end": 1448458150000,
 				"showTSUIDs": true,
 				"queries": [{
-					"metric": "ts12-_/.%&#;tsdb",
+					"metric": "ts12tsdb",
 					"rate": true,
 					"rateOptions": {
 						"counter": true,
@@ -8960,7 +8994,7 @@ func TestTsdbQueryInvalid(t *testing.T) {
 					},
 					"aggregator": "sum",
 					"tags": {
-						"hos-_/.%&#;t": "test-_/.%&#;1"
+						"host": "test-grafana1"
 					}
 				}]
 			}`,
@@ -9024,7 +9058,7 @@ func TestTsdbQueryInvalid(t *testing.T) {
 
 	for test, data := range cases {
 
-		path := fmt.Sprintf("keyspaces/%s/api/query", ksMycenae)
+		path := fmt.Sprintf("keysets/%s/api/query", ksMycenae)
 		code, response, err := mycenaeTools.HTTP.POST(path, []byte(data.payload))
 		if err != nil {
 			t.Error(err, test)

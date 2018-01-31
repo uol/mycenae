@@ -3,76 +3,42 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/stretchr/testify/assert"
+	"github.com/uol/mycenae/tests/tools"
 	"log"
+	"net/http"
 	"net/url"
+	"reflect"
 	"sort"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
-func sendPointsTsdbAggAndSugAndLookup(keyspace string) {
+var (
+	payloadArray []tools.Payload
+)
+
+func sendPointsTsdbAggAndSugAndLookup(keySet string) {
 
 	fmt.Println("Setting up tsdbAggAndSugAndLookup_test.go tests...")
 
-	point := `[
-  {
-    "value": 36.5,
-    "metric": "os.cpu",
-    "tags": {
-      "ksid": "` + keyspace + `",
-      "host": "a1-testTsdbMeta"
-    }
-  },
-  {
-    "value": 54.5,
-    "metric": "os.cpu-_/.%&#;Test",
-    "tags": {
-      "ksid": "` + keyspace + `",
-      "host": "a2-testTsdb-_/.%&#;Meta"
-    },
-    "timestamp": 1444166564000
-  },
-  {
-    "value": 5.4,
-    "metric": "execution.time",
-    "tags": {
-      "ksid": "` + keyspace + `",
-      "host-_/.%&#;Name": "a1-testTsdbMeta"
-    },
-    "timestamp": 1444166564000
-  },
-  {
-    "value": 1.1,
-    "metric": "os.cpu",
-    "tags": {
-      "ksid": "` + keyspace + `",
-      "host": "a2-testTsdb-_/.%&#;Meta"
-    },
-    "timestamp": 1448315804000
-  },
-  {
-    "value": 50.1,
-    "metric": "os.cpu",
-    "tags": {
-      "ksid": "` + keyspace + `",
-      "host": "a1-testTsdbMeta"
-    }
-  },
-  {
-    "value": 1,
-    "metric": "os.cpu",
-    "tags": {
-      "ksid": "` + keyspace + `",
-      "host": "a1-testTsdbMeta",
-      "cpu": "1"
-    }
-  }
-]`
+	payloadArray = []tools.Payload{
+		tools.CreatePayload(float32(36.5), "os.cpu", map[string]string{"ksid": keySet, "ttl": "1", "host": "a1-testTsdbMeta"}),
+		tools.CreatePayloadTS(float32(54.5), "os.cpuTest", map[string]string{"ksid": keySet, "ttl": "1", "host": "a2-testTsdbMeta"}, int64(1444166564000)),
+		tools.CreatePayloadTS(float32(5.4), "execution.time", map[string]string{"ksid": keySet, "ttl": "1", "host": "a1-testTsdbMeta"}, int64(1444166564000)),
+		tools.CreatePayloadTS(float32(1.1), "os.cpu", map[string]string{"ksid": keySet, "ttl": "1", "host": "a2-testTsdbMeta"}, int64(1448315804000)),
+		tools.CreatePayload(float32(50.1), "os.cpu", map[string]string{"ksid": keySet, "ttl": "1", "host": "a1-testTsdbMeta"}),
+		tools.CreatePayload(float32(1), "os.cpu", map[string]string{"ksid": keySet, "ttl": "1", "host": "a1-testTsdbMeta", "cpu": "1"}),
+	}
 
-	code, resp, err := mycenaeTools.HTTP.POST("api/put", []byte(point))
-	if err != nil || code != 204 {
-		log.Fatal("send points: ", code, string(resp), err)
+	jsonBytes, err := json.Marshal(payloadArray)
+
+	if err != nil {
+		panic(err)
+	}
+
+	code, resp, err := mycenaeTools.HTTP.POST("api/put", jsonBytes)
+	if err != nil || code != http.StatusOK {
+		log.Fatal("send points", code, string(resp), err)
 	}
 }
 
@@ -84,33 +50,33 @@ func TestTsdb(t *testing.T) {
 		size     int
 	}{
 		"Aggregator": {
-			fmt.Sprintf("keyspaces/%s/api/aggregators", ksMycenaeTsdb),
+			fmt.Sprintf("keysets/%s/api/aggregators", ksMycenaeTsdb),
 			[]string{"avg", "count", "min", "max", "sum"},
 			5,
 		},
 		"SuggestMetrics": {
-			fmt.Sprintf("keyspaces/%s/api/suggest?type=metrics", ksMycenaeTsdb),
-			[]string{"execution.time", "os.cpu", "os.cpu-_/.%&#;Test"},
+			fmt.Sprintf("keysets/%s/api/suggest?type=metrics", ksMycenaeTsdb),
+			[]string{"execution.time", "os.cpu", "os.cpuTest"},
 			3,
 		},
 		"SuggestTagk": {
-			fmt.Sprintf("keyspaces/%s/api/suggest?type=tagk", ksMycenaeTsdb),
-			[]string{"cpu", "host", "host-_/.%&#;Name"},
-			3,
+			fmt.Sprintf("keysets/%s/api/suggest?type=tagk", ksMycenaeTsdb),
+			[]string{"cpu", "host", "ksid", "ttl"},
+			4,
 		},
 		"SuggestTagv": {
-			fmt.Sprintf("keyspaces/%s/api/suggest?type=tagv", ksMycenaeTsdb),
-			[]string{"1", "a1-testTsdbMeta", "a2-testTsdb-_/.%&#;Meta"},
-			3,
+			fmt.Sprintf("keysets/%s/api/suggest?type=tagv", ksMycenaeTsdb),
+			[]string{"1", "a1-testTsdbMeta", "a2-testTsdbMeta", ksMycenaeTsdb},
+			4,
 		},
 		"SuggestMetricsMax": {
-			fmt.Sprintf("keyspaces/%s/api/suggest?type=metrics&max=1", ksMycenaeTsdb),
-			[]string{"execution.time", "os.cpu", "os.cpu-_/.%&#;Test"},
+			fmt.Sprintf("keysets/%s/api/suggest?type=metrics&max=1", ksMycenaeTsdb),
+			[]string{"execution.time", "os.cpu", "os.cpuTest"},
 			1,
 		},
 		"SuggestOverMax": {
-			fmt.Sprintf("keyspaces/%s/api/suggest?type=metrics&max=4", ksMycenaeTsdb),
-			[]string{"execution.time", "os.cpu", "os.cpu-_/.%&#;Test"},
+			fmt.Sprintf("keysets/%s/api/suggest?type=metrics&max=4", ksMycenaeTsdb),
+			[]string{"execution.time", "os.cpu", "os.cpuTest"},
 			3,
 		},
 	}
@@ -148,51 +114,123 @@ func TestTsdb(t *testing.T) {
 
 }
 
+func isLookupResultObjectEquals(o1, o2 tools.LookupResultObject) bool {
+
+	isEqual := o1.Type == o2.Type &&
+		o1.Metric == o2.Metric &&
+		o1.Limit == o2.Limit &&
+		o1.Time == o2.Time &&
+		o1.TotalResults == o2.TotalResults &&
+		o1.StartIndex == o2.StartIndex &&
+		len(o1.Tags) == len(o2.Tags) &&
+		len(o1.Results) == len(o2.Results) &&
+		reflect.DeepEqual(o1.Tags, o2.Tags)
+
+	if !isEqual {
+		return false
+	}
+
+	m := map[string]tools.LookupResult{}
+
+	for _, v := range o1.Results {
+		m[v.TSUID] = v
+	}
+
+	for _, v := range o2.Results {
+		if item, ok := m[v.TSUID]; !ok {
+			return false
+		} else {
+			if !reflect.DeepEqual(v.Tags, item.Tags) || v.Metric != item.Metric {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
 func TestTsdbLookupMetricFullNameMoreThanOneResult(t *testing.T) {
 
-	var (
-		lookupExpected1 = `{"type":"LOOKUP","metric":"os.cpu","tags":[],"limit":0,"time":0,"results":[{"tsuid":"2553471299","metric":"os.cpu","tags":{"cpu":"1","host":"a1-testTsdbMeta"}},{"tsuid":"3052027985","metric":"os.cpu","tags":{"host":"a2-testTsdb-_/.%\u0026#;Meta"}},{"tsuid":"1308439016","metric":"os.cpu","tags":{"host":"a1-testTsdbMeta"}}],"startIndex":0,"totalResults":3}`
-		lookupExpected2 = `{"type":"LOOKUP","metric":"os.cpu","tags":[],"limit":0,"time":0,"results":[{"tsuid":"2553471299","metric":"os.cpu","tags":{"cpu":"1","host":"a1-testTsdbMeta"}},{"tsuid":"1308439016","metric":"os.cpu","tags":{"host":"a1-testTsdbMeta"}},{"tsuid":"3052027985","metric":"os.cpu","tags":{"host":"a2-testTsdb-_/.%\u0026#;Meta"}}],"startIndex":0,"totalResults":3}`
-		lookupExpected3 = `{"type":"LOOKUP","metric":"os.cpu","tags":[],"limit":0,"time":0,"results":[{"tsuid":"1308439016","metric":"os.cpu","tags":{"host":"a1-testTsdbMeta"}},{"tsuid":"2553471299","metric":"os.cpu","tags":{"cpu":"1","host":"a1-testTsdbMeta"}},{"tsuid":"3052027985","metric":"os.cpu","tags":{"host":"a2-testTsdb-_/.%\u0026#;Meta"}}],"startIndex":0,"totalResults":3}`
-		lookupExpected4 = `{"type":"LOOKUP","metric":"os.cpu","tags":[],"limit":0,"time":0,"results":[{"tsuid":"1308439016","metric":"os.cpu","tags":{"host":"a1-testTsdbMeta"}},{"tsuid":"3052027985","metric":"os.cpu","tags":{"host":"a2-testTsdb-_/.%\u0026#;Meta"}},{"tsuid":"2553471299","metric":"os.cpu","tags":{"cpu":"1","host":"a1-testTsdbMeta"}}],"startIndex":0,"totalResults":3}`
-		lookupExpected5 = `{"type":"LOOKUP","metric":"os.cpu","tags":[],"limit":0,"time":0,"results":[{"tsuid":"3052027985","metric":"os.cpu","tags":{"host":"a2-testTsdb-_/.%\u0026#;Meta"}},{"tsuid":"2553471299","metric":"os.cpu","tags":{"cpu":"1","host":"a1-testTsdbMeta"}},{"tsuid":"1308439016","metric":"os.cpu","tags":{"host":"a1-testTsdbMeta"}}],"startIndex":0,"totalResults":3}`
-		lookupExpected6 = `{"type":"LOOKUP","metric":"os.cpu","tags":[],"limit":0,"time":0,"results":[{"tsuid":"3052027985","metric":"os.cpu","tags":{"host":"a2-testTsdb-_/.%\u0026#;Meta"}},{"tsuid":"1308439016","metric":"os.cpu","tags":{"host":"a1-testTsdbMeta"}},{"tsuid":"2553471299","metric":"os.cpu","tags":{"cpu":"1","host":"a1-testTsdbMeta"}}],"startIndex":0,"totalResults":3}`
-	)
+	expectedJson := tools.LookupResultObject{
+		Type:   "LOOKUP",
+		Metric: "os.cpu",
+		Tags:   []string{},
+		Limit:  0,
+		Time:   0,
+		Results: []tools.LookupResult{
+			tools.LookupResult{
+				TSUID:  tools.GetTSUIDFromPayload(&payloadArray[0], true),
+				Tags:   payloadArray[0].Tags,
+				Metric: payloadArray[0].Metric,
+			},
+			tools.LookupResult{
+				TSUID:  tools.GetTSUIDFromPayload(&payloadArray[3], true),
+				Tags:   payloadArray[3].Tags,
+				Metric: payloadArray[3].Metric,
+			},
+			tools.LookupResult{
+				TSUID:  tools.GetTSUIDFromPayload(&payloadArray[5], true),
+				Tags:   payloadArray[5].Tags,
+				Metric: payloadArray[5].Metric,
+			},
+		},
+		StartIndex:   0,
+		TotalResults: 3,
+	}
 
-	code, response, err := mycenaeTools.HTTP.GET(fmt.Sprintf("keyspaces/%s/api/search/lookup?m=os.cpu", ksMycenaeTsdb))
+	code, response, err := mycenaeTools.HTTP.GET(fmt.Sprintf("keysets/%s/api/search/lookup?m=os.cpu", ksMycenaeTsdb))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
 	}
 
-	assert.Equal(t, 200, code)
-	assert.Condition(
-		t,
-		func() bool {
-			return (string(response) == lookupExpected1) || (string(response) == lookupExpected2) || (string(response) == lookupExpected3) || (string(response) == lookupExpected4) || (string(response) == lookupExpected5) || (string(response) == lookupExpected6)
-		},
-		fmt.Sprintf("FOUND: %v, EXPECTED: %v or %v or %v or %v or %v or %v", string(response), lookupExpected1, lookupExpected2, lookupExpected3, lookupExpected4, lookupExpected5, lookupExpected6),
-	)
+	returnJson := tools.LookupResultObject{}
+	err = json.Unmarshal(response, &returnJson)
+	assert.False(t, err != nil, "Error unmarshaling lookup result json: "+string(response))
 
+	assert.Equal(t, 200, code)
+	assert.True(
+		t,
+		isLookupResultObjectEquals(returnJson, expectedJson),
+		fmt.Sprintf("FOUND: %v, EXPECTED: %v", returnJson, expectedJson),
+	)
 }
 
 func TestTsdbLookupMetricFullNameOnlyOneResult(t *testing.T) {
 
-	lookupExpected := `{"type":"LOOKUP","metric":"os.cpu-_/.%\u0026#;Test","tags":[],"limit":0,"time":0,"results":[{"tsuid":"2323443649","metric":"os.cpu-_/.%\u0026#;Test","tags":{"host":"a2-testTsdb-_/.%\u0026#;Meta"}}],"startIndex":0,"totalResults":1}`
+	expectedJson := tools.LookupResultObject{
+		Type:   "LOOKUP",
+		Metric: "os.cpuTest",
+		Tags:   []string{},
+		Limit:  0,
+		Time:   0,
+		Results: []tools.LookupResult{
+			tools.LookupResult{
+				TSUID:  tools.GetTSUIDFromPayload(&payloadArray[1], true),
+				Tags:   payloadArray[1].Tags,
+				Metric: payloadArray[1].Metric,
+			},
+		},
+		StartIndex:   0,
+		TotalResults: 1,
+	}
 
-	metricEscape := url.QueryEscape("os.cpu-_/.%\u0026#;Test")
+	metricEscape := url.QueryEscape("os.cpuTest")
 
-	code, response, err := mycenaeTools.HTTP.GET(fmt.Sprintf("keyspaces/%s/api/search/lookup?m=%s", ksMycenaeTsdb, metricEscape))
+	code, response, err := mycenaeTools.HTTP.GET(fmt.Sprintf("keysets/%s/api/search/lookup?m=%s", ksMycenaeTsdb, metricEscape))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
 	}
 
+	returnJson := tools.LookupResultObject{}
+	err = json.Unmarshal(response, &returnJson)
+
 	assert.Equal(t, 200, code)
-	assert.Condition(
+	assert.True(
 		t,
-		func() bool { return string(response) == lookupExpected },
-		fmt.Sprintf("FOUND: %v, EXPECTED: %v", string(response), lookupExpected),
+		isLookupResultObjectEquals(returnJson, expectedJson),
+		fmt.Sprintf("FOUND: %v, EXPECTED: %v", returnJson, expectedJson),
 	)
 }
 

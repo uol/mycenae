@@ -6,21 +6,25 @@ import (
 	"gopkg.in/robfig/cron.v2"
 )
 
-func New(gbl *logrus.Logger, gbs *snitch.Stats, intvl string) (*StatsTS, error) {
+func New(gbl *logrus.Logger, gbs *snitch.Stats, intvl, statsKeySet, statsTTL string) (*StatsTS, error) {
 	if _, err := cron.Parse(intvl); err != nil {
 		return nil, err
 	}
 	return &StatsTS{
-		log:      gbl,
-		stats:    gbs,
-		interval: intvl,
+		log:         gbl,
+		stats:       gbs,
+		interval:    intvl,
+		StatsKeySet: statsKeySet,
+		StatsTTL:    statsTTL,
 	}, nil
 }
 
 type StatsTS struct {
-	stats    *snitch.Stats
-	log      *logrus.Logger
-	interval string
+	stats       *snitch.Stats
+	log         *logrus.Logger
+	interval    string
+	StatsKeySet string
+	StatsTTL    string
 }
 
 func (sts *StatsTS) Increment(callerID string, metric string, tags map[string]string) {

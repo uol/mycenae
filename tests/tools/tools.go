@@ -1,6 +1,8 @@
 package tools
 
 import (
+	"fmt"
+	"math/rand"
 	"time"
 )
 
@@ -79,4 +81,9 @@ func (t *Tool) InitMycenae(mSet MycenaeSettings) {
 	m.Init(mSet)
 	t.Mycenae = m
 	return
+}
+
+func GenerateRandomName() string {
+	rand.Seed(time.Now().UnixNano())
+	return fmt.Sprintf("ts_%d", rand.Int())
 }

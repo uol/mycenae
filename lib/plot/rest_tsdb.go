@@ -18,14 +18,14 @@ import (
 
 func (plot *Plot) Lookup(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
-	keyspace := ps.ByName("keyspace")
-	if keyspace == "" {
-		rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace/api/search/lookup", "keyspace": "empty"})
+	keyset := ps.ByName("keyset")
+	if keyset == "" {
+		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/search/lookup", "keyset": "empty"})
 		rip.Fail(w, errNotFound("Lookup"))
 		return
 	}
 
-	rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace/api/search/lookup", "keyspace": keyspace})
+	rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/search/lookup", "keyset": keyset})
 
 	m := r.URL.Query().Get("m")
 
@@ -67,7 +67,7 @@ func (plot *Plot) Lookup(w http.ResponseWriter, r *http.Request, ps httprouter.P
 		}
 	}
 
-	tsds, total, gerr := plot.MetaOpenTSDB(keyspace, "", metric, tagMap, int64(10000), int64(0))
+	tsds, total, gerr := plot.MetaOpenTSDB(keyset, "", metric, tagMap, int64(10000), int64(0))
 	if gerr != nil {
 		rip.Fail(w, gerr)
 		return
@@ -87,14 +87,14 @@ func (plot *Plot) Lookup(w http.ResponseWriter, r *http.Request, ps httprouter.P
 
 func (plot *Plot) Suggest(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
-	keyspace := ps.ByName("keyspace")
-	if keyspace == "" {
-		rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace/api/suggest", "keyspace": "empty"})
+	keyset := ps.ByName("keyset")
+	if keyset == "" {
+		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/suggest", "keyset": "empty"})
 		rip.Fail(w, errNotFound("Suggest"))
 		return
 	}
 
-	rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace/api/suggest", "keyspace": keyspace})
+	rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/suggest", "keyset": keyset})
 
 	q := r.URL.Query()
 
@@ -123,13 +123,13 @@ func (plot *Plot) Suggest(w http.ResponseWriter, r *http.Request, ps httprouter.
 		return
 	case "metrics":
 		q := fmt.Sprintf("%v.*", q.Get("q"))
-		resp, _, gerr = plot.ListMetrics(keyspace, "metric", q, int64(max), int64(0))
+		resp, _, gerr = plot.ListMetrics(keyset, "metric", q, int64(max), int64(0))
 	case "tagk":
 		q := fmt.Sprintf("%v.*", q.Get("q"))
-		resp, _, gerr = plot.ListTagKey(keyspace, q, int64(max), int64(0))
+		resp, _, gerr = plot.ListTagKey(keyset, q, int64(max), int64(0))
 	case "tagv":
 		q := fmt.Sprintf("%v.*", q.Get("q"))
-		resp, _, gerr = plot.ListTagValue(keyspace, q, int64(max), int64(0))
+		resp, _, gerr = plot.ListTagValue(keyset, q, int64(max), int64(0))
 	default:
 		gerr = errValidationS("Suggest", "unsopported type")
 		rip.Fail(w, gerr)
@@ -148,14 +148,14 @@ func (plot *Plot) Suggest(w http.ResponseWriter, r *http.Request, ps httprouter.
 
 func (plot *Plot) Query(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
-	keyspace := ps.ByName("keyspace")
-	if keyspace == "" {
-		rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace/api/query", "keyspace": "empty"})
+	keyset := ps.ByName("keyset")
+	if keyset == "" {
+		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/query", "keyset": "empty"})
 		rip.Fail(w, errNotFound("Query"))
 		return
 	}
 
-	rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace/api/query", "keyspace": keyspace})
+	rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/query", "keyset": keyset})
 
 	query := structs.TSDBqueryPayload{}
 
@@ -165,7 +165,7 @@ func (plot *Plot) Query(w http.ResponseWriter, r *http.Request, ps httprouter.Pa
 		return
 	}
 
-	resps, gerr := plot.getTimeseries(keyspace, query)
+	resps, gerr := plot.getTimeseries(keyset, query)
 	if gerr != nil {
 		rip.Fail(w, gerr)
 		return
@@ -181,7 +181,7 @@ func (plot *Plot) Query(w http.ResponseWriter, r *http.Request, ps httprouter.Pa
 }
 
 func (plot *Plot) getTimeseries(
-	keyspace string,
+	keyset string,
 	query structs.TSDBqueryPayload,
 ) (resps TSDBresponses, gerr gobol.Error) {
 
@@ -289,27 +289,41 @@ func (plot *Plot) getTimeseries(
 		}
 
 		tagMap := map[string][]string{}
+		ttl := plot.defaultTTL
+		ttlIndex := -1
 
-		for _, filter := range q.Filters {
+		for i, filter := range q.Filters {
 			if _, ok := tagMap[filter.Tagk]; ok {
 				tagMap[filter.Tagk] = append(tagMap[filter.Tagk], filter.Filter)
 			} else {
+				if filter.Tagk == "ttl" {
+					v, err := strconv.ParseUint(filter.Filter, 10, 8)
+					if err != nil {
+						return resps, errValidationE("getTimeseries", err)
+					}
+					ttl = uint8(v)
+					ttlIndex = i
+				}
 				tagMap[filter.Tagk] = []string{filter.Filter}
 			}
 		}
 
-		tsobs, total, gerr := plot.MetaFilterOpenTSDB(keyspace, "", m, q.Filters, int64(plot.MaxTimeseries))
+		if ttlIndex >=0 {
+			q.Filters = append(q.Filters[:ttlIndex], q.Filters[ttlIndex+1:]...)
+		}
+
+		tsobs, total, gerr := plot.MetaFilterOpenTSDB(keyset, "", m, q.Filters, int64(plot.MaxTimeseries))
 		if gerr != nil {
 			return resps, gerr
 		}
 
 		if total > plot.LogQueryThreshold {
-			statsQueryThreshold(keyspace)
+			statsQueryThreshold(keyset)
 			gblog.Warnf("TS THRESHOLD EXEECED: %+v", query)
 		}
 
 		if total > plot.MaxTimeseries {
-			statsQueryLimit(keyspace)
+			statsQueryLimit(keyset)
 			return TSDBresponses{}, errValidationS(
 				"getTimeseries",
 				fmt.Sprintf(
@@ -399,7 +413,7 @@ func (plot *Plot) getTimeseries(
 			}
 
 			serie, gerr := plot.GetTimeSeries(
-				keyspace,
+				ttl,
 				ids,
 				query.Start,
 				query.End,

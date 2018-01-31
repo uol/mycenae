@@ -95,7 +95,7 @@ func (collect *Collector) saveMeta(packet Point) {
 
 	var gerr gobol.Error
 
-	ksts := fmt.Sprintf("%v|%v", packet.KsID, packet.ID)
+	ksts := fmt.Sprintf("%v|%v", packet.Keyset, packet.ID)
 
 	if packet.Number {
 		found, gerr = collect.keyspaceCache.GetTsNumber(ksts, collect.CheckTSID)
@@ -105,7 +105,7 @@ func (collect *Collector) saveMeta(packet Point) {
 	if gerr != nil {
 		gblog.WithFields(logrus.Fields{
 			"func": "collector/saveMeta",
-		}).Error(gerr.Error())
+		}).Warn(gerr.Error())
 		collect.errMutex.Lock()
 		collect.errorsSinceLastProbe++
 		collect.errMutex.Unlock()
@@ -136,7 +136,7 @@ func (collect *Collector) generateBulk(packet Point) gobol.Error {
 
 	idx := BulkType{
 		ID: EsIndex{
-			EsIndex: packet.KsID,
+			EsIndex: packet.Keyset,
 			EsType:  metricType,
 			EsID:    packet.Message.Metric,
 		},
@@ -166,73 +166,69 @@ func (collect *Collector) generateBulk(packet Point) gobol.Error {
 
 	for k, v := range packet.Message.Tags {
 
-		if k != "ksid" && k != "ttl" {
-
-			idx := BulkType{
-				ID: EsIndex{
-					EsIndex: packet.KsID,
-					EsType:  tagkType,
-					EsID:    k,
-				},
-			}
-
-			indexJSON, err := json.Marshal(idx)
-
-			if err != nil {
-				return errMarshal("saveTsInfo", err)
-			}
-
-			collect.metaPayload.Write(indexJSON)
-			collect.metaPayload.WriteString("\n")
-
-			docTK := EsTagKey{
-				Key: k,
-			}
-
-			docJSON, err := json.Marshal(docTK)
-			if err != nil {
-				return errMarshal("saveTsInfo", err)
-			}
-
-			collect.metaPayload.Write(docJSON)
-			collect.metaPayload.WriteString("\n")
-
-			idx = BulkType{
-				ID: EsIndex{
-					EsIndex: packet.KsID,
-					EsType:  tagvType,
-					EsID:    v,
-				},
-			}
-
-			indexJSON, err = json.Marshal(idx)
-			if err != nil {
-				return errMarshal("saveTsInfo", err)
-			}
-
-			collect.metaPayload.Write(indexJSON)
-			collect.metaPayload.WriteString("\n")
-
-			docTV := EsTagValue{
-				Value: v,
-			}
-
-			docJSON, err = json.Marshal(docTV)
-			if err != nil {
-				return errMarshal("saveTsInfo", err)
-			}
-
-			collect.metaPayload.Write(docJSON)
-			collect.metaPayload.WriteString("\n")
-
-			cleanTags = append(cleanTags, Tag{Key: k, Value: v})
-
+		idx := BulkType{
+			ID: EsIndex{
+				EsIndex: packet.Keyset,
+				EsType:  tagkType,
+				EsID:    k,
+			},
 		}
+
+		indexJSON, err := json.Marshal(idx)
+
+		if err != nil {
+			return errMarshal("saveTsInfo", err)
+		}
+
+		collect.metaPayload.Write(indexJSON)
+		collect.metaPayload.WriteString("\n")
+
+		docTK := EsTagKey{
+			Key: k,
+		}
+
+		docJSON, err := json.Marshal(docTK)
+		if err != nil {
+			return errMarshal("saveTsInfo", err)
+		}
+
+		collect.metaPayload.Write(docJSON)
+		collect.metaPayload.WriteString("\n")
+
+		idx = BulkType{
+			ID: EsIndex{
+				EsIndex: packet.Keyset,
+				EsType:  tagvType,
+				EsID:    v,
+			},
+		}
+
+		indexJSON, err = json.Marshal(idx)
+		if err != nil {
+			return errMarshal("saveTsInfo", err)
+		}
+
+		collect.metaPayload.Write(indexJSON)
+		collect.metaPayload.WriteString("\n")
+
+		docTV := EsTagValue{
+			Value: v,
+		}
+
+		docJSON, err = json.Marshal(docTV)
+		if err != nil {
+			return errMarshal("saveTsInfo", err)
+		}
+
+		collect.metaPayload.Write(docJSON)
+		collect.metaPayload.WriteString("\n")
+
+		cleanTags = append(cleanTags, Tag{Key: k, Value: v})
 	}
 
 	idx = BulkType{
 		ID: EsIndex{
-			EsIndex: packet.KsID,
+			EsIndex: packet.Keyset,
 			EsType:  metaType,
 			EsID:    packet.ID,
 		},

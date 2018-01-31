@@ -70,7 +70,7 @@ func TestUDPv2MultiplePointsSameIDAndTimestampsGreaterThanDay(t *testing.T) {
 		mycenaeTools.UDP.Send(p.Marshal())
 	}
 
-	hashID := mycenaeTools.Cassandra.Timeseries.GetHashFromMetricAndTags(p.Metric, p.Tags)
+	hashID := tools.GetHashFromMetricAndTags(p.Metric, p.Tags)
 
 	time.Sleep(tools.Sleep2)
 
@@ -89,7 +89,7 @@ func TestUDPv2MultiplePointsSameIDAndNoTimestamp(t *testing.T) {
 	p.Timestamp = nil
 	dateBefore := time.Now()
 
-	hashID := mycenaeTools.Cassandra.Timeseries.GetHashFromMetricAndTags(p.Metric, p.Tags)
+	hashID := tools.GetHashFromMetricAndTags(p.Metric, p.Tags)
 
 	for i := 0; i < 3; i++ {
 
@@ -111,7 +111,7 @@ func TestUDPv2CheckLocalElasticCache(t *testing.T) {
 
 	p := mycenaeTools.Mycenae.GetPayload(ksMycenae)
 
-	hashID := mycenaeTools.Cassandra.Timeseries.GetHashFromMetricAndTags(p.Metric, p.Tags)
+	hashID := tools.GetHashFromMetricAndTags(p.Metric, p.Tags)
 
 	for i := 0; i < 2; i++ {
 
@@ -176,14 +176,14 @@ func TestUDPv2PayloadWithSpecialChars(t *testing.T) {
 
 			p := mycenaeTools.Mycenae.GetPayload(ksMycenae)
 
-			specialChars := fmt.Sprint("9Aa35ffg", p.Random, "...-___-.%&#;./.a1")
+			specialChars := fmt.Sprint("9Aa35ffg", p.Random, ".-_%&#;/a1")
 
 			switch test {
 			case 0:
 				p.Metric = specialChars
 				*p.Value = float32(test)
 			case 1:
-				p.Tags = map[string]string{"ksid": ksMycenae, specialChars: p.TagValue}
+				p.Tags = map[string]string{"ksid": ksMycenae, "ttl": "1", specialChars: p.TagValue}
 				*p.Value = float32(test)
 			case 2:
 				p.Tags[p.TagKey] = specialChars
@@ -195,7 +195,7 @@ func TestUDPv2PayloadWithSpecialChars(t *testing.T) {
 			// special chars take longer to be saved
 			time.Sleep(tools.Sleep2 * 2)
 
-			hashID := mycenaeTools.Cassandra.Timeseries.GetHashFromMetricAndTags(p.Metric, p.Tags)
+			hashID := tools.GetHashFromMetricAndTags(p.Metric, p.Tags)
 
 			assertMycenae(t, ksMycenae, *p.Timestamp, *p.Timestamp, *p.Value, hashID)
 
@@ -210,7 +210,7 @@ func TestUDPv2PayloadWithSpecialChars(t *testing.T) {
 func TestUDPv2PayloadWithLastCharUnderscore(t *testing.T) {
 	t.Parallel()
 
-	lastCharUnderscore := fmt.Sprint("9Aa35ffg...-___-..._")
+	lastCharUnderscore := fmt.Sprint("9Aa35ffg_")
 
 	var wg sync.WaitGroup
 	wg.Add(3)
@@ -260,7 +260,7 @@ func TestUDPv2PayloadsWithSameMetricTagsTimestamp(t *testing.T) {
 	mycenaeTools.UDP.Send(p.Marshal())
 	time.Sleep(tools.Sleep2)
 
-	hashID := mycenaeTools.Cassandra.Timeseries.GetHashFromMetricAndTags(p.Metric, p.Tags)
+	hashID := tools.GetHashFromMetricAndTags(p.Metric, p.Tags)
 
 	assertMycenae(t, ksMycenae, *p.Timestamp, *p.Timestamp, *p.Value, hashID)
 
@@ -281,7 +281,7 @@ func TestUDPv2PayloadsWithSameMetricTagsTimestampTwoEqualTags(t *testing.T) {
 	tagValue2 := tagValue1
 
 	payload1 := fmt.Sprintf(
-		`{"value": %.1f, "metric": "%v", "tags": {"ksid": "%v", "%v": "%v", "%v": "%v"}, "timestamp": %v}`,
+		`{"value": %.1f, "metric": "%v", "tags": {"ksid": "%v", "%v": "%v", "%v": "%v", "ttl": "1"}, "timestamp": %v}`,
 		value1,
 		metric,
 		ksMycenae,
@@ -293,7 +293,7 @@ func TestUDPv2PayloadsWithSameMetricTagsTimestampTwoEqualTags(t *testing.T) {
 	)
 
 	payload2 := fmt.Sprintf(
-		`{"value": %.1f, "metric": "%v", "tags": {"ksid": "%v", "%v": "%v", "%v": "%v"}, "timestamp": %v}`,
+		`{"value": %.1f, "metric": "%v", "tags": {"ksid": "%v", "%v": "%v", "%v": "%v", "ttl": "1"}, "timestamp": %v}`,
 		value2,
 		metric,
 		ksMycenae,
@@ -304,9 +304,9 @@ func TestUDPv2PayloadsWithSameMetricTagsTimestampTwoEqualTags(t *testing.T) {
 		timestamp,
 	)
 
-	tags := map[string]string{tagKey1: tagValue1}
+	tags := map[string]string{"ksid": ksMycenae, "ttl": "1", tagKey1: tagValue1}
 
-	hashID := mycenaeTools.Cassandra.Timeseries.GetHashFromMetricAndTags(metric, tags)
+	hashID := tools.GetHashFromMetricAndTags(metric, tags)
 
 	mycenaeTools.UDP.SendString(payload1)
 	time.Sleep(tools.Sleep2)
@@ -325,7 +325,7 @@ func TestUDPv2PayloadWithStringValue(t *testing.T) {
 	metric, tagKey, tagValue, timestamp := mycenaeTools.Mycenae.GetRandomMetricTags()
 
 	payload := fmt.Sprintf(
-		`{"value": "%v", "metric": "%v", "tags": {"ksid": "%v", "%v": "%v"}, "timestamp": %v}`,
+		`{"value": "%v", "metric": "%v", "tags": {"ksid": "%v", "%v": "%v", "ttl": "1"}, "timestamp": %v}`,
 		value,
 		metric,
 		ksMycenae,
@@ -334,7 +334,7 @@ func TestUDPv2PayloadWithStringValue(t *testing.T) {
 		timestamp,
 	)
 
-	tags := map[string]string{tagKey: tagValue}
+	tags := map[string]string{"ksid": ksMycenae, "ttl": "1", tagKey: tagValue}
 
 	sendUDPPayloadStringAndAssertEmpty(t, payload, metric, tags, timestamp, timestamp)
 }
@@ -360,14 +360,14 @@ func TestUDPv2PayloadWithEmptyValues(t *testing.T) {
 		metric, tagKey, tagValue, timestamp := mycenaeTools.Mycenae.GetRandomMetricTags()
 
 		payload := fmt.Sprintf(
-			`{"value":, "metric": "%v", "tags": {"ksid": "%v", "%v": "%v"}, "timestamp": %v}`,
+			`{"value":, "metric": "%v", "tags": {"ksid": "%v", "%v": "%v", "ttl": "1"}, "timestamp": %v}`,
 			metric,
 			ksMycenae,
 			tagKey,
 			tagValue,
 			timestamp,
 		)
-		tags := map[string]string{"ksid": ksMycenae, tagKey: tagValue}
+		tags := map[string]string{"ksid": ksMycenae,  "ttl": "1", tagKey: tagValue}
 
 		sendUDPPayloadStringAndAssertEmpty(t, payload, metric, tags, timestamp, timestamp)
 		wg.Done()
@@ -378,7 +378,7 @@ func TestUDPv2PayloadWithEmptyValues(t *testing.T) {
 		_, tagKey, tagValue, timestamp := mycenaeTools.Mycenae.GetRandomMetricTags()
 
 		payload := fmt.Sprintf(
-			`{"value": %.1f, "metric":, "tags": {"ksid": "%v", "%v": "%v"}, "timestamp": %v}`,
+			`{"value": %.1f, "metric":, "tags": {"ksid": "%v", "%v": "%v", "ttl": "1"}, "timestamp": %v}`,
 			1.0,
 			ksMycenae,
 			tagKey,
@@ -386,7 +386,7 @@ func TestUDPv2PayloadWithEmptyValues(t *testing.T) {
 			timestamp,
 		)
 		metric := ""
-		tags := map[string]string{"ksid": ksMycenae, tagKey: tagValue}
+		tags := map[string]string{"ksid": ksMycenae,  "ttl": "1", tagKey: tagValue}
 
 		sendUDPPayloadStringAndAssertEmpty(t, payload, metric, tags, timestamp, timestamp)
 		wg.Done()
@@ -397,14 +397,14 @@ func TestUDPv2PayloadWithEmptyValues(t *testing.T) {
 		metric, tagKey, tagValue, timestamp := mycenaeTools.Mycenae.GetRandomMetricTags()
 
 		payload := fmt.Sprintf(
-			`{"value": %.1f, "metric": "%v", "tags": {"ksid":, "%v": "%v"}, "timestamp": %v}`,
+			`{"value": %.1f, "metric": "%v", "tags": {"ksid":, "%v": "%v", "ttl": "1"}, "timestamp": %v}`,
 			2.0,
 			metric,
 			tagKey,
 			tagValue,
 			timestamp,
 		)
-		tags := map[string]string{"ksid": "", tagKey: tagValue}
+		tags := map[string]string{"ksid": "",  "ttl": "1", tagKey: tagValue}
 
 		sendUDPPayloadStringAndAssertEmpty(t, payload, metric, tags, timestamp, timestamp)
 		wg.Done()
@@ -415,14 +415,14 @@ func TestUDPv2PayloadWithEmptyValues(t *testing.T) {
 		metric, _, tagValue, timestamp := mycenaeTools.Mycenae.GetRandomMetricTags()
 
 		payload := fmt.Sprintf(
-			`{"value": %.1f, "metric": "%v", "tags": {"ksid": "%v", : "%v"}, "timestamp": %v}`,
+			`{"value": %.1f, "metric": "%v", "tags": {"ksid": "%v", : "%v", "ttl": "1"}, "timestamp": %v}`,
 			3.0,
 			metric,
 			ksMycenae,
 			tagValue,
 			timestamp,
 		)
-		tags := map[string]string{"ksid": ksMycenae, "": tagValue}
+		tags := map[string]string{"ksid": ksMycenae, "ttl": "1", "": tagValue}
 
 		sendUDPPayloadStringAndAssertEmpty(t, payload, metric, tags, timestamp, timestamp)
 		wg.Done()
@@ -433,14 +433,14 @@ func TestUDPv2PayloadWithEmptyValues(t *testing.T) {
 		metric, tagKey, _, timestamp := mycenaeTools.Mycenae.GetRandomMetricTags()
 
 		payload := fmt.Sprintf(
-			`{"value": %.1f, "metric": "%v", "tags": {"ksid": "%v", "%v":}, "timestamp": %v}`,
+			`{"value": %.1f, "metric": "%v", "tags": {"ksid": "%v", "ttl": "1", "%v":}, "timestamp": %v}`,
 			4.0,
 			metric,
 			ksMycenae,
 			tagKey,
 			timestamp,
 		)
-		tags := map[string]string{"ksid": ksMycenae, tagKey: ""}
+		tags := map[string]string{"ksid": ksMycenae, "ttl": "1", tagKey: ""}
 
 		sendUDPPayloadStringAndAssertEmpty(t, payload, metric, tags, timestamp, timestamp)
 		wg.Done()
@@ -451,14 +451,14 @@ func TestUDPv2PayloadWithEmptyValues(t *testing.T) {
 		metric, tagKey, tagValue, timestamp := mycenaeTools.Mycenae.GetRandomMetricTags()
 
 		payload := fmt.Sprintf(
-			`{"value": %.1f, "metric": "%v", "tags": {"ksid": "%v", "%v": "%v"}, "timestamp":}`,
+			`{"value": %.1f, "metric": "%v", "tags": {"ksid": "%v", "%v": "%v", "ttl": "1"}, "timestamp":}`,
 			5.0,
 			metric,
 			ksMycenae,
 			tagKey,
 			tagValue,
 		)
-		tags := map[string]string{"ksid": ksMycenae, tagKey: tagValue}
+		tags := map[string]string{"ksid": ksMycenae, "ttl": "1", tagKey: tagValue}
 
 		sendUDPPayloadStringAndAssertEmpty(t, payload, metric, tags, timestamp, time.Now().Add(tools.Sleep2).Unix())
 		wg.Done()
@@ -506,7 +506,7 @@ func TestUDPv2PayloadValuesWithOnlySpace(t *testing.T) {
 		metric, tagKey, tagValue, timestamp := mycenaeTools.Mycenae.GetRandomMetricTags()
 
 		payload := fmt.Sprintf(
-			`{"value": %v, "metric": "%v", "tags": {"ksid": "%v", "%v": "%v"}, "timestamp": %v}`,
+			`{"value": %v, "metric": "%v", "tags": {"ksid": "%v", "%v": "%v", "ttl": "1"}, "timestamp": %v}`,
 			space,
 			metric,
 			ksMycenae,
@@ -514,7 +514,7 @@ func TestUDPv2PayloadValuesWithOnlySpace(t *testing.T) {
 			tagValue,
 			timestamp,
 		)
-		tags := map[string]string{"ksid": ksMycenae, tagKey: tagValue}
+		tags := map[string]string{"ksid": ksMycenae, "ttl": "1", tagKey: tagValue}
 
 		sendUDPPayloadStringAndAssertEmpty(t, payload, metric, tags, timestamp, timestamp)
 		wg.Done()
@@ -525,7 +525,7 @@ func TestUDPv2PayloadValuesWithOnlySpace(t *testing.T) {
 		_, tagKey, tagValue, timestamp := mycenaeTools.Mycenae.GetRandomMetricTags()
 
 		payload := fmt.Sprintf(
-			`{"value": %.1f, "metric": "%v", "tags": {"ksid": "%v", "%v": "%v"}, "timestamp": %v}`,
+			`{"value": %.1f, "metric": "%v", "tags": {"ksid": "%v", "%v": "%v", "ttl": "1"}, "timestamp": %v}`,
 			1.0,
 			space,
 			ksMycenae,
@@ -534,7 +534,7 @@ func TestUDPv2PayloadValuesWithOnlySpace(t *testing.T) {
 			timestamp,
 		)
 		metric := space
-		tags := map[string]string{"ksid": ksMycenae, tagKey: tagValue}
+		tags := map[string]string{"ksid": ksMycenae, "ttl": "1", tagKey: tagValue}
 
 		sendUDPPayloadStringAndAssertEmpty(t, payload, metric, tags, timestamp, timestamp)
 		wg.Done()
@@ -545,7 +545,7 @@ func TestUDPv2PayloadValuesWithOnlySpace(t *testing.T) {
 		metric, tagKey, tagValue, timestamp := mycenaeTools.Mycenae.GetRandomMetricTags()
 
 		payload := fmt.Sprintf(
-			`{"value": %.1f, "metric": "%v", "tags": {"ksid": "%v", "%v": "%v"}, "timestamp": %v}`,
+			`{"value": %.1f, "metric": "%v", "tags": {"ksid": "%v", "%v": "%v", "ttl": "1"}, "timestamp": %v}`,
 			2.0,
 			metric,
 			space,
@@ -553,7 +553,7 @@ func TestUDPv2PayloadValuesWithOnlySpace(t *testing.T) {
 			tagValue,
 			timestamp,
 		)
-		tags := map[string]string{"ksid": space, tagKey: tagValue}
+		tags := map[string]string{"ksid": space, "ttl": "1", tagKey: tagValue}
 
 		sendUDPPayloadStringAndAssertEmpty(t, payload, metric, tags, timestamp, timestamp)
 		wg.Done()
@@ -564,7 +564,7 @@ func TestUDPv2PayloadValuesWithOnlySpace(t *testing.T) {
 		metric, _, tagValue, timestamp := mycenaeTools.Mycenae.GetRandomMetricTags()
 
 		payload := fmt.Sprintf(
-			`{"value": %.1f, "metric": "%v", "tags": {"ksid": "%v", "%v": "%v"}, "timestamp": %v}`,
+			`{"value": %.1f, "metric": "%v", "tags": {"ksid": "%v", "%v": "%v", "ttl": "1"}, "timestamp": %v}`,
 			3.0,
 			metric,
 			ksMycenae,
@@ -572,7 +572,7 @@ func TestUDPv2PayloadValuesWithOnlySpace(t *testing.T) {
 			tagValue,
 			timestamp,
 		)
-		tags := map[string]string{"ksid": ksMycenae, space: tagValue}
+		tags := map[string]string{"ksid": ksMycenae, "ttl": "1", space: tagValue}
 
 		sendUDPPayloadStringAndAssertEmpty(t, payload, metric, tags, timestamp, timestamp)
 		wg.Done()
@@ -583,7 +583,7 @@ func TestUDPv2PayloadValuesWithOnlySpace(t *testing.T) {
 		metric, tagKey, _, timestamp := mycenaeTools.Mycenae.GetRandomMetricTags()
 
 		payload := fmt.Sprintf(
-			`{"value": %.1f, "metric": "%v", "tags": {"ksid": "%v", "%v": "%v"}, "timestamp": %v}`,
+			`{"value": %.1f, "metric": "%v", "tags": {"ksid": "%v", "%v": "%v", "ttl": "1"}, "timestamp": %v}`,
 			4.0,
 			metric,
 			ksMycenae,
@@ -591,7 +591,7 @@ func TestUDPv2PayloadValuesWithOnlySpace(t *testing.T) {
 			space,
 			timestamp,
 		)
-		tags := map[string]string{"ksid": ksMycenae, tagKey: space}
+		tags := map[string]string{"ksid": ksMycenae, "ttl": "1", tagKey: space}
 
 		sendUDPPayloadStringAndAssertEmpty(t, payload, metric, tags, timestamp, timestamp)
 		wg.Done()
@@ -602,7 +602,7 @@ func TestUDPv2PayloadValuesWithOnlySpace(t *testing.T) {
 		metric, tagKey, tagValue, timestamp := mycenaeTools.Mycenae.GetRandomMetricTags()
 
 		payload := fmt.Sprintf(
-			`{"value": %.1f, "metric": "%v", "tags": {"ksid": "%v", "%v": "%v"}, "timestamp": %v}`,
+			`{"value": %.1f, "metric": "%v", "tags": {"ksid": "%v", "%v": "%v", "ttl": "1"}, "timestamp": %v}`,
 			5.0,
 			metric,
 			ksMycenae,
@@ -610,7 +610,7 @@ func TestUDPv2PayloadValuesWithOnlySpace(t *testing.T) {
 			tagValue,
 			space,
 		)
-		tags := map[string]string{"ksid": ksMycenae, tagKey: tagValue}
+		tags := map[string]string{"ksid": ksMycenae, "ttl": "1", tagKey: tagValue}
 
 		sendUDPPayloadStringAndAssertEmpty(t, payload, metric, tags, timestamp, time.Now().Add(tools.Sleep2).Unix())
 		wg.Done()
@@ -623,6 +623,8 @@ func TestUDPv2PayloadWithAKsidTag(t *testing.T) {
 
 	p := mycenaeTools.Mycenae.GetPayload(ksMycenae)
 	delete(p.Tags, p.TagKey)
+	delete(p.Tags, p.TagKey2)
+	delete(p.Tags, "ttl")
 
 	sendUDPPayloadStringAndAssertEmpty(t, string(p.Marshal()), p.Metric, p.Tags, *p.Timestamp, *p.Timestamp)
 }
@@ -656,7 +658,7 @@ func TestUDPv2PayloadWithInvalidTimestamp(t *testing.T) {
 	timestamp := 9999999.9
 
 	payload := fmt.Sprintf(
-		`{"value": %.1f, "metric": "%v", "tags": {"ksid": "%v", "%v": "%v"}, "timestamp": %v}`,
+		`{"value": %.1f, "metric": "%v", "tags": {"ksid": "%v", "%v": "%v", "ttl": "1"}, "timestamp": %v}`,
 		value,
 		metric,
 		ksMycenae,
@@ -675,7 +677,7 @@ func TestUDPv2PayloadWithStringTimestamp(t *testing.T) {
 	metric, tagKey, tagValue, timestamp := mycenaeTools.Mycenae.GetRandomMetricTags()
 
 	payload := fmt.Sprintf(
-		`{"value": %.1f, "metric": "%v", "tags": {"ksid": "%v", "%v": "%v"}, "timestamp": "%v"}`,
+		`{"value": %.1f, "metric": "%v", "tags": {"ksid": "%v", "%v": "%v", "ttl": "1"}, "timestamp": "%v"}`,
 		value,
 		metric,
 		ksMycenae,
@@ -694,7 +696,7 @@ func TestUDPv2PayloadWithBadFormattedJson(t *testing.T) {
 	metric, tagKey, tagValue, timestamp := mycenaeTools.Mycenae.GetRandomMetricTags()
 
 	payload := fmt.Sprintf(
-		`{"value": %.1f, "metric": "%v", "tags": {"ksid": "%v", "%v": "%v"}, "timestamp": %v`,
+		`{"value": %.1f, "metric": "%v", "tags": {"ksid": "%v", "%v": "%v", "ttl": "1"}, "timestamp": %v`,
 		value,
 		metric,
 		ksMycenae,
@@ -720,7 +722,7 @@ func TestUDPv2BucketLimits(t *testing.T) {
 
 	p := mycenaeTools.Mycenae.GetPayload(ksMycenae)
 
-	hashID := mycenaeTools.Cassandra.Timeseries.GetHashFromMetricAndTags(p.Metric, p.Tags)
+	hashID := tools.GetHashFromMetricAndTags(p.Metric, p.Tags)
 
 	for i := 0; i < 6; i++ {
 
@@ -737,16 +739,16 @@ func TestUDPv2BucketLimits(t *testing.T) {
 		assertMycenae(t, ksMycenae, timestamps[i], timestamps[i], float32(i), hashID)
 	}
 
-	countValue := mycenaeTools.Cassandra.Timeseries.CountValueFromIDSTAMP(ksMycenae, fmt.Sprintf("%v%v%v", 2016, 9, hashID))
+	countValue := mycenaeTools.Cassandra.Timeseries.CountValueFromIDSTAMP(1, fmt.Sprintf("%v%v%v", 2016, 9, hashID))
 	assert.Equal(t, 1, countValue)
 
-	countValue = mycenaeTools.Cassandra.Timeseries.CountValueFromIDSTAMP(ksMycenae, fmt.Sprintf("%v%v%v", 2016, 10, hashID))
+	countValue = mycenaeTools.Cassandra.Timeseries.CountValueFromIDSTAMP(1, fmt.Sprintf("%v%v%v", 2016, 10, hashID))
 	assert.Equal(t, 2, countValue)
 
-	countValue = mycenaeTools.Cassandra.Timeseries.CountValueFromIDSTAMP(ksMycenae, fmt.Sprintf("%v%v%v", 2016, 11, hashID))
+	countValue = mycenaeTools.Cassandra.Timeseries.CountValueFromIDSTAMP(1, fmt.Sprintf("%v%v%v", 2016, 11, hashID))
 	assert.Equal(t, 2, countValue)
 
-	countValue = mycenaeTools.Cassandra.Timeseries.CountValueFromIDSTAMP(ksMycenae, fmt.Sprintf("%v%v%v", 2016, 12, hashID))
+	countValue = mycenaeTools.Cassandra.Timeseries.CountValueFromIDSTAMP(1, fmt.Sprintf("%v%v%v", 2016, 12, hashID))
 	assert.Equal(t, 1, countValue)
 
 	assertElastic(t, ksMycenae, p.Metric, p.Tags, hashID)
@@ -766,7 +768,7 @@ func TestUDPv2Bucket53WeeksYear(t *testing.T) {
 
 	p := mycenaeTools.Mycenae.GetPayload(ksMycenae)
 
-	hashID := mycenaeTools.Cassandra.Timeseries.GetHashFromMetricAndTags(p.Metric, p.Tags)
+	hashID := tools.GetHashFromMetricAndTags(p.Metric, p.Tags)
 
 	for i := 0; i < 6; i++ {
 
@@ -783,10 +785,10 @@ func TestUDPv2Bucket53WeeksYear(t *testing.T) {
 		assertMycenae(t, ksMycenae, timestamps[i], timestamps[i], float32(i), hashID)
 	}
 
-	countValue := mycenaeTools.Cassandra.Timeseries.CountValueFromIDSTAMP(ksMycenae, fmt.Sprintf("%v%v%v", 2015, 53, hashID))
+	countValue := mycenaeTools.Cassandra.Timeseries.CountValueFromIDSTAMP(1, fmt.Sprintf("%v%v%v", 2015, 53, hashID))
 	assert.Equal(t, 5, countValue)
 
-	countValue = mycenaeTools.Cassandra.Timeseries.CountValueFromIDSTAMP(ksMycenae, fmt.Sprintf("%v%v%v", 2016, 1, hashID))
+	countValue = mycenaeTools.Cassandra.Timeseries.CountValueFromIDSTAMP(1, fmt.Sprintf("%v%v%v", 2016, 1, hashID))
 	assert.Equal(t, 1, countValue)
 
 	assertElastic(t, ksMycenae, p.Metric, p.Tags, hashID)
@@ -806,7 +808,7 @@ func TestUDPv2Bucket52WeeksYear(t *testing.T) {
 
 	p := mycenaeTools.Mycenae.GetPayload(ksMycenae)
 
-	hashID := mycenaeTools.Cassandra.Timeseries.GetHashFromMetricAndTags(p.Metric, p.Tags)
+	hashID := tools.GetHashFromMetricAndTags(p.Metric, p.Tags)
 
 	for i := 0; i < 6; i++ {
 
@@ -816,20 +818,20 @@ func TestUDPv2Bucket52WeeksYear(t *testing.T) {
 		mycenaeTools.UDP.Send(p.Marshal())
 	}
 
-	time.Sleep(tools.Sleep2)
+	time.Sleep(tools.Sleep3)
 
 	for i := 0; i < 6; i++ {
 
 		assertMycenae(t, ksMycenae, timestamps[i], timestamps[i], float32(i), hashID)
 	}
 
-	countValue := mycenaeTools.Cassandra.Timeseries.CountValueFromIDSTAMP(ksMycenae, fmt.Sprintf("%v%v%v", 2014, 52, hashID))
+	countValue := mycenaeTools.Cassandra.Timeseries.CountValueFromIDSTAMP(1, fmt.Sprintf("%v%v%v", 2014, 52, hashID))
 	assert.Equal(t, 2, countValue)
 
-	countValue = mycenaeTools.Cassandra.Timeseries.CountValueFromIDSTAMP(ksMycenae, fmt.Sprintf("%v%v%v", 2014, 53, hashID))
+	countValue = mycenaeTools.Cassandra.Timeseries.CountValueFromIDSTAMP(1, fmt.Sprintf("%v%v%v", 2014, 53, hashID))
 	assert.Equal(t, 0, countValue)
 
-	countValue = mycenaeTools.Cassandra.Timeseries.CountValueFromIDSTAMP(ksMycenae, fmt.Sprintf("%v%v%v", 2015, 1, hashID))
+	countValue = mycenaeTools.Cassandra.Timeseries.CountValueFromIDSTAMP(1, fmt.Sprintf("%v%v%v", 2015, 1, hashID))
 	assert.Equal(t, 4, countValue)
 
 	assertElastic(t, ksMycenae, p.Metric, p.Tags, hashID)
@@ -843,7 +845,7 @@ func TestUDPv2BucketFullYear(t *testing.T) {
 
 	p := mycenaeTools.Mycenae.GetPayload(ksMycenae)
 
-	hashID := mycenaeTools.Cassandra.Timeseries.GetHashFromMetricAndTags(p.Metric, p.Tags)
+	hashID := tools.GetHashFromMetricAndTags(p.Metric, p.Tags)
 
 	for i := 0; i < 52; i++ {
 
@@ -857,13 +859,13 @@ func TestUDPv2BucketFullYear(t *testing.T) {
 		day = day.AddDate(0, 0, 7)
 	}
 
-	time.Sleep(tools.Sleep2)
+	time.Sleep(tools.Sleep3)
 
 	for i := 0; i < 52; i++ {
 
 		assertMycenae(t, ksMycenae, timestamps[i], timestamps[i], float32(i), hashID)
 
-		countValue := mycenaeTools.Cassandra.Timeseries.CountValueFromIDSTAMP(ksMycenae, fmt.Sprintf("%v%v%v", 2014, i+1, hashID))
+		countValue := mycenaeTools.Cassandra.Timeseries.CountValueFromIDSTAMP(1, fmt.Sprintf("%v%v%v", 2014, i+1, hashID))
 		assert.Equal(t, 1, countValue)
 	}
 
@@ -877,7 +879,7 @@ func TestUDPv2BucketFuturePoints(t *testing.T) {
 
 	p := mycenaeTools.Mycenae.GetPayload(ksMycenae)
 
-	hashID := mycenaeTools.Cassandra.Timeseries.GetHashFromMetricAndTags(p.Metric, p.Tags)
+	hashID := tools.GetHashFromMetricAndTags(p.Metric, p.Tags)
 
 	for i := 0; i < 3; i++ {
 
@@ -894,11 +896,11 @@ func TestUDPv2BucketFuturePoints(t *testing.T) {
 
 		if lastBucket != "" {
 
-			countValue := mycenaeTools.Cassandra.Timeseries.CountValueFromIDSTAMP(ksMycenae, lastBucket)
+			countValue := mycenaeTools.Cassandra.Timeseries.CountValueFromIDSTAMP(1, lastBucket)
 			assert.Equal(t, 1, countValue)
 		}
 
-		countValue := mycenaeTools.Cassandra.Timeseries.CountValueFromIDSTAMP(ksMycenae, currentBucket)
+		countValue := mycenaeTools.Cassandra.Timeseries.CountValueFromIDSTAMP(1, currentBucket)
 		assert.Equal(t, 1, countValue)
 
 		lastBucket = currentBucket
@@ -913,7 +915,7 @@ func sendUDPPayloadAndAssertPoint(t *testing.T, payload *tools.Payload, start, e
 	mycenaeTools.UDP.Send(payload.Marshal())
 	time.Sleep(tools.Sleep2)
 
-	hashID := mycenaeTools.Cassandra.Timeseries.GetHashFromMetricAndTags(payload.Metric, payload.Tags)
+	hashID := tools.GetHashFromMetricAndTags(payload.Metric, payload.Tags)
 
 	assertMycenae(t, ksMycenae, start, end, *payload.Value, hashID)
 
@@ -925,7 +927,7 @@ func sendUDPPayloadStringAndAssertEmpty(t *testing.T, payload, metric string, ta
 	mycenaeTools.UDP.SendString(payload)
 	time.Sleep(tools.Sleep2)
 
-	hashID := mycenaeTools.Cassandra.Timeseries.GetHashFromMetricAndTags(metric, tags)
+	hashID := tools.GetHashFromMetricAndTags(metric, tags)
 
 	assertMycenaeEmpty(t, ksMycenae, start, end, hashID)
 

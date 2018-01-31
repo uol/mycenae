@@ -14,17 +14,10 @@ func (backend *scylladb) addKeyspaceMetadata(ks Keyspace) gobol.Error {
 	)
 	if err := backend.session.Query(
 		query,
-		ks.ID,
 		ks.Name,
 		ks.Contact,
 		ks.DC,
-		ks.TTL,
-
 		ks.Replication,
-		fmt.Sprintf(
-			`{'class': 'NetworkTopologyStrategy', '%s': %d}`,
-			ks.DC, ks.Replication,
-		),
 	).Exec(); err != nil {
 		backend.statsQueryError(backend.ksMngr, "ts_keyspace", "insert")
 		return errPersist("addKeyspaceMetadata", "scylladb", err)
@@ -39,43 +32,41 @@ func (backend *scylladb) addKeyspaceMetadata(ks Keyspace) gobol.Error {
 func (backend *scylladb) createKeyspace(ks Keyspace) gobol.Error {
 	query := fmt.Sprintf(
 		formatCreateKeyspace,
-		ks.ID, ks.DC, ks.Replication,
+		ks.Name, ks.DC, ks.Replication,
 	)
 	if err := backend.session.Query(query).Exec(); err != nil {
-		backend.statsQueryError(ks.ID, "", "create")
+		backend.statsQueryError(ks.Name, "", "create")
 		return errPersist("createKeyspace", "scylladb", err)
 	}
 	return nil
 }
 
-func (backend *scylladb) createNumericTable(ks Keyspace) gobol.Error {
+func (backend *scylladb) createTable(keySet, valueColumnType, tableName, functionName string, ttl uint8) gobol.Error {
+
+	tableTTL := uint64(ttl) * 86400
+
 	query := fmt.Sprintf(
-		formatCreateNumericTable,
-		ks.ID,
-		backend.compaction,
-		ks.TTL*86400,
+		formatCreateTable,
+		keySet,
+		tableName,
+		valueColumnType,
+		tableTTL,
 	)
 
 	if err := backend.session.Query(query).Exec(); err != nil {
-		backend.statsQueryError(ks.ID, "", "create")
-		return errPersist("createNumericTable", "scylladb", err)
+		backend.statsQueryError(keySet, "", "create")
+		return errPersist(functionName, "scylladb", err)
 	}
+
 	return nil
 }
 
+func (backend *scylladb) createNumericTable(ks Keyspace) gobol.Error {
+	return backend.createTable(ks.Name, "double", "ts_number_stamp", "createNumericTable", ks.TTL)
+}
+
 func (backend *scylladb) createTextTable(ks Keyspace) gobol.Error {
-	if err := backend.session.Query(
-		fmt.Sprintf(
-			formatCreateTextTable,
-			ks.ID,
-			backend.compaction,
-			ks.TTL*86400,
-		),
-	).Exec(); err != nil {
-		backend.statsQueryError(ks.ID, "", "create")
-		return errPersist("createTextTable", "scylladb", err)
-	}
-	return nil
+	return backend.createTable(ks.Name, "text", "ts_text_stamp", "createTextTable", ks.TTL)
 }
 
 func (backend *scylladb) setPermissions(ks Keyspace) gobol.Error {
@@ -84,9 +75,9 @@ func (backend *scylladb) setPermissions(ks Keyspace) gobol.Error {
 	}
 
 	for _, format := range formatGrants {
-		query := fmt.Sprintf(format, ks.ID, backend.grantUsername)
+		query := fmt.Sprintf(format, ks.Name, backend.grantUsername)
 		if err := backend.session.Query(query).Exec(); err != nil {
-			backend.statsQueryError(ks.ID, "", "create")
+			backend.statsQueryError(ks.Name, "", "create")
 			return errPersist("setPermissions", "scylladb", err)
 		}
 	}

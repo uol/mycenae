@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"net/url"
 	"testing"
 
@@ -23,7 +24,7 @@ var tagService string
 var tagService1 string
 var tagService2 string
 
-func sendPointsParseExp(keyspace string) {
+func sendPointsParseExp(keySet string) {
 
 	fmt.Println("Setting up parseExpression_test.go tests...")
 
@@ -44,7 +45,7 @@ func sendPointsParseExp(keyspace string) {
 		"value": 36.5,
 		"metric": "` + metric1 + `",
 		"tags": {
-		  "ksid": "` + keyspace + `",
+		  "ksid": "` + keySet + `",
 		  "` + tagHost + `":"` + tagHost1 + `"
 		}
 	  },
@@ -52,7 +53,7 @@ func sendPointsParseExp(keyspace string) {
 		"value": 54.5,
 		"metric": "` + metric1 + `",
 		"tags": {
-		  "ksid": "` + keyspace + `",
+		  "ksid": "` + keySet + `",
 	      "` + tagHost + `":"` + tagHost2 + `"
 		},
 		"timestamp": 1444166564000
@@ -61,7 +62,7 @@ func sendPointsParseExp(keyspace string) {
 		"value": 5.4,
 		"metric": "` + metric1 + `",
 		"tags": {
-		  "ksid": "` + keyspace + `",
+		  "ksid": "` + keySet + `",
 	      "` + tagHost + `":"` + tagHost3 + `"
 		},
 		"timestamp": 1444166564000
@@ -70,7 +71,7 @@ func sendPointsParseExp(keyspace string) {
 		"value": 1.1,
 		"metric": "` + metric2 + `",
 		"tags": {
-		  "ksid": "` + keyspace + `",
+		  "ksid": "` + keySet + `",
 	      "` + tagHost2 + `":"` + tagHost1 + `",
 	      "` + tagApp + `":"` + tagApp1 + `"
 		},
@@ -80,7 +81,7 @@ func sendPointsParseExp(keyspace string) {
 		"value": 50.1,
 		"metric": "` + metric2 + `",
 		"tags": {
-		  "ksid": "` + keyspace + `",
+		  "ksid": "` + keySet + `",
 	      "` + tagHost2 + `":"` + tagHost2 + `",
 	      "` + tagApp + `":"` + tagApp1 + `"
 		}
@@ -89,7 +90,7 @@ func sendPointsParseExp(keyspace string) {
 		"value": 1.1,
 		"metric": "` + metric2 + `",
 		"tags": {
-		  "ksid": "` + keyspace + `",
+		  "ksid": "` + keySet + `",
 	      "` + tagHost2 + `":"` + tagHost3 + `",
 	      "` + tagApp + `":"` + tagApp1 + `"
 		},
@@ -99,7 +100,7 @@ func sendPointsParseExp(keyspace string) {
 		"value": 50.1,
 		"metric": "` + metric2 + `",
 		"tags": {
-		  "ksid": "` + keyspace + `",
+		  "ksid": "` + keySet + `",
 	      "` + tagHost2 + `":"` + tagHost1 + `",
 	      "` + tagService + `":"` + tagService1 + `"
 		}
@@ -108,7 +109,7 @@ func sendPointsParseExp(keyspace string) {
 		"value": 1.1,
 		"metric": "` + metric2 + `",
 		"tags": {
-		  "ksid": "` + keyspace + `",
+		  "ksid": "` + keySet + `",
 	      "` + tagHost2 + `":"` + tagHost2 + `",
 	      "` + tagService + `":"` + tagService1 + `"
 		},
@@ -118,7 +119,7 @@ func sendPointsParseExp(keyspace string) {
 		"value": 50.1,
 		"metric": "` + metric2 + `",
 		"tags": {
-		  "ksid": "` + keyspace + `",
+		  "ksid": "` + keySet + `",
 	      "` + tagHost2 + `":"` + tagHost3 + `",
 	      "` + tagService + `":"` + tagService1 + `"
 		}
@@ -127,7 +128,7 @@ func sendPointsParseExp(keyspace string) {
 		"value": 1.1,
 		"metric": "` + metric2 + `",
 		"tags": {
-		  "ksid": "` + keyspace + `",
+		  "ksid": "` + keySet + `",
 	      "` + tagHost2 + `":"` + tagHost1 + `",
 	      "` + tagService + `":"` + tagService2 + `"
 		},
@@ -137,7 +138,7 @@ func sendPointsParseExp(keyspace string) {
 		"value": 50.1,
 		"metric": "` + metric2 + `",
 		"tags": {
-		  "ksid": "` + keyspace + `",
+		  "ksid": "` + keySet + `",
 	      "` + tagHost2 + `":"` + tagHost2 + `",
 	      "` + tagService + `":"` + tagService2 + `"
 		}
@@ -146,7 +147,7 @@ func sendPointsParseExp(keyspace string) {
 		"value": 50.1,
 		"metric": "` + metric2 + `",
 		"tags": {
-		  "ksid": "` + keyspace + `",
+		  "ksid": "` + keySet + `",
 	      "` + tagHost2 + `":"` + tagHost3 + `",
 	      "` + tagService + `":"` + tagService2 + `"
 		}
@@ -154,7 +155,7 @@ func sendPointsParseExp(keyspace string) {
 	]`
 
 	code, _, _ := mycenaeTools.HTTP.POST("api/put", []byte(points))
-	if code != 204 {
+	if code != http.StatusOK {
 		log.Fatal("Error sending points!")
 	}
 }
@@ -1093,7 +1094,7 @@ func TestParseValidQuerySameTagkExpandTrue(t *testing.T) {
 	expression := url.QueryEscape(
 		`merge(sum, downsample(1m, min, none, query(testParseExpression2, {host2=*, host2=host3}, 5m)))`)
 
-	query := fmt.Sprintf("expand=true&exp=%s&keyspace=%s", expression, ksMycenae)
+	query := fmt.Sprintf("expand=true&exp=%s&ksid=%s", expression, ksMycenae)
 	status, response := parseExp(t, query)
 
 	assert.Equal(t, 200, status)
@@ -1140,7 +1141,7 @@ func TestParseValidQuerySameTagkExpandFalse(t *testing.T) {
 		GroupBy: false,
 	}
 
-	query := fmt.Sprintf("expand=false&exp=%s&keyspace=%s", expression, ksMycenae)
+	query := fmt.Sprintf("expand=false&exp=%s&ksid=%s", expression, ksMycenae)
 	status, response := parseExp(t, query)
 
 	assert.Equal(t, 200, status)
@@ -1353,7 +1354,7 @@ func TestParseValidQueryGroupbyExpandMatchNoTags(t *testing.T) {
 
 	filters := []string{tagHost1, tagHost2, tagHost3}
 
-	query := fmt.Sprintf("exp=%s&expand=true&keyspace=%s", expression, ksMycenae)
+	query := fmt.Sprintf("exp=%s&expand=true&ksid=%s", expression, ksMycenae)
 	status, response := parseExp(t, query)
 
 	assert.Equal(t, 200, status)
@@ -1414,7 +1415,7 @@ func TestParseValidQueryGroupbyExpandMatchWithTags(t *testing.T) {
 		},
 	}
 
-	query := fmt.Sprintf("exp=%s&expand=true&keyspace=%s", expression, ksMycenae)
+	query := fmt.Sprintf("exp=%s&expand=true&ksid=%s", expression, ksMycenae)
 	status, response := parseExp(t, query)
 
 	assert.Equal(t, 200, status)
@@ -1458,7 +1459,7 @@ func TestParseValidQueryGroupbyExpandDontMatch(t *testing.T) {
 	expression := url.QueryEscape(
 		`groupBy({host=*})|rate(true, null, 0, merge(sum, downsample(1m, min, none, query(testParseExpression, {app=nonexistent}, 5m))))`)
 
-	status, resp, _ := mycenaeTools.HTTP.GET(fmt.Sprintf("expression/parse?exp=%s&expand=true&keyspace=%s", expression, ksMycenae))
+	status, resp, _ := mycenaeTools.HTTP.GET(fmt.Sprintf("expression/parse?exp=%s&expand=true&ksid=%s", expression, ksMycenae))
 	assert.Equal(t, 204, status)
 	assert.Equal(t, []byte{}, resp)
 
@@ -1469,7 +1470,7 @@ func TestParseValidQueryGroupbyExpandFalse(t *testing.T) {
 	expression := url.QueryEscape(
 		`groupBy({host=*})|rate(true, null, 0, merge(sum, downsample(1m, min, none, query(testParseExpression, null, 5m))))`)
 
-	query := fmt.Sprintf("exp=%s&expand=false&keyspace=%s", expression, ksMycenae)
+	query := fmt.Sprintf("exp=%s&expand=false&ksid=%s", expression, ksMycenae)
 	status, response := parseExp(t, query)
 
 	assert.Equal(t, 200, status)
@@ -1500,7 +1501,7 @@ func TestParseValidQueryGroupbyWithoutExpand(t *testing.T) {
 	expression := url.QueryEscape(
 		`groupBy({host=*})|rate(true, null, 0, merge(sum, downsample(1m, min, none, query(testParseExpression, null, 5m))))`)
 
-	query := fmt.Sprintf("exp=%s&keyspace=%s", expression, ksMycenae)
+	query := fmt.Sprintf("exp=%s&ksid=%s", expression, ksMycenae)
 	status, response := parseExp(t, query)
 
 	assert.Equal(t, 200, status)
@@ -1550,7 +1551,7 @@ func TestParseValidQueryGroupbWithoutRate(t *testing.T) {
 		},
 	}
 
-	query := fmt.Sprintf("exp=%s&expand=true&keyspace=%s", expression, ksMycenae)
+	query := fmt.Sprintf("exp=%s&expand=true&ksid=%s", expression, ksMycenae)
 	status, response := parseExp(t, query)
 
 	assert.Equal(t, 200, status)
@@ -1614,7 +1615,7 @@ func TestParseValidQueryGroupbyTwoTags(t *testing.T) {
 		},
 	}
 
-	query := fmt.Sprintf("expand=true&exp=%s&keyspace=%s", expression, ksMycenae)
+	query := fmt.Sprintf("expand=true&exp=%s&ksid=%s", expression, ksMycenae)
 	status, response := parseExp(t, query)
 
 	assert.Equal(t, 200, status)
@@ -1652,7 +1653,7 @@ func TestParseValidQueryGroupBySameTagkExpandTrue(t *testing.T) {
 	expression := url.QueryEscape(
 		`groupBy({host2=*, host2=host3})|merge(sum, downsample(1m, min, none, query(testParseExpression2, null, 5m)))`)
 
-	query := fmt.Sprintf("expand=true&exp=%s&keyspace=%s", expression, ksMycenae)
+	query := fmt.Sprintf("expand=true&exp=%s&ksid=%s", expression, ksMycenae)
 	status, response := parseExp(t, query)
 
 	assert.Equal(t, 200, status)
@@ -1696,7 +1697,7 @@ func TestParseValidQueryGroupBySameTagkExpandFalse(t *testing.T) {
 		},
 	}
 
-	query := fmt.Sprintf("expand=false&exp=%s&keyspace=%s", expression, ksMycenae)
+	query := fmt.Sprintf("expand=false&exp=%s&ksid=%s", expression, ksMycenae)
 	status, response := parseExp(t, query)
 
 	assert.Equal(t, 200, status)
@@ -1724,7 +1725,7 @@ func TestParseValidQuerySameTagkOnGroupByAndTags(t *testing.T) {
 	expression := url.QueryEscape(
 		`groupBy({host2=*})|merge(sum, downsample(1m, min, none, query(testParseExpression2, {host2=host3}, 5m)))`)
 
-	query := fmt.Sprintf("expand=true&exp=%s&keyspace=%s", expression, ksMycenae)
+	query := fmt.Sprintf("expand=true&exp=%s&ksid=%s", expression, ksMycenae)
 	status, response := parseExp(t, query)
 
 	assert.Equal(t, 200, status)
@@ -2010,7 +2011,7 @@ func TestParseInvalidQuery(t *testing.T) {
 
 	for test, data := range cases {
 
-		path := fmt.Sprintf("expression/parse?exp=%s&keyspace=%s", url.QueryEscape(data.exp), ksMycenae)
+		path := fmt.Sprintf("expression/parse?exp=%s&ksid=%s", url.QueryEscape(data.exp), ksMycenae)
 		parseAssertInvalidExp(t, path, test, data.err, data.msg)
 	}
 
@@ -2018,7 +2019,7 @@ func TestParseInvalidQuery(t *testing.T) {
 
 func TestParseQueryExpressionNotSent(t *testing.T) {
 
-	path := fmt.Sprintf("expression/parse?keyspace=%s", ksMycenae)
+	path := fmt.Sprintf("expression/parse?ksid=%s", ksMycenae)
 	respErrMsg := "no expression found"
 
 	parseAssertInvalidExp(t, path, "", respErrMsg, respErrMsg)
@@ -2028,7 +2029,7 @@ func TestParseInvalidQueryGroupByKeyspaceNotSent(t *testing.T) {
 
 	exp := `groupBy({host=*})|rate(true, null, 0, merge(sum, downsample(1m, min, none, query(os.cpu, {app=test}, 5m))))`
 	path := fmt.Sprintf("expression/parse?exp=%v&expand=true", url.QueryEscape(exp))
-	respErrMsg := "When expand true, Keyspace can not be empty"
+	respErrMsg := "When expand true, ksid can not be empty"
 
 	parseAssertInvalidExp(t, path, "", respErrMsg, respErrMsg)
 }
@@ -2036,8 +2037,8 @@ func TestParseInvalidQueryGroupByKeyspaceNotSent(t *testing.T) {
 func TestParseInvalidQueryGroupByKeyspaceNotFound(t *testing.T) {
 
 	exp := `groupBy({host=*})|rate(true, null, 0, merge(sum, downsample(1m, min, none, query(os.cpu, {app=nonexistent}, 5m))))`
-	path := fmt.Sprintf("expression/parse?exp=%v&keyspace=aaa&expand=true", url.QueryEscape(exp))
-	respErrMsg := "keyspace not found"
+	path := fmt.Sprintf("expression/parse?exp=%v&ksid=fake&expand=true", url.QueryEscape(exp))
+	respErrMsg := "ksid not found"
 
 	parseAssertInvalidExp(t, path, "", respErrMsg, respErrMsg)
 }

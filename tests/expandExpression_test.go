@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"net/url"
 	"testing"
 
@@ -11,7 +12,7 @@ import (
 	"github.com/uol/mycenae/tests/tools"
 )
 
-func sendPointsExpandExp(keyspace string) {
+func sendPointsExpandExp(keySet string) {
 
 	fmt.Println("Setting up expandExpression_test.go tests...")
 
@@ -32,7 +33,7 @@ func sendPointsExpandExp(keyspace string) {
 		"value": 36.5,
 		"metric": "` + metric1 + `",
 		"tags": {
-		  "ksid": "` + keyspace + `",
+		  "ksid": "` + keySet + `",
 		  "` + tagHost + `":"` + tagHost1 + `"
 		}
 	  },
@@ -40,7 +41,7 @@ func sendPointsExpandExp(keyspace string) {
 		"value": 54.5,
 		"metric": "` + metric1 + `",
 		"tags": {
-		  "ksid": "` + keyspace + `",
+		  "ksid": "` + keySet + `",
 	      "` + tagHost + `":"` + tagHost2 + `"
 		},
 		"timestamp": 1444166564000
@@ -49,7 +50,7 @@ func sendPointsExpandExp(keyspace string) {
 		"value": 5.4,
 		"metric": "` + metric1 + `",
 		"tags": {
-		  "ksid": "` + keyspace + `",
+		  "ksid": "` + keySet + `",
 	      "` + tagHost + `":"` + tagHost3 + `"
 		},
 		"timestamp": 1444166564000
@@ -58,7 +59,7 @@ func sendPointsExpandExp(keyspace string) {
 		"value": 1.1,
 		"metric": "` + metric2 + `",
 		"tags": {
-		  "ksid": "` + keyspace + `",
+		  "ksid": "` + keySet + `",
 	      "` + tagHost2 + `":"` + tagHost1 + `",
 	      "` + tagApp + `":"` + tagApp1 + `"
 		},
@@ -68,7 +69,7 @@ func sendPointsExpandExp(keyspace string) {
 		"value": 50.1,
 		"metric": "` + metric2 + `",
 		"tags": {
-		  "ksid": "` + keyspace + `",
+		  "ksid": "` + keySet + `",
 	      "` + tagHost2 + `":"` + tagHost2 + `",
 	      "` + tagApp + `":"` + tagApp1 + `"
 		}
@@ -77,7 +78,7 @@ func sendPointsExpandExp(keyspace string) {
 		"value": 1.1,
 		"metric": "` + metric2 + `",
 		"tags": {
-		  "ksid": "` + keyspace + `",
+		  "ksid": "` + keySet + `",
 	      "` + tagHost2 + `":"` + tagHost3 + `",
 	      "` + tagApp + `":"` + tagApp1 + `"
 		},
@@ -87,7 +88,7 @@ func sendPointsExpandExp(keyspace string) {
 		"value": 50.1,
 		"metric": "` + metric2 + `",
 		"tags": {
-		  "ksid": "` + keyspace + `",
+		  "ksid": "` + keySet + `",
 	      "` + tagHost2 + `":"` + tagHost1 + `",
 	      "` + tagService + `":"` + tagService1 + `"
 		}
@@ -96,7 +97,7 @@ func sendPointsExpandExp(keyspace string) {
 		"value": 1.1,
 		"metric": "` + metric2 + `",
 		"tags": {
-		  "ksid": "` + keyspace + `",
+		  "ksid": "` + keySet + `",
 	      "` + tagHost2 + `":"` + tagHost2 + `",
 	      "` + tagService + `":"` + tagService1 + `"
 		},
@@ -106,7 +107,7 @@ func sendPointsExpandExp(keyspace string) {
 		"value": 50.1,
 		"metric": "` + metric2 + `",
 		"tags": {
-		  "ksid": "` + keyspace + `",
+		  "ksid": "` + keySet + `",
 	      "` + tagHost2 + `":"` + tagHost3 + `",
 	      "` + tagService + `":"` + tagService1 + `"
 		}
@@ -115,7 +116,7 @@ func sendPointsExpandExp(keyspace string) {
 		"value": 1.1,
 		"metric": "` + metric2 + `",
 		"tags": {
-		  "ksid": "` + keyspace + `",
+		  "ksid": "` + keySet + `",
 	      "` + tagHost2 + `":"` + tagHost1 + `",
 	      "` + tagService + `":"` + tagService2 + `"
 		},
@@ -125,7 +126,7 @@ func sendPointsExpandExp(keyspace string) {
 		"value": 50.1,
 		"metric": "` + metric2 + `",
 		"tags": {
-		  "ksid": "` + keyspace + `",
+		  "ksid": "` + keySet + `",
 	      "` + tagHost2 + `":"` + tagHost2 + `",
 	      "` + tagService + `":"` + tagService2 + `"
 		}
@@ -134,7 +135,7 @@ func sendPointsExpandExp(keyspace string) {
 		"value": 50.1,
 		"metric": "` + metric2 + `",
 		"tags": {
-		  "ksid": "` + keyspace + `",
+		  "ksid": "` + keySet + `",
 	      "` + tagHost2 + `":"` + tagHost3 + `",
 	      "` + tagService + `":"` + tagService2 + `"
 		}
@@ -142,7 +143,7 @@ func sendPointsExpandExp(keyspace string) {
 	]`
 
 	code, resp, _ := mycenaeTools.HTTP.POST("api/put", []byte(points))
-	if code != 204 {
+	if code != http.StatusOK {
 		log.Fatal("Error sending points! - expandExpression_test.go, Code: ", code, " ", string(resp))
 	}
 }
@@ -373,21 +374,23 @@ func TestExpandValidQuery(t *testing.T) {
 
 	for test, data := range cases {
 
-		statusCode, resp, err := mycenaeTools.HTTP.GET(fmt.Sprintf("keyspaces/%s/expression/expand?exp=%s", ksMycenae, url.QueryEscape(data.expr)))
-		if err != nil {
-			t.Error(test, err)
-			t.SkipNow()
-		}
-
-		response := []string{}
-
-		err = json.Unmarshal(resp, &response)
+		apiUrl := fmt.Sprintf("keysets/%s/expression/expand?exp=%s", ksMycenae, url.QueryEscape(data.expr))
+		statusCode, resp, err := mycenaeTools.HTTP.GET(apiUrl)
 		if err != nil {
 			t.Error(test, err)
 			t.SkipNow()
 		}
 
 		assert.Equal(t, 200, statusCode, test)
+
+		response := []string{}
+
+		err = json.Unmarshal(resp, &response)
+		if err != nil {
+			t.Error(test, err, "URL:", apiUrl)
+			t.SkipNow()
+		}
+
 		assert.Equal(t, len(data.response), len(response), test)
 
 		for i := 0; i < len(response); i++ {
@@ -637,7 +640,7 @@ func TestExpandValidQueryGroupbyExpandDontMatch(t *testing.T) {
 
 	query := `groupBy({host=*})|rate(true, null, 0, merge(sum, downsample(1m, min,none, query(testExpandExpression, {app=test2}, 5m))))`
 
-	statusCode, resp, _ := mycenaeTools.HTTP.GET(fmt.Sprintf(`keyspaces/%s/expression/expand?exp=%s`, ksMycenae, url.QueryEscape(query)))
+	statusCode, resp, _ := mycenaeTools.HTTP.GET(fmt.Sprintf(`keysets/%s/expression/expand?exp=%s`, ksMycenae, url.QueryEscape(query)))
 
 	assert.Equal(t, 204, statusCode)
 	assert.Equal(t, []byte{}, resp)
@@ -645,7 +648,7 @@ func TestExpandValidQueryGroupbyExpandDontMatch(t *testing.T) {
 
 func TestExpandQueryExpressionNotSent(t *testing.T) {
 
-	statusCode, resp, _ := mycenaeTools.HTTP.GET(fmt.Sprintf(`keyspaces/%s/expression/expand`, ksMycenae))
+	statusCode, resp, _ := mycenaeTools.HTTP.GET(fmt.Sprintf(`keysets/%s/expression/expand`, ksMycenae))
 
 	response := tools.Error{}
 
@@ -682,7 +685,7 @@ func TestExpandInvalidQueryGroupByKeyspaceNotSent(t *testing.T) {
 
 func expandAssertInvalidExp(t *testing.T, test, urlQuery, respErr, respMessage string) {
 
-	status, resp, err := mycenaeTools.HTTP.GET(fmt.Sprintf("keyspaces/%s/expression/expand?exp=%s", ksMycenae, urlQuery))
+	status, resp, err := mycenaeTools.HTTP.GET(fmt.Sprintf("keysets/%s/expression/expand?exp=%s", ksMycenae, urlQuery))
 	if err != nil {
 		t.Error(test, err)
 		t.SkipNow()

@@ -19,6 +19,7 @@ import (
 
 	"github.com/uol/mycenae/lib/cache"
 	"github.com/uol/mycenae/lib/collector"
+	"github.com/uol/mycenae/lib/keyset"
 	"github.com/uol/mycenae/lib/keyspace"
 	"github.com/uol/mycenae/lib/memcached"
 	"github.com/uol/mycenae/lib/metadata"
@@ -34,8 +35,10 @@ func main() {
 	fmt.Println("Starting Mycenae")
 	//Parse of command line arguments.
 	var confPath string
+	var devMode bool
 
 	flag.StringVar(&confPath, "config", "config.toml", "path to configuration file")
+	flag.BoolVar(&devMode, "devMode", false, "enable/disable dev mode (all ttls are configured to one day)")
 	flag.Parse()
 
 	//Load conf file.
@@ -54,6 +57,10 @@ func main() {
 		log.Fatalln("ERROR - Starting logger: ", err)
 	}
 
+	if devMode {
+		tsLogger.General.Info("DEV MODE IS ENABLED!")
+	}
+
 	go func() {
 		log.Println(http.ListenAndServe("0.0.0.0:6666", nil))
 	}()
@@ -68,7 +75,7 @@ func main() {
 		log.Fatalln("ERROR - Starting stats: ", err)
 	}
 
-	tssts, err := tsstats.New(tsLogger.General, sts, settings.Stats.Interval)
+	tssts, err := tsstats.New(tsLogger.General, sts, settings.Stats.Interval, settings.Stats.KSID, settings.Stats.Tags["ttl"])
 	if err != nil {
 		tsLogger.General.Error(err)
 		os.Exit(1)
@@ -98,6 +105,8 @@ func main() {
 		cass,
 		meta,
 		tssts,
+		devMode,
+		settings.DefaultTTL,
 	)
 	if err != nil {
 		tsLogger.General.Fatalf("Error creating persistence backend")
@@ -113,8 +122,25 @@ func main() {
 	ks := keyspace.New(
 		tssts,
 		storage,
-		settings.TTL.Max,
+		devMode,
+		settings.DefaultTTL,
+		settings.MaxAllowedTTL,
 	)
+
+	tsLogger.General.Info("Creating default keyspaces: ", settings.DefaultKeyspaces)
+	keyspaceTTLMap := map[uint8]string{}
+	for k, ttl := range settings.DefaultKeyspaces {
+		gerr := ks.Storage.CreateKeyspace(k,
+										  settings.DefaultKeyspaceData.Datacenter,
+										  settings.DefaultKeyspaceData.Contact,
+										  settings.DefaultKeyspaceData.ReplicationFactor,
+										  ttl)
+		keyspaceTTLMap[ttl] = k
+		if gerr != nil && gerr.StatusCode() != http.StatusConflict {
+			tsLogger.General.Error(gerr)
+			os.Exit(1)
+		}
+	}
 
 	mc, err := memcached.New(tssts, &settings.Memcached)
 	if err != nil {
@@ -123,8 +149,26 @@ func main() {
 	}
 
 	kc := cache.NewKeyspaceCache(mc, ks)
+	keySet := keyset.NewKeySet(es, tssts, mc)
 
-	coll, err := collector.New(tsLogger, tssts, cass, es, kc, settings)
+	tsLogger.General.Info("Creating default keysets:", settings.DefaultKeysets)
+	for _, v := range settings.DefaultKeysets {
+		exists, err := keySet.KeySetExists(v)
+		if err != nil {
+			tsLogger.General.Error("error checking keyset ", v, " existence: ", err)
+			os.Exit(1)
+		}
+		if !exists {
+			tsLogger.General.Info("Creating default keyset:", v)
+			err = keySet.CreateIndex(v)
+			if err != nil {
+				tsLogger.General.Error("error creating keyset:", v)
+				os.Exit(1)
+			}
+		}
+	}
+
+	coll, err := collector.New(tsLogger, tssts, cass, es, kc, settings, keyspaceTTLMap, keySet)
 	if err != nil {
 		log.Println(err)
 		return
@@ -148,6 +192,9 @@ func main() {
 		settings.MaxConcurrentTimeseries,
 		settings.MaxConcurrentReads,
 		settings.LogQueryTSthreshold,
+		keyspaceTTLMap,
+		keySet,
+		settings.DefaultTTL,
 	)
 	if err != nil {
 		tsLogger.General.Error(err)
@@ -163,6 +210,7 @@ func main() {
 		coll,
 		settings.HTTPserver,
 		settings.Probe.Threshold,
+		keySet,
 	)
 	tsRest.Start()
 

@@ -6,6 +6,7 @@ import (
 
 	"github.com/uol/gobol"
 	"github.com/uol/mycenae/lib/utils"
+	"strconv"
 )
 
 func (collector *Collector) makePacket(packet *Point, rcvMsg TSDBpoint, number bool) gobol.Error {
@@ -39,27 +40,47 @@ func (collector *Collector) makePacket(packet *Point, rcvMsg TSDBpoint, number b
 		)
 	}
 
-	if ksid, ok := rcvMsg.Tags["ksid"]; !ok {
+	if keyset, ok := rcvMsg.Tags["ksid"]; !ok {
 		return errValidation(`Wrong Format: Tag "ksid" is required. NO information will be saved`)
-	} else if ksid == collector.settings.Cassandra.Keyspace {
+	} else {
+		packet.Keyset = keyset
+	}
+
+	if !collector.keySet.IsKeySetNameValid(packet.Keyset) {
 		return errValidation(
 			fmt.Sprintf(
-				`Wrong Format: Keyspace "%s" can not be used. NO information will be saved`,
-				collector.settings.Cassandra.Keyspace,
+				`Wrong Format: Field "ksid" (%s) is not well formed. NO information will be saved`,
+				packet.Keyset,
 			),
 		)
-	} else {
-		packet.KsID = ksid
 	}
 
-	if lt == 1 {
-		return errValidation(`Wrong Format: At least one tag other than "ksid" is required. NO information will be saved`)
+	keySetExists, gerr := collector.keySet.KeySetExists(packet.Keyset)
+	if gerr != nil {
+		return errISE("makePacket", "error checking keyspace existence", gerr)
 	}
+	if !keySetExists {
+		return errValidation(`"ksid" not exists. NO information will be saved`)
+	}
+
+	if strTTL, ok := rcvMsg.Tags["ttl"]; !ok {
+		packet.TTL = collector.settings.DefaultTTL
+		lt++
+	} else {
+		ttl64, err := strconv.ParseUint(strTTL, 10, 8)
+		if err != nil {
+			return errValidation(`Wrong Format: Tag "ttl" must be a positive number. NO information will be saved`)
+		}
+		ttl := uint8(ttl64)
+		if _, ok := collector.keyspaceTTLMap[ttl]; !ok {
+			ttl = collector.settings.DefaultTTL
+		}
+		packet.TTL = ttl
+	}
+	rcvMsg.Tags["ttl"] = strconv.Itoa(int(packet.TTL))
 
 	if lt == 2 {
-		if _, ok := rcvMsg.Tags["ttl"]; ok {
-			return errValidation(`Wrong Format: At least one tag other than "ksid" and "ttl" is required. NO information will be saved`)
-		}
+		return errValidation(`Wrong Format: At least one tag other than "ksid" and "ttl" is required. NO information will be saved`)
 	}
 
 	for k, v := range rcvMsg.Tags {
@@ -92,7 +113,6 @@ func (collector *Collector) makePacket(packet *Point, rcvMsg TSDBpoint, number b
 	}
 
 	packet.Number = number
-
 	packet.Message = rcvMsg
 	packet.ID = GenerateID(rcvMsg)
 	if !number {

@@ -21,37 +21,6 @@ func NewKeyspaceCache(mc *memcached.Memcached, ks *keyspace.Keyspace) *KeyspaceC
 	}
 }
 
-func (kc *KeyspaceCache) GetKeyspace(key string) (string, bool, gobol.Error) {
-
-	v, gerr := kc.memcached.Get("keyspace", key)
-	if gerr != nil {
-		return "", false, gerr
-	}
-
-	if v != nil {
-		return string(v), true, nil
-	}
-
-	_, found, gerr := kc.keyspace.GetKeyspace(key)
-	if gerr != nil {
-		if gerr.StatusCode() == http.StatusNotFound {
-			return "", false, nil
-		}
-		return "", false, gerr
-	}
-
-	if !found {
-		return "", false, nil
-	}
-
-	gerr = kc.memcached.Put("keyspace", key, []byte("false"))
-	if gerr != nil {
-		return "", false, gerr
-	}
-
-	return "false", true, nil
-}
-
 func (kc *KeyspaceCache) GetTsNumber(key string, CheckTSID func(esType, id string) (bool, gobol.Error)) (bool, gobol.Error) {
 	return kc.getTSID("meta", "number", key, CheckTSID)
 }

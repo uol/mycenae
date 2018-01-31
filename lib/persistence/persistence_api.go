@@ -24,13 +24,13 @@ func (storage *Storage) DatacenterExists(dc string) (bool, gobol.Error) {
 // with the actual keyspace creation
 func (storage *Storage) CreateKeyspace(
 	name, datacenter, contact string,
-	replication, ttl int,
-) (string, gobol.Error) {
+	replication int, ttl uint8,
+) (gobol.Error) {
 	ksid := GenerateKeyspaceIdentifier()
 	if exists, err := storage.DatacenterExists(datacenter); err != nil {
-		return "", err
+		return err
 	} else if !exists {
-		return "", errNoDatacenter("CreateKeyspace", "Storage",
+		return errNoDatacenter("CreateKeyspace", "Storage",
 			fmt.Sprintf(
 				"Cannot create because datacenter \"%s\" not exists",
 				datacenter,
@@ -38,14 +38,14 @@ func (storage *Storage) CreateKeyspace(
 		)
 	}
 	if err := storage.metadata.CreateIndex(ksid); err != nil {
-		return "", err
+		return err
 	}
 	if err := storage.Backend.CreateKeyspace(
-		ksid, name, datacenter, contact, replication, ttl,
+		name, datacenter, contact, replication, ttl,
 	); err != nil {
-		return "", err
+		return err
 	}
-	return ksid, nil
+	return nil
 }
 
 // DeleteKeyspace is a wrapper around keyspace deletion to ensure the metadata

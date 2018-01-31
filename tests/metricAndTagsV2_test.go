@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"testing"
 	"time"
 
@@ -22,14 +23,14 @@ func postPoints(payload interface{}, text bool, t *testing.T) {
 		statusCode = mycenaeTools.HTTP.POSTjson("api/put", payload, x)
 	}
 
-	assert.Equal(t, 204, statusCode)
+	assert.Equal(t, http.StatusOK, statusCode)
 	time.Sleep(tools.Sleep3)
 }
 
 func getResponse(path string, total, length int, t *testing.T) tools.ResponseMetricTags {
 
 	resp := tools.ResponseMetricTags{}
-	statusCode := mycenaeTools.HTTP.GETjson(fmt.Sprintf("keyspaces/%v/%v", ksMycenae, path), &resp)
+	statusCode := mycenaeTools.HTTP.GETjson(fmt.Sprintf("keysets/%v/%v", ksMycenae, path), &resp)
 
 	assert.Equal(t, 200, statusCode)
 	assert.Equal(t, total, resp.TotalRecords)
@@ -94,7 +95,7 @@ func TestListMetricV2Empty(t *testing.T) {
 
 	postPoints(payload, false, t)
 
-	statusCode, _, _ := mycenaeTools.HTTP.GET(fmt.Sprintf("keyspaces/%v/metrics?metric=x", ksMycenae))
+	statusCode, _, _ := mycenaeTools.HTTP.GET(fmt.Sprintf("keysets/%v/metrics?metric=x", ksMycenae))
 	assert.Equal(t, 204, statusCode)
 }
 
@@ -184,7 +185,7 @@ func TestListMetricV2TextEmpty(t *testing.T) {
 
 	postPoints(payload, true, t)
 
-	statusCode, _, _ := mycenaeTools.HTTP.GET(fmt.Sprintf("keyspaces/%v/text/metrics?metric=x", ksMycenae))
+	statusCode, _, _ := mycenaeTools.HTTP.GET(fmt.Sprintf("keysets/%v/text/metrics?metric=x", ksMycenae))
 	assert.Equal(t, 204, statusCode)
 }
 
@@ -291,7 +292,7 @@ func TestListTagV2Empty(t *testing.T) {
 
 	postPoints(payload, false, t)
 
-	statusCode, _, _ := mycenaeTools.HTTP.GET(fmt.Sprintf("keyspaces/%v/tags?tag=x", ksMycenae))
+	statusCode, _, _ := mycenaeTools.HTTP.GET(fmt.Sprintf("keysets/%v/tags?tag=x", ksMycenae))
 	assert.Equal(t, 204, statusCode)
 }
 
@@ -385,7 +386,7 @@ func TestListTagV2TextEmpty(t *testing.T) {
 
 	postPoints(payload, true, t)
 
-	statusCode, _, _ := mycenaeTools.HTTP.GET(fmt.Sprintf("keyspaces/%v/text/tags?tag=x", ksMycenae))
+	statusCode, _, _ := mycenaeTools.HTTP.GET(fmt.Sprintf("keysets/%v/text/tags?tag=x", ksMycenae))
 	assert.Equal(t, 204, statusCode)
 }
 

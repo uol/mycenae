@@ -4,11 +4,11 @@ import (
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
-	"github.com/uol/gobol"
 	"github.com/uol/gobol/rip"
+	"github.com/uol/gobol"
 )
 
-func (collect *Collector) Scollector(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+func (collect *Collector) handle(w http.ResponseWriter, r *http.Request, number bool) {
 
 	points := TSDBpoints{}
 
@@ -18,123 +18,37 @@ func (collect *Collector) Scollector(w http.ResponseWriter, r *http.Request, ps 
 		return
 	}
 
-	returnPoints := RestErrors{}
-
-	restChan := make(chan RestError, len(points))
+	hasError := false
 
 	for _, point := range points {
-		collect.concPoints <- struct{}{}
-		go collect.handleRESTpacket(point, true, restChan)
+		gerr = collect.handleRESTpacket(point, number)
 
-	}
-
-	for range points {
-		re := <-restChan
-		if re.Gerr != nil {
-
-			gblog.WithFields(re.Gerr.LogFields()).Error(re.Gerr.Error())
-
-			ks := "default"
-			if v, ok := re.Datapoint.Tags["ksid"]; ok {
-				ks = v
-			}
-
-			statsPointsError(ks, "number")
-
-			reu := RestErrorUser{
-				Datapoint: re.Datapoint,
-				Error:     re.Gerr.Message(),
-			}
-
-			returnPoints.Errors = append(returnPoints.Errors, reu)
-
-		} else {
-			statsPoints(re.Datapoint.Tags["ksid"], "number")
+		if gerr != nil {
+			rip.Fail(w, gerr)
+			hasError = true
+			break
 		}
 	}
 
-	if len(returnPoints.Errors) > 0 {
-
-		returnPoints.Failed = len(returnPoints.Errors)
-		returnPoints.Success = len(points) - len(returnPoints.Errors)
-
-		rip.SuccessJSON(w, http.StatusBadRequest, returnPoints)
-		return
+	if !hasError {
+		rip.Success(w, http.StatusOK, nil)
 	}
 
-	rip.Success(w, http.StatusNoContent, nil)
 	return
 }
 
-func (collect *Collector) Text(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
-	points := TSDBpoints{}
+func (collect *Collector) Scollector(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
-	gerr := rip.FromJSON(r, &points)
-	if gerr != nil {
-		rip.Fail(w, gerr)
-		return
-	}
-
-	returnPoints := RestErrors{}
-
-	restChan := make(chan RestError, len(points))
-
-	for _, point := range points {
-		collect.concPoints <- struct{}{}
-		go collect.handleRESTpacket(point, false, restChan)
-	}
-
-	var reqKS string
-	var numKS int
-
-	for range points {
-		re := <-restChan
-		if re.Gerr != nil {
-
-			ks := "default"
-			if v, ok := re.Datapoint.Tags["ksid"]; ok {
-				ks = v
-			}
-			if ks != reqKS {
-				reqKS = ks
-				numKS++
-			}
-
-			statsPointsError(ks, "text")
-
-			reu := RestErrorUser{
-				Datapoint: re.Datapoint,
-				Error:     re.Gerr.Message(),
-			}
-
-			returnPoints.Errors = append(returnPoints.Errors, reu)
-		} else {
-			pks := re.Datapoint.Tags["ksid"]
-			if pks != reqKS {
-				reqKS = pks
-				numKS++
-			}
-			statsPoints(re.Datapoint.Tags["ksid"], "text")
-		}
-	}
-
-	if len(returnPoints.Errors) > 0 {
-
-		returnPoints.Failed = len(returnPoints.Errors)
-		returnPoints.Success = len(points) - len(returnPoints.Errors)
-
-		rip.SuccessJSON(w, http.StatusBadRequest, returnPoints)
-		return
-	}
-
-	rip.Success(w, http.StatusNoContent, nil)
-	return
+	collect.handle(w, r, true)
 }
 
-func (collect *Collector) handleRESTpacket(rcvMsg TSDBpoint, number bool, restChan chan RestError) {
-	recvPoint := rcvMsg
-	var gerr gobol.Error
+func (collect *Collector) Text(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+
+	collect.handle(w, r, false)
+}
+
+func (collect *Collector) handleRESTpacket(rcvMsg TSDBpoint, number bool) gobol.Error {
 
 	if number {
 		rcvMsg.Text = ""
@@ -142,12 +56,15 @@ func (collect *Collector) handleRESTpacket(rcvMsg TSDBpoint, number bool, restCh
 		rcvMsg.Value = nil
 	}
 
-	gerr = collect.HandlePacket(rcvMsg, number)
+	p := &Point{}
 
-	restChan <- RestError{
-		Datapoint: recvPoint,
-		Gerr:      gerr,
+	err := collect.makePacket(p, rcvMsg, number)
+
+	if err != nil {
+		return err
 	}
 
-	<-collect.concPoints
+	collect.HandlePacket(rcvMsg, p, number, "rest", nil)
+
+	return nil
 }

@@ -8,19 +8,19 @@ import (
 )
 
 func Aggregators(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	if keyspace := ps.ByName("keyspace"); keyspace == "" {
-		rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace/api/aggregators", "keyspace": "empty"})
+	if keyset := ps.ByName("keyset"); keyset == "" {
+		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/aggregators", "keyset": "empty"})
 	} else {
-		rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace/api/aggregators", "keyspace": keyspace})
+		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/aggregators", "keyset": keyset})
 	}
 	rip.SuccessJSON(w, http.StatusOK, GetAggregators())
 }
 
 func Filters(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	if keyspace := ps.ByName("keyspace"); keyspace == "" {
-		rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace/api/config/filters", "keyspace": "empty"})
+	if keyset := ps.ByName("keyset"); keyset == "" {
+		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/config/filters", "keyset": "empty"})
 	} else {
-		rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace/api/config/filters", "keyspace": keyspace})
+		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/config/filters", "keyset": keyset})
 	}
 	rip.SuccessJSON(w, http.StatusOK, GetFiltersFull())
 }

@@ -1,8 +1,6 @@
 package keyspace
 
 import (
-	"fmt"
-
 	"github.com/asaskevich/govalidator"
 	"github.com/uol/gobol"
 )
@@ -14,47 +12,31 @@ type Config struct {
 	Datacenter        string `json:"datacenter"`
 	ReplicationFactor int    `json:"replicationFactor"`
 	Contact           string `json:"contact"`
-	TTL               int    `json:"ttl"`
-	//TUUID             bool   `json:"tuuid"`
-
-	// Validation
-	maxTTL int
+	TTL               int  	 `json:"ttl"`
 }
 
 // Validate checks if config is valid
 func (c *Config) Validate() gobol.Error {
 
 	if c.Datacenter == "" {
-		return errValidationS("CreateKeyspace", "Datacenter can not be empty or nil")
+		return errValidationS("CreateKeyspace", "Datacenter cannot be empty or nil")
 	}
 
 	if c.ReplicationFactor <= 0 || c.ReplicationFactor > 3 {
 		return errValidationS(
 			"CreateKeyspace",
-			"Replication factor can not be less than or equal to 0 or greater than 3",
+			"Replication factor cannot be less than or equal to 0 or greater than 3",
 		)
 	}
 
 	if !govalidator.IsEmail(c.Contact) {
-		return errValidationS(
-			"CreateKeyspace",
-			"Contact field should be a valid email address",
-		)
+		return errValidationS("CreateKeyspace", "Contact field should be a valid email address")
 	}
 
 	if c.TTL <= 0 {
-		return errValidationS(
-			"CreateKeyspace",
-			`TTL can not be less or equal to zero`,
-		)
+		return errValidationS("CreateKeyspace", "TTL cannot be less or equal to zero")
 	}
 
-	if c.TTL > c.maxTTL {
-		return errValidationS(
-			"CreateKeyspace",
-			fmt.Sprintf(`Max TTL allowed is %v`, c.maxTTL),
-		)
-	}
 	return nil
 }
 
@@ -65,20 +47,12 @@ func (c *ConfigUpdate) Validate() gobol.Error {
 		return errValidationS("CreateKeyspace", "Contact field should be a valid email address")
 	}
 
-	if !validKey.MatchString(c.Name) {
-		return errValidationS(
-			"CreateKeyspace",
-			`Wrong Format: Field "keyspaceName" is not well formed. NO information will be saved`,
-		)
-	}
-
 	return nil
 }
 
 // ConfigUpdate is the json format for a keyspace update request
 type ConfigUpdate struct {
-	Name    string `json:"name"`
-	Contact string `json:"contact"`
+	Contact string `json:"contact,omitempty"`
 }
 
 // CreateResponse is the json format for a keyspace creation endpoint response

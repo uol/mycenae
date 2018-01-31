@@ -362,7 +362,7 @@ func TestCheckExpressionInvalidQuery(t *testing.T) {
 
 func TestCheckExpressionQueryExpressionNotSent(t *testing.T) {
 
-	statusCode, resp, _ := mycenaeTools.HTTP.GET(fmt.Sprintf(`keyspaces/%v/expression/expand`, ksMycenae))
+	statusCode, resp, _ := mycenaeTools.HTTP.GET(fmt.Sprintf(`keysets/%v/expression/expand`, ksMycenae))
 	assert.Equal(t, 400, statusCode)
 
 	compare := tools.Error{}
@@ -382,7 +382,7 @@ func TestCheckExpressionInvalidQueryGroupByKeyspaceNotFound(t *testing.T) {
 	expression := url.QueryEscape(
 		`groupBy({host=*})|rate(true, null, 0, merge(sum, downsample(1m, min, none,query(os.cpu, {app=test}, 5m))))`)
 
-	statusCode, resp, _ := mycenaeTools.HTTP.GET(fmt.Sprintf(`keyspaces/aaa/expression/expand?exp=%v`, expression))
+	statusCode, resp, _ := mycenaeTools.HTTP.GET(fmt.Sprintf(`keysets/fake/expression/expand?exp=%v`, expression))
 	assert.Equal(t, 404, statusCode)
 	assert.Equal(t, 0, len(resp))
 }
@@ -392,7 +392,7 @@ func TestCheckExpressionInvalidQueryGroupByKeyspaceNotSent(t *testing.T) {
 	expression := url.QueryEscape(
 		`groupBy({host=*})|rate(true, null, 0, merge(sum, downsample(1m, min,none, query(os.cpu, {app=test}, 5m))))`)
 
-	statusCode, _, _ := mycenaeTools.HTTP.GET(fmt.Sprintf(`keyspaces/expression/expand?exp=%v`, expression))
+	statusCode, _, _ := mycenaeTools.HTTP.GET(fmt.Sprintf(`keysets/expression/expand?exp=%v`, expression))
 	assert.Equal(t, 404, statusCode)
 
 }

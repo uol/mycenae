@@ -15,8 +15,8 @@ import (
 type Backend interface {
 	// CreateKeyspace should create a keyspace to store data
 	CreateKeyspace(
-		ksid, name, datacenter, contact string,
-		replication, ttl int,
+		name, datacenter, contact string,
+		replication int, ttl uint8,
 	) gobol.Error
 	// DeleteKeyspace should delete a keyspace from the database
 	DeleteKeyspace(id string) gobol.Error
@@ -26,7 +26,7 @@ type Backend interface {
 	GetKeyspace(id string) (Keyspace, bool, gobol.Error)
 	// UpdateKeyspace should update metadata and contact information about the
 	// keyspace
-	UpdateKeyspace(ksid, name, contact string) gobol.Error
+	UpdateKeyspace(ksid, contact string) gobol.Error
 
 	// ListDatacenters should list all available datacenters
 	ListDatacenters() ([]string, gobol.Error)
@@ -49,9 +49,11 @@ func NewStorage(
 	session *gocql.Session,
 	metadata *metadata.Storage,
 	stats *tsstats.StatsTS,
+	devMode bool,
+	defaultTTL uint8,
 ) (*Storage, error) {
 	backend, err := newScyllaPersistence(
-		ksAdmin, grantUser, session, logger, stats,
+		ksAdmin, grantUser, session, logger, stats, devMode, defaultTTL,
 	)
 	if err != nil {
 		return nil, err

@@ -4,7 +4,7 @@ import (
 	"github.com/uol/gobol"
 )
 
-func (plot Plot) ListTags(keyspace, esType, tagKey string, size, from int64) ([]string, int, gobol.Error) {
+func (plot Plot) ListTags(keyset, esType, tagKey string, size, from int64) ([]string, int, gobol.Error) {
 
 	var esQuery QueryWrapper
 
@@ -31,7 +31,7 @@ func (plot Plot) ListTags(keyspace, esType, tagKey string, size, from int64) ([]
 
 	var esResp EsResponseTag
 
-	gerr := plot.persist.ListESTags(keyspace, esType, esQuery, &esResp)
+	gerr := plot.persist.ListESTags(keyset, esType, esQuery, &esResp)
 
 	total := esResp.Hits.Total
 
@@ -48,9 +48,17 @@ func (plot Plot) ListTags(keyspace, esType, tagKey string, size, from int64) ([]
 	return tags, total, gerr
 }
 
-func (plot Plot) ListMetrics(keyspace, esType, metricName string, size, from int64) ([]string, int, gobol.Error) {
+func (plot Plot) ListMetrics(keyset, esType, metricName string, size, from int64) ([]string, int, gobol.Error) {
 
 	var esQuery QueryWrapper
+
+	found, gerr := plot.keySet.KeySetExists(keyset)
+	if gerr != nil {
+		return nil, 0, gerr
+	}
+	if !found {
+		return nil, 0, errNotFound("ListMetrics")
+	}
 
 	if metricName != "" {
 
@@ -75,7 +83,7 @@ func (plot Plot) ListMetrics(keyspace, esType, metricName string, size, from int
 
 	var esResp EsResponseMetric
 
-	gerr := plot.persist.ListESMetrics(keyspace, esType, esQuery, &esResp)
+	gerr = plot.persist.ListESMetrics(keyset, esType, esQuery, &esResp)
 
 	total := esResp.Hits.Total
 
@@ -92,7 +100,7 @@ func (plot Plot) ListMetrics(keyspace, esType, metricName string, size, from int
 	return metrics, total, gerr
 }
 
-func (plot Plot) ListTagKey(keyspace, tagKname string, size, from int64) ([]string, int, gobol.Error) {
+func (plot Plot) ListTagKey(keyset, tagKname string, size, from int64) ([]string, int, gobol.Error) {
 
 	esType := "tagk"
 
@@ -121,7 +129,7 @@ func (plot Plot) ListTagKey(keyspace, tagKname string, size, from int64) ([]stri
 
 	var esResp EsResponseTagKey
 
-	gerr := plot.persist.ListESTagKey(keyspace, esType, esQuery, &esResp)
+	gerr := plot.persist.ListESTagKey(keyset, esType, esQuery, &esResp)
 
 	total := esResp.Hits.Total
 
@@ -138,7 +146,7 @@ func (plot Plot) ListTagKey(keyspace, tagKname string, size, from int64) ([]stri
 	return tagKs, total, gerr
 }
 
-func (plot Plot) ListTagValue(keyspace, tagVname string, size, from int64) ([]string, int, gobol.Error) {
+func (plot Plot) ListTagValue(keyset, tagVname string, size, from int64) ([]string, int, gobol.Error) {
 
 	esType := "tagv"
 
@@ -167,7 +175,7 @@ func (plot Plot) ListTagValue(keyspace, tagVname string, size, from int64) ([]st
 
 	var esResp EsResponseTagValue
 
-	gerr := plot.persist.ListESTagValue(keyspace, esType, esQuery, &esResp)
+	gerr := plot.persist.ListESTagValue(keyset, esType, esQuery, &esResp)
 
 	total := esResp.Hits.Total
 
@@ -185,7 +193,7 @@ func (plot Plot) ListTagValue(keyspace, tagVname string, size, from int64) ([]st
 }
 
 func (plot Plot) ListMeta(
-	keyspace,
+	keySet,
 	esType,
 	metric string,
 	tags map[string]string,
@@ -255,7 +263,7 @@ func (plot Plot) ListMeta(
 
 	var esResp EsResponseMeta
 
-	gerr := plot.persist.ListESMeta(keyspace, esType, esQuery, &esResp)
+	gerr := plot.persist.ListESMeta(keySet, esType, esQuery, &esResp)
 
 	total := esResp.Hits.Total
 

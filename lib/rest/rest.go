@@ -14,6 +14,7 @@ import (
 
 	"github.com/uol/mycenae/lib/collector"
 	"github.com/uol/mycenae/lib/config"
+	"github.com/uol/mycenae/lib/keyset"
 	"github.com/uol/mycenae/lib/keyspace"
 	"github.com/uol/mycenae/lib/memcached"
 	"github.com/uol/mycenae/lib/plot"
@@ -29,6 +30,7 @@ func New(
 	collector *collector.Collector,
 	set structs.SettingsHTTP,
 	probeThreshold float64,
+	ks *keyset.KeySet,
 ) *REST {
 
 	return &REST{
@@ -43,6 +45,7 @@ func New(
 		memcached: mc,
 		writer:    collector,
 		settings:  set,
+		keyset:    ks,
 	}
 }
 
@@ -59,6 +62,7 @@ type REST struct {
 	writer    *collector.Collector
 	settings  structs.SettingsHTTP
 	server    *http.Server
+	keyset    *keyset.KeySet
 }
 
 func (trest *REST) Start() {
@@ -87,23 +91,23 @@ func (trest *REST) asyncStart() {
 	//PROBE
 	router.GET(path+"probe", trest.check)
 	//READ
-	router.POST(path+"keyspaces/:keyspace/points", trest.reader.ListPoints)
+	router.POST(path+"keysets/:keyset/points", trest.reader.ListPoints)
 	//EXPRESSION
 	router.GET(path+"expression/check", trest.reader.ExpressionCheckGET)
 	router.POST(path+"expression/check", trest.reader.ExpressionCheckPOST)
 	router.POST(path+"expression/compile", trest.reader.ExpressionCompile)
 	router.GET(path+"expression/parse", trest.reader.ExpressionParseGET)
 	router.POST(path+"expression/parse", trest.reader.ExpressionParsePOST)
-	router.GET(path+"keyspaces/:keyspace/expression/expand", trest.reader.ExpressionExpandGET)
-	router.POST(path+"keyspaces/:keyspace/expression/expand", trest.reader.ExpressionExpandPOST)
+	router.GET(path+"keysets/:keyset/expression/expand", trest.reader.ExpressionExpandGET)
+	router.POST(path+"keysets/:keyset/expression/expand", trest.reader.ExpressionExpandPOST)
 	//NUMBER
-	router.GET(path+"keyspaces/:keyspace/tags", trest.reader.ListTagsNumber)
-	router.GET(path+"keyspaces/:keyspace/metrics", trest.reader.ListMetricsNumber)
-	router.POST(path+"keyspaces/:keyspace/meta", trest.reader.ListMetaNumber)
+	router.GET(path+"keysets/:keyset/tags", trest.reader.ListTagsNumber)
+	router.GET(path+"keysets/:keyset/metrics", trest.reader.ListMetricsNumber)
+	router.POST(path+"keysets/:keyset/meta", trest.reader.ListMetaNumber)
 	//TEXT
-	router.GET(path+"keyspaces/:keyspace/text/tags", trest.reader.ListTagsText)
-	router.GET(path+"keyspaces/:keyspace/text/metrics", trest.reader.ListMetricsText)
-	router.POST(path+"keyspaces/:keyspace/text/meta", trest.reader.ListMetaText)
+	router.GET(path+"keysets/:keyset/text/tags", trest.reader.ListTagsText)
+	router.GET(path+"keysets/:keyset/text/metrics", trest.reader.ListMetricsText)
+	router.POST(path+"keysets/:keyset/text/meta", trest.reader.ListMetaText)
 	//KEYSPACE
 	router.GET(path+"datacenters", trest.kspace.ListDC)
 	router.HEAD(path+"keyspaces/:keyspace", trest.kspace.Check)
@@ -116,14 +120,17 @@ func (trest *REST) asyncStart() {
 	router.POST(path+"v2/points", trest.writer.Scollector)
 	router.POST(path+"v2/text", trest.writer.Text)
 	//OPENTSDB
-	router.POST("/keyspaces/:keyspace/api/query", trest.reader.Query)
-	router.GET("/keyspaces/:keyspace/api/suggest", trest.reader.Suggest)
-	router.GET("/keyspaces/:keyspace/api/search/lookup", trest.reader.Lookup)
-	router.GET("/keyspaces/:keyspace/api/aggregators", config.Aggregators)
-	router.GET("/keyspaces/:keyspace/api/config/filters", config.Filters)
+	router.POST("/keysets/:keyset/api/query", trest.reader.Query)
+	router.GET("/keysets/:keyset/api/suggest", trest.reader.Suggest)
+	router.GET("/keysets/:keyset/api/search/lookup", trest.reader.Lookup)
+	router.GET("/keysets/:keyset/api/aggregators", config.Aggregators)
+	router.GET("/keysets/:keyset/api/config/filters", config.Filters)
 	//HYBRIDS
-	router.POST("/keyspaces/:keyspace/query/expression", trest.reader.ExpressionQueryPOST)
-	router.GET("/keyspaces/:keyspace/query/expression", trest.reader.ExpressionQueryGET)
+	router.POST("/keysets/:keyset/query/expression", trest.reader.ExpressionQueryPOST)
+	router.GET("/keysets/:keyset/query/expression", trest.reader.ExpressionQueryGET)
+	//KEYSETS
+	router.POST("/keyset/:keyset", trest.keyset.CreateKeySet)
+	router.GET("/keysets", trest.keyset.GetKeySets)
 
 	trest.server = &http.Server{
 		Addr: fmt.Sprintf("%s:%s", trest.settings.Bind, trest.settings.Port),

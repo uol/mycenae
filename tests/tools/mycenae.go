@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/uol/mycenae/lib/structs"
+	"net/http"
 )
 
 type mycenaeTool struct {
@@ -15,22 +16,19 @@ type mycenaeTool struct {
 }
 
 type Keyspace struct {
-	ID                string `json:"key,omitempty"`
 	Name              string `json:"name,omitempty"`
 	Datacenter        string `json:"datacenter,omitempty"`
 	ReplicationFactor int    `json:"replicationFactor,omitempty"`
 	Contact           string `json:"contact,omitempty"`
-	TTL               int    `json:"ttl,omitempty"`
-	TUUID             bool   `json:"tuuid,omitempty"`
+	TTL               int 	 `json:"ttl,omitempty`
+}
+
+type KeyspaceUpdate struct {
+	Contact string `json:"contact"`
 }
 
 type KeyspaceResp struct {
 	KSID string `json:"ksid"`
-}
-
-type KeyspaceEdit struct {
-	Name    string
-	Contact string
 }
 
 type MycenaePoints struct {
@@ -80,11 +78,12 @@ type MsgV2 struct {
 	Timestamp int64             `json:"timestamp,omitempty"`
 }
 
-type RestErrors struct {
+//currently, there is no uses for this class in the current scylla code
+/*type RestErrors struct {
 	Errors  []RestError `json:"errors"`
 	Failed  int         `json:"failed"`
 	Success int         `json:"success"`
-}
+}*/
 
 type RestError struct {
 	Datapoint *MsgV2 `json:"datapoint"`
@@ -182,6 +181,23 @@ type TSDBfilter struct {
 	GroupBy bool   `json:"groupBy"`
 }
 
+type LookupResult struct {
+	TSUID  string            `json:"tsuid"`
+	Metric string            `json:"metric"`
+	Tags   map[string]string `json:"tags"`
+}
+
+type LookupResultObject struct {
+	Type         string         `json:"type"`
+	Metric       string         `json:"metric"`
+	Tags         []string       `json:"tags,omitempty"`
+	Limit        int            `json:"limit"`
+	Time         int            `json:"time"`
+	Results      []LookupResult `json:"results"`
+	StartIndex   int            `json:"startIndex"`
+	TotalResults int            `json:"totalResults"`
+}
+
 const MetricForm string = "testMetric-"
 const TagKeyForm string = "testTagKey-"
 const TagValueForm string = "testTagValue-"
@@ -197,33 +213,50 @@ func (m *mycenaeTool) Init(set MycenaeSettings) {
 	return
 }
 
-func (m *mycenaeTool) CreateKeyspace(dc, name, contact string, ttl, repFactor int) string {
+func (m *mycenaeTool) CreateKeyspace(dc, name, contact string, repFactor int) string {
 
 	req := Keyspace{
 		Datacenter:        dc,
 		Name:              name,
 		Contact:           contact,
-		TTL:               ttl,
 		ReplicationFactor: repFactor,
 	}
 
 	var resp *KeyspaceResp
+	m.client.POSTjson(fmt.Sprintf("keysets/%s", name), req, &resp)
 
-	m.client.POSTjson(fmt.Sprintf("keyspaces/%s", name), req, &resp)
 	return resp.KSID
+}
+
+func (m *mycenaeTool) CreateKeySet(name string) string {
+
+	status, _, err := m.client.POST(fmt.Sprintf("keyset/%s", name), nil)
+
+	if err != nil {
+		panic(err)
+	}
+
+	if status != http.StatusCreated {
+		panic("keyset creation failed with status: " + string(status))
+	}
+
+	fmt.Println("KeySet created:", name)
+
+	return name
 }
 
 func (m *mycenaeTool) GetPoints(keyspace string, start int64, end int64, id string) (int, MycenaePoints) {
 
 	payload := `{
 		"keys": [{
-			"tsid":"` + id + `"
+			"tsid":"` + id + `",
+			"ttl":1
 		}],
 		"start":` + strconv.FormatInt(start*1000, 10) + `,
 		"end":` + strconv.FormatInt(end*1000, 10) + `
 	}`
 
-	status, resp, err := m.client.POST(fmt.Sprintf("keyspaces/%s/points", keyspace), []byte(payload))
+	status, resp, err := m.client.POST(fmt.Sprintf("keysets/%s/points", keyspace), []byte(payload))
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -245,13 +278,14 @@ func (m *mycenaeTool) GetTextPoints(keyspace string, start int64, end int64, id 
 
 	payload := `{
 		"text": [{
-			"tsid":"` + id + `"
+			"tsid":"` + id + `",
+			"ttl": 1
 		}],
 		"start":` + strconv.FormatInt(start*1000, 10) + `,
 		"end":` + strconv.FormatInt(end*1000, 10) + `
 	}`
 
-	status, resp, err := m.client.POST(fmt.Sprintf("keyspaces/%s/points", keyspace), []byte(payload))
+	status, resp, err := m.client.POST(fmt.Sprintf("keysets/%s/points", keyspace), []byte(payload))
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -287,6 +321,7 @@ func (m *mycenaeTool) GetPayload(keyspace string) *Payload {
 	p.Tags = map[string]string{
 		p.TagKey: p.TagValue,
 		"ksid":   keyspace,
+		"ttl":    "1",
 	}
 
 	return p
@@ -310,6 +345,7 @@ func (m *mycenaeTool) GetTextPayload(keyspace string) *Payload {
 	p.Tags = map[string]string{
 		p.TagKey: p.TagValue,
 		"ksid":   keyspace,
+		"ttl":    "1",
 	}
 
 	return p
@@ -366,12 +402,55 @@ func (k Keyspace) Marshal() []byte {
 	return body
 }
 
-func (ke KeyspaceEdit) Marshal() []byte {
+func (k KeyspaceUpdate) Marshal() []byte {
 
-	body, err := json.Marshal(ke)
+	body, err := json.Marshal(k)
 	if err != nil {
 		fmt.Println(err)
 	}
 
 	return body
+}
+
+func CreatePayload(v float32, m string, t map[string]string) Payload {
+
+	return Payload{
+		Value:  &v,
+		Metric: m,
+		Tags:   t,
+	}
+}
+
+func CreatePayloadTS(v float32, m string, t map[string]string, ts int64) Payload {
+
+	p := CreatePayload(v, m, t)
+	p.Timestamp = &ts
+
+	return p
+}
+
+func CreateTextPayload(txt string, m string, t map[string]string) Payload {
+
+	return Payload{
+		Text:   &txt,
+		Metric: m,
+		Tags:   t,
+	}
+}
+
+func CreateTextPayloadTS(txt string, m string, t map[string]string, ts int64) Payload {
+
+	p := CreateTextPayload(txt, m, t)
+	p.Timestamp = &ts
+
+	return p
+}
+
+func GetTSUIDFromPayload(payload *Payload, number bool) string {
+
+	if number {
+		return GetHashFromMetricAndTags(payload.Metric, payload.Tags)
+	} else {
+		return GetTextHashFromMetricAndTags(payload.Metric, payload.Tags)
+	}
 }

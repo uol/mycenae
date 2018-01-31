@@ -6,8 +6,8 @@ import (
 	"log"
 	"sort"
 	"time"
-
 	"github.com/gocql/gocql"
+	"strconv"
 )
 
 type cassTs struct {
@@ -38,10 +38,7 @@ type KeyspaceAttributes struct {
 	Name                    string
 	Replication_factor      int
 	Datacenter              string
-	Ks_ttl                  int
-	Ks_tuuid                bool
 	Contact                 string
-	Replication_factor_meta string
 }
 
 type KeyspaceProperties struct {
@@ -51,15 +48,26 @@ type KeyspaceProperties struct {
 }
 
 const (
-	cqlKeyspaceTables     = `SELECT table_name FROM system_schema.tables WHERE keyspace_name = ?`
-	cqlExists             = `SELECT keyspace_name FROM system_schema.keyspaces WHERE keyspace_name = ?`
-	cqlExistsInformation  = `SELECT name, datacenter, contact, replication_factor, ks_ttl FROM mycenae.ts_keyspace WHERE key = ?`
-	cqlTableProperties    = `SELECT bloom_filter_fp_chance, caching, comment, compaction, compression, dclocal_read_repair_chance, default_time_to_live, gc_grace_seconds, max_index_interval, memtable_flush_period_in_ms, min_index_interval, read_repair_chance, speculative_retry from system_schema.tables  where keyspace_name = ? and table_name = ?`
+	cqlKeyspaceTables = `SELECT table_name FROM system_schema.tables WHERE keyspace_name = ?`
+	cqlExists = `SELECT keyspace_name FROM system_schema.keyspaces WHERE keyspace_name = ?`
+	cqlExistsInformation = `SELECT key, datacenter, contact, replication_factor FROM mycenae.ts_keyspace WHERE key = ?`
+	cqlTableProperties = `SELECT bloom_filter_fp_chance, caching, comment, compaction, compression, dclocal_read_repair_chance, default_time_to_live, gc_grace_seconds, max_index_interval, memtable_flush_period_in_ms, min_index_interval, read_repair_chance, speculative_retry from system_schema.tables  where keyspace_name = ? and table_name = ?`
 	cqlKeyspaceProperties = `SELECT keyspace_name, durable_writes, replication from system_schema.keyspaces where keyspace_name = ?`
-	cqlDropKS             = `DROP KEYSPACE %v`
-	cqlSelectKS           = `SELECT name, replication_factor, datacenter, ks_ttl, ks_tuuid, contact, replication_factor_meta FROM mycenae.ts_keyspace WHERE key = ?`
-	cqlDeleteKS           = `DELETE FROM mycenae.ts_keyspace WHERE key = '%v'`
-	cqlInsertKS           = `INSERT INTO mycenae.ts_keyspace (key, name , datacenter , replication_factor, ks_ttl, ks_tuuid) VALUES ('%v', '%v', 'dc_gt_a1', 1, 90, false)`
+	cqlDropKS = `DROP KEYSPACE %v`
+	cqlSelectKS = `SELECT key, contact, datacenter, replication_factor FROM mycenae.ts_keyspace WHERE key = ?`
+	cqlDeleteKS = `DELETE FROM mycenae.ts_keyspace WHERE key = '%v'`
+	cqlInsertKS = `INSERT INTO mycenae.ts_keyspace (key, datacenter, contact, replication_factor) VALUES ('%v', 'dc_gt_a1', 'test@test.com', 1)`
+)
+
+var (
+	TTLKeyspaceMap = map[uint8]string{
+		1: "one_day",
+		3: "three_days",
+		7: "one_week",
+		14: "two_weeks",
+		30: "one_month",
+		90: "three_months",
+	}
 )
 
 //
@@ -82,8 +90,16 @@ const (
 //	return count, nil
 //}
 
-func (ts *cassTs) GetValueFromIDSTAMP(keyspace, id string) (nValue float64) {
-	if err := ts.cql.Query(fmt.Sprintf(`SELECT value FROM %s.ts_number_stamp WHERE id=?`, keyspace),
+func (ts *cassTs) getTTLKeyspace(ttl int) string {
+	if ks, ok := TTLKeyspaceMap[uint8(ttl)]; !ok {
+		panic("no ttl keyspace with value " + strconv.FormatInt(int64(ttl), 10))
+	} else {
+		return ks
+	}
+}
+
+func (ts *cassTs) GetValueFromIDSTAMP(ttl int, id string) (nValue float64) {
+	if err := ts.cql.Query(fmt.Sprintf(`SELECT value FROM %s.ts_number_stamp WHERE id=?`, ts.getTTLKeyspace(ttl)),
 		id,
 	).Scan(&nValue); err != nil && err != gocql.ErrNotFound {
 		log.Println(err)
@@ -91,8 +107,8 @@ func (ts *cassTs) GetValueFromIDSTAMP(keyspace, id string) (nValue float64) {
 	return
 }
 
-func (ts *cassTs) GetValueFromDateSTAMP(keyspace, id string, date time.Time) (nValue float64) {
-	if err := ts.cql.Query(fmt.Sprintf(`SELECT value FROM %s.ts_number_stamp WHERE id=? AND date=?`, keyspace),
+func (ts *cassTs) GetValueFromDateSTAMP(ttl int, id string, date time.Time) (nValue float64) {
+	if err := ts.cql.Query(fmt.Sprintf(`SELECT value FROM %s.ts_number_stamp WHERE id=? AND date=?`, ts.getTTLKeyspace(ttl)),
 		id,
 		date,
 	).Scan(&nValue); err != nil && err != gocql.ErrNotFound {
@@ -101,8 +117,8 @@ func (ts *cassTs) GetValueFromDateSTAMP(keyspace, id string, date time.Time) (nV
 	return
 }
 
-func (ts *cassTs) GetTextFromDateSTAMP(keyspace, id string, date time.Time) (nValue string) {
-	if err := ts.cql.Query(fmt.Sprintf(`SELECT value FROM %s.ts_text_stamp WHERE id=? AND date=?`, keyspace),
+func (ts *cassTs) GetTextFromDateSTAMP(ttl int, id string, date time.Time) (nValue string) {
+	if err := ts.cql.Query(fmt.Sprintf(`SELECT value FROM %s.ts_text_stamp WHERE id=? AND date=?`, ts.getTTLKeyspace(ttl)),
 		id,
 		date.Truncate(time.Second),
 	).Scan(&nValue); err != nil && err != gocql.ErrNotFound {
@@ -111,8 +127,8 @@ func (ts *cassTs) GetTextFromDateSTAMP(keyspace, id string, date time.Time) (nVa
 	return
 }
 
-func (ts *cassTs) CountValueFromIDSTAMP(keyspace, id string) int {
-	it := ts.cql.Query(fmt.Sprintf("SELECT id FROM %s.ts_number_stamp WHERE id=?", keyspace), id).Iter()
+func (ts *cassTs) CountValueFromIDSTAMP(ttl int, id string) (int) {
+	it := ts.cql.Query(fmt.Sprintf("SELECT id FROM %s.ts_number_stamp WHERE id=?", ts.getTTLKeyspace(ttl)),id,).Iter()
 
 	var count int
 	var scanned string
@@ -136,8 +152,9 @@ func (ts *cassTs) CountValueFromIDSTAMP(keyspace, id string) int {
 //	return
 //}
 
-func (ts *cassTs) CountTextFromIDSTAMP(keyspace, id string) int {
-	it := ts.cql.Query(fmt.Sprintf("SELECT id FROM %s.ts_text_stamp WHERE id=?", keyspace), id).Iter()
+
+func (ts *cassTs) CountTextFromIDSTAMP(ttl int, id string) (int) {
+	it := ts.cql.Query(fmt.Sprintf("SELECT id FROM %s.ts_text_stamp WHERE id=?", ts.getTTLKeyspace(ttl)),id,).Iter()
 
 	var count int
 	var scanned string
@@ -173,8 +190,8 @@ func (ts *cassTs) CountTextFromIDSTAMP(keyspace, id string) int {
 //	return
 //}
 
-func (ts *cassTs) GetValueFromTwoDatesSTAMP(keyspace, id string, dateBeforeRequest time.Time, dateAfterRequest time.Time) (nValue float64) {
-	if err := ts.cql.Query(fmt.Sprintf(`SELECT value FROM %s.ts_number_stamp WHERE id=? AND date >= ? AND date <= ?`, keyspace),
+func (ts *cassTs) GetValueFromTwoDatesSTAMP(ttl int, id string, dateBeforeRequest time.Time, dateAfterRequest time.Time) (nValue float64) {
+	if err := ts.cql.Query(fmt.Sprintf(`SELECT value FROM %s.ts_number_stamp WHERE id=? AND date >= ? AND date <= ?`, ts.getTTLKeyspace(ttl)),
 		id,
 		dateBeforeRequest,
 		dateAfterRequest,
@@ -184,8 +201,8 @@ func (ts *cassTs) GetValueFromTwoDatesSTAMP(keyspace, id string, dateBeforeReque
 	return
 }
 
-func (ts *cassTs) GetTextFromTwoDatesSTAMP(keyspace, id string, dateBeforeRequest time.Time, dateAfterRequest time.Time) (nValue string) {
-	if err := ts.cql.Query(fmt.Sprintf(`SELECT value FROM %s.ts_text_stamp WHERE id=? AND date >= ? AND date <= ?`, keyspace),
+func (ts *cassTs) GetTextFromTwoDatesSTAMP(ttl int, id string, dateBeforeRequest time.Time, dateAfterRequest time.Time) (nValue string) {
+	if err := ts.cql.Query(fmt.Sprintf(`SELECT value FROM %s.ts_text_stamp WHERE id=? AND date >= ? AND date <= ?`, ts.getTTLKeyspace(ttl)),
 		id,
 		dateBeforeRequest.Truncate(time.Second),
 		dateAfterRequest.Truncate(time.Second),
@@ -195,8 +212,8 @@ func (ts *cassTs) GetTextFromTwoDatesSTAMP(keyspace, id string, dateBeforeReques
 	return
 }
 
-func (ts *cassTs) CountValueFromIDAndDateSTAMP(keyspace, id string, date time.Time) int {
-	it := ts.cql.Query(fmt.Sprintf("SELECT id FROM %s.ts_number_stamp WHERE id=? AND date=?", keyspace), id, date.Truncate(time.Second)).Iter()
+func (ts *cassTs) CountValueFromIDAndDateSTAMP(ttl int, id string, date time.Time) (int) {
+	it := ts.cql.Query(fmt.Sprintf("SELECT id FROM %s.ts_number_stamp WHERE id=? AND date=?", ts.getTTLKeyspace(ttl)), id, date.Truncate(time.Second)).Iter()
 
 	var count int
 	var scanned string
@@ -221,8 +238,8 @@ func (ts *cassTs) CountValueFromIDAndDateSTAMP(keyspace, id string, date time.Ti
 //	return
 //}
 
-func (ts *cassTs) CountTextFromIDAndDateSTAMP(keyspace, id string, date time.Time) int {
-	it := ts.cql.Query(fmt.Sprintf("SELECT id FROM %s.ts_text_stamp WHERE id=? AND date=?", keyspace), id, date.Truncate(time.Second)).Iter()
+func (ts *cassTs) CountTextFromIDAndDateSTAMP(ttl int, id string, date time.Time) (int) {
+	it := ts.cql.Query(fmt.Sprintf("SELECT id FROM %s.ts_text_stamp WHERE id=? AND date=?", ts.getTTLKeyspace(ttl)), id, date.Truncate(time.Second)).Iter()
 
 	var count int
 	var scanned string
@@ -247,13 +264,14 @@ func (ts *cassTs) CountTextFromIDAndDateSTAMP(keyspace, id string, date time.Tim
 //	return
 //}
 
-func (ts *cassTs) GetHashFromMetricAndTags(metric string, tags map[string]string) string {
+func GetHashFromMetricAndTags(metric string, tags map[string]string) string {
+
 	h := crc32.NewIEEE()
 	h.Write([]byte(metric))
 	mk := []string{}
 
 	for k := range tags {
-		if k != "ksid" && k != "ttl" && k != "tuuid" {
+		if k != "tuuid" {
 			mk = append(mk, k)
 		}
 	}
@@ -268,34 +286,18 @@ func (ts *cassTs) GetHashFromMetricAndTags(metric string, tags map[string]string
 	return fmt.Sprint(h.Sum32())
 }
 
-func (ts *cassTs) GetTextHashFromMetricAndTags(metric string, tags map[string]string) string {
-	h := crc32.NewIEEE()
-	h.Write([]byte(metric))
-	mk := []string{}
+func GetTextHashFromMetricAndTags(metric string, tags map[string]string) string {
 
-	for k := range tags {
-		if k != "ksid" && k != "ttl" && k != "tuuid" {
-			mk = append(mk, k)
-		}
-	}
-
-	sort.Strings(mk)
-
-	for _, k := range mk {
-		h.Write([]byte(k))
-		h.Write([]byte(tags[k]))
-	}
-
-	return fmt.Sprint("T", h.Sum32())
+	return fmt.Sprint("T", GetHashFromMetricAndTags(metric, tags))
 }
 
-func (ts *cassTs) CountKeyspaces() int {
+func (ts *cassTs) CountKeyspaces() (int) {
 	it := ts.cql.Query("SELECT id FROM system_schema.keyspaces").Iter()
 
 	var count int
 	var scanned string
 	for it.Scan(&scanned) {
-		count++
+			count++;
 	}
 	if err := it.Close(); err != nil {
 		log.Println(err)
@@ -310,13 +312,13 @@ func (ts *cassTs) CountKeyspaces() int {
 //	return
 //}
 
-func (ts *cassTs) CountTsKeyspaces() int {
+func (ts *cassTs) CountTsKeyspaces() (int) {
 	it := ts.cql.Query("SELECT id FROM mycenae.ts_keyspace").Iter()
 
 	var count int
 	var scanned string
 	for it.Scan(&scanned) {
-		count++
+		count++;
 	}
 	if err := it.Close(); err != nil {
 		log.Println(err)
@@ -331,14 +333,14 @@ func (ts *cassTs) CountTsKeyspaces() int {
 //	return
 //}
 
-func (ts *cassTs) CountTsKeyspaceByKsid(keyspace string) int {
-	it := ts.cql.Query("SELECT key FROM mycenae.ts_keyspace WHERE key=?", keyspace).Iter()
+func (ts *cassTs) CountTsKeyspaceByKsid(keyspace string) (int) {
+	it := ts.cql.Query("SELECT key FROM mycenae.ts_keyspace WHERE key=?",keyspace,).Iter()
 
 	var count int
 	var scanned string
 	for it.Scan(&scanned) {
 		if keyspace == scanned {
-			count++
+			count++;
 		}
 	}
 	if err := it.Close(); err != nil {
@@ -404,7 +406,7 @@ func (ts *cassTs) Exists(keyspace string) bool {
 	var scanned string
 	for it.Scan(&scanned) {
 		if keyspace == scanned {
-			count++
+			count++;
 		}
 	}
 	if err = it.Close(); err != nil {
@@ -413,18 +415,18 @@ func (ts *cassTs) Exists(keyspace string) bool {
 	return err == nil && count == 1
 }
 
-func (ts *cassTs) ExistsInformation(keyspace string, name string, replication_factor int, datacenter string, ttl int, tuuid bool, contact string) bool {
+func (ts *cassTs) ExistsInformation(keyspace string, replication_factor int, datacenter string, contact string) bool {
 	var err error
-	var count int
-	var scName, scDatacenter, scContact string
-	var scRepFactor, scTTL int
+	var count, scRepFactor int
+	var scKey, scDatacenter, scContact string
 	it := ts.cql.Query(
 		cqlExistsInformation,
 		keyspace,
 	).Iter()
-	for it.Scan(&scName, &scDatacenter, &scContact, &scRepFactor, &scTTL) {
-		if scName == name && scDatacenter == datacenter && scContact == contact && scRepFactor == replication_factor && scTTL == ttl {
-			count++
+	for it.Scan(&scKey, &scDatacenter, &scContact, &scRepFactor) {
+		if scKey == keyspace && scDatacenter == datacenter && scContact == contact &&
+		   scRepFactor == replication_factor {
+			count++;
 		}
 	}
 	if err = it.Close(); err != nil {
@@ -438,7 +440,7 @@ func (ts *cassTs) TableProperties(keyspace string, table string) TableProperties
 	var caching, compaction, compression map[string]string
 	var speculative_retry, comment string
 	var default_time_to_live, gc_grace_seconds, max_index_interval, memtable_flush_period_in_ms,
-		min_index_interval int
+	min_index_interval int
 	var bloom_filter_fp_chance, dclocal_read_repair_chance, read_repair_chance float64
 
 	if err := ts.cql.Query(cqlTableProperties,
@@ -490,7 +492,7 @@ func (ts *cassTs) Delete(keyspace string) bool {
 func (ts *cassTs) Insert(keyspace string) bool {
 
 	err := ts.cql.Query(
-		fmt.Sprintf(cqlInsertKS, keyspace, keyspace),
+		fmt.Sprintf(cqlInsertKS, keyspace),
 	).Exec()
 
 	return err == nil
@@ -498,23 +500,19 @@ func (ts *cassTs) Insert(keyspace string) bool {
 }
 
 func (ts *cassTs) KsAttributes(keyspace string) KeyspaceAttributes {
-	var name, datacenter, contact, replication_factor_meta string
-	var replication_factor, ks_ttl int
-	var ks_tuuid bool
+	var key, datacenter, contact string
+	var replication_factor int
 
 	if err := ts.cql.Query(cqlSelectKS,
 		keyspace,
-	).Scan(&name, &replication_factor, &datacenter, &ks_ttl, &ks_tuuid, &contact, &replication_factor_meta); err != nil {
+	).Scan(&key, &contact, &datacenter, &replication_factor); err != nil {
 		log.Println(err)
 	}
 	return KeyspaceAttributes{
-		Name:                    name,
+		Name:                    key,
 		Datacenter:              datacenter,
 		Contact:                 contact,
 		Replication_factor:      replication_factor,
-		Ks_ttl:                  ks_ttl,
-		Ks_tuuid:                ks_tuuid,
-		Replication_factor_meta: replication_factor_meta,
 	}
 }
 
@@ -531,6 +529,6 @@ func (ts *cassTs) KeyspaceProperties(keyspace string) KeyspaceProperties {
 	return KeyspaceProperties{
 		Keyspace_name:  keyspace_name,
 		Durable_writes: durable_writes,
-		Replication:    replication,
+		Replication: replication,
 	}
 }
