@@ -6,6 +6,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/uol/gobol/rip"
 	storage "github.com/uol/mycenae/lib/persistence"
+	"fmt"
 )
 
 // Create is a rest endpoint to create a keyspace
@@ -53,16 +54,23 @@ func (kspace *Keyspace) Create(
 
 	if ksc.TTL <= 0 {
 		rip.Fail(w, errValidationS("CreateKeyspace", "'ttl' is required"))
+		return
+	} else if ksc.TTL > kspace.maxAllowedTTL {
+		rip.Fail(w, errValidationS("CreateKeyspace", fmt.Sprintf("Max TTL allowed is %d", kspace.maxAllowedTTL)))
+		return
 	} else if ksc.Contact == "" {
 		rip.Fail(w, errValidationS("CreateKeyspace", "'contact' is required"))
+		return
 	} else if ksc.Datacenter == "" {
 		rip.Fail(w, errValidationS("CreateKeyspace", "'datacenter' is required"))
+		return
 	} else if ksc.ReplicationFactor <= 0 {
 		rip.Fail(w, errValidationS("CreateKeyspace", "'replicationFactor' is required"))
+		return
 	}
 
 	ksc.Name = ks
-	ksid, err := kspace.storage.CreateKeyspace(ksc)
+	err = kspace.CreateKeyspace(ksc.Name, ksc.Datacenter, ksc.Contact, ksc.ReplicationFactor, uint8(ksc.TTL))
 	if err != nil {
 		rip.Fail(w, err)
 		return
@@ -96,7 +104,7 @@ func (kspace *Keyspace) Update(w http.ResponseWriter, r *http.Request, ps httpro
 		return
 	}
 
-	gerr = kspace.UpdateKeyspace(ksc, ks)
+	gerr = kspace.UpdateKeyspace(ks, ksc.Contact)
 	if gerr != nil {
 		rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace"})
 		rip.Fail(w, gerr)
@@ -156,7 +164,7 @@ func (kspace *Keyspace) Check(
 		return
 	}
 
-	_, found, err := kspace.storage.GetKeyspace(ks)
+	_, found, err := kspace.GetKeyspace(ks)
 	if err != nil {
 		rip.AddStatsMap(
 			r,

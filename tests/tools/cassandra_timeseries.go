@@ -38,10 +38,7 @@ type KeyspaceAttributes struct {
 	Name                    string
 	Replication_factor      int
 	Datacenter              string
-	Ks_ttl                  int
-	Ks_tuuid                bool
 	Contact                 string
-	Replication_factor_meta string
 }
 
 type KeyspaceProperties struct {
@@ -59,7 +56,7 @@ const (
 	cqlDropKS = `DROP KEYSPACE %v`
 	cqlSelectKS = `SELECT key, contact, datacenter, replication_factor FROM mycenae.ts_keyspace WHERE key = ?`
 	cqlDeleteKS = `DELETE FROM mycenae.ts_keyspace WHERE key = '%v'`
-	cqlInsertKS = `INSERT INTO mycenae.ts_keyspace (key, name , datacenter , replication_factor, ks_ttl, ks_tuuid) VALUES ('%v', '%v', 'dc_gt_a1', 1, 90, false)`
+	cqlInsertKS = `INSERT INTO mycenae.ts_keyspace (key, datacenter, contact, replication_factor) VALUES ('%v', 'dc_gt_a1', 'test@test.com', 1)`
 )
 
 var (
@@ -495,7 +492,7 @@ func (ts *cassTs) Delete(keyspace string) bool {
 func (ts *cassTs) Insert(keyspace string) bool {
 
 	err := ts.cql.Query(
-		fmt.Sprintf(cqlInsertKS, keyspace, keyspace),
+		fmt.Sprintf(cqlInsertKS, keyspace),
 	).Exec()
 
 	return err == nil

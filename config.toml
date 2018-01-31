@@ -38,6 +38,7 @@ MetaBufferSize = 100000
 MetaSaveInterval = "1s"
 
 DefaultTTL = 1
+MaxAllowedTTL = 90
 
 DefaultKeysets = ["stats", "scollector"]
 

@@ -20,7 +20,7 @@ type Keyspace struct {
 	Datacenter        string `json:"datacenter,omitempty"`
 	ReplicationFactor int    `json:"replicationFactor,omitempty"`
 	Contact           string `json:"contact,omitempty"`
-	TTL               uint8  `json:"ttl,omitempty`
+	TTL               int 	 `json:"ttl,omitempty`
 }
 
 type KeyspaceUpdate struct {
@@ -410,4 +410,47 @@ func (k KeyspaceUpdate) Marshal() []byte {
 	}
 
 	return body
+}
+
+func CreatePayload(v float32, m string, t map[string]string) Payload {
+
+	return Payload{
+		Value:  &v,
+		Metric: m,
+		Tags:   t,
+	}
+}
+
+func CreatePayloadTS(v float32, m string, t map[string]string, ts int64) Payload {
+
+	p := CreatePayload(v, m, t)
+	p.Timestamp = &ts
+
+	return p
+}
+
+func CreateTextPayload(txt string, m string, t map[string]string) Payload {
+
+	return Payload{
+		Text:   &txt,
+		Metric: m,
+		Tags:   t,
+	}
+}
+
+func CreateTextPayloadTS(txt string, m string, t map[string]string, ts int64) Payload {
+
+	p := CreateTextPayload(txt, m, t)
+	p.Timestamp = &ts
+
+	return p
+}
+
+func GetTSUIDFromPayload(payload *Payload, number bool) string {
+
+	if number {
+		return GetHashFromMetricAndTags(payload.Metric, payload.Tags)
+	} else {
+		return GetTextHashFromMetricAndTags(payload.Metric, payload.Tags)
+	}
 }

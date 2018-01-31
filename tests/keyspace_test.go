@@ -3,22 +3,21 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"sort"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/uol/mycenae/tests/tools"
+	"github.com/uol/mycenae/lib/keyspace"
 )
 
 var errKsName = "Wrong Format: Field \"keyspaceName\" is not well formed. NO information will be saved"
-var errKsRF = "Replication factor can not be less than or equal to 0 or greater than 3"
+var errKsRF = "Replication factor cannot be less than or equal to 0 or greater than 3"
 var errKsDC = "Cannot create because datacenter \"dc_error\" not exists"
-var errKsDCNil = "Datacenter can not be empty or nil"
+var errKsDCNil = "Datacenter cannot be empty or nil"
 var errKsContact = "Contact field should be a valid email address"
-var errKsTTL = "TTL can not be less or equal to zero"
+var errKsTTL = "TTL cannot be less or equal to zero"
 var errKsTTLMax = "Max TTL allowed is 90"
 
 func getKeyspace() tools.Keyspace {
@@ -32,11 +31,6 @@ func getKeyspace() tools.Keyspace {
 	}
 
 	return data
-}
-
-func getRandName() string {
-	rand.Seed(time.Now().UnixNano())
-	return fmt.Sprintf("%d", rand.Int())
 }
 
 func testKeyspaceCreation(data *tools.Keyspace, t *testing.T) {
@@ -81,7 +75,7 @@ func testKeyspaceCreationFail(data []byte, keyName string, response tools.Error,
 	var respErr tools.Error
 	err = json.Unmarshal(resp, &respErr)
 	if err != nil {
-		t.Error(err, t)
+		t.Error("Error unmarshalling json: " + string(resp))
 		t.SkipNow()
 	}
 
@@ -245,10 +239,8 @@ func TestKeyspaceCreateFailDCError(t *testing.T) {
 	for test, ks := range cases {
 
 		if test == "DCNotExist" {
-
 			testKeyspaceCreationFail(ks.Marshal(), ks.Name, errNotExist, test, t)
 		} else {
-
 			testKeyspaceCreationFail(ks.Marshal(), ks.Name, errNil, test, t)
 		}
 	}
@@ -311,15 +303,15 @@ func TestKeyspaceCreateFailTTLError(t *testing.T) {
 
 	var (
 		rf      = 1
-		dc      = "dc_gt_a1"
+		dc      = datacenter
 		contact = fmt.Sprintf("test-%v@domain.com", time.Now().Unix())
 	)
 
 	cases := map[string]tools.Keyspace{
-		"TTL0":        {Datacenter: dc, ReplicationFactor: rf, TTL: 0, Contact: contact, Name: getRandName()},
-		"TTLNil":      {Datacenter: dc, ReplicationFactor: rf, Contact: contact, Name: getRandName()},
-		"TTLAboveMax": {Datacenter: dc, ReplicationFactor: rf, TTL: 91, Contact: contact, Name: getRandName()},
-		"NegativeTTL": {Datacenter: dc, ReplicationFactor: rf, TTL: -10, Contact: contact, Name: getRandName()},
+		"TTL0":        {Datacenter: dc, ReplicationFactor: rf, TTL: 0, Contact: contact, Name: tools.GenerateRandomName()},
+		"TTLNil":      {Datacenter: dc, ReplicationFactor: rf, Contact: contact, Name: tools.GenerateRandomName()},
+		"TTLAboveMax": {Datacenter: dc, ReplicationFactor: rf, TTL: 200, Contact: contact, Name: tools.GenerateRandomName()},
+		"NegativeTTL": {Datacenter: dc, ReplicationFactor: rf, TTL: -10, Contact: contact, Name: tools.GenerateRandomName()},
 	}
 
 	errTTL := tools.Error{Error: errKsTTL, Message: errKsTTL}
@@ -407,7 +399,7 @@ func TestKeyspaceCreateInvalidRFString(t *testing.T) {
 	}
 
 	data := `{
-		"datacenter": "dc_gt_a1",
+		"datacenter": "` + datacenter + `",
 		"replicationFactor": "a",
 		"ttl": 90,
 		"tuuid": false,
@@ -430,7 +422,7 @@ func TestKeyspaceCreateInvalidRFFloat(t *testing.T) {
 
 	rf := "1.1"
 	data := `{
-		"datacenter": "dc_gt_a1",
+		"datacenter": "` + datacenter + `",
 		"replicationFactor": ` + rf + `,
 		"contact": " ` + fmt.Sprintf("test-%v@domain.com", time.Now().Unix()) + `"
 	}`
@@ -450,14 +442,14 @@ func TestKeyspaceCreateInvalidTTLString(t *testing.T) {
 	}
 
 	data := `{
-		"datacenter": "dc_gt_a1",
+		"datacenter": "` + datacenter + `",
 		"replicationFactor": 1,
 		"ttl": "x",
 		"contact": "` + fmt.Sprintf("test-%d@domain.com", time.Now().Unix()) + `"
 	}`
 
 	var respErr = tools.Error{
-		Error:   "json: cannot unmarshal string into Go struct field Config.ttl of type uint8",
+		Error:   "json: cannot unmarshal string into Go struct field Config.ttl of type int",
 		Message: "Wrong JSON format",
 	}
 
@@ -479,7 +471,7 @@ func TestKeyspaceCreateInvalidTTLFloat(t *testing.T) {
 	}`
 
 	var respErr = tools.Error{
-		Error:   "json: cannot unmarshal number " + ttl + " into Go struct field Config.ttl of type uint8",
+		Error:   "json: cannot unmarshal number " + ttl + " into Go struct field Config.ttl of type int",
 		Message: "Wrong JSON format",
 	}
 

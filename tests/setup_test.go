@@ -14,6 +14,7 @@ import (
 var setup = flag.Bool("setup", true, "flag used to skip setup when set to false")
 var mycenaeTools tools.Tool
 var ksMycenae, ksMycenaeMeta, ksMycenaeTsdb, ksTTLKeyspace string
+const datacenter = "dc_gt_a1"
 
 func createKeySetName() string {
 	return fmt.Sprintf("ts_%d", time.Now().Nanosecond())

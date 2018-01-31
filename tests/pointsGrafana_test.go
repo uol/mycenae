@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net/http"
 	"encoding/json"
 	"fmt"
 	"github.com/stretchr/testify/assert"
@@ -1414,7 +1415,7 @@ func TestTsdbQueryFilterMoreThanOneTS(t *testing.T) {
 	sort.Strings(keys)
 
 	assert.Equal(t, 25, len(payloadPoints[1].Dps))
-	assert.Equal(t, 1, len(payloadPoints[1].Tags))
+	assert.Equal(t, 3, len(payloadPoints[1].Tags))
 	assert.Equal(t, 0, len(payloadPoints[1].AggTags))
 	assert.Equal(t, 1, len(payloadPoints[1].Tsuuids))
 	assert.Equal(t, "ts10tsdb", payloadPoints[1].Metric)

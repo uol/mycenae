@@ -7,28 +7,30 @@ import (
 	"github.com/uol/mycenae/lib/tsstats"
 )
 
-// DefaultCompaction defines the default compaction strategy that cassandra
-// will use for timeseries data
-const DefaultCompaction = "com.jeffjirsa.cassandra.db.compaction.TimeWindowCompactionStrategy"
-
 var validKey = regexp.MustCompile(`^[0-9A-Za-z][0-9A-Za-z_]+$`)
 
 // New creates a new keyspace manager
 func New(
 	sts *tsstats.StatsTS,
-	persist *storage.Storage,
+	storage *persistence.Storage,
 	devMode bool,
 	defaultTTL uint8,
+	maxAllowedTTL int,
 ) *Keyspace {
 	return &Keyspace{
 		Storage: storage,
 		stats:   sts,
-		devMode bool,
-		defaultTTL uint8,
+		devMode: devMode,
+		defaultTTL: defaultTTL,
+		maxAllowedTTL: maxAllowedTTL,
 	}
 }
 
 // Keyspace is a structure that represents the functionality of this module
 type Keyspace struct {
-	storage *storage.Storage
+	*persistence.Storage
+	stats   *tsstats.StatsTS
+	devMode bool
+	defaultTTL uint8
+	maxAllowedTTL int
 }

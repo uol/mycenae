@@ -15,13 +15,9 @@ var (
 		}`, scyllaMainKeyspace),
 		fmt.Sprintf(`CREATE TABLE %s.ts_keyspace (
 			key text PRIMARY KEY,
-			name text,
 			contact text,
 			datacenter text,
-			ks_ttl int,
-			
-			replication_factor int,
-			replication_factor_meta text
+			replication_factor int
 		)`, scyllaMainKeyspace),
 		fmt.Sprintf(`CREATE TABLE %s.ts_datacenter (
 			datacenter text PRIMARY KEY

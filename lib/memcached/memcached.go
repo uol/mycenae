@@ -121,7 +121,7 @@ func (mc *Memcached) Delete(namespace, key string) gobol.Error {
 	}
 
 	error := mc.client.Delete(fqn)
-	if error != nil {
+	if error != nil && error.Error() != "memcache: cache miss" {
 		statsError("delete", namespace)
 		return errInternalServerError("delete", "error removing data on "+fqn, error)
 	}

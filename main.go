@@ -17,7 +17,9 @@ import (
 	"github.com/uol/gobol/saw"
 	"github.com/uol/gobol/snitch"
 
+	"github.com/uol/mycenae/lib/cache"
 	"github.com/uol/mycenae/lib/collector"
+	"github.com/uol/mycenae/lib/keyset"
 	"github.com/uol/mycenae/lib/keyspace"
 	"github.com/uol/mycenae/lib/memcached"
 	"github.com/uol/mycenae/lib/metadata"
@@ -27,8 +29,6 @@ import (
 	"github.com/uol/mycenae/lib/structs"
 	"github.com/uol/mycenae/lib/tsstats"
 	"github.com/uol/mycenae/lib/udp"
-	"github.com/uol/mycenae/lib/cache"
-	"github.com/uol/mycenae/lib/keyset"
 )
 
 func main() {
@@ -55,6 +55,10 @@ func main() {
 	tsLogger.General, err = saw.New(settings.Logs.General)
 	if err != nil {
 		log.Fatalln("ERROR - Starting logger: ", err)
+	}
+
+	if devMode {
+		tsLogger.General.Info("DEV MODE IS ENABLED!")
 	}
 
 	go func() {
@@ -101,6 +105,8 @@ func main() {
 		cass,
 		meta,
 		tssts,
+		devMode,
+		settings.DefaultTTL,
 	)
 	if err != nil {
 		tsLogger.General.Fatalf("Error creating persistence backend")
@@ -118,7 +124,23 @@ func main() {
 		storage,
 		devMode,
 		settings.DefaultTTL,
+		settings.MaxAllowedTTL,
 	)
+
+	tsLogger.General.Info("Creating default keyspaces: ", settings.DefaultKeyspaces)
+	keyspaceTTLMap := map[uint8]string{}
+	for k, ttl := range settings.DefaultKeyspaces {
+		gerr := ks.Storage.CreateKeyspace(k,
+										  settings.DefaultKeyspaceData.Datacenter,
+										  settings.DefaultKeyspaceData.Contact,
+										  settings.DefaultKeyspaceData.ReplicationFactor,
+										  ttl)
+		keyspaceTTLMap[ttl] = k
+		if gerr != nil && gerr.StatusCode() != http.StatusConflict {
+			tsLogger.General.Error(gerr)
+			os.Exit(1)
+		}
+	}
 
 	mc, err := memcached.New(tssts, &settings.Memcached)
 	if err != nil {

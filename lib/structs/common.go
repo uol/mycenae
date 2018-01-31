@@ -40,6 +40,7 @@ type Settings struct {
 	UDPserver               SettingsUDP
 	UDPserverV2             SettingsUDP
 	DefaultTTL				uint8
+	MaxAllowedTTL			int
 	DefaultKeysets			[]string
 	DefaultKeyspaceData     keyspace.Config
 	DefaultKeyspaces        map[string]uint8

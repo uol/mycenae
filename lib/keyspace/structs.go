@@ -1,8 +1,6 @@
 package keyspace
 
 import (
-	"fmt"
-
 	"github.com/asaskevich/govalidator"
 	"github.com/uol/gobol"
 )
@@ -14,20 +12,20 @@ type Config struct {
 	Datacenter        string `json:"datacenter"`
 	ReplicationFactor int    `json:"replicationFactor"`
 	Contact           string `json:"contact"`
-	TTL               uint8  `json:"ttl"`
+	TTL               int  	 `json:"ttl"`
 }
 
 // Validate checks if config is valid
 func (c *Config) Validate() gobol.Error {
 
 	if c.Datacenter == "" {
-		return errValidationS("CreateKeyspace", "Datacenter can not be empty or nil")
+		return errValidationS("CreateKeyspace", "Datacenter cannot be empty or nil")
 	}
 
 	if c.ReplicationFactor <= 0 || c.ReplicationFactor > 3 {
 		return errValidationS(
 			"CreateKeyspace",
-			"Replication factor can not be less than or equal to 0 or greater than 3",
+			"Replication factor cannot be less than or equal to 0 or greater than 3",
 		)
 	}
 
@@ -36,7 +34,7 @@ func (c *Config) Validate() gobol.Error {
 	}
 
 	if c.TTL <= 0 {
-		return errValidationS("CreateKeyspace", "TTL cannot be less or equal to 0")
+		return errValidationS("CreateKeyspace", "TTL cannot be less or equal to zero")
 	}
 
 	return nil
@@ -47,13 +45,6 @@ func (c *ConfigUpdate) Validate() gobol.Error {
 
 	if !govalidator.IsEmail(c.Contact) {
 		return errValidationS("CreateKeyspace", "Contact field should be a valid email address")
-	}
-
-	if !validKey.MatchString(c.Name) {
-		return errValidationS(
-			"CreateKeyspace",
-			`Wrong Format: Field "keyspaceName" is not well formed. NO information will be saved`,
-		)
 	}
 
 	return nil
