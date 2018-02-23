@@ -199,7 +199,7 @@ func TestRESTv2TextMultiplePointsSameIDAndTimestampsGreaterThanDay(t *testing.T)
 		ps := tools.PayloadSlice{PS: []tools.Payload{*p}}
 
 		statusCode, _, _ := mycenaeTools.HTTP.POST("v2/text", ps.Marshal())
-		assert.Equal(t, http.StatusOK, statusCode)
+		assert.Equal(t, http.StatusNoContent, statusCode)
 	}
 
 	hashID := tools.GetTextHashFromMetricAndTags(p.Metric, p.Tags)
@@ -232,7 +232,7 @@ func TestRESTv2TextMultiplePointsSameIDAndNoTimestamp(t *testing.T) {
 		ps := tools.PayloadSlice{PS: []tools.Payload{*p}}
 
 		statusCode, _, _ := mycenaeTools.HTTP.POST("v2/text", ps.Marshal())
-		assert.Equal(t, http.StatusOK, statusCode)
+		assert.Equal(t, http.StatusNoContent, statusCode)
 
 		time.Sleep(tools.Sleep3)
 
@@ -260,7 +260,7 @@ func TestRESTv2TextCheckLocalElasticCache(t *testing.T) {
 		ps := tools.PayloadSlice{PS: []tools.Payload{*p}}
 
 		statusCode, _, _ := mycenaeTools.HTTP.POST("v2/text", ps.Marshal())
-		assert.Equal(t, http.StatusOK, statusCode)
+		assert.Equal(t, http.StatusNoContent, statusCode)
 		time.Sleep(tools.Sleep3)
 
 		assertMycenaeText(t, ksMycenae, *p.Timestamp, *p.Timestamp, *p.Text, hashID)
@@ -279,7 +279,7 @@ func TestRESTv2TextCheckLocalElasticCache(t *testing.T) {
 	ps := tools.PayloadSlice{PS: []tools.Payload{*p}}
 
 	statusCode, _, _ := mycenaeTools.HTTP.POST("v2/text", ps.Marshal())
-	assert.Equal(t, http.StatusOK, statusCode)
+	assert.Equal(t, http.StatusNoContent, statusCode)
 	time.Sleep(tools.Sleep3)
 
 	assertMycenaeText(t, ksMycenae, *p.Timestamp, *p.Timestamp, *p.Text, hashID)
@@ -341,7 +341,7 @@ func TestRESTv2TextPayloadWithSpecialChars(t *testing.T) {
 			ps := tools.PayloadSlice{PS: []tools.Payload{*p}}
 
 			statusCode, _, _ := mycenaeTools.HTTP.POST("v2/text", ps.Marshal())
-			assert.Equal(t, http.StatusOK, statusCode)
+			assert.Equal(t, http.StatusNoContent, statusCode)
 
 			// special chars take longer to be saved
 			time.Sleep(tools.Sleep3 * 2)
@@ -403,7 +403,7 @@ func TestRESTv2TextPayloadWithSameMetricTagsTimestamp(t *testing.T) {
 	ps := tools.PayloadSlice{PS: []tools.Payload{*p}}
 
 	statusCode, _, _ := mycenaeTools.HTTP.POST("v2/text", ps.Marshal())
-	assert.Equal(t, http.StatusOK, statusCode)
+	assert.Equal(t, http.StatusNoContent, statusCode)
 	time.Sleep(tools.Sleep3)
 
 	hashID := tools.GetTextHashFromMetricAndTags(p.Metric, p.Tags)
@@ -457,10 +457,10 @@ func TestRESTv2TextPayloadsWithSameMetricTagsTimestampTwoEqualTags(t *testing.T)
 	hashID := tools.GetTextHashFromMetricAndTags(metric, tags)
 
 	statusCode, _ := mycenaeTools.HTTP.POSTstring("v2/text", payload1)
-	assert.Equal(t, http.StatusOK, statusCode)
+	assert.Equal(t, http.StatusNoContent, statusCode)
 
 	statusCode, _ = mycenaeTools.HTTP.POSTstring("v2/text", payload2)
-	assert.Equal(t, http.StatusOK, statusCode)
+	assert.Equal(t, http.StatusNoContent, statusCode)
 	time.Sleep(tools.Sleep3)
 
 	assertMycenaeText(t, ksMycenae, timestamp, timestamp, value2, hashID)
@@ -492,7 +492,7 @@ func TestRESTv2TextPayloadWithTwoTagsSameKeyAndDifferentValues(t *testing.T) {
 	tags := map[string]string{p.TagKey: tagValue2, "ksid": ksMycenae, "ttl": "1"}
 
 	statusCode, _ := mycenaeTools.HTTP.POSTstring("v2/text", payload)
-	assert.Equal(t, http.StatusOK, statusCode)
+	assert.Equal(t, http.StatusNoContent, statusCode)
 	time.Sleep(tools.Sleep3)
 
 	hashID := tools.GetTextHashFromMetricAndTags(p.Metric, tags)
@@ -1117,7 +1117,7 @@ func TestRESTv2TextBucketLimits(t *testing.T) {
 		*p.Timestamp = timestamps[i]
 
 		statusCode, _ := mycenaeTools.HTTP.POSTstring("v2/text", p.StringArray())
-		assert.Equal(t, http.StatusOK, statusCode)
+		assert.Equal(t, http.StatusNoContent, statusCode)
 	}
 
 	time.Sleep(tools.Sleep3)
@@ -1165,7 +1165,7 @@ func TestRESTv2TextBucket53WeeksYear(t *testing.T) {
 		*p.Timestamp = timestamps[i]
 
 		statusCode, _ := mycenaeTools.HTTP.POSTstring("v2/text", p.StringArray())
-		assert.Equal(t, http.StatusOK, statusCode)
+		assert.Equal(t, http.StatusNoContent, statusCode)
 	}
 
 	time.Sleep(tools.Sleep3)
@@ -1207,7 +1207,7 @@ func TestRESTv2TextBucket52WeeksYear(t *testing.T) {
 		*p.Timestamp = timestamps[i]
 
 		statusCode, _ := mycenaeTools.HTTP.POSTstring("v2/text", p.StringArray())
-		assert.Equal(t, http.StatusOK, statusCode)
+		assert.Equal(t, http.StatusNoContent, statusCode)
 	}
 
 	time.Sleep(tools.Sleep3)
@@ -1247,7 +1247,7 @@ func TestRESTv2TextBucketFullYear(t *testing.T) {
 		timestamps[i] = *p.Timestamp
 
 		statusCode, _ := mycenaeTools.HTTP.POSTstring("v2/text", p.StringArray())
-		assert.Equal(t, http.StatusOK, statusCode)
+		assert.Equal(t, http.StatusNoContent, statusCode)
 
 		day = day.AddDate(0, 0, 7)
 	}
@@ -1293,7 +1293,7 @@ func TestRESTv2TextBucketFullPastYearAtOnce(t *testing.T) {
 	ps := tools.PayloadSlice{PS: payload}
 
 	statusCode, _, _ := mycenaeTools.HTTP.POST("v2/text", ps.Marshal())
-	assert.Equal(t, http.StatusOK, statusCode)
+	assert.Equal(t, http.StatusNoContent, statusCode)
 	time.Sleep(tools.Sleep3)
 
 	for _, p := range payload {
@@ -1325,7 +1325,7 @@ func TestRESTv2TextBucketFuturePoints(t *testing.T) {
 		*p.Text = fmt.Sprintf("%v%v", "text ", i)
 
 		statusCode, _ := mycenaeTools.HTTP.POSTstring("v2/text", p.StringArray())
-		assert.Equal(t, http.StatusOK, statusCode)
+		assert.Equal(t, http.StatusNoContent, statusCode)
 		time.Sleep(tools.Sleep3)
 
 		assertMycenaeText(t, ksMycenae, *p.Timestamp, *p.Timestamp, *p.Text, hashID)
@@ -1369,7 +1369,7 @@ func TestRESTv2TextBucketFuturePointsAtOnceAndThenPast(t *testing.T) {
 	ps := tools.PayloadSlice{PS: payload}
 
 	statusCode, _, _ := mycenaeTools.HTTP.POST("v2/text", ps.Marshal())
-	assert.Equal(t, http.StatusOK, statusCode)
+	assert.Equal(t, http.StatusNoContent, statusCode)
 	time.Sleep(tools.Sleep3)
 
 	hashID := tools.GetTextHashFromMetricAndTags(metric, tags)
@@ -1402,7 +1402,7 @@ func TestRESTv2TextBucketFuturePointsAtOnceAndThenPast(t *testing.T) {
 	bucket := fmt.Sprintf("%v%v%v", year, week, hashID)
 
 	statusCode, _ = mycenaeTools.HTTP.POSTstring("v2/text", p.StringArray())
-	assert.Equal(t, http.StatusOK, statusCode)
+	assert.Equal(t, http.StatusNoContent, statusCode)
 	time.Sleep(tools.Sleep3)
 
 	assertMycenaeText(t, ksMycenae, *p.Timestamp, *p.Timestamp, *p.Text, hashID)
@@ -1430,7 +1430,7 @@ func TestRESTv2TextBucketFuturePointsDifferentSeriesAtOnce(t *testing.T) {
 	ps := tools.PayloadSlice{PS: payload}
 
 	statusCode, _, _ := mycenaeTools.HTTP.POST("v2/text", ps.Marshal())
-	assert.Equal(t, http.StatusOK, statusCode)
+	assert.Equal(t, http.StatusNoContent, statusCode)
 	time.Sleep(tools.Sleep3)
 
 	for _, p := range payload {
@@ -1534,7 +1534,7 @@ func sendRESTextPayloadAndAssertPoint(t *testing.T, payload *tools.Payload, star
 	ps := tools.PayloadSlice{PS: []tools.Payload{*payload}}
 
 	statusCode, _, _ := mycenaeTools.HTTP.POST("v2/text", ps.Marshal())
-	assert.Equal(t, http.StatusOK, statusCode)
+	assert.Equal(t, http.StatusNoContent, statusCode)
 
 	time.Sleep(tools.Sleep3)
 
@@ -1552,10 +1552,10 @@ func sendRESTextPayloadWithMoreThanAPointAndAssertPoints(t *testing.T, payload t
 
 	if gzipit {
 		statusCode, _, _ := mycenaeTools.HTTP.POSTgziped("v2/text", payload.Marshal())
-		assert.Equal(t, http.StatusOK, statusCode)
+		assert.Equal(t, http.StatusNoContent, statusCode)
 	} else {
 		statusCode, _, _ := mycenaeTools.HTTP.POST("v2/text", payload.Marshal())
-		assert.Equal(t, http.StatusOK, statusCode)
+		assert.Equal(t, http.StatusNoContent, statusCode)
 	}
 
 	time.Sleep(tools.Sleep3)

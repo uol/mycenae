@@ -242,7 +242,7 @@ func sendPointsGrafana(msg string, points interface{}) {
 	}
 
 	code, resp, _ := mycenaeTools.HTTP.POST("api/put", jsonPoints)
-	if code != http.StatusOK {
+	if code != http.StatusNoContent {
 		log.Fatal(msg, code, string(resp))
 	}
 }

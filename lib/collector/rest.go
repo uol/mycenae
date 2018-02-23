@@ -31,7 +31,7 @@ func (collect *Collector) handle(w http.ResponseWriter, r *http.Request, number 
 	}
 
 	if !hasError {
-		rip.Success(w, http.StatusOK, nil)
+		rip.Success(w, http.StatusNoContent, nil)
 	}
 
 	return

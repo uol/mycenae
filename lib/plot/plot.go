@@ -77,4 +77,5 @@ type Plot struct {
 	keyspaceTTLMap    map[uint8]string
 	keySet            *keyset.KeySet
 	defaultTTL        uint8
+	maxSuggestions    int
 }

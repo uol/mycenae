@@ -124,7 +124,7 @@ func sendRandomPoints(num int, ttl uint8, metric string, isNumber bool, lastSent
 
 	code, resp, _ := mycenaeTools.HTTP.POST(api, jsonBytes)
 
-	if code != http.StatusOK {
+	if code != http.StatusNoContent {
 		log.Fatal("error sending points, code: ", code, " ttlKeyspace_test.go, response: ", string(resp))
 	}
 

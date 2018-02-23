@@ -23,7 +23,7 @@ func postPoints(payload interface{}, text bool, t *testing.T) {
 		statusCode = mycenaeTools.HTTP.POSTjson("api/put", payload, x)
 	}
 
-	assert.Equal(t, http.StatusOK, statusCode)
+	assert.Equal(t, http.StatusNoContent, statusCode)
 	time.Sleep(tools.Sleep3)
 }
 

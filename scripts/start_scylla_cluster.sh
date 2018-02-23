@@ -31,7 +31,7 @@ do
 	echo "${cmd}"
 	eval "${cmd}"
 
-	curl --silent -XPUT -d '{"name":"scylla","port":9042}' --header "Content-type: application/json" "http://${consulServerIp}:8500/v1/agent/service/register"
+	curl --silent --max-time=5 -XPUT -d '{"name":"scylla","port":9042}' --header "Content-type: application/json" "http://${consulServerIp}:8500/v1/agent/service/register"
 done
 
 echo "Scylla Cluster OK"

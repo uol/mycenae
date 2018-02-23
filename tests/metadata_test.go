@@ -88,7 +88,7 @@ func sendPointsMetadata(keySet string) {
 	]`
 
 	code, _, _ := mycenaeTools.HTTP.POST("api/put", []byte(point))
-	if code != http.StatusOK {
+	if code != http.StatusNoContent {
 		log.Fatal("Error sending points, code: ", code, " metadata_test.go")
 	}
 
@@ -144,7 +144,7 @@ func sendPointsMetadata(keySet string) {
 	]`
 
 	code, _, _ = mycenaeTools.HTTP.POST("v2/text", []byte(pointT))
-	if code != http.StatusOK {
+	if code != http.StatusNoContent {
 		log.Fatal("Error sending text points, code: ", code, " metadata_test.go")
 	}
 }

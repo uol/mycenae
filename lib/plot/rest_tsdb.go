@@ -99,7 +99,7 @@ func (plot *Plot) Suggest(w http.ResponseWriter, r *http.Request, ps httprouter.
 	q := r.URL.Query()
 
 	maxStr := q.Get("max")
-	max := 25
+	max := plot.maxSuggestions
 	resp := []string{}
 
 	var err error

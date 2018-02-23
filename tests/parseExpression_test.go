@@ -155,7 +155,7 @@ func sendPointsParseExp(keySet string) {
 	]`
 
 	code, _, _ := mycenaeTools.HTTP.POST("api/put", []byte(points))
-	if code != http.StatusOK {
+	if code != http.StatusNoContent {
 		log.Fatal("Error sending points!")
 	}
 }

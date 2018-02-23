@@ -176,7 +176,7 @@ func TestRESTv2MultiplePointsSameIDAndTimestampsGreaterThanDay(t *testing.T) {
 		ps := tools.PayloadSlice{PS: []tools.Payload{*p}}
 
 		statusCode, _, _ := mycenaeTools.HTTP.POST("api/put", ps.Marshal())
-		assert.Equal(t, http.StatusOK, statusCode)
+		assert.Equal(t, http.StatusNoContent, statusCode)
 	}
 
 	hashID := tools.GetHashFromMetricAndTags(p.Metric, p.Tags)
@@ -207,7 +207,7 @@ func TestRESTv2MultiplePointsSameIDAndNoTimestamp(t *testing.T) {
 		ps := tools.PayloadSlice{PS: []tools.Payload{*p}}
 
 		statusCode, _, _ := mycenaeTools.HTTP.POST("api/put", ps.Marshal())
-		assert.Equal(t, http.StatusOK, statusCode)
+		assert.Equal(t, http.StatusNoContent, statusCode)
 
 		time.Sleep(tools.Sleep3)
 
@@ -234,7 +234,7 @@ func TestRESTv2CheckLocalElasticCache(t *testing.T) {
 		ps := tools.PayloadSlice{PS: []tools.Payload{*p}}
 
 		statusCode, _, _ := mycenaeTools.HTTP.POST("api/put", ps.Marshal())
-		assert.Equal(t, http.StatusOK, statusCode)
+		assert.Equal(t, http.StatusNoContent, statusCode)
 		time.Sleep(tools.Sleep3)
 
 		assertMycenae(t, ksMycenae, *p.Timestamp, *p.Timestamp, *p.Value, hashID)
@@ -252,7 +252,7 @@ func TestRESTv2CheckLocalElasticCache(t *testing.T) {
 	ps := tools.PayloadSlice{PS: []tools.Payload{*p}}
 
 	statusCode, _, _ := mycenaeTools.HTTP.POST("api/put", ps.Marshal())
-	assert.Equal(t, http.StatusOK, statusCode)
+	assert.Equal(t, http.StatusNoContent, statusCode)
 	time.Sleep(tools.Sleep3)
 
 	assertMycenae(t, ksMycenae, *p.Timestamp, *p.Timestamp, *p.Value, hashID)
@@ -312,7 +312,7 @@ func TestRESTv2PayloadWithSpecialChars(t *testing.T) {
 			ps := tools.PayloadSlice{PS: []tools.Payload{*p}}
 
 			statusCode, _, _ := mycenaeTools.HTTP.POST("api/put", ps.Marshal())
-			assert.Equal(t, http.StatusOK, statusCode)
+			assert.Equal(t, http.StatusNoContent, statusCode)
 
 			// special chars take longer to be saved
 			time.Sleep(tools.Sleep3 * 2)
@@ -382,7 +382,7 @@ func TestRESTv2PayloadsWithSameMetricTagsTimestamp(t *testing.T) {
 	ps := tools.PayloadSlice{PS: []tools.Payload{*p}}
 
 	statusCode, _, _ := mycenaeTools.HTTP.POST("api/put", ps.Marshal())
-	assert.Equal(t, http.StatusOK, statusCode)
+	assert.Equal(t, http.StatusNoContent, statusCode)
 	time.Sleep(tools.Sleep3)
 
 	hashID := tools.GetHashFromMetricAndTags(p.Metric, p.Tags)
@@ -434,10 +434,10 @@ func TestRESTv2PayloadsWithSameMetricTagsTimestampTwoEqualTags(t *testing.T) {
 	hashID := tools.GetHashFromMetricAndTags(metric, tags)
 
 	statusCode, _ := mycenaeTools.HTTP.POSTstring("api/put", payload1)
-	assert.Equal(t, http.StatusOK, statusCode)
+	assert.Equal(t, http.StatusNoContent, statusCode)
 
 	statusCode, _ = mycenaeTools.HTTP.POSTstring("api/put", payload2)
-	assert.Equal(t, http.StatusOK, statusCode)
+	assert.Equal(t, http.StatusNoContent, statusCode)
 	time.Sleep(tools.Sleep3)
 
 	assertMycenae(t, ksMycenae, timestamp, timestamp, float32(value2), hashID)
@@ -931,7 +931,7 @@ func TestRESTv2BucketLimits(t *testing.T) {
 		*p.Timestamp = timestamps[i]
 
 		statusCode, _ := mycenaeTools.HTTP.POSTstring("api/put", p.StringArray())
-		assert.Equal(t, http.StatusOK, statusCode)
+		assert.Equal(t, http.StatusNoContent, statusCode)
 	}
 
 	time.Sleep(tools.Sleep3)
@@ -978,7 +978,7 @@ func TestRESTv2Bucket53WeeksYear(t *testing.T) {
 		*p.Timestamp = timestamps[i]
 
 		statusCode, _ := mycenaeTools.HTTP.POSTstring("api/put", p.StringArray())
-		assert.Equal(t, http.StatusOK, statusCode)
+		assert.Equal(t, http.StatusNoContent, statusCode)
 	}
 
 	time.Sleep(tools.Sleep3)
@@ -1019,7 +1019,7 @@ func TestRESTv2Bucket52WeeksYear(t *testing.T) {
 		*p.Timestamp = timestamps[i]
 
 		statusCode, _ := mycenaeTools.HTTP.POSTstring("api/put", p.StringArray())
-		assert.Equal(t, http.StatusOK, statusCode)
+		assert.Equal(t, http.StatusNoContent, statusCode)
 	}
 
 	time.Sleep(tools.Sleep3)
@@ -1058,7 +1058,7 @@ func TestRESTv2BucketFullYear(t *testing.T) {
 		timestamps[i] = *p.Timestamp
 
 		statusCode, _ := mycenaeTools.HTTP.POSTstring("api/put", p.StringArray())
-		assert.Equal(t, http.StatusOK, statusCode)
+		assert.Equal(t, http.StatusNoContent, statusCode)
 
 		day = day.AddDate(0, 0, 7)
 	}
@@ -1103,7 +1103,7 @@ func TestRESTv2BucketFullPastYearAtOnce(t *testing.T) {
 	ps := tools.PayloadSlice{PS: payload}
 
 	statusCode, _, _ := mycenaeTools.HTTP.POST("api/put", ps.Marshal())
-	assert.Equal(t, http.StatusOK, statusCode)
+	assert.Equal(t, http.StatusNoContent, statusCode)
 	time.Sleep(tools.Sleep3)
 
 	for _, p := range payload {
@@ -1136,7 +1136,7 @@ func TestRESTv2BucketFuturePoints(t *testing.T) {
 		*p.Value = float32(i)
 
 		statusCode, _ := mycenaeTools.HTTP.POSTstring("api/put", p.StringArray())
-		assert.Equal(t, http.StatusOK, statusCode)
+		assert.Equal(t, http.StatusNoContent, statusCode)
 		time.Sleep(tools.Sleep3)
 
 		assertMycenae(t, ksMycenae, *p.Timestamp, *p.Timestamp, *p.Value, hashID)
@@ -1178,7 +1178,7 @@ func TestRESTv2BucketFuturePointsDifferentSeriesAtOnce(t *testing.T) {
 	ps := tools.PayloadSlice{PS: payload}
 
 	statusCode, _, _ := mycenaeTools.HTTP.POST("api/put", ps.Marshal())
-	assert.Equal(t, http.StatusOK, statusCode)
+	assert.Equal(t, http.StatusNoContent, statusCode)
 	time.Sleep(tools.Sleep3)
 
 	for _, p := range payload {
@@ -1293,7 +1293,7 @@ func sendRESTPayloadAndAssertPoint(t *testing.T, payload *tools.Payload, start, 
 	ps := tools.PayloadSlice{PS: []tools.Payload{*payload}}
 
 	statusCode, _, _ := mycenaeTools.HTTP.POST("api/put", ps.Marshal())
-	assert.Equal(t, http.StatusOK, statusCode)
+	assert.Equal(t, http.StatusNoContent, statusCode)
 
 	time.Sleep(tools.Sleep3)
 
@@ -1309,10 +1309,10 @@ func sendRESTPayloadWithMoreThanAPointAndAssertPoints(t *testing.T, payload tool
 
 	if gzipit {
 		statusCode, _, _ := mycenaeTools.HTTP.POSTgziped("api/put", payload.Marshal())
-		assert.Equal(t, http.StatusOK, statusCode)
+		assert.Equal(t, http.StatusNoContent, statusCode)
 	} else {
 		statusCode, _, _ := mycenaeTools.HTTP.POST("api/put", payload.Marshal())
-		assert.Equal(t, http.StatusOK, statusCode)
+		assert.Equal(t, http.StatusNoContent, statusCode)
 	}
 
 	time.Sleep(tools.Sleep3)
