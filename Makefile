@@ -25,5 +25,5 @@ clean:
 
 rpm-build:
 	@echo " === Generating RPM === "
-	@rpmbuild -bb ../rpm/mycenae.spec
+	@rpmbuild -bb ./rpm/mycenae.spec
 	@echo " === RPM Generated === "

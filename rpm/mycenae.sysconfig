@@ -1,0 +1,2 @@
+CONFIG='/opt/mycenae/config.toml'
+#DEV_MODE='-devMode'

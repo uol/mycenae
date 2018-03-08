@@ -3,8 +3,9 @@
 #------------------------------------------------------------------------------
 %define binaryname mycenae
 %define projectname mycenae
+%define build_timestamp %(date +"%Y%m%d%H%M")
 Name:      %{projectname}
-Version:   2.2.build_time
+Version:   3.0.%{build_timestamp}
 Release:   1
 
 Packager:  UOL - Universo Online S.A.
@@ -21,7 +22,7 @@ Summary:   Mycenae timeseries database that uses cassandra and elasticsearch as 
 Group:     Application/Internet
 
 %description
-Mycenae is a timeseries database that uses cassandra and elasticsearch as backends.
+Mycenae is a timeseries database that uses scylla, memcached and elasticsearch as backends.
 
 #------------------------------------------------------------------------------
 # B U I L D
@@ -41,13 +42,13 @@ buildtmp=${GOPATH}/src/github.com/uol/%{projectname}
 rm -rf "%{buildroot}"
 install -m 755 -d "%{buildroot}"/opt/%{projectname}/bin
 install -m 755 ${buildtmp}/%{binaryname} "%{buildroot}"/opt/%{projectname}/bin
-install -m 755 -d "%{buildroot}"/var/log/%{projectname}
+install -m 755 -d "%{buildroot}"/export/logs/%{projectname}
 install -m 755 -d "%{buildroot}"/etc/logrotate.d
 install -m 644 ${buildtmp}/rpm/%{binaryname}.logrotate "%{buildroot}"/etc/logrotate.d/%{projectname}
-install -m 755 -d "%{buildroot}"/etc/rc.d/init.d
-install -m 755 ${buildtmp}/rpm/%{binaryname}.initd "%{buildroot}"/etc/rc.d/init.d/%{projectname}
 install -m 755 -d "%{buildroot}"/lib/systemd/system
 install -m 755 ${buildtmp}/rpm/%{projectname}.service "%{buildroot}"/lib/systemd/system/%{projectname}.service
+install -m 755 -d "%{buildroot}"/etc/sysconfig/
+install -m 755 ${buildtmp}/rpm/%{projectname}.sysconfig "%{buildroot}"/etc/sysconfig/%{projectname}
 install -m 755 -d "%{buildroot}"/var/run/%{projectname}
 install -m 755 -d "%{buildroot}"/var/lib/%{projectname}
 
@@ -70,14 +71,8 @@ fi
 # P O S T - I N S T A L L  S C R I P T
 #------------------------------------------------------------------------------
 %post
-if grep -q " 7" /etc/redhat-release
-then
-	systemctl mycenae
-	systemctl daemon-reload
-else
-	chkconfig --add mycenae
-	chkconfig mycenae on
-fi
+systemctl mycenae
+systemctl daemon-reload
 
 #------------------------------------------------------------------------------
 # P R E - U N I N S T A L L  S C R I P T
@@ -100,14 +95,15 @@ fi
 #------------------------------------------------------------------------------
 %files
 %attr(0755, root, root) /opt/%{projectname}/bin/%{binaryname}
-%attr(0755, root, root) /etc/rc.d/init.d/%{projectname}
 %attr(0644, root, root) /etc/logrotate.d/%{projectname}
-%dir /var/log/%{projectname}
-%attr(0755, %{binaryname}, %{binaryname}) /var/log/%{projectname}
+%dir /export/logs/%{projectname}
+%attr(0755, %{binaryname}, %{binaryname}) /export/logs/%{projectname}
 %dir /var/run/%{projectname}
 %attr(0755, %{binaryname}, root) /var/run/%{projectname}
 %dir /lib/systemd/system
 %attr(0755, root, root) /lib/systemd/system/%{projectname}.service
+%dir /etc/sysconfig
+%attr(0755, root, root) /etc/sysconfig/%{projectname}
 %dir /var/lib/%{projectname}
 %attr(0755, %{binaryname}, %{binaryname}) /var/lib/%{projectname}
 

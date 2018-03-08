@@ -3,7 +3,8 @@ Description=Mycenae timeseries database
 
 [Service]
 Type=simple
-ExecStart=/opt/mycenae/bin/mycenae -config=/etc/opt/mycenae/mycenae.toml
+EnvironmentFile=-/etc/sysconfig/mycenae
+ExecStart=/opt/mycenae/bin/mycenae -config $CONFIG $DEV_MODE
 KillMode=process
 User=mycenae
 Group=mycenae
