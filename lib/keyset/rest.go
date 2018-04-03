@@ -12,18 +12,18 @@ func (ks *KeySet) CreateKeySet(w http.ResponseWriter, r *http.Request, ps httpro
 	keySetParam := ps.ByName("keyset")
 
 	if keySetParam == "" {
-		rip.AddStatsMap(r, map[string]string{"path": "/keyset/#keyset", "keyset": "empty"})
+		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset", "keyset": "empty"})
 		rip.Fail(w, errBadRequest("CreateKeySet", "parameter 'keyset' cannot be empty"))
 		return
 	}
 
 	if !ks.keySetRegexp.MatchString(keySetParam) {
-		rip.AddStatsMap(r, map[string]string{"path": "/keyset/#keyset"})
+		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset"})
 		rip.Fail(w, errBadRequest("CreateKeySet", "parameter 'keyset' has an invalid format"))
 		return
 	}
 
-	rip.AddStatsMap(r, map[string]string{"path": "/keyset/#keyset", "keyset": keySetParam})
+	rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset", "keyset": keySetParam})
 
 	exists, gerr := ks.KeySetExists(keySetParam)
 	if gerr != nil {

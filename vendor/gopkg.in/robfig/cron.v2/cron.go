@@ -1,5 +1,6 @@
-// Package cron implements a cron spec parser and runner.
-package cron // import "gopkg.in/robfig/cron.v2"
+// This library implements a cron spec parser and runner.  See the README for
+// more details.
+package cron
 
 import (
 	"sort"
@@ -13,10 +14,8 @@ type Cron struct {
 	entries  []*Entry
 	stop     chan struct{}
 	add      chan *Entry
-	remove   chan EntryID
-	snapshot chan []Entry
+	snapshot chan []*Entry
 	running  bool
-	nextID   EntryID
 }
 
 // Job is an interface for submitted cron jobs.
@@ -24,38 +23,29 @@ type Job interface {
 	Run()
 }
 
-// Schedule describes a job's duty cycle.
+// The Schedule describes a job's duty cycle.
 type Schedule interface {
-	// Next returns the next activation time, later than the given time.
+	// Return the next activation time, later than the given time.
 	// Next is invoked initially, and then each time the job is run.
 	Next(time.Time) time.Time
 }
 
-// EntryID identifies an entry within a Cron instance
-type EntryID int
-
 // Entry consists of a schedule and the func to execute on that schedule.
 type Entry struct {
-	// ID is the cron-assigned ID of this entry, which may be used to look up a
-	// snapshot or remove it.
-	ID EntryID
-
-	// Schedule on which this job should be run.
+	// The schedule on which this job should be run.
 	Schedule Schedule
 
-	// Next time the job will run, or the zero time if Cron has not been
+	// The next time the job will run. This is the zero time if Cron has not been
 	// started or this entry's schedule is unsatisfiable
 	Next time.Time
 
-	// Prev is the last time this job was run, or the zero time if never.
+	// The last time this job was run. This is the zero time if the job has never
+	// been run.
 	Prev time.Time
 
-	// Job is the thing to run when the Schedule is activated.
+	// The Job to run.
 	Job Job
 }
-
-// Valid returns true if this is not the zero entry.
-func (e Entry) Valid() bool { return e.ID != 0 }
 
 // byTime is a wrapper for sorting the entry array by time
 // (with zero time at the end).
@@ -82,73 +72,53 @@ func New() *Cron {
 		entries:  nil,
 		add:      make(chan *Entry),
 		stop:     make(chan struct{}),
-		snapshot: make(chan []Entry),
-		remove:   make(chan EntryID),
+		snapshot: make(chan []*Entry),
 		running:  false,
 	}
 }
 
-// FuncJob is a wrapper that turns a func() into a cron.Job
+// A wrapper that turns a func() into a cron.Job
 type FuncJob func()
 
 func (f FuncJob) Run() { f() }
 
 // AddFunc adds a func to the Cron to be run on the given schedule.
-func (c *Cron) AddFunc(spec string, cmd func()) (EntryID, error) {
+func (c *Cron) AddFunc(spec string, cmd func()) error {
 	return c.AddJob(spec, FuncJob(cmd))
 }
 
-// AddJob adds a Job to the Cron to be run on the given schedule.
-func (c *Cron) AddJob(spec string, cmd Job) (EntryID, error) {
+// AddFunc adds a Job to the Cron to be run on the given schedule.
+func (c *Cron) AddJob(spec string, cmd Job) error {
 	schedule, err := Parse(spec)
 	if err != nil {
-		return 0, err
+		return err
 	}
-	return c.Schedule(schedule, cmd), nil
+	c.Schedule(schedule, cmd)
+	return nil
 }
 
 // Schedule adds a Job to the Cron to be run on the given schedule.
-func (c *Cron) Schedule(schedule Schedule, cmd Job) EntryID {
-	c.nextID++
+func (c *Cron) Schedule(schedule Schedule, cmd Job) {
 	entry := &Entry{
-		ID:       c.nextID,
 		Schedule: schedule,
 		Job:      cmd,
 	}
 	if !c.running {
 		c.entries = append(c.entries, entry)
-	} else {
-		c.add <- entry
+		return
 	}
-	return entry.ID
+
+	c.add <- entry
 }
 
 // Entries returns a snapshot of the cron entries.
-func (c *Cron) Entries() []Entry {
+func (c *Cron) Entries() []*Entry {
 	if c.running {
 		c.snapshot <- nil
-		return <-c.snapshot
+		x := <-c.snapshot
+		return x
 	}
 	return c.entrySnapshot()
-}
-
-// Entry returns a snapshot of the given entry, or nil if it couldn't be found.
-func (c *Cron) Entry(id EntryID) Entry {
-	for _, entry := range c.Entries() {
-		if id == entry.ID {
-			return entry
-		}
-	}
-	return Entry{}
-}
-
-// Remove an entry from being run in the future.
-func (c *Cron) Remove(id EntryID) {
-	if c.running {
-		c.remove <- id
-	} else {
-		c.removeEntry(id)
-	}
 }
 
 // Start the cron scheduler in its own go-routine.
@@ -157,7 +127,7 @@ func (c *Cron) Start() {
 	go c.run()
 }
 
-// run the scheduler.. this is private just due to the need to synchronize
+// Run the scheduler.. this is private just due to the need to synchronize
 // access to the 'running' state variable.
 func (c *Cron) run() {
 	// Figure out the next activation times for each entry.
@@ -199,13 +169,11 @@ func (c *Cron) run() {
 		case <-c.snapshot:
 			c.snapshot <- c.entrySnapshot()
 
-		case id := <-c.remove:
-			c.removeEntry(id)
-
 		case <-c.stop:
 			return
 		}
 
+		// 'now' should be updated after newEntry and snapshot cases.
 		now = time.Now().Local()
 	}
 }
@@ -217,20 +185,15 @@ func (c *Cron) Stop() {
 }
 
 // entrySnapshot returns a copy of the current cron entry list.
-func (c *Cron) entrySnapshot() []Entry {
-	var entries = make([]Entry, len(c.entries))
-	for i, e := range c.entries {
-		entries[i] = *e
+func (c *Cron) entrySnapshot() []*Entry {
+	entries := []*Entry{}
+	for _, e := range c.entries {
+		entries = append(entries, &Entry{
+			Schedule: e.Schedule,
+			Next:     e.Next,
+			Prev:     e.Prev,
+			Job:      e.Job,
+		})
 	}
 	return entries
-}
-
-func (c *Cron) removeEntry(id EntryID) {
-	var entries []*Entry
-	for _, e := range c.entries {
-		if e.ID != id {
-			entries = append(entries, e)
-		}
-	}
-	c.entries = entries
 }

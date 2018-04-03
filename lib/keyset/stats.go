@@ -24,9 +24,9 @@ func (ks *KeySet) statsIndex(i, t, m string, d time.Duration) {
 }
 
 func (ks *KeySet) statsIncrement(metric string, tags map[string]string) {
-	ks.stats.Increment("keyset/index", metric, tags)
+	ks.stats.Increment("keysets/index", metric, tags)
 }
 
 func (ks *KeySet) statsValueAdd(metric string, tags map[string]string, v float64) {
-	ks.stats.ValueAdd("keyset/index", metric, tags, v)
+	ks.stats.ValueAdd("keysets/index", metric, tags, v)
 }

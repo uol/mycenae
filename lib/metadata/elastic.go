@@ -4,20 +4,20 @@ import (
 	"bytes"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/uol/gobol"
 	"github.com/uol/gobol/rubber"
 	"github.com/uol/mycenae/lib/tsstats"
+	"go.uber.org/zap"
 )
 
 type elasticBackend struct {
 	client *rubber.Elastic
 	stats  *tsstats.StatsTS
-	logger *logrus.Logger
+	logger *zap.Logger
 }
 
 func newElasticBackend(
-	logger *logrus.Logger, stats *tsstats.StatsTS, settings rubber.Settings,
+	logger *zap.Logger, stats *tsstats.StatsTS, settings rubber.Settings,
 ) (Backend, error) {
 	client, err := rubber.New(logger, settings)
 	if err != nil {

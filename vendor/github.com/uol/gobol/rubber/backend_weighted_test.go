@@ -6,7 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"go.uber.org/zap"
+
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/assert"
 )
@@ -21,7 +22,7 @@ const (
 var _ Backend = &weightedBackend{}
 
 func testWeightedBackend(update time.Duration) *weightedBackend {
-	logger := logrus.New()
+	logger := zap.NewNop()
 	backend := &weightedBackend{
 		logger: logger,
 		client: &http.Client{

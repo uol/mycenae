@@ -6,11 +6,12 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/uol/gobol"
+
+	"go.uber.org/zap"
 )
 
-var logger *logrus.Logger
+var logger *zap.Logger
 
 type customError struct {
 	error
@@ -59,7 +60,7 @@ func errUnmarshal(f string, e error) gobol.Error {
 	return errBasic(f, "Wrong JSON format", http.StatusBadRequest, e)
 }
 
-func SetLooger(l *logrus.Logger) {
+func SetLogger(l *zap.Logger) {
 	logger = l
 }
 
@@ -123,7 +124,7 @@ func Fail(w http.ResponseWriter, gerr gobol.Error) {
 		if r := recover(); r != nil {
 
 			if logger != nil {
-				logger.WithFields(gerr.LogFields()).Error(gerr.Message())
+				logger.Sugar().Error(gerr.Message(), gerr.LogFields())
 			} else {
 				log.Println(gerr.Message())
 			}
@@ -150,7 +151,7 @@ func Fail(w http.ResponseWriter, gerr gobol.Error) {
 	}()
 
 	if logger != nil {
-		logger.WithFields(gerr.LogFields()).Error(gerr.Error())
+		logger.Sugar().Error(gerr.Error(), gerr.LogFields())
 	} else {
 		log.Println(gerr.Error())
 	}

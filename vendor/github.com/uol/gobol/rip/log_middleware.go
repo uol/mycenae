@@ -8,9 +8,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/pborman/uuid"
 	"github.com/uol/gobol/snitch"
+
+	"go.uber.org/zap"
 )
 
 type key int
@@ -43,22 +44,25 @@ func (w *LogResponseWriter) Header() http.Header {
 	return w.ResponseWriter.Header()
 }
 
-func NewLogMiddleware(service, system string, logger *logrus.Logger, sts *snitch.Stats, next http.Handler) *LogHandler {
+func NewLogMiddleware(service, system string, logger *zap.Logger, sts *snitch.Stats, next http.Handler, allowCORS bool) *LogHandler {
+	logger = logger.WithOptions(zap.AddStacktrace(zap.PanicLevel))
 	return &LogHandler{
-		service: service,
-		system:  system,
-		next:    next,
-		logger:  logger,
-		stats:   sts,
+		service:   service,
+		system:    system,
+		next:      next,
+		logger:    logger,
+		stats:     sts,
+		allowCORS: allowCORS,
 	}
 }
 
 type LogHandler struct {
-	service string
-	system  string
-	next    http.Handler
-	logger  *logrus.Logger
-	stats   *snitch.Stats
+	service   string
+	system    string
+	next      http.Handler
+	logger    *zap.Logger
+	stats     *snitch.Stats
+	allowCORS bool
 }
 
 func (h *LogHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -72,6 +76,10 @@ func (h *LogHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if header.Get(fmt.Sprintf("X-REQUEST-%s-ID", h.system)) == "" {
 		header.Add(fmt.Sprintf("X-REQUEST-%s-ID", h.system), rid)
+	}
+
+	if h.allowCORS {
+		header.Add("Access-Control-Allow-Origin", "*")
 	}
 
 	logw := &LogResponseWriter{
@@ -90,27 +98,27 @@ func (h *LogHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	d := time.Since(start)
 
-	fields := logrus.Fields{
-		"id":         rid,
-		"status":     status,
-		"method":     r.Method,
-		"path":       r.RequestURI,
-		"remote":     addr,
-		"service":    h.service,
-		"system":     h.system,
-		"duration":   d,
-		"size":       logw.size,
-		"user-agent": r.UserAgent(),
-	}
+	reqLogger := h.logger.With(
+		zap.String("id", rid),
+		zap.Int("status", status),
+		zap.String("method", r.Method),
+		zap.String("path", r.RequestURI),
+		zap.String("remote", addr),
+		zap.String("service", h.service),
+		zap.String("system", h.system),
+		zap.String("duration", d.String()),
+		zap.Int("size", logw.size),
+		zap.String("user-agent", r.UserAgent()),
+	)
 
 	if f := r.Header.Get("X-FORWARDED-FOR"); f != "" {
-		fields["forward"] = f
+		reqLogger = reqLogger.With(zap.String("forward", f))
 	}
 
-	if status >= http.StatusBadRequest {
-		h.logger.WithFields(fields).Error("completed handling request with errors")
+	if status >= http.StatusInternalServerError {
+		reqLogger.Error("completed handling request with errors")
 	} else {
-		h.logger.WithFields(fields).Info("completed handling request")
+		reqLogger.Info("completed handling request")
 	}
 
 	tags := map[string]string{
@@ -143,21 +151,25 @@ func AddStatsMap(r *http.Request, tags map[string]string) {
 func (h *LogHandler) increment(metric string, tags map[string]string) {
 	err := h.stats.Increment(metric, tags, "@every 1m", false, true)
 	if err != nil {
-		h.logger.WithFields(logrus.Fields{
-			"package": "rip",
-			"func":    "statsIncrement",
-			"metric":  metric,
-		}).Error(err)
+		h.logger.Error(
+			"",
+			zap.Error(err),
+			zap.String("package", "rip"),
+			zap.String("func", "statsIncrement"),
+			zap.String("metric", metric),
+		)
 	}
 }
 
 func (h *LogHandler) valueAdd(metric string, tags map[string]string, v float64) {
 	err := h.stats.ValueAdd(metric, tags, "avg", "@every 1m", false, false, v)
 	if err != nil {
-		h.logger.WithFields(logrus.Fields{
-			"package": "rip",
-			"func":    "statsValueAdd",
-			"metric":  metric,
-		}).Error(err)
+		h.logger.Error(
+			"",
+			zap.Error(err),
+			zap.String("package", "rip"),
+			zap.String("func", "statsValueAdd"),
+			zap.String("metric", metric),
+		)
 	}
 }

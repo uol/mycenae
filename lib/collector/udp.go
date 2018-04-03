@@ -2,9 +2,11 @@ package collector
 
 import (
 	"encoding/json"
+	"fmt"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/uol/gobol"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 func (collector *Collector) HandleUDPpacket(buf []byte, addr string) {
@@ -38,19 +40,19 @@ func (collector *Collector) HandleUDPpacket(buf []byte, addr string) {
 }
 
 func (collector *Collector) fail(gerr gobol.Error, addr string) {
+	lf := []zapcore.Field{
+		zap.String("package", "Collector"),
+		zap.String("func", "fail"),
+	}
+
 	defer func() {
 		if r := recover(); r != nil {
-			gblog.WithFields(
-				logrus.Fields{
-					"func":    "fail",
-					"package": "Collector",
-				},
-			).Errorf("Panic: %v", r)
+			gblog.Error(fmt.Sprintf("Panic: %v", r), lf...)
 		}
 	}()
 
 	fields := gerr.LogFields()
 	fields["addr"] = addr
 
-	gblog.WithFields(fields).Error(gerr.Error())
+	gblog.Error(gerr.Error(), lf...)
 }

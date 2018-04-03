@@ -5,10 +5,11 @@ import (
 	"io"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/gocql/gocql"
 	"github.com/uol/gobol"
 	"github.com/uol/gobol/rubber"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 const (
@@ -30,12 +31,11 @@ func (persist *persistence) InsertPoint(ksid, tsid string, timestamp int64, valu
 		value,
 	).RoutingKey([]byte(tsid)).Exec(); err != nil {
 		statsInsertQerror(ksid, "ts_number_stamp")
-		gblog.WithFields(
-			logrus.Fields{
-				"package": "collector/persistence",
-				"func":    "insertPoint",
-			},
-		).Error(err)
+		lf := []zapcore.Field{
+			zap.String("package", "collector/persistence"),
+			zap.String("func", "insertPoint"),
+		}
+		gblog.Error(err.Error(), lf...)
 		statsInsertFBerror(ksid, "ts_number_stamp")
 		return errPersist("InsertPoint", err)
 	}
@@ -53,19 +53,17 @@ func (persist *persistence) InsertText(ksid, tsid string, timestamp int64, text 
 		text,
 	).RoutingKey([]byte(tsid)).Exec(); err != nil {
 		statsInsertQerror(ksid, "ts_text_stamp")
-		gblog.WithFields(
-			logrus.Fields{
-				"package": "collector/persistence",
-				"func":    "InsertText",
-			},
-		).Error(err)
+		lf := []zapcore.Field{
+			zap.String("package", "collector/persistence"),
+			zap.String("func", "InsertText"),
+		}
+		gblog.Error(err.Error(), lf...)
 		statsInsertFBerror(ksid, "ts_text_stamp")
 		return errPersist("InsertText", err)
 	}
 	statsInsert(ksid, "ts_text_stamp", time.Since(start))
 	return nil
 }
-
 
 func (persist *persistence) HeadMetaFromES(index, eType, id string) (int, gobol.Error) {
 	start := time.Now()

@@ -2,6 +2,7 @@ package collector
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"hash/crc32"
 	"net"
@@ -11,10 +12,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"go.uber.org/zap/zapcore"
+
 	"github.com/gocql/gocql"
 	"github.com/uol/gobol"
 	"github.com/uol/gobol/rubber"
+	"go.uber.org/zap"
 
 	"github.com/uol/mycenae/lib/cache"
 	"github.com/uol/mycenae/lib/keyset"
@@ -23,7 +26,7 @@ import (
 )
 
 var (
-	gblog *logrus.Logger
+	gblog *zap.Logger
 	stats *tsstats.StatsTS
 )
 
@@ -101,9 +104,8 @@ type workerData struct {
 func (collect *Collector) getType(number bool) string {
 	if number {
 		return "number"
-	} else {
-		return "text"
 	}
+	return "text"
 }
 
 func (collect *Collector) worker(id int, jobChannel <-chan workerData) {
@@ -112,15 +114,21 @@ func (collect *Collector) worker(id int, jobChannel <-chan workerData) {
 		err := collect.processPacket(j.point, j.validatedPoint, j.number)
 		if err != nil {
 			statsPointsError(j.point.Tags["ksid"], collect.getType(j.number), j.source, j.point.Tags["ttl"])
-			fields := logrus.Fields{
-				"func": "collector/worker",
+			lf := []zapcore.Field{
+				zap.String("package", "collector"),
+				zap.String("func", "worker"),
 			}
 			if j.logFields != nil && len(j.logFields) > 0 {
 				for k, v := range j.logFields {
-					fields[k] = v
+					lf = append(lf, zap.String(k, v))
 				}
 			}
-			gblog.WithFields(fields).Error("point lost:", j.point)
+			jsonStr, err := json.Marshal(j.point)
+			if err != nil {
+				gblog.Error("point lost (error converting to string)...", lf...)
+			} else {
+				gblog.Error(fmt.Sprintf("point lost: %s", jsonStr), lf...)
+			}
 		} else {
 			statsPoints(j.point.Tags["ksid"], collect.getType(j.number), j.source, j.point.Tags["ttl"])
 		}
@@ -128,21 +136,21 @@ func (collect *Collector) worker(id int, jobChannel <-chan workerData) {
 }
 
 func (collect *Collector) CheckUDPbind() bool {
-	lf := logrus.Fields{
-		"struct": "CollectorV2",
-		"func":   "CheckUDPbind",
+	lf := []zapcore.Field{
+		zap.String("struct", "CollectorV2"),
+		zap.String("func", "CheckUDPbind"),
 	}
 
 	port := ":" + collect.settings.UDPserverV2.Port
 
 	addr, err := net.ResolveUDPAddr("udp", port)
 	if err != nil {
-		gblog.WithFields(lf).Error("addr:", err)
+		gblog.Error(fmt.Sprintf("addr: %s", err), lf...)
 	}
 
 	_, err = net.ListenUDP("udp", addr)
 	if err != nil {
-		gblog.WithFields(lf).Debug(err)
+		gblog.Error(err.Error(), lf...)
 		return true
 	}
 
@@ -150,18 +158,17 @@ func (collect *Collector) CheckUDPbind() bool {
 }
 
 func (collect *Collector) ReceivedErrorRatio() (ratio float64) {
-	lf := logrus.Fields{
-		"struct": "CollectorV2",
-		"func":   "ReceivedErrorRatio",
+	lf := []zapcore.Field{
+		zap.String("struct", "CollectorV2"),
+		zap.String("func", "ReceivedErrorRatio"),
 	}
-
 	if collect.receivedSinceLastProbe == 0 {
 		ratio = 0
 	} else {
 		ratio = collect.errorsSinceLastProbe / collect.receivedSinceLastProbe
 	}
 
-	gblog.WithFields(lf).Debug(ratio)
+	gblog.Debug(fmt.Sprintf("%f", ratio), lf...)
 
 	collect.recvMutex.Lock()
 	collect.receivedSinceLastProbe = 0
@@ -221,9 +228,18 @@ func (collect *Collector) processPacket(rcvMsg TSDBpoint, point *Point, number b
 	if len(collect.metaChan) < collect.settings.MetaBufferSize {
 		collect.saveMeta(packet)
 	} else {
-		gblog.WithFields(logrus.Fields{
-			"func": "collector/HandlePacket",
-		}).Warn("discarding point:", rcvMsg)
+		lf := []zapcore.Field{
+			zap.String("package", "collector/collector"),
+			zap.String("func", "processPacket"),
+		}
+
+		jsonStr, err := json.Marshal(rcvMsg)
+		if err != nil {
+			gblog.Error("point discarded (error converting to string)...", lf...)
+		} else {
+			gblog.Warn(fmt.Sprintf("discarding point: %s", jsonStr), lf...)
+		}
+
 		statsLostMeta()
 	}
 

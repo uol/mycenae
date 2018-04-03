@@ -5,9 +5,10 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/gocql/gocql"
 	"github.com/uol/gobol"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 func (persist *persistence) GetTST(
@@ -67,11 +68,11 @@ func (persist *persistence) getTSTstamp(
 	}
 
 	if err = iter.Close(); err != nil {
-
-		gblog.WithFields(logrus.Fields{
-			"package": "plot/persistence",
-			"func":    "getTSTstamp",
-		}).Error(err)
+		fields := []zapcore.Field{
+			zap.String("package", "plot/persistence"),
+			zap.String("func", "getTSTstamp"),
+		}
+		gblog.Error(err.Error(), fields...)
 
 		if err == gocql.ErrNotFound {
 			return []TextPnt{}, 0, errNoContent("getTSTstamp")

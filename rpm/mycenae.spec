@@ -73,6 +73,7 @@ fi
 %post
 systemctl mycenae
 systemctl daemon-reload
+setcap CAP_NET_BIND_SERVICE=+eip /opt/%{projectname}/bin/%{projectname}
 
 #------------------------------------------------------------------------------
 # P R E - U N I N S T A L L  S C R I P T

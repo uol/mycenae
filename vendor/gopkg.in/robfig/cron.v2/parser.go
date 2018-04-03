@@ -23,41 +23,29 @@ func Parse(spec string) (_ Schedule, err error) {
 		}
 	}()
 
-	// Extract timezone if present
-	var loc = time.Local
-	if strings.HasPrefix(spec, "TZ=") {
-		i := strings.Index(spec, " ")
-		if loc, err = time.LoadLocation(spec[3:i]); err != nil {
-			log.Panicf("Provided bad location %s: %v", spec[3:i], err)
-		}
-		spec = strings.TrimSpace(spec[i:])
-	}
-
-	// Handle named schedules (descriptors)
-	if strings.HasPrefix(spec, "@") {
-		return parseDescriptor(spec, loc), nil
+	if spec[0] == '@' {
+		return parseDescriptor(spec), nil
 	}
 
 	// Split on whitespace.  We require 5 or 6 fields.
-	// (second, optional) (minute) (hour) (day of month) (month) (day of week)
+	// (second) (minute) (hour) (day of month) (month) (day of week, optional)
 	fields := strings.Fields(spec)
 	if len(fields) != 5 && len(fields) != 6 {
 		log.Panicf("Expected 5 or 6 fields, found %d: %s", len(fields), spec)
 	}
 
-	// Add 0 for second field if necessary.
+	// If a sixth field is not provided (DayOfWeek), then it is equivalent to star.
 	if len(fields) == 5 {
-		fields = append([]string{"0"}, fields...)
+		fields = append(fields, "*")
 	}
 
 	schedule := &SpecSchedule{
-		Second:   getField(fields[0], seconds),
-		Minute:   getField(fields[1], minutes),
-		Hour:     getField(fields[2], hours),
-		Dom:      getField(fields[3], dom),
-		Month:    getField(fields[4], months),
-		Dow:      getField(fields[5], dow),
-		Location: loc,
+		Second: getField(fields[0], seconds),
+		Minute: getField(fields[1], minutes),
+		Hour:   getField(fields[2], hours),
+		Dom:    getField(fields[3], dom),
+		Month:  getField(fields[4], months),
+		Dow:    getField(fields[5], dow),
 	}
 
 	return schedule, nil
@@ -78,17 +66,19 @@ func getField(field string, r bounds) uint64 {
 // getRange returns the bits indicated by the given expression:
 //   number | number "-" number [ "/" number ]
 func getRange(expr string, r bounds) uint64 {
+
 	var (
 		start, end, step uint
 		rangeAndStep     = strings.Split(expr, "/")
 		lowAndHigh       = strings.Split(rangeAndStep[0], "-")
 		singleDigit      = len(lowAndHigh) == 1
-		extraStar        uint64
 	)
+
+	var extra_star uint64
 	if lowAndHigh[0] == "*" || lowAndHigh[0] == "?" {
 		start = r.min
 		end = r.max
-		extraStar = starBit
+		extra_star = starBit
 	} else {
 		start = parseIntOrName(lowAndHigh[0], r.names)
 		switch len(lowAndHigh) {
@@ -125,7 +115,7 @@ func getRange(expr string, r bounds) uint64 {
 		log.Panicf("Beginning of range (%d) beyond end of range (%d): %s", start, end, expr)
 	}
 
-	return getBits(start, end, step) | extraStar
+	return getBits(start, end, step) | extra_star
 }
 
 // parseIntOrName returns the (possibly-named) integer contained in expr.
@@ -174,61 +164,56 @@ func all(r bounds) uint64 {
 
 // parseDescriptor returns a pre-defined schedule for the expression, or panics
 // if none matches.
-func parseDescriptor(spec string, loc *time.Location) Schedule {
+func parseDescriptor(spec string) Schedule {
 	switch spec {
 	case "@yearly", "@annually":
 		return &SpecSchedule{
-			Second:   1 << seconds.min,
-			Minute:   1 << minutes.min,
-			Hour:     1 << hours.min,
-			Dom:      1 << dom.min,
-			Month:    1 << months.min,
-			Dow:      all(dow),
-			Location: loc,
+			Second: 1 << seconds.min,
+			Minute: 1 << minutes.min,
+			Hour:   1 << hours.min,
+			Dom:    1 << dom.min,
+			Month:  1 << months.min,
+			Dow:    all(dow),
 		}
 
 	case "@monthly":
 		return &SpecSchedule{
-			Second:   1 << seconds.min,
-			Minute:   1 << minutes.min,
-			Hour:     1 << hours.min,
-			Dom:      1 << dom.min,
-			Month:    all(months),
-			Dow:      all(dow),
-			Location: loc,
+			Second: 1 << seconds.min,
+			Minute: 1 << minutes.min,
+			Hour:   1 << hours.min,
+			Dom:    1 << dom.min,
+			Month:  all(months),
+			Dow:    all(dow),
 		}
 
 	case "@weekly":
 		return &SpecSchedule{
-			Second:   1 << seconds.min,
-			Minute:   1 << minutes.min,
-			Hour:     1 << hours.min,
-			Dom:      all(dom),
-			Month:    all(months),
-			Dow:      1 << dow.min,
-			Location: loc,
+			Second: 1 << seconds.min,
+			Minute: 1 << minutes.min,
+			Hour:   1 << hours.min,
+			Dom:    all(dom),
+			Month:  all(months),
+			Dow:    1 << dow.min,
 		}
 
 	case "@daily", "@midnight":
 		return &SpecSchedule{
-			Second:   1 << seconds.min,
-			Minute:   1 << minutes.min,
-			Hour:     1 << hours.min,
-			Dom:      all(dom),
-			Month:    all(months),
-			Dow:      all(dow),
-			Location: loc,
+			Second: 1 << seconds.min,
+			Minute: 1 << minutes.min,
+			Hour:   1 << hours.min,
+			Dom:    all(dom),
+			Month:  all(months),
+			Dow:    all(dow),
 		}
 
 	case "@hourly":
 		return &SpecSchedule{
-			Second:   1 << seconds.min,
-			Minute:   1 << minutes.min,
-			Hour:     all(hours),
-			Dom:      all(dom),
-			Month:    all(months),
-			Dow:      all(dow),
-			Location: loc,
+			Second: 1 << seconds.min,
+			Minute: 1 << minutes.min,
+			Hour:   all(hours),
+			Dom:    all(dom),
+			Month:  all(months),
+			Dow:    all(dow),
 		}
 	}
 

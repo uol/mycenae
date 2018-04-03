@@ -8,7 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"go.uber.org/zap"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -22,7 +23,7 @@ func TestMain(m *testing.M) {
 }
 
 func createTestConsumer() *consumer {
-	logger := logrus.New()
+	logger := zap.NewNop()
 
 	return &consumer{
 		server: fmt.Sprintf("%s:9200", master),

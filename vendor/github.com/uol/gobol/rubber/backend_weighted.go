@@ -10,11 +10,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 type weightedBackend struct {
-	logger    *logrus.Logger
+	logger    *zap.Logger
 	client    *http.Client
 	consumers []*consumer
 	indices   map[string]chan *esRequest
@@ -30,7 +30,7 @@ type weightedBackend struct {
 }
 
 // CreateWeightedBackend creates a backend that directs requests for a given shard to its server
-func CreateWeightedBackend(settings Settings, logger *logrus.Logger) (Backend, error) {
+func CreateWeightedBackend(settings Settings, logger *zap.Logger) (Backend, error) {
 	backend := &weightedBackend{
 		logger: logger,
 		client: &http.Client{
@@ -192,7 +192,7 @@ func (es *weightedBackend) updateLoop(duration time.Duration) {
 	for range time.NewTicker(duration).C {
 		es.logger.Info("Updating consumers")
 		if err := es.start(); err != nil {
-			es.logger.Errorf("Error: %s", err.Error())
+			es.logger.Error("", zap.Error(err))
 		}
 	}
 }

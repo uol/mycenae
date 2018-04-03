@@ -4,8 +4,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/hashicorp/consul/api"
+
+	"go.uber.org/zap"
 )
 
 type ServiceWatcher interface {
@@ -22,7 +23,7 @@ type ServiceSettings struct {
 	PoolInterval string
 }
 
-func NewService(log *logrus.Logger, settings ServiceSettings) (*Service, error) {
+func NewService(log *zap.Logger, settings ServiceSettings) (*Service, error) {
 	if consulClient == nil {
 		return nil, errors.New("No agent connection found")
 	}
@@ -50,7 +51,7 @@ func NewService(log *logrus.Logger, settings ServiceSettings) (*Service, error) 
 }
 
 type Service struct {
-	log      *logrus.Logger
+	log      *zap.Logger
 	settings ServiceSettings
 	client   *api.Client
 	kaOn     bool
@@ -137,40 +138,42 @@ func (srvc *Service) AddJobCheck(name, path, interval string) error {
 }
 
 func (srvc *Service) PassTTL() {
-	lf := map[string]interface{}{
-		"struct": "Service",
-		"func":   "PassTTL",
-	}
 
 	agent := srvc.client.Agent()
 	if err := agent.PassTTL(srvc.ttlName, ""); err != nil {
-		srvc.log.WithFields(lf).Error(err)
+		srvc.log.Error(
+			err.Error(),
+			zap.String("struct", "Service"),
+			zap.String("func", "PassTTL"),
+			zap.Error(err),
+		)
 	}
 }
 
 func (srvc *Service) WarnTTL() {
-	lf := map[string]interface{}{
-		"struct": "Service",
-		"func":   "WarnTTL",
-	}
 
 	agent := srvc.client.Agent()
 	if err := agent.WarnTTL(srvc.ttlName, ""); err != nil {
-		srvc.log.WithFields(lf).Error(err)
+		srvc.log.Error(
+			err.Error(),
+			zap.String("struct", "Service"),
+			zap.String("func", "WarnTTL"),
+			zap.Error(err),
+		)
 	}
 }
 
 func (srvc *Service) FailTTL() {
-	lf := map[string]interface{}{
-		"struct": "Service",
-		"func":   "FailTTL",
-	}
 
 	agent := srvc.client.Agent()
 	if err := agent.FailTTL(srvc.ttlName, ""); err != nil {
-		srvc.log.WithFields(lf).Error(err)
+		srvc.log.Error(
+			err.Error(),
+			zap.String("struct", "Service"),
+			zap.String("func", "FailTTL"),
+			zap.Error(err),
+		)
 	}
-
 }
 
 // StartKeepAlive uses AddTTLcheck and automatically

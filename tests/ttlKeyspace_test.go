@@ -3,28 +3,29 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/stretchr/testify/assert"
-	"github.com/uol/mycenae/tests/tools"
 	"log"
 	"math/rand"
 	"net/http"
+	"regexp"
 	"strconv"
 	"testing"
 	"time"
-	"regexp"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/uol/mycenae/tests/tools"
 )
 
 var (
 	ttlKeyspaceKeySet            string
 	ttlTSUIDMap, ttlTSUIDTextMap map[uint8]node
 	startTime, endTime           time.Time
-	countRegex					 *regexp.Regexp
+	countRegex                   *regexp.Regexp
 )
 
 const (
-	NUMBER_METRIC = "ttl_keyspace"
-	TEXT_METRIC = "ttl_keyspace_txt"
-	HOST_TAG_KEY = "host"
+	NUMBER_METRIC  = "ttl_keyspace"
+	TEXT_METRIC    = "ttl_keyspace_txt"
+	HOST_TAG_KEY   = "host"
 	HOST_TAG_VALUE = "test-host"
 )
 
@@ -66,7 +67,7 @@ func sendPointsToTTLKeyspace(keySet string) {
 	startTime = time.Now()
 	currentTime := startTime
 
-	for ttl, _ := range tools.TTLKeyspaceMap {
+	for ttl := range tools.TTLKeyspaceMap {
 
 		ps, ids, updatedTime := sendRandomPoints(int(ttl), ttl, NUMBER_METRIC, true, currentTime)
 		mapPoints(ttl, ttlTSUIDMap, ps, ids)
@@ -87,12 +88,12 @@ func sendRandomPoints(num int, ttl uint8, metric string, isNumber bool, lastSent
 
 	for i := 0; i < num; i++ {
 
-		lastSentPoint = lastSentPoint.Add(1 * time.Minute)
+		lastSentPoint = lastSentPoint.Add(1 * time.Second)
 
-		value := rand.Int()
+		value := rand.Intn(100)
 		tags := map[string]string{
-			"ttl":  strconv.Itoa(int(ttl)),
-			"ksid": ttlKeyspaceKeySet,
+			"ttl":        strconv.Itoa(int(ttl)),
+			"ksid":       ttlKeyspaceKeySet,
 			HOST_TAG_KEY: HOST_TAG_VALUE,
 		}
 
@@ -171,7 +172,13 @@ func TestTTLKeyspaceCheckPointsInScylla(t *testing.T) {
 func queryByTTL(t *testing.T, ttl uint8, id string, isNumber bool) int {
 
 	runes := []rune(id)
-	tsid := string(runes[5:])
+
+	runeIndex := 5
+	if _, w := startTime.ISOWeek(); w >= 10 {
+		runeIndex = 6
+	}
+
+	tsid := string(runes[runeIndex:])
 
 	tpl := `{
 		"%s": [{
@@ -190,11 +197,11 @@ func queryByTTL(t *testing.T, ttl uint8, id string, isNumber bool) int {
 	}
 
 	payload := fmt.Sprintf(tpl,
-						   qType,
-						   tsid,
-						   int(ttl),
-						   startTime.Unix() * 1000,
-						   endTime.Unix() * 1000)
+		qType,
+		tsid,
+		int(ttl),
+		startTime.Unix()*1000,
+		endTime.Unix()*1000)
 
 	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ttlKeyspaceKeySet+"/points", []byte(payload))
 	if err != nil {

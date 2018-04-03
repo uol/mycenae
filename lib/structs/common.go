@@ -1,18 +1,22 @@
 package structs
 
 import (
-	"github.com/Sirupsen/logrus"
 	"github.com/uol/gobol/cassandra"
 	"github.com/uol/gobol/rubber"
-	"github.com/uol/gobol/saw"
 	"github.com/uol/gobol/snitch"
 	"github.com/uol/mycenae/lib/keyspace"
 	"github.com/uol/mycenae/lib/memcached"
+	"go.uber.org/zap"
 )
 
+type LogSetting struct {
+	Level  string
+	Prefix string
+}
+
 type TsLog struct {
-	General *logrus.Logger
-	Stats   *logrus.Logger
+	General *zap.Logger
+	Stats   *zap.Logger
 }
 
 type SettingsHTTP struct {
@@ -39,15 +43,18 @@ type Settings struct {
 	HTTPserver              SettingsHTTP
 	UDPserver               SettingsUDP
 	UDPserverV2             SettingsUDP
-	DefaultTTL				uint8
-	MaxAllowedTTL			int
-	DefaultKeysets			[]string
+	DefaultTTL              uint8
+	MaxAllowedTTL           int
+	DefaultKeysets          []string
 	DefaultKeyspaceData     keyspace.Config
 	DefaultKeyspaces        map[string]uint8
 	Cassandra               cassandra.Settings
+	Memcached               memcached.Configuration
+	AllowCORS               bool
 	Logs                    struct {
-		General saw.Settings
-		Stats   saw.Settings
+		Environment string
+		General     LogSetting
+		Stats       LogSetting
 	}
 	Stats         snitch.Settings
 	ElasticSearch struct {
@@ -57,5 +64,4 @@ type Settings struct {
 	Probe struct {
 		Threshold float64
 	}
-	Memcached memcached.Configuration
 }

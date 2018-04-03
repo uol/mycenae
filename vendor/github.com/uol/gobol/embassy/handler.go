@@ -1,7 +1,7 @@
 package embassy
 
 import (
-	"github.com/Sirupsen/logrus"
+	"go.uber.org/zap"	
 )
 
 // Consul - Object used to construct an
@@ -21,7 +21,7 @@ type Settings struct {
 }
 
 // New returns an ConsulHandler
-func New(settings Settings, log *logrus.Logger) (*Consul, error) {
+func New(settings Settings, log *zap.Logger) (*Consul, error) {
 
 	err := NewConnection(*settings.Consul)
 	if err != nil {

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 const (
@@ -23,7 +23,7 @@ func compare(name, constant string) bool {
 	return strings.ToLower(name) == strings.ToLower(constant)
 }
 
-func makeBackend(log *logrus.Logger, settings Settings) (Backend, error) {
+func makeBackend(log *zap.Logger, settings Settings) (Backend, error) {
 	if compare(settings.Type, ConfigWeightedBackend) {
 		log.Debug("Using weighted backend")
 		return CreateWeightedBackend(settings, log)
@@ -51,7 +51,7 @@ func Create(backend Backend) *Elastic {
 }
 
 // New creates an elasticsearch client
-func New(log *logrus.Logger, settings Settings) (*Elastic, error) {
+func New(log *zap.Logger, settings Settings) (*Elastic, error) {
 	backend, err := makeBackend(log, settings)
 	if err != nil {
 		return nil, err

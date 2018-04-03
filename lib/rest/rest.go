@@ -7,10 +7,12 @@ import (
 	"net/http"
 	"regexp"
 
-	"github.com/Sirupsen/logrus"
+	"go.uber.org/zap/zapcore"
+
 	"github.com/julienschmidt/httprouter"
 	"github.com/uol/gobol/rip"
 	"github.com/uol/gobol/snitch"
+	"go.uber.org/zap"
 
 	"github.com/uol/mycenae/lib/collector"
 	"github.com/uol/mycenae/lib/config"
@@ -54,7 +56,7 @@ type REST struct {
 	probeStatus    int
 	closed         chan struct{}
 
-	gblog     *logrus.Logger
+	gblog     *zap.Logger
 	sts       *snitch.Stats
 	reader    *plot.Plot
 	kspace    *keyspace.Keyspace
@@ -73,7 +75,12 @@ func (trest *REST) Start() {
 
 func (trest *REST) asyncStart() {
 
-	rip.SetLooger(trest.gblog)
+	lf := []zapcore.Field{
+		zap.String("package", "rest"),
+		zap.String("func", "asyncStart"),
+	}
+
+	rip.SetLogger(trest.gblog)
 
 	pathMatcher := regexp.MustCompile(`^(/[a-zA-Z0-9._-]+)?/$`)
 
@@ -81,7 +88,7 @@ func (trest *REST) asyncStart() {
 		err := errors.New("Invalid path to start rest service")
 
 		if err != nil {
-			trest.gblog.Fatalln("ERROR - Starting REST: ", err)
+			trest.gblog.Fatal(fmt.Sprintf("ERROR - Starting REST: %s", err.Error()), lf...)
 		}
 	}
 
@@ -129,7 +136,8 @@ func (trest *REST) asyncStart() {
 	router.POST("/keysets/:keyset/query/expression", trest.reader.ExpressionQueryPOST)
 	router.GET("/keysets/:keyset/query/expression", trest.reader.ExpressionQueryGET)
 	//KEYSETS
-	router.POST("/keyset/:keyset", trest.keyset.CreateKeySet)
+	router.POST("/keysets/:keyset", trest.keyset.CreateKeySet)
+	router.HEAD("/keysets/:keyset", trest.keyset.Check)
 	router.GET("/keysets", trest.keyset.GetKeySets)
 
 	trest.server = &http.Server{
@@ -140,12 +148,13 @@ func (trest *REST) asyncStart() {
 			trest.gblog,
 			trest.sts,
 			rip.NewGzipMiddleware(rip.BestSpeed, router),
+			true,
 		),
 	}
 
 	err := trest.server.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
-		trest.gblog.Error(err)
+		trest.gblog.Error(err.Error(), lf...)
 	}
 	trest.closed <- struct{}{}
 }
@@ -165,10 +174,15 @@ func (trest *REST) check(w http.ResponseWriter, r *http.Request, _ httprouter.Pa
 
 func (trest *REST) Stop() {
 
+	lf := []zapcore.Field{
+		zap.String("package", "rest"),
+		zap.String("func", "Stop"),
+	}
+
 	trest.probeStatus = http.StatusServiceUnavailable
 
 	if err := trest.server.Shutdown(context.Background()); err != nil {
-		trest.gblog.Error(err)
+		trest.gblog.Error(err.Error(), lf...)
 	}
 
 	<-trest.closed

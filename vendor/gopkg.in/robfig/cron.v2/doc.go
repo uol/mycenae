@@ -8,7 +8,6 @@ them in their own goroutines.
 
 	c := cron.New()
 	c.AddFunc("0 30 * * * *", func() { fmt.Println("Every hour on the half hour") })
-	c.AddFunc("TZ=Asia/Tokyo 30 04 * * * *", func() { fmt.Println("Runs at 04:30 Tokyo time every day") })
 	c.AddFunc("@hourly",      func() { fmt.Println("Every hour") })
 	c.AddFunc("@every 1h30m", func() { fmt.Println("Every hour thirty") })
 	c.Start()
@@ -29,7 +28,7 @@ A cron expression represents a set of times, using 6 space-separated fields.
 
 	Field name   | Mandatory? | Allowed values  | Allowed special characters
 	----------   | ---------- | --------------  | --------------------------
-	Seconds      | No         | 0-59            | * / , -
+	Seconds      | Yes        | 0-59            | * / , -
 	Minutes      | Yes        | 0-59            | * / , -
 	Hours        | Yes        | 0-23            | * / , -
 	Day of month | Yes        | 1-31            | * / , - ?
@@ -102,10 +101,8 @@ it will have only 2 minutes of idle time between each run.
 
 Time zones
 
-By default, all interpretation and scheduling is done in the machine's local
-time zone (as provided by the Go time package http://www.golang.org/pkg/time).
-The time zone may be overridden by providing an additional space-separated field
-at the beginning of the cron spec, of the form "TZ=Asia/Tokyo"
+All interpretation and scheduling is done in the machine's local time zone (as
+provided by the Go time package (http://www.golang.org/pkg/time).
 
 Be aware that jobs scheduled during daylight-savings leap-ahead transitions will
 not be run!

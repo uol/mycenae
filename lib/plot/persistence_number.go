@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/gocql/gocql"
 	"github.com/uol/gobol"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 func (persist *persistence) GetTS(keyspace, key string, start, end int64, ms bool) (Pnts, int, gobol.Error) {
@@ -49,11 +50,11 @@ func (persist *persistence) getTStamp(keyspace, key string, start, end int64, ms
 	}
 
 	if err = iter.Close(); err != nil {
-
-		gblog.WithFields(logrus.Fields{
-			"package": "plot/persistence",
-			"func":    "getTStamp",
-		}).Error(err)
+		fields := []zapcore.Field{
+			zap.String("package", "plot/persistence"),
+			zap.String("func", "getTStamp"),
+		}
+		gblog.Error(err.Error(), fields...)
 
 		if err == gocql.ErrNotFound {
 			statsSelect(keyspace, "ts_number_stamp", time.Since(track))

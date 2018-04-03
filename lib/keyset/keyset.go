@@ -3,14 +3,17 @@ package keyset
 import (
 	"bytes"
 	"encoding/json"
+	"net/http"
+	"regexp"
+	"time"
+
+	"github.com/julienschmidt/httprouter"
 	"github.com/uol/gobol"
+	"github.com/uol/gobol/rip"
 	"github.com/uol/gobol/rubber"
 	"github.com/uol/mycenae/lib/memcached"
 	"github.com/uol/mycenae/lib/tserr"
 	"github.com/uol/mycenae/lib/tsstats"
-	"net/http"
-	"regexp"
-	"time"
 )
 
 type KeySet struct {
@@ -176,4 +179,48 @@ func (ks *KeySet) KeySetExists(key string) (bool, gobol.Error) {
 	}
 
 	return keySetMap[key], nil
+}
+
+// Check if a keyspace exists
+func (ks *KeySet) Check(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	keyset := ps.ByName("keyset")
+	if keyset == "" {
+		rip.AddStatsMap(
+			r,
+			map[string]string{
+				"path":   "/keysets/#keyset",
+				"keyset": "empty",
+			},
+		)
+		rip.Fail(w, errNotFound("Check"))
+		return
+	}
+
+	found, err := ks.KeySetExists(keyset)
+	if err != nil {
+		rip.AddStatsMap(
+			r,
+			map[string]string{
+				"path": "/keysets/#keyset",
+			},
+		)
+		rip.Fail(w, err)
+		return
+	}
+
+	if !found {
+		rip.Fail(w, errNotFound(
+			"Check",
+		))
+		return
+	}
+
+	rip.AddStatsMap(
+		r,
+		map[string]string{
+			"path":   "/keysets/#keyset",
+			"keyset": keyset,
+		},
+	)
+	rip.Success(w, http.StatusOK, nil)
 }

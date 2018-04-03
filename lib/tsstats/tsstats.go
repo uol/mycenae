@@ -1,12 +1,13 @@
 package tsstats
 
 import (
-	"github.com/Sirupsen/logrus"
 	"github.com/uol/gobol/snitch"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"gopkg.in/robfig/cron.v2"
 )
 
-func New(gbl *logrus.Logger, gbs *snitch.Stats, intvl, statsKeySet, statsTTL string) (*StatsTS, error) {
+func New(gbl *zap.Logger, gbs *snitch.Stats, intvl, statsKeySet, statsTTL string) (*StatsTS, error) {
 	if _, err := cron.Parse(intvl); err != nil {
 		return nil, err
 	}
@@ -21,7 +22,7 @@ func New(gbl *logrus.Logger, gbs *snitch.Stats, intvl, statsKeySet, statsTTL str
 
 type StatsTS struct {
 	stats       *snitch.Stats
-	log         *logrus.Logger
+	log         *zap.Logger
 	interval    string
 	StatsKeySet string
 	StatsTTL    string
@@ -30,21 +31,23 @@ type StatsTS struct {
 func (sts *StatsTS) Increment(callerID string, metric string, tags map[string]string) {
 	err := sts.stats.Increment(metric, tags, sts.interval, false, true)
 	if err != nil {
-		sts.log.WithFields(logrus.Fields{
-			"package": callerID,
-			"func":    "statsIncrement",
-			"metric":  metric,
-		}).Error(err)
+		lf := []zapcore.Field{
+			zap.String("package", callerID),
+			zap.String("func", "statsIncrement"),
+			zap.String("metric", metric),
+		}
+		sts.log.Error(err.Error(), lf...)
 	}
 }
 
 func (sts *StatsTS) ValueAdd(callerID string, metric string, tags map[string]string, v float64) {
 	err := sts.stats.ValueAdd(metric, tags, "avg", sts.interval, false, false, v)
 	if err != nil {
-		sts.log.WithFields(logrus.Fields{
-			"package": callerID,
-			"func":    "statsValueAdd",
-			"metric":  metric,
-		}).Error(err)
+		lf := []zapcore.Field{
+			zap.String("package", callerID),
+			zap.String("func", "statsValueAdd"),
+			zap.String("metric", metric),
+		}
+		sts.log.Error(err.Error(), lf...)
 	}
 }

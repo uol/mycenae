@@ -31,7 +31,7 @@ func (st *Stats) ValueAdd(
 			p.SetValue(v)
 		}
 	case "min":
-		if p.valNull {
+		if p.IsValueNull() {
 			p.SetValue(v)
 		} else if p.GetValue() > v {
 			p.SetValue(v)

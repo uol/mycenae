@@ -7,8 +7,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/uol/mycenae/lib/structs"
 	"net/http"
+
+	"github.com/uol/mycenae/lib/structs"
 )
 
 type mycenaeTool struct {
@@ -20,7 +21,7 @@ type Keyspace struct {
 	Datacenter        string `json:"datacenter,omitempty"`
 	ReplicationFactor int    `json:"replicationFactor,omitempty"`
 	Contact           string `json:"contact,omitempty"`
-	TTL               int 	 `json:"ttl,omitempty`
+	TTL               int    `json:"ttl,omitempty`
 }
 
 type KeyspaceUpdate struct {
@@ -230,7 +231,7 @@ func (m *mycenaeTool) CreateKeyspace(dc, name, contact string, repFactor int) st
 
 func (m *mycenaeTool) CreateKeySet(name string) string {
 
-	status, _, err := m.client.POST(fmt.Sprintf("keyset/%s", name), nil)
+	status, _, err := m.client.POST(fmt.Sprintf("keysets/%s", name), nil)
 
 	if err != nil {
 		panic(err)

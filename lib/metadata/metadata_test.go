@@ -5,15 +5,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
 
 func genericMetadataBackendTest(
 	t *testing.T,
 	backend Backend,
-	logger *logrus.Logger,
+	logger *zap.Logger,
 ) {
 	var (
 		unique = strings.Replace(uuid.New(), "-", "", -1)

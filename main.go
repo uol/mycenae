@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -11,11 +12,14 @@ import (
 	"strings"
 	"syscall"
 
+	"go.uber.org/zap/zapcore"
+
 	"github.com/uol/gobol/cassandra"
 	"github.com/uol/gobol/loader"
 	"github.com/uol/gobol/rubber"
 	"github.com/uol/gobol/saw"
 	"github.com/uol/gobol/snitch"
+	"go.uber.org/zap"
 
 	"github.com/uol/mycenae/lib/cache"
 	"github.com/uol/mycenae/lib/collector"
@@ -48,42 +52,53 @@ func main() {
 	if err != nil {
 		log.Fatalln("ERROR - Loading Config file: ", err)
 	} else {
-		fmt.Println("Config file loaded.")
+		fmt.Println("config file loaded.")
 	}
 
 	tsLogger := new(structs.TsLog)
-	tsLogger.General, err = saw.New(settings.Logs.General)
+	tsLogger.General, err = saw.New(settings.Logs.General.Level, settings.Logs.Environment)
 	if err != nil {
 		log.Fatalln("ERROR - Starting logger: ", err)
+	}
+	tsLogger.General = tsLogger.General.With(zap.String("type", settings.Logs.General.Prefix))
+
+	tsLogger.Stats, err = saw.New(settings.Logs.Stats.Level, settings.Logs.Environment)
+	if err != nil {
+		log.Fatalln("ERROR - Starting logger: ", err)
+	}
+	tsLogger.Stats = tsLogger.Stats.With(zap.String("type", settings.Logs.Stats.Prefix))
+
+	lf := []zapcore.Field{
+		zap.String("package", "main"),
+		zap.String("func", "main"),
 	}
 
 	if devMode {
-		tsLogger.General.Info("DEV MODE IS ENABLED!")
+		tsLogger.General.Info("DEV MODE IS ENABLED!", lf...)
 	}
 
 	go func() {
-		log.Println(http.ListenAndServe("0.0.0.0:6666", nil))
-	}()
+		err := http.ListenAndServe("0.0.0.0:6666", nil)
 
-	tsLogger.Stats, err = saw.New(settings.Logs.Stats)
-	if err != nil {
-		log.Fatalln("ERROR - Starting logger: ", err)
-	}
+		if err != nil {
+			tsLogger.General.Error(err.Error(), lf...)
+		}
+	}()
 
 	sts, err := snitch.New(tsLogger.Stats, settings.Stats)
 	if err != nil {
-		log.Fatalln("ERROR - Starting stats: ", err)
+		tsLogger.General.Fatal(fmt.Sprintf("ERROR - Starting stats: %s", err.Error()), lf...)
 	}
 
 	tssts, err := tsstats.New(tsLogger.General, sts, settings.Stats.Interval, settings.Stats.KSID, settings.Stats.Tags["ttl"])
 	if err != nil {
-		tsLogger.General.Error(err)
+		tsLogger.General.Error(err.Error(), lf...)
 		os.Exit(1)
 	}
 
 	cass, err := cassandra.New(settings.Cassandra)
 	if err != nil {
-		tsLogger.General.Error("ERROR - Connecting to cassandra: ", err)
+		tsLogger.General.Fatal(fmt.Sprintf("ERROR - Connecting to cassandra: %s", err.Error()), lf...)
 		os.Exit(1)
 	}
 	defer cass.Close()
@@ -95,7 +110,8 @@ func main() {
 		tssts,
 	)
 	if err != nil {
-		tsLogger.General.Fatalf("Error creating metadata backend")
+		tsLogger.General.Fatal(fmt.Sprintf("error creating metadata backend: %s", err.Error()), lf...)
+		os.Exit(1)
 	}
 
 	storage, err := persistence.NewStorage(
@@ -109,13 +125,14 @@ func main() {
 		settings.DefaultTTL,
 	)
 	if err != nil {
-		tsLogger.General.Fatalf("Error creating persistence backend")
+		tsLogger.General.Fatal(fmt.Sprintf("error creating persistence backend: %s", err.Error()), lf...)
+		os.Exit(1)
 	}
 	// --- End of metadata and persistence ---
 
 	es, err := rubber.New(tsLogger.General, settings.ElasticSearch.Cluster)
 	if err != nil {
-		tsLogger.General.Error("ERROR - Connecting to elasticsearch: ", err)
+		tsLogger.General.Fatal(fmt.Sprintf("ERROR - Connecting to elasticsearch: %s", err.Error()), lf...)
 		os.Exit(1)
 	}
 
@@ -127,42 +144,44 @@ func main() {
 		settings.MaxAllowedTTL,
 	)
 
-	tsLogger.General.Info("Creating default keyspaces: ", settings.DefaultKeyspaces)
+	jsonStr, _ := json.Marshal(settings.DefaultKeyspaces)
+	tsLogger.General.Info(fmt.Sprintf("creating default keyspaces: %s", jsonStr), lf...)
 	keyspaceTTLMap := map[uint8]string{}
 	for k, ttl := range settings.DefaultKeyspaces {
 		gerr := ks.Storage.CreateKeyspace(k,
-										  settings.DefaultKeyspaceData.Datacenter,
-										  settings.DefaultKeyspaceData.Contact,
-										  settings.DefaultKeyspaceData.ReplicationFactor,
-										  ttl)
+			settings.DefaultKeyspaceData.Datacenter,
+			settings.DefaultKeyspaceData.Contact,
+			settings.DefaultKeyspaceData.ReplicationFactor,
+			ttl)
 		keyspaceTTLMap[ttl] = k
 		if gerr != nil && gerr.StatusCode() != http.StatusConflict {
-			tsLogger.General.Error(gerr)
+			tsLogger.General.Fatal(fmt.Sprintf("error creating kayspace '%s': %s", k, gerr.Message()), lf...)
 			os.Exit(1)
 		}
 	}
 
 	mc, err := memcached.New(tssts, &settings.Memcached)
 	if err != nil {
-		tsLogger.General.Error(err)
+		tsLogger.General.Fatal(err.Error(), lf...)
 		os.Exit(1)
 	}
 
 	kc := cache.NewKeyspaceCache(mc, ks)
 	keySet := keyset.NewKeySet(es, tssts, mc)
 
-	tsLogger.General.Info("Creating default keysets:", settings.DefaultKeysets)
+	jsonStr, _ = json.Marshal(settings.DefaultKeysets)
+	tsLogger.General.Info(fmt.Sprintf("creating default keysets: %s", jsonStr), lf...)
 	for _, v := range settings.DefaultKeysets {
 		exists, err := keySet.KeySetExists(v)
 		if err != nil {
-			tsLogger.General.Error("error checking keyset ", v, " existence: ", err)
+			tsLogger.General.Fatal(fmt.Sprintf("error checking keyset '%s' existence: %s", v, err.Error()), lf...)
 			os.Exit(1)
 		}
 		if !exists {
-			tsLogger.General.Info("Creating default keyset:", v)
+			tsLogger.General.Info(fmt.Sprintf("creating default keyset '%s'", v), lf...)
 			err = keySet.CreateIndex(v)
 			if err != nil {
-				tsLogger.General.Error("error creating keyset:", v)
+				tsLogger.General.Fatal(fmt.Sprintf("error creating keyset '%s': %s", v, err.Error()), lf...)
 				os.Exit(1)
 			}
 		}
@@ -197,7 +216,7 @@ func main() {
 		settings.DefaultTTL,
 	)
 	if err != nil {
-		tsLogger.General.Error(err)
+		tsLogger.General.Fatal(err.Error(), lf...)
 		os.Exit(1)
 	}
 
@@ -217,7 +236,7 @@ func main() {
 	signalChannel := make(chan os.Signal, 1)
 	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 
-	fmt.Println("Mycenae started successfully")
+	fmt.Println("mycenae started successfully")
 	for {
 		sig := <-signalChannel
 		switch sig {
@@ -235,10 +254,10 @@ func main() {
 				err = loader.ConfToml(confPath, &settings)
 			}
 			if err != nil {
-				tsLogger.General.Error("ERROR - Loading Config file: ", err)
+				tsLogger.General.Error(fmt.Sprintf("ERROR - Loading Config file: %s", err.Error()), lf...)
 				continue
 			} else {
-				tsLogger.General.Info("Config file loaded.")
+				tsLogger.General.Info("config file loaded", lf...)
 			}
 		}
 	}
@@ -246,14 +265,16 @@ func main() {
 
 func stop(logger *structs.TsLog, rest *rest.REST, collector *collector.Collector) {
 
-	fmt.Println("Stopping REST")
-	logger.General.Info("Stopping REST")
+	lf := []zapcore.Field{
+		zap.String("package", "main"),
+		zap.String("func", "stop"),
+	}
+
+	logger.General.Info("stopping REST", lf...)
 	rest.Stop()
-	fmt.Println("REST stopped")
+	logger.General.Info("REST stopped", lf...)
 
-	fmt.Println("Stopping UDPv2")
-	logger.General.Info("Stopping UDPv2")
+	logger.General.Info("stopping UDPv2", lf...)
 	collector.Stop()
-	fmt.Println("UDPv2 stopped")
-
+	logger.General.Info("UDPv2 stopped", lf...)
 }

@@ -40,7 +40,6 @@ MetaSaveInterval = "1s"
 
 # The default TTL to use if not specified
 DefaultTTL = 1
-MaxAllowedTTL = 90
 
 # Tha max TTL allowed to be specified
 MaxAllowedTTL = 90
@@ -50,6 +49,9 @@ MaxSuggestions = 25
 
 # Mandatory keysets to create on app startup
 DefaultKeysets = ["stats", "collectd"]
+
+# Allow Cross Origin Resource Sharing
+AllowCORS = true
 
 # All default keyspaces
 [DefaultKeyspaces]
@@ -93,23 +95,14 @@ DefaultKeysets = ["stats", "collectd"]
   port = "8080"
   bind = "0.0.0.0"
 
-[logs.general.file]
-  writeTo = true
-  [logs.general.file.settings]
-    symlink = true
-    logLevel = "DEBUG"
-    rotationPeriod = "daily"
-    timeFormat = "2006-01-02_15:04:03"
-    path = "/tmp/mycenae-logs/mycenae.log"
-
-[logs.stats.file]
-  writeTo = true
-  [logs.stats.file.settings]
-    symlink = true
-    logLevel = "DEBUG"
-    rotationPeriod = "daily"
-    timeFormat = "2006-01-02_15:04:03"
-    path = "/tmp/mycenae-logs/mycenae-stats.log"
+[logs]
+  environment = "PROD"
+  [logs.general]
+    level = "INFO"
+    prefix = "general"
+  [logs.stats]
+    level = "DEBUG"
+    prefix = "stats"
 
 [stats]
   address = "0.0.0.0"

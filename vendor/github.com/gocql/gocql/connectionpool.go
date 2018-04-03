@@ -339,14 +339,32 @@ func (pool *hostConnPool) Size() int {
 //Close the connection pool
 func (pool *hostConnPool) Close() {
 	pool.mu.Lock()
-	defer pool.mu.Unlock()
 
 	if pool.closed {
+		pool.mu.Unlock()
 		return
 	}
 	pool.closed = true
 
-	pool.drainLocked()
+	// ensure we dont try to reacquire the lock in handleError
+	// TODO: improve this as the following can happen
+	// 1) we have locked pool.mu write lock
+	// 2) conn.Close calls conn.closeWithError(nil)
+	// 3) conn.closeWithError calls conn.Close() which returns an error
+	// 4) conn.closeWithError calls pool.HandleError with the error from conn.Close
+	// 5) pool.HandleError tries to lock pool.mu
+	// deadlock
+
+	// empty the pool
+	conns := pool.conns
+	pool.conns = nil
+
+	pool.mu.Unlock()
+
+	// close the connections
+	for _, conn := range conns {
+		conn.Close()
+	}
 }
 
 // Fill the connection pool
@@ -479,10 +497,10 @@ func (pool *hostConnPool) connectMany(count int) error {
 func (pool *hostConnPool) connect() (err error) {
 	// TODO: provide a more robust connection retry mechanism, we should also
 	// be able to detect hosts that come up by trying to connect to downed ones.
-	const maxAttempts = 3
 	// try to connect
 	var conn *Conn
-	for i := 0; i < maxAttempts; i++ {
+	reconnectionPolicy := pool.session.cfg.ReconnectionPolicy
+	for i := 0; i < reconnectionPolicy.GetMaxRetries(); i++ {
 		conn, err = pool.session.connect(pool.host, pool)
 		if err == nil {
 			break
@@ -494,6 +512,11 @@ func (pool *hostConnPool) connect() (err error) {
 				break
 			}
 		}
+		if gocqlDebug {
+			Logger.Printf("connection failed %q: %v, reconnecting with %T\n",
+				pool.host.ConnectAddress(), err, reconnectionPolicy)
+		}
+		time.Sleep(reconnectionPolicy.GetInterval(i))
 	}
 
 	if err != nil {
@@ -550,22 +573,4 @@ func (pool *hostConnPool) HandleError(conn *Conn, err error, closed bool) {
 			break
 		}
 	}
-}
-
-func (pool *hostConnPool) drainLocked() {
-	// empty the pool
-	conns := pool.conns
-	pool.conns = nil
-
-	// close the connections
-	for _, conn := range conns {
-		conn.Close()
-	}
-}
-
-// removes and closes all connections from the pool
-func (pool *hostConnPool) drain() {
-	pool.mu.Lock()
-	defer pool.mu.Unlock()
-	pool.drainLocked()
 }

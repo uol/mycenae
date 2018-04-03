@@ -1,0 +1,40 @@
+package: github.com/uol/mycenae
+import:
+- package: github.com/asaskevich/govalidator
+  version: ~9.0.0
+- package: github.com/bradfitz/gomemcache
+  subpackages:
+  - memcache
+- package: github.com/gocql/gocql
+- package: github.com/golang/protobuf
+  version: ~1.0.0
+  subpackages:
+  - proto
+- package: github.com/julienschmidt/httprouter
+  version: ~1.1.0
+- package: github.com/pborman/uuid
+  version: ~1.1.0
+- package: github.com/uol/gobol
+  subpackages:
+  - cassandra
+  - loader
+  - rip
+  - rubber
+  - saw
+  - snitch
+- package: go.uber.org/zap
+  version: ~1.7.1
+  subpackages:
+  - zapcore
+- package: golang.org/x/net
+  subpackages:
+  - context
+- package: google.golang.org/grpc
+  version: ~1.11.1
+- package: gopkg.in/robfig/cron.v2
+  version: ~1.0.0
+testImport:
+- package: github.com/stretchr/testify
+  version: ~1.2.1
+  subpackages:
+  - assert

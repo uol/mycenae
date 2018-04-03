@@ -3,12 +3,12 @@ package persistence
 import (
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/gocql/gocql"
 	"github.com/pborman/uuid"
 	"github.com/uol/gobol"
 	"github.com/uol/mycenae/lib/metadata"
 	"github.com/uol/mycenae/lib/tsstats"
+	"go.uber.org/zap"
 )
 
 // Backend hides the underlying implementation of the persistence
@@ -34,7 +34,7 @@ type Backend interface {
 
 // Storage is a storage for data
 type Storage struct {
-	logger   *logrus.Logger
+	logger   *zap.Logger
 	metadata *metadata.Storage
 
 	// Backend is the thing that actually does the specific work in the storage
@@ -45,7 +45,7 @@ type Storage struct {
 func NewStorage(
 	ksAdmin string,
 	grantUser string,
-	logger *logrus.Logger,
+	logger *zap.Logger,
 	session *gocql.Session,
 	metadata *metadata.Storage,
 	stats *tsstats.StatsTS,

@@ -8,7 +8,7 @@ import (
 	"path"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 type esResponse struct {
@@ -31,7 +31,7 @@ type consumer struct {
 	server string
 	index  string
 	client *http.Client
-	logger *logrus.Logger
+	logger *zap.Logger
 
 	input    chan *esRequest
 	shutdown chan bool
@@ -44,21 +44,22 @@ func (c *consumer) loop() error {
 	for {
 		select {
 		case request := <-c.input:
-			c.logger.WithFields(logrus.Fields{
-				"function":  "loop",
-				"structure": "consumer",
-				"package":   "rubber",
-				"index":     c.index,
-				"rindex":    request.index,
-			}).Debug("Request executed")
+			c.logger.Debug(
+				"Request executed",
+				zap.String("function", "loop"),
+				zap.String("structure", "consumer"),
+				zap.String("package", "rubber"),
+				zap.String("index", c.index),
+				zap.String("rindex", request.index),
+			)
 			status, content, err := c.Request(c.server, request.method,
 				path.Join("/", request.index, request.path), request.body)
 			if err != nil && request.retries < c.maxRetries {
-				c.logger.WithFields(logrus.Fields{
-					"function":  "loop",
-					"structure": "consumer",
-					"package":   "rubber",
-				}).Warn("Retry request")
+				c.logger.Warn("Retry request",
+					zap.String("function", "loop"),
+					zap.String("structure", "consumer"),
+					zap.String("package", "rubber"),
+				)
 				request.retries++
 				c.input <- request
 				time.Sleep(c.errorTimeout)
@@ -70,11 +71,12 @@ func (c *consumer) loop() error {
 				err:     err,
 			}
 		case <-c.shutdown:
-			c.logger.WithFields(logrus.Fields{
-				"function":  "loop",
-				"structure": "consumer",
-				"package":   "rubber",
-			}).Debug("Shutdown consumer")
+			c.logger.Debug(
+				"Shutdown consumer",
+				zap.String("function", "loop"),
+				zap.String("structure", "consumer"),
+				zap.String("package", "rubber"),
+			)
 			c.shutdown <- true
 			return nil
 		}
@@ -89,32 +91,44 @@ func (c *consumer) close() error {
 }
 
 func (c *consumer) Request(server, method, urlPath string, body io.Reader) (int, []byte, error) {
-	lf := map[string]interface{}{
-		"struct": "weightedBackend",
-		"func":   "request",
-		"method": method,
-	}
 
 	url := fmt.Sprintf("http://%s%s", server, path.Join("/", urlPath))
-	lf["url"] = url
-	lf["httpCode"] = 0
 
 	request, err := http.NewRequest(method, url, body)
 	if err != nil {
+		c.logger.Error(
+			err.Error(),
+			zap.String("package", "rubber"),
+			zap.String("structure", "consumer"),
+			zap.String("function", "Request"),
+			zap.Error(err),
+		)
 		return 0, nil, err
 	}
-	start := time.Now()
+	// start := time.Now()
 	resp, err := c.client.Do(request)
-	end := time.Now()
-
-	lf["elapsed"] = end.Sub(start)
+	// end := time.Now()
 
 	if err != nil {
+		c.logger.Error(
+			err.Error(),
+			zap.String("package", "rubber"),
+			zap.String("structure", "consumer"),
+			zap.String("function", "Request"),
+			zap.Error(err),
+		)
 		return 0, nil, err
 	}
 	defer resp.Body.Close()
-	lf["httpCode"] = resp.StatusCode
 
 	content, err := ioutil.ReadAll(resp.Body)
+
+	c.logger.Debug(
+		"Request without error",
+		zap.String("package", "rubber"),
+		zap.String("structure", "consumer"),
+		zap.String("function", "Request"),
+	)
+
 	return resp.StatusCode, content, err
 }

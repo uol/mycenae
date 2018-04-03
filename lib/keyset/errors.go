@@ -31,3 +31,7 @@ func errBadRequest(function, message string) gobol.Error {
 func errInternalServerError(function string, e error) gobol.Error {
 	return errBasic(function, e.Error(), http.StatusInternalServerError, e)
 }
+
+func errNotFound(f string) gobol.Error {
+	return errBasic(f, "", http.StatusNotFound, errors.New(""))
+}

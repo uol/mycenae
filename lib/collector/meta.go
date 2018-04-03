@@ -7,8 +7,9 @@ import (
 	"io"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/uol/gobol"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 func (collect *Collector) metaCoordinator(saveInterval time.Duration) {
@@ -27,9 +28,12 @@ func (collect *Collector) metaCoordinator(saveInterval time.Duration) {
 
 				err := collect.readMeta(bulk)
 				if err != nil {
-					gblog.WithFields(logrus.Fields{
-						"func": "collector/metaCoordinator",
-					}).Error(err)
+					lf := []zapcore.Field{
+						zap.String("package", "collector"),
+						zap.String("func", "metaCoordinator"),
+						zap.String("action", "readMeta"),
+					}
+					gblog.Error(err.Error(), lf...)
 					continue
 				}
 
@@ -41,9 +45,12 @@ func (collect *Collector) metaCoordinator(saveInterval time.Duration) {
 
 			gerr := collect.generateBulk(p)
 			if gerr != nil {
-				gblog.WithFields(logrus.Fields{
-					"func": "collector/metaCoordinator/SaveBulkES",
-				}).Error(gerr.Error())
+				lf := []zapcore.Field{
+					zap.String("package", "collector"),
+					zap.String("func", "metaCoordinator"),
+					zap.String("action", "generateBulk"),
+				}
+				gblog.Error(gerr.Error(), lf...)
 			}
 
 			if collect.metaPayload.Len() > collect.settings.MaxMetaBulkSize {
@@ -54,9 +61,13 @@ func (collect *Collector) metaCoordinator(saveInterval time.Duration) {
 
 				err := collect.readMeta(bulk)
 				if err != nil {
-					gblog.WithFields(logrus.Fields{
-						"func": "collector/metaCoordinator",
-					}).Error(err)
+					lf := []zapcore.Field{
+						zap.String("package", "collector"),
+						zap.String("func", "metaCoordinator"),
+						zap.String("action", "readMeta"),
+					}
+					gblog.Error(err.Error(), lf...)
+
 					continue
 				}
 
@@ -103,9 +114,11 @@ func (collect *Collector) saveMeta(packet Point) {
 		found, gerr = collect.keyspaceCache.GetTsText(ksts, collect.CheckTSID)
 	}
 	if gerr != nil {
-		gblog.WithFields(logrus.Fields{
-			"func": "collector/saveMeta",
-		}).Warn(gerr.Error())
+		lf := []zapcore.Field{
+			zap.String("package", "collector"),
+			zap.String("func", "saveMeta"),
+		}
+		gblog.Warn(gerr.Error(), lf...)
 		collect.errMutex.Lock()
 		collect.errorsSinceLastProbe++
 		collect.errMutex.Unlock()
@@ -265,9 +278,11 @@ func (collect *Collector) saveBulk(boby io.Reader) {
 
 	gerr := collect.persist.SaveBulkES(boby)
 	if gerr != nil {
-		gblog.WithFields(logrus.Fields{
-			"func": "collector/metaCoordinator/SaveBulkES",
-		}).Error(gerr.Error())
+		lf := []zapcore.Field{
+			zap.String("package", "collector"),
+			zap.String("func", "saveBulk"),
+		}
+		gblog.Error(gerr.Error(), lf...)
 	}
 
 	<-collect.concBulk

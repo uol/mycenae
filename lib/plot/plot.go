@@ -1,10 +1,10 @@
 package plot
 
 import (
-	"github.com/Sirupsen/logrus"
 	"github.com/gocql/gocql"
 	"github.com/uol/gobol"
 	"github.com/uol/gobol/rubber"
+	"go.uber.org/zap"
 
 	"github.com/uol/mycenae/lib/cache"
 	"github.com/uol/mycenae/lib/keyset"
@@ -12,12 +12,12 @@ import (
 )
 
 var (
-	gblog *logrus.Logger
+	gblog *zap.Logger
 	stats *tsstats.StatsTS
 )
 
 func New(
-	gbl *logrus.Logger,
+	gbl *zap.Logger,
 	sts *tsstats.StatsTS,
 	cass *gocql.Session,
 	es *rubber.Elastic,

@@ -6,7 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/uol/gobol/saw"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/uol/gobol/rubber"
 	"github.com/uol/gobol/snitch"
@@ -19,7 +20,7 @@ func TestElasticBackend(t *testing.T) {
 		t.SkipNow()
 	}
 
-	logger := logrus.New()
+	logger, _ := saw.New("DEBUG", "QA")
 	if assert.NotNil(t, logger) {
 		return
 	}

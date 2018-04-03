@@ -14,24 +14,26 @@ import (
 func ConfJson(path string, settings interface{}) error {
 
 	absolutePath, err := filepath.Abs(path)
-
-	confFile, err := os.Open(absolutePath)
-
 	if err != nil {
 		return err
 	}
 
-	decoder := json.NewDecoder(confFile)
+	confFile, err := os.Open(absolutePath)
+	if err != nil {
+		return err
+	}
 
-	return decoder.Decode(&settings)
+	return json.NewDecoder(confFile).Decode(&settings)
 }
 
 func ConfYaml(path string, settings interface{}) error {
 
 	absolutePath, err := filepath.Abs(path)
+	if err != nil {
+		return err
+	}
 
 	confFile, err := ioutil.ReadFile(absolutePath)
-
 	if err != nil {
 		return err
 	}
@@ -43,12 +45,12 @@ func ConfConsul(path string, token string, settings interface{}) error {
 
 	config := api.DefaultConfig()
 
-	client, _ := api.NewClient(config)
+	client, err := api.NewClient(config)
+	if err != nil {
+		return err
+	}
 
-	kv := client.KV()
-
-	pair, _, err := kv.Get(path, nil)
-
+	pair, _, err := client.KV().Get(path, nil)
 	if err != nil {
 		return err
 	}
@@ -59,7 +61,6 @@ func ConfConsul(path string, token string, settings interface{}) error {
 func ConfToml(path string, settings interface{}) error {
 
 	absolutePath, err := filepath.Abs(path)
-
 	if err != nil {
 		return err
 	}

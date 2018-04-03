@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/gocql/gocql"
 	"github.com/stretchr/testify/assert"
+	"github.com/uol/gobol/saw"
 	"github.com/uol/gobol/snitch"
 	"github.com/uol/mycenae/lib/tsstats"
 )
@@ -34,9 +34,9 @@ func TestScylladbBackend(t *testing.T) {
 		t.SkipNow()
 	}
 
-	logger := logrus.New()
+	logger, err := saw.New("DEBUG", "QA")
 	logger.Out = ioutil.Discard
-	if !assert.NotNil(t, logger) {
+	if err != nil || !assert.NotNil(t, logger) {
 		return
 	}
 

@@ -9,19 +9,14 @@ import (
 func NewCustomRouter() *httprouter.Router {
 
 	router := httprouter.New()
-	router.MethodNotAllowed = customNotAllowed{}
-	router.NotFound = customNotFound{}
+	router.MethodNotAllowed = http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		})
+	router.NotFound = http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+		})
 	return router
-}
 
-type customNotFound struct{}
-
-func (cnf customNotFound) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	w.WriteHeader(http.StatusNotFound)
-}
-
-type customNotAllowed struct{}
-
-func (cna customNotAllowed) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	w.WriteHeader(http.StatusMethodNotAllowed)
 }

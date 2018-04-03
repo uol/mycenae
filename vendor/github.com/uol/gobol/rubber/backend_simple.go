@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 // Settings define how the single server client works
@@ -29,7 +29,7 @@ type Settings struct {
 }
 
 type singleServerBackend struct {
-	log     *logrus.Logger
+	log     *zap.Logger
 	nodes   []string
 	timeout time.Duration
 
@@ -43,16 +43,16 @@ func (es *singleServerBackend) CountRetries() uint64 { return atomic.SwapUint64(
 func (es *singleServerBackend) Request(index, method, urlPath string, body io.Reader) (int, []byte, error) {
 	var retries uint64
 
-	ctxt := es.log.WithFields(logrus.Fields{
-		"structure": "singleServerBackend",
-		"function":  "Request",
-		"method":    method,
-	})
+	ctxt := es.log.With(
+		zap.String("struct", "singleServerBackend"),
+		zap.String("func", "request"),
+		zap.String("method", method),
+	)
 
 	for _, node := range es.nodes {
 		url := fmt.Sprintf("http://%s%s", node, path.Join("/", index, urlPath))
 
-		ctxt = ctxt.WithField("url", url)
+		ctxt = ctxt.With(zap.String("url", url))
 
 		req, err := http.NewRequest(method, url, body)
 		if err != nil {
@@ -64,19 +64,19 @@ func (es *singleServerBackend) Request(index, method, urlPath string, body io.Re
 		resp, err := es.client.Do(req)
 		elapsedTime := time.Since(startTime)
 
-		ctxt = ctxt.WithField("elapsed", elapsedTime.String())
+		ctxt = ctxt.With(zap.String("elapsed", elapsedTime.String()))
 
 		if err != nil {
-			ctxt.WithField("error", err.Error()).Error("trying next node...")
+			ctxt.Error("trying next node...", zap.Error(err))
 			retries++
 			continue
 		}
 		defer resp.Body.Close()
 
-		ctxt = ctxt.WithFields(logrus.Fields{
-			"elapsed":  elapsedTime.String(),
-			"httpCode": resp.StatusCode,
-		})
+		ctxt = ctxt.With(
+			zap.String("elapsed", elapsedTime.String()),
+			zap.Int("httpCode", resp.StatusCode),
+		)
 
 		reqResponse, err := ioutil.ReadAll(resp.Body)
 		if err != nil {

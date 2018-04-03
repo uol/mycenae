@@ -11,6 +11,8 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/uol/gobol"
 	"github.com/uol/gobol/rip"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/uol/mycenae/lib/parser"
 	"github.com/uol/mycenae/lib/structs"
@@ -308,7 +310,7 @@ func (plot *Plot) getTimeseries(
 			}
 		}
 
-		if ttlIndex >=0 {
+		if ttlIndex >= 0 {
 			q.Filters = append(q.Filters[:ttlIndex], q.Filters[ttlIndex+1:]...)
 		}
 
@@ -319,7 +321,11 @@ func (plot *Plot) getTimeseries(
 
 		if total > plot.LogQueryThreshold {
 			statsQueryThreshold(keyset)
-			gblog.Warnf("TS THRESHOLD EXEECED: %+v", query)
+			lf := []zapcore.Field{
+				zap.String("package", "plot/rest_tsdb"),
+				zap.String("func", "getTimeseries"),
+			}
+			gblog.Warn(fmt.Sprintf("TS THRESHOLD EXEECED: %+v", query), lf...)
 		}
 
 		if total > plot.MaxTimeseries {

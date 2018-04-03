@@ -4,15 +4,15 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/gocql/gocql"
 	"github.com/uol/gobol"
 	"github.com/uol/mycenae/lib/tsstats"
+	"go.uber.org/zap"
 )
 
 type scylladb struct {
 	session *gocql.Session
-	logger  *logrus.Logger
+	logger  *zap.Logger
 	stats   *tsstats.StatsTS
 
 	ksMngr        string
@@ -25,7 +25,7 @@ func newScyllaPersistence(
 	ksAdmin string,
 	grantUsername string,
 	session *gocql.Session,
-	logger *logrus.Logger,
+	logger *zap.Logger,
 	stats *tsstats.StatsTS,
 	devMode bool,
 	defaultTTL uint8,

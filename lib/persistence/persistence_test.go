@@ -3,14 +3,14 @@ package persistence
 import (
 	"testing"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
 
 func genericPersistenceBackendTest(
 	t *testing.T,
 	backend Backend,
-	logger *logrus.Logger,
+	logger *zap.Logger,
 ) {
 	const (
 		name       = "testindex"
