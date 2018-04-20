@@ -17,36 +17,36 @@ func assertElasticText(t *testing.T, keyspace string, metric string, tags map[st
 
 	lenTags := len(tags)
 
-	esMetric := mycenaeTools.ElasticSearch.Timeseries.GetTextMetricPost(keyspace, metric)
-	assert.Equal(t, 1, esMetric.Hits.Total, "metric sent in the payload does not match the one in elasticsearch")
+	count := mycenaeTools.Solr.Timeseries.GetTextMetricPost(keyspace, metric)
+	assert.Equal(t, 1, count, "metric sent in the payload does not match the one in elasticsearch")
 
-	meta := mycenaeTools.ElasticSearch.Timeseries.GetTextMeta(keyspace, hashID)
-	assert.Equal(t, hashID, meta.Source.ID, "meta id corresponding to the payload does not match the one in elasticsearch")
-	assert.Equal(t, metric, meta.Source.Metric, "metric sent in the payload does not match the one in elasticsearch")
-	assert.Equal(t, lenTags, len(meta.Source.Tags))
+	meta := mycenaeTools.Solr.Timeseries.GetTextMeta(keyspace, hashID)
+	assert.Equal(t, hashID, meta.ID, "meta id corresponding to the payload does not match the one in elasticsearch")
+	assert.Equal(t, metric, meta.Metric, "metric sent in the payload does not match the one in elasticsearch")
+	assert.Equal(t, lenTags, len(meta.TagKey))
+	assert.Equal(t, lenTags, len(meta.TagValue))
 
-	for _, tagKV := range meta.Source.Tags {
+	for i := 0; i < len(meta.TagKey); i++ {
 
-		if tagKV.TagKey == "ksid" || tagKV.TagKey == "ttl" {
+		if meta.TagKey[i] == "ksid" || meta.TagKey[i] == "ttl" {
 			continue
 		}
 
-		tagV, ok := tags[tagKV.TagKey]
+		_, ok := tags[meta.TagKey[i]]
 		assert.True(t, ok, "tag key in elasticsearch was not sent in payload")
-		assert.Contains(t, meta.Source.Tags, tools.TagMeta{TagKey: tagKV.TagKey, TagValue: tagV}, "the pair tagKey-tagValue in elasticsearch does not match the one sent in payload")
 
-		esTagK := mycenaeTools.ElasticSearch.Timeseries.GetTextTagKeyPost(keyspace, tagKV.TagKey)
-		assert.Equal(t, 1, esTagK.Hits.Total, "tag key sent in the payload does not match the one in elasticsearch")
+		count := mycenaeTools.Solr.Timeseries.GetTextTagKeyPost(keyspace, meta.TagKey[i])
+		assert.Equal(t, 1, count, "tag key sent in the payload does not match the one in elasticsearch")
 
-		esTagV := mycenaeTools.ElasticSearch.Timeseries.GetTextTagValuePost(keyspace, tagV)
-		assert.Equal(t, 1, esTagV.Hits.Total, "tag value sent in the payload does not match the one in elasticsearch")
+		count = mycenaeTools.Solr.Timeseries.GetTextTagValuePost(keyspace, meta.TagValue[i])
+		assert.Equal(t, 1, count, "tag value sent in the payload does not match the one in elasticsearch")
 	}
 }
 
 func assertElasticTextEmpty(t *testing.T, keyspace string, metric string, tags map[string]string, hashID string) {
 
-	esMetric := mycenaeTools.ElasticSearch.Timeseries.GetTextMetricPost(keyspace, metric)
-	assert.Equal(t, 0, esMetric.Hits.Total, "metric sent in the payload does not match the one in elasticsearch")
+	count := mycenaeTools.Solr.Timeseries.GetTextMetricPost(keyspace, metric)
+	assert.Equal(t, 0, count, "metric sent in the payload does not match the one in elasticsearch")
 
 	for tagKey, tagValue := range tags {
 
@@ -54,18 +54,15 @@ func assertElasticTextEmpty(t *testing.T, keyspace string, metric string, tags m
 			continue
 		}
 
-		esTagK := mycenaeTools.ElasticSearch.Timeseries.GetTextTagKeyPost(keyspace, tagKey)
-		assert.Equal(t, 0, esTagK.Hits.Total)
+		count = mycenaeTools.Solr.Timeseries.GetTextTagKeyPost(keyspace, tagKey)
+		assert.Equal(t, 0, count)
 
-		esTagV := mycenaeTools.ElasticSearch.Timeseries.GetTextTagValuePost(keyspace, tagValue)
-		assert.Equal(t, 0, esTagV.Hits.Total)
+		count = mycenaeTools.Solr.Timeseries.GetTextTagValuePost(keyspace, tagValue)
+		assert.Equal(t, 0, count)
 	}
 
-	meta := mycenaeTools.ElasticSearch.Timeseries.GetTextMeta(keyspace, hashID)
-	assert.False(t, meta.Found, "document has been found when it should not")
-	assert.Equal(t, "", meta.Source.ID)
-	assert.Equal(t, "", meta.Source.Metric)
-	assert.Equal(t, 0, len(meta.Source.Tags))
+	meta := mycenaeTools.Solr.Timeseries.GetTextMeta(keyspace, hashID)
+	assert.Nil(t, meta, "document has been found when it should not")
 }
 
 func assertMycenaeText(t *testing.T, keyspace string, start int64, end int64, value string, hashID string) {
@@ -243,49 +240,6 @@ func TestRESTv2TextMultiplePointsSameIDAndNoTimestamp(t *testing.T) {
 	}
 
 	assertElasticText(t, ksMycenae, p.Metric, p.Tags, hashID)
-}
-
-func TestRESTv2TextCheckLocalElasticCache(t *testing.T) {
-	t.Parallel()
-
-	p := mycenaeTools.Mycenae.GetTextPayload(ksMycenae)
-
-	hashID := tools.GetTextHashFromMetricAndTags(p.Metric, p.Tags)
-
-	for i := 0; i < 2; i++ {
-
-		*p.Text = string(i)
-		*p.Timestamp = time.Now().Unix()
-
-		ps := tools.PayloadSlice{PS: []tools.Payload{*p}}
-
-		statusCode, _, _ := mycenaeTools.HTTP.POST("v2/text", ps.Marshal())
-		assert.Equal(t, http.StatusNoContent, statusCode)
-		time.Sleep(tools.Sleep3)
-
-		assertMycenaeText(t, ksMycenae, *p.Timestamp, *p.Timestamp, *p.Text, hashID)
-		assertCassandraText(t, hashID, *p.Text, *p.Timestamp, *p.Timestamp)
-	}
-
-	assertElasticText(t, ksMycenae, p.Metric, p.Tags, hashID)
-
-	mycenaeTools.ElasticSearch.Timeseries.DeleteTextKey(ksMycenae, hashID)
-	mycenaeTools.ElasticSearch.Timeseries.DeleteTextMetric(ksMycenae, p.Metric)
-	mycenaeTools.ElasticSearch.Timeseries.DeleteTextTagKey(ksMycenae, p.TagKey)
-	mycenaeTools.ElasticSearch.Timeseries.DeleteTextTagValue(ksMycenae, p.TagValue)
-
-	*p.Text = "text 2"
-	*p.Timestamp = time.Now().Unix()
-	ps := tools.PayloadSlice{PS: []tools.Payload{*p}}
-
-	statusCode, _, _ := mycenaeTools.HTTP.POST("v2/text", ps.Marshal())
-	assert.Equal(t, http.StatusNoContent, statusCode)
-	time.Sleep(tools.Sleep3)
-
-	assertMycenaeText(t, ksMycenae, *p.Timestamp, *p.Timestamp, *p.Text, hashID)
-	assertCassandraText(t, hashID, *p.Text, *p.Timestamp, *p.Timestamp)
-
-	assertElasticTextEmpty(t, ksMycenae, p.Metric, p.Tags, hashID)
 }
 
 func TestRESTv2TextPayloadWithOnlyNumbersOrLetters(t *testing.T) {
@@ -503,8 +457,8 @@ func TestRESTv2TextPayloadWithTwoTagsSameKeyAndDifferentValues(t *testing.T) {
 
 	assertElasticText(t, ksMycenae, p.Metric, tags, hashID)
 
-	esTagV1 := mycenaeTools.ElasticSearch.Timeseries.GetTextTagValuePost(ksMycenae, p.TagValue)
-	assert.Equal(t, 0, esTagV1.Hits.Total)
+	count := mycenaeTools.Solr.Timeseries.GetTextTagValuePost(ksMycenae, p.TagValue)
+	assert.Equal(t, 0, count)
 }
 
 func TestRESTv2TextPayloadWithReservedTTLTag(t *testing.T) {

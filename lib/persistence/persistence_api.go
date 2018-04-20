@@ -25,8 +25,7 @@ func (storage *Storage) DatacenterExists(dc string) (bool, gobol.Error) {
 func (storage *Storage) CreateKeyspace(
 	name, datacenter, contact string,
 	replication int, ttl uint8,
-) (gobol.Error) {
-	ksid := GenerateKeyspaceIdentifier()
+) gobol.Error {
 	if exists, err := storage.DatacenterExists(datacenter); err != nil {
 		return err
 	} else if !exists {
@@ -36,9 +35,6 @@ func (storage *Storage) CreateKeyspace(
 				datacenter,
 			),
 		)
-	}
-	if err := storage.metadata.CreateIndex(ksid); err != nil {
-		return err
 	}
 	if err := storage.Backend.CreateKeyspace(
 		name, datacenter, contact, replication, ttl,

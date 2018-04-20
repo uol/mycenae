@@ -1,16 +1,20 @@
 package cache
 
 import (
+	"fmt"
+
 	"github.com/uol/gobol"
 	"github.com/uol/mycenae/lib/keyspace"
 	"github.com/uol/mycenae/lib/memcached"
 )
 
+// KeyspaceCache - main structure
 type KeyspaceCache struct {
 	memcached *memcached.Memcached
 	keyspace  *keyspace.Keyspace
 }
 
+// NewKeyspaceCache - initializes
 func NewKeyspaceCache(mc *memcached.Memcached, ks *keyspace.Keyspace) *KeyspaceCache {
 
 	return &KeyspaceCache{
@@ -19,17 +23,22 @@ func NewKeyspaceCache(mc *memcached.Memcached, ks *keyspace.Keyspace) *KeyspaceC
 	}
 }
 
-func (kc *KeyspaceCache) GetTsNumber(key string, CheckTSID func(esType, id string) (bool, gobol.Error)) (bool, gobol.Error) {
-	return kc.getTSID("meta", "number", key, CheckTSID)
+// GetTsNumber - checks if the number timeseries exists
+func (kc *KeyspaceCache) GetTsNumber(collection, tsid string, CheckTSID func(collection, tsType, id string) (bool, gobol.Error)) (bool, gobol.Error) {
+	return kc.getTSID(collection, "meta", tsid, CheckTSID)
 }
 
-func (kc *KeyspaceCache) GetTsText(key string, CheckTSID func(esType, id string) (bool, gobol.Error)) (bool, gobol.Error) {
-	return kc.getTSID("metatext", "text", key, CheckTSID)
+// GetTsText - checks if the text timeseries exists
+func (kc *KeyspaceCache) GetTsText(collection, tsid string, CheckTSID func(collection, tsType, id string) (bool, gobol.Error)) (bool, gobol.Error) {
+	return kc.getTSID(collection, "metatext", tsid, CheckTSID)
 }
 
-func (kc *KeyspaceCache) getTSID(esType, bucket, key string, CheckTSID func(esType, id string) (bool, gobol.Error)) (bool, gobol.Error) {
+// getTSID - generic function to check if number/text timeseries exists
+func (kc *KeyspaceCache) getTSID(collection, tsType, tsid string, CheckTSID func(collection, tsType, id string) (bool, gobol.Error)) (bool, gobol.Error) {
 
-	v, gerr := kc.memcached.Get(bucket, key)
+	bucket := fmt.Sprintf("%s/%s", collection, tsType)
+
+	v, gerr := kc.memcached.Get(bucket, tsid)
 	if gerr != nil {
 		return false, gerr
 	}
@@ -37,7 +46,7 @@ func (kc *KeyspaceCache) getTSID(esType, bucket, key string, CheckTSID func(esTy
 		return true, nil
 	}
 
-	found, gerr := CheckTSID(esType, key)
+	found, gerr := CheckTSID(collection, tsType, tsid)
 	if gerr != nil {
 		return false, gerr
 	}
@@ -45,7 +54,7 @@ func (kc *KeyspaceCache) getTSID(esType, bucket, key string, CheckTSID func(esTy
 		return false, nil
 	}
 
-	gerr = kc.memcached.Put(bucket, key, []byte{})
+	gerr = kc.memcached.Put(bucket, tsid, []byte{})
 	if gerr != nil {
 		return false, gerr
 	}

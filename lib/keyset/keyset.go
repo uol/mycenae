@@ -1,7 +1,6 @@
 package keyset
 
 import (
-	"bytes"
 	"encoding/json"
 	"net/http"
 	"regexp"
@@ -10,24 +9,25 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/uol/gobol"
 	"github.com/uol/gobol/rip"
-	"github.com/uol/gobol/rubber"
 	"github.com/uol/mycenae/lib/memcached"
+	"github.com/uol/mycenae/lib/metadata"
 	"github.com/uol/mycenae/lib/tserr"
 	"github.com/uol/mycenae/lib/tsstats"
 )
 
+// KeySet - the keyset
 type KeySet struct {
-	elastic      *rubber.Elastic
+	storage      *metadata.Storage
 	stats        *tsstats.StatsTS
 	keySetRegexp *regexp.Regexp
 	memcached    *memcached.Memcached
 }
 
-func NewKeySet(e *rubber.Elastic, s *tsstats.StatsTS, memcached *memcached.Memcached) *KeySet {
+func NewKeySet(storage *metadata.Storage, s *tsstats.StatsTS, memcached *memcached.Memcached) *KeySet {
 	return &KeySet{
-		elastic:      e,
+		storage:      storage,
 		stats:        s,
-		keySetRegexp: regexp.MustCompile(`^[A-Za-z_]{1}[A-Za-z0-9_]+$`),
+		keySetRegexp: regexp.MustCompile(`^[a-z_]{1}[a-z0-9_]+$`),
 		memcached:    memcached,
 	}
 }
@@ -44,26 +44,20 @@ func (ks *KeySet) CreateIndex(esIndex string) gobol.Error {
 
 	start := time.Now()
 
-	body := &bytes.Buffer{}
-
-	body.WriteString(
-		`{"mappings":{"meta":{"properties":{"tagsNested":{"type":"nested","properties":{"tagKey":{"type":"string"},"tagValue":{"type":"string"}}}}},"metatext":{"properties":{"tagsNested":{"type":"nested","properties":{"tagKey":{"type":"string"},"tagValue":{"type":"string"}}}}}}}`,
-	)
-
-	_, err := ks.elastic.CreateIndex(esIndex, body)
+	err := ks.storage.CreateIndex(esIndex)
 	if err != nil {
-		ks.statsIndexError(esIndex, "", "post")
+		ks.statsIndexError(esIndex, "CreateIndex")
 		return errInternalServerError("CreateIndex", err)
 	}
 
 	gerr := ks.memcached.Delete("keyset", "map")
 
 	if gerr != nil {
-		ks.statsIndexError(esIndex, "", "post")
+		ks.statsIndexError(esIndex, "CreateIndex")
 		return errInternalServerError("CreateIndex", err)
 	}
 
-	ks.statsIndex(esIndex, "", "post", time.Since(start))
+	ks.statsIndex(esIndex, "CreateIndex", time.Since(start))
 	return nil
 }
 
@@ -71,20 +65,20 @@ func (ks *KeySet) deleteIndex(esIndex string) gobol.Error {
 
 	start := time.Now()
 
-	_, err := ks.elastic.DeleteIndex(esIndex)
+	err := ks.storage.DeleteIndex(esIndex)
 	if err != nil {
-		ks.statsIndexError(esIndex, "", "delete")
+		ks.statsIndexError(esIndex, "deleteIndex")
 		return errInternalServerError("deleteIndex", err)
 	}
 
 	gerr := ks.memcached.Delete("keyset", "map")
 
 	if gerr != nil {
-		ks.statsIndexError(esIndex, "", "delete")
+		ks.statsIndexError(esIndex, "deleteIndex")
 		return errInternalServerError("deleteIndex", err)
 	}
 
-	ks.statsIndex(esIndex, "", "delete", time.Since(start))
+	ks.statsIndex(esIndex, "deleteIndex", time.Since(start))
 	return nil
 }
 
@@ -92,31 +86,15 @@ func (ks *KeySet) getAllIndexes() ([]string, gobol.Error) {
 
 	start := time.Now()
 
-	status, response, err := ks.elastic.Request("_stats", "GET", "index", nil)
+	indexes, err := ks.storage.ListIndexes()
 	if err != nil {
-		ks.statsIndexError("_stats", "", "get")
+		ks.statsIndexError("all", "getAllIndexes")
 		return nil, errInternalServerError("getAllIndexes", err)
 	}
 
-	if status != http.StatusOK {
-		ks.statsIndexError("_stats", "", "get")
-		return nil, errInternalServerError("getAllIndexes", err)
-	}
+	ks.statsIndex("all", "getAllIndexes", time.Since(start))
 
-	jsonData := map[string]map[string]interface{}{}
-	err = json.Unmarshal(response, &jsonData)
-	if err != nil {
-		return nil, errInternalServerError("getAllIndexes", err)
-	}
-
-	var results []string
-	for k, _ := range jsonData["indices"] {
-		results = append(results, k)
-	}
-
-	ks.statsIndex("_stats", "", "get", time.Since(start))
-
-	return results, nil
+	return indexes, nil
 }
 
 func (ks *KeySet) getKeySetMap() (map[string]bool, gobol.Error) {

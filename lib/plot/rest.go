@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/julienschmidt/httprouter"
@@ -292,15 +293,37 @@ func (plot *Plot) ListPoints(w http.ResponseWriter, r *http.Request, ps httprout
 	return
 }
 
+// getSizeParameter - return parameter 'size'
+func (plot *Plot) getSizeParameter(w http.ResponseWriter, q url.Values, function string) (int, bool) {
+
+	sizeStr := q.Get("size")
+	var err error
+	size := plot.defaultMaxResults
+
+	if sizeStr != "" {
+		size, err = strconv.Atoi(sizeStr)
+		if err != nil {
+			rip.Fail(w, errParamSize(function, err))
+			return size, true
+		}
+		if size <= 0 {
+			rip.Fail(w, errParamSize(function, errors.New("")))
+			return size, true
+		}
+	}
+
+	return size, false
+}
+
 func (plot *Plot) ListTagsNumber(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	plot.listTags(w, r, ps, "tagk", map[string]string{"path": "/keysets/#keyset/tags"})
+	plot.listTags(w, r, ps, "number", map[string]string{"path": "/keysets/#keyset/tags"})
 }
 
 func (plot *Plot) ListTagsText(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	plot.listTags(w, r, ps, "tagktext", map[string]string{"path": "/keysets/#keyset/text/tags"})
+	plot.listTags(w, r, ps, "text", map[string]string{"path": "/keysets/#keyset/text/tags"})
 }
 
-func (plot *Plot) listTags(w http.ResponseWriter, r *http.Request, ps httprouter.Params, esType string, smap map[string]string) {
+func (plot *Plot) listTags(w http.ResponseWriter, r *http.Request, ps httprouter.Params, tsType string, smap map[string]string) {
 
 	keyset := ps.ByName("keyset")
 	if keyset == "" {
@@ -315,45 +338,12 @@ func (plot *Plot) listTags(w http.ResponseWriter, r *http.Request, ps httprouter
 
 	q := r.URL.Query()
 
-	sizeStr := q.Get("size")
-
-	var size int
-	var err error
-
-	if sizeStr != "" {
-		size, err = strconv.Atoi(sizeStr)
-		if err != nil {
-			gerr := errParamSize("ListTags", err)
-			rip.Fail(w, gerr)
-			return
-		}
-
-		if size <= 0 {
-			gerr := errParamSize("ListTags", errors.New(""))
-			rip.Fail(w, gerr)
-			return
-		}
+	size, fail := plot.getSizeParameter(w, q, "listTags")
+	if fail {
+		return
 	}
 
-	fromStr := q.Get("from")
-
-	var from int
-
-	if fromStr != "" {
-		from, err = strconv.Atoi(fromStr)
-		if err != nil {
-			gerr := errParamFrom("ListTags", err)
-			rip.Fail(w, gerr)
-			return
-		}
-		if from < 0 {
-			gerr := errParamFrom("ListTags", errors.New(""))
-			rip.Fail(w, gerr)
-			return
-		}
-	}
-
-	tags, total, gerr := plot.ListTags(keyset, esType, q.Get("tag"), int64(size), int64(from))
+	tags, total, gerr := plot.FilterTagKeys(keyset, q.Get("tag"), size)
 	if gerr != nil {
 		rip.Fail(w, gerr)
 		return
@@ -395,44 +385,13 @@ func (plot *Plot) listMetrics(w http.ResponseWriter, r *http.Request, ps httprou
 	rip.AddStatsMap(r, smap)
 
 	q := r.URL.Query()
-	sizeStr := q.Get("size")
 
-	var size int
-	var err error
-
-	if sizeStr != "" {
-		size, err = strconv.Atoi(sizeStr)
-		if err != nil {
-			gerr := errParamSize("ListMetrics", err)
-			rip.Fail(w, gerr)
-			return
-		}
-		if size <= 0 {
-			gerr := errParamSize("ListMetrics", errors.New(""))
-			rip.Fail(w, gerr)
-			return
-		}
+	size, fail := plot.getSizeParameter(w, q, "ListMetrics")
+	if fail {
+		return
 	}
 
-	fromStr := q.Get("from")
-
-	var from int
-
-	if fromStr != "" {
-		from, err = strconv.Atoi(fromStr)
-		if err != nil {
-			gerr := errParamFrom("ListMetrics", err)
-			rip.Fail(w, gerr)
-			return
-		}
-		if from < 0 {
-			gerr := errParamFrom("ListMetrics", errors.New(""))
-			rip.Fail(w, gerr)
-			return
-		}
-	}
-
-	metrics, total, gerr := plot.ListMetrics(keyset, esType, q.Get("metric"), int64(size), int64(from))
+	metrics, total, gerr := plot.FilterMetrics(keyset, q.Get("metric"), size)
 	if gerr != nil {
 		rip.Fail(w, gerr)
 		return
@@ -460,7 +419,7 @@ func (plot *Plot) ListMetaText(w http.ResponseWriter, r *http.Request, ps httpro
 	plot.listMeta(w, r, ps, "metatext", map[string]string{"path": "/keysets/#keyset/text/meta"})
 }
 
-func (plot *Plot) listMeta(w http.ResponseWriter, r *http.Request, ps httprouter.Params, esType string, smap map[string]string) {
+func (plot *Plot) listMeta(w http.ResponseWriter, r *http.Request, ps httprouter.Params, tsType string, smap map[string]string) {
 
 	keyset := ps.ByName("keyset")
 	if keyset == "" {
@@ -482,39 +441,9 @@ func (plot *Plot) listMeta(w http.ResponseWriter, r *http.Request, ps httprouter
 		return
 	}
 
-	sizeStr := q.Get("size")
-
-	var size int
-	var err error
-
-	if sizeStr != "" {
-		size, err = strconv.Atoi(sizeStr)
-		if err != nil {
-			rip.Fail(w, errParamSize("ListMeta", err))
-			return
-		}
-		if size <= 0 {
-			rip.Fail(w, errParamSize("ListMeta", errors.New("")))
-			return
-		}
-	}
-
-	fromStr := q.Get("from")
-
-	var from int
-
-	if fromStr != "" {
-		from, err = strconv.Atoi(fromStr)
-		if err != nil {
-			gerr := errParamFrom("ListMeta", err)
-			rip.Fail(w, gerr)
-			return
-		}
-		if from < 0 {
-			gerr := errParamFrom("ListMeta", errors.New(""))
-			rip.Fail(w, gerr)
-			return
-		}
+	size, fail := plot.getSizeParameter(w, q, "ListMeta")
+	if fail {
+		return
 	}
 
 	onlyidsStr := q.Get("onlyids")
@@ -522,6 +451,7 @@ func (plot *Plot) listMeta(w http.ResponseWriter, r *http.Request, ps httprouter
 	var onlyids bool
 
 	if onlyidsStr != "" {
+		var err error
 		onlyids, err = strconv.ParseBool(onlyidsStr)
 		if err != nil {
 			gerr := errValidation("ListMeta", `query param "onlyids" should be a boolean`, err)
@@ -536,7 +466,23 @@ func (plot *Plot) listMeta(w http.ResponseWriter, r *http.Request, ps httprouter
 		tags[tag.Key] = tag.Value
 	}
 
-	keys, total, gerr := plot.ListMeta(keyset, esType, query.Metric, tags, onlyids, int64(size), int64(from))
+	fromStr := q.Get("from")
+	from := 0
+
+	if fromStr != "" {
+		var err error
+		from, err = strconv.Atoi(fromStr)
+		if err != nil {
+			rip.Fail(w, errParamFrom("listMeta", err))
+			return
+		}
+		if size <= 0 {
+			rip.Fail(w, errParamFrom("listMeta", errors.New("")))
+			return
+		}
+	}
+
+	keys, total, gerr := plot.ListMeta(keyset, tsType, query.Metric, tags, onlyids, size, from)
 	if gerr != nil {
 		rip.Fail(w, gerr)
 		return

@@ -190,7 +190,7 @@ func (plot *Plot) ExpressionParseGET(w http.ResponseWriter, r *http.Request, _ h
 
 	expQuery := ExpParse{
 		Expression: query.Get("exp"),
-		Keyset:   query.Get("ksid"),
+		Keyset:     query.Get("ksid"),
 	}
 
 	if expQuery.Keyset != "" {
@@ -433,13 +433,7 @@ func (plot *Plot) expandStruct(
 
 	if needExpand {
 
-		tsobs, total, gerr := plot.MetaFilterOpenTSDB(
-			keyset,
-			"",
-			tsdb.Metric,
-			tsdb.Filters,
-			int64(10000),
-		)
+		tsobs, total, gerr := plot.MetaFilterOpenTSDB(keyset, tsdb.Metric, tsdb.Filters, 10000)
 		if gerr != nil {
 			return groupQueries, gerr
 		}

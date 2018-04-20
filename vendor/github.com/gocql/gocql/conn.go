@@ -6,12 +6,12 @@ package gocql
 
 import (
 	"bufio"
-	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net"
 	"strconv"
 	"strings"
@@ -28,7 +28,6 @@ var (
 	approvedAuthenticators = [...]string{
 		"org.apache.cassandra.auth.PasswordAuthenticator",
 		"com.instaclustr.cassandra.auth.SharedSecretAuthenticator",
-		"com.datastax.bdp.cassandra.auth.DseAuthenticator",
 	}
 )
 
@@ -78,7 +77,7 @@ func (p PasswordAuthenticator) Success(data []byte) error {
 }
 
 type SslOptions struct {
-	*tls.Config
+	tls.Config
 
 	// CertPath and KeyPath are optional depending on server
 	// config, but both fields must be omitted to avoid using a
@@ -93,14 +92,13 @@ type SslOptions struct {
 }
 
 type ConnConfig struct {
-	ProtoVersion   int
-	CQLVersion     string
-	Timeout        time.Duration
-	ConnectTimeout time.Duration
-	Compressor     Compressor
-	Authenticator  Authenticator
-	Keepalive      time.Duration
-	tlsConfig      *tls.Config
+	ProtoVersion  int
+	CQLVersion    string
+	Timeout       time.Duration
+	Compressor    Compressor
+	Authenticator Authenticator
+	Keepalive     time.Duration
+	tlsConfig     *tls.Config
 }
 
 type ConnErrorHandler interface {
@@ -113,7 +111,7 @@ func (fn connErrorHandlerFn) HandleError(conn *Conn, err error, closed bool) {
 	fn(conn, err, closed)
 }
 
-// If not zero, how many timeouts we will allow to occur before the connection is closed
+// How many timeouts we will allow to occur before the connection is closed
 // and restarted. This is to prevent a single query timeout from killing a connection
 // which may be serving more queries just fine.
 // Default is 10, should not be changed concurrently with queries.
@@ -128,7 +126,7 @@ type Conn struct {
 	timeout time.Duration
 	cfg     *ConnConfig
 
-	headerBuf [maxFrameHeaderSize]byte
+	headerBuf []byte
 
 	streams *streams.IDGenerator
 	mu      sync.RWMutex
@@ -140,6 +138,9 @@ type Conn struct {
 	addr            string
 	version         uint8
 	currentKeyspace string
+	started         bool
+
+	host *HostInfo
 
 	session *Session
 
@@ -147,18 +148,11 @@ type Conn struct {
 	quit   chan struct{}
 
 	timeouts int64
-
-	frameWriteArgChan chan *callReq
 }
 
 // Connect establishes a connection to a Cassandra node.
-func (s *Session) dial(ip net.IP, port int, cfg *ConnConfig, errorHandler ConnErrorHandler) (*Conn, error) {
-	// TODO(zariel): remove these
-	if len(ip) == 0 || ip.IsUnspecified() {
-		panic(fmt.Sprintf("host missing connect ip address: %v", ip))
-	} else if port == 0 {
-		panic(fmt.Sprintf("host missing port: %v", port))
-	}
+func Connect(host *HostInfo, addr string, cfg *ConnConfig,
+	errorHandler ConnErrorHandler, session *Session) (*Conn, error) {
 
 	var (
 		err  error
@@ -166,11 +160,8 @@ func (s *Session) dial(ip net.IP, port int, cfg *ConnConfig, errorHandler ConnEr
 	)
 
 	dialer := &net.Dialer{
-		Timeout: cfg.ConnectTimeout,
+		Timeout: cfg.Timeout,
 	}
-
-	// TODO(zariel): handle ipv6 zone
-	addr := (&net.TCPAddr{IP: ip, Port: port}).String()
 
 	if cfg.tlsConfig != nil {
 		// the TLS config is safe to be reused by connections but it must not
@@ -184,78 +175,46 @@ func (s *Session) dial(ip net.IP, port int, cfg *ConnConfig, errorHandler ConnEr
 		return nil, err
 	}
 
+	// going to default to proto 2
+	if cfg.ProtoVersion < protoVersion1 || cfg.ProtoVersion > protoVersion4 {
+		log.Printf("unsupported protocol version: %d using 2\n", cfg.ProtoVersion)
+		cfg.ProtoVersion = 2
+	}
+
+	headerSize := 8
+	if cfg.ProtoVersion > protoVersion2 {
+		headerSize = 9
+	}
+
 	c := &Conn{
-		conn:              conn,
-		r:                 bufio.NewReader(conn),
-		cfg:               cfg,
-		calls:             make(map[int]*callReq),
-		timeout:           cfg.Timeout,
-		version:           uint8(cfg.ProtoVersion),
-		addr:              conn.RemoteAddr().String(),
-		errorHandler:      errorHandler,
-		compressor:        cfg.Compressor,
-		auth:              cfg.Authenticator,
-		quit:              make(chan struct{}),
-		session:           s,
-		streams:           streams.New(cfg.ProtoVersion),
-		frameWriteArgChan: make(chan *callReq),
+		conn:         conn,
+		r:            bufio.NewReader(conn),
+		cfg:          cfg,
+		calls:        make(map[int]*callReq),
+		timeout:      cfg.Timeout,
+		version:      uint8(cfg.ProtoVersion),
+		addr:         conn.RemoteAddr().String(),
+		errorHandler: errorHandler,
+		compressor:   cfg.Compressor,
+		auth:         cfg.Authenticator,
+		headerBuf:    make([]byte, headerSize),
+		quit:         make(chan struct{}),
+		session:      session,
+		streams:      streams.New(cfg.ProtoVersion),
+		host:         host,
 	}
 
 	if cfg.Keepalive > 0 {
 		c.setKeepalive(cfg.Keepalive)
 	}
 
-	var (
-		ctx    context.Context
-		cancel func()
-	)
-	if cfg.ConnectTimeout > 0 {
-		ctx, cancel = context.WithTimeout(context.Background(), cfg.ConnectTimeout)
-	} else {
-		ctx, cancel = context.WithCancel(context.Background())
-	}
-	defer cancel()
-
-	frameTicker := make(chan struct{}, 1)
-	startupErr := make(chan error)
-
-	go c.writeToConn()
-
-	go func() {
-		for range frameTicker {
-			err := c.recv()
-			if err != nil {
-				select {
-				case startupErr <- err:
-				case <-ctx.Done():
-				}
-
-				return
-			}
-		}
-	}()
-
-	go func() {
-		defer close(frameTicker)
-		err := c.startup(ctx, frameTicker)
-		select {
-		case startupErr <- err:
-		case <-ctx.Done():
-		}
-	}()
-
-	select {
-	case err := <-startupErr:
-		if err != nil {
-			c.Close()
-			return nil, err
-		}
-	case <-ctx.Done():
-		c.Close()
-		return nil, errors.New("gocql: no response to connection startup within timeout")
-	}
-
 	go c.serve()
+
+	if err := c.startup(); err != nil {
+		conn.Close()
+		return nil, err
+	}
+	c.started = true
 
 	return c, nil
 }
@@ -291,7 +250,7 @@ func (c *Conn) Read(p []byte) (n int, err error) {
 	return
 }
 
-func (c *Conn) startup(ctx context.Context, frameTicker chan struct{}) error {
+func (c *Conn) startup() error {
 	m := map[string]string{
 		"CQL_VERSION": c.cfg.CQLVersion,
 	}
@@ -300,13 +259,7 @@ func (c *Conn) startup(ctx context.Context, frameTicker chan struct{}) error {
 		m["COMPRESSION"] = c.compressor.Name()
 	}
 
-	select {
-	case frameTicker <- struct{}{}:
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-
-	framer, err := c.exec(ctx, &writeStartupFrame{opts: m}, nil)
+	framer, err := c.exec(&writeStartupFrame{opts: m}, nil)
 	if err != nil {
 		return err
 	}
@@ -322,13 +275,13 @@ func (c *Conn) startup(ctx context.Context, frameTicker chan struct{}) error {
 	case *readyFrame:
 		return nil
 	case *authenticateFrame:
-		return c.authenticateHandshake(ctx, v, frameTicker)
+		return c.authenticateHandshake(v)
 	default:
 		return NewErrProtocol("Unknown type of response to startup frame: %s", v)
 	}
 }
 
-func (c *Conn) authenticateHandshake(ctx context.Context, authFrame *authenticateFrame, frameTicker chan struct{}) error {
+func (c *Conn) authenticateHandshake(authFrame *authenticateFrame) error {
 	if c.auth == nil {
 		return fmt.Errorf("authentication required (using %q)", authFrame.class)
 	}
@@ -341,13 +294,7 @@ func (c *Conn) authenticateHandshake(ctx context.Context, authFrame *authenticat
 	req := &writeAuthResponseFrame{data: resp}
 
 	for {
-		select {
-		case frameTicker <- struct{}{}:
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-
-		framer, err := c.exec(ctx, req, nil)
+		framer, err := c.exec(req, nil)
 		if err != nil {
 			return err
 		}
@@ -404,18 +351,11 @@ func (c *Conn) closeWithError(err error) {
 
 	// if error was nil then unblock the quit channel
 	close(c.quit)
-	cerr := c.close()
+	c.conn.Close()
 
-	if err != nil {
+	if c.started && err != nil {
 		c.errorHandler.HandleError(c, err, true)
-	} else if cerr != nil {
-		// TODO(zariel): is it a good idea to do this?
-		c.errorHandler.HandleError(c, cerr, true)
 	}
-}
-
-func (c *Conn) close() error {
-	return c.conn.Close()
 }
 
 func (c *Conn) Close() {
@@ -426,9 +366,15 @@ func (c *Conn) Close() {
 // to execute any queries. This method runs as long as the connection is
 // open and is therefore usually called in a separate goroutine.
 func (c *Conn) serve() {
-	var err error
-	for err == nil {
+	var (
+		err error
+	)
+
+	for {
 		err = c.recv()
+		if err != nil {
+			break
+		}
 	}
 
 	c.closeWithError(err)
@@ -442,38 +388,6 @@ func (c *Conn) discardFrame(head frameHeader) error {
 	return nil
 }
 
-// writeToConn() processes writing to the connection, which is required before any write
-// to Conn and is usually called in a separate goroutine.
-func (c *Conn) writeToConn() {
-	for {
-		select {
-		case call := <-c.frameWriteArgChan:
-			if err := call.req.writeFrame(call.framer, call.streamID); err != nil {
-				// I think this is the correct thing to do, im not entirely sure. It is not
-				// ideal as readers might still get some data, but they probably wont.
-				// Here we need to be careful as the stream is not available and if all
-				// writes just timeout or fail then the pool might use this connection to
-				// send a frame on, with all the streams used up and not returned.
-				c.closeWithError(err)
-				return
-			}
-		case <-c.quit:
-			return
-		}
-	}
-}
-
-type protocolError struct {
-	frame frame
-}
-
-func (p *protocolError) Error() string {
-	if err, ok := p.frame.(error); ok {
-		return err.Error()
-	}
-	return fmt.Sprintf("gocql: received unexpected frame on stream %d: %v", p.frame.Header().stream, p.frame)
-}
-
 func (c *Conn) recv() error {
 	// not safe for concurrent reads
 
@@ -484,7 +398,7 @@ func (c *Conn) recv() error {
 	}
 
 	// were just reading headers over and over and copy bodies
-	head, err := readHeader(c.r, c.headerBuf[:])
+	head, err := readHeader(c.r, c.headerBuf)
 	if err != nil {
 		return err
 	}
@@ -513,8 +427,11 @@ func (c *Conn) recv() error {
 			return err
 		}
 
-		return &protocolError{
-			frame: frame,
+		switch v := frame.(type) {
+		case error:
+			return fmt.Errorf("gocql: error on stream %d: %v", head.stream, v)
+		default:
+			return fmt.Errorf("gocql: received frame on stream %d: %v", head.stream, frame)
 		}
 	}
 
@@ -522,7 +439,7 @@ func (c *Conn) recv() error {
 	call, ok := c.calls[head.stream]
 	c.mu.RUnlock()
 	if call == nil || call.framer == nil || !ok {
-		Logger.Printf("gocql: received response for stream which has no handler: header=%v\n", head)
+		log.Printf("gocql: received response for stream which has no handler: header=%v\n", head)
 		return c.discardFrame(head)
 	}
 
@@ -558,16 +475,12 @@ func (c *Conn) releaseStream(stream int) {
 	delete(c.calls, stream)
 	c.mu.Unlock()
 
-	if call.timer != nil {
-		call.timer.Stop()
-	}
-
 	streamPool.Put(call)
 	c.streams.Clear(stream)
 }
 
 func (c *Conn) handleTimeout() {
-	if TimeoutLimit > 0 && atomic.AddInt64(&c.timeouts, 1) > TimeoutLimit {
+	if atomic.AddInt64(&c.timeouts, 1) > TimeoutLimit {
 		c.closeWithError(ErrTooManyTimeouts)
 	}
 }
@@ -588,36 +501,15 @@ type callReq struct {
 	framer   *framer
 	timeout  chan struct{} // indicates to recv() that a call has timedout
 	streamID int           // current stream in use
-	req      frameWriter
 
 	timer *time.Timer
 }
 
-func (c *callReq) resetTimeout(timeout time.Duration) <-chan time.Time {
-	var timeoutCh <-chan time.Time
-	if timeout > 0 {
-		if c.timer == nil {
-			c.timer = time.NewTimer(0)
-			<-c.timer.C
-		} else {
-			if !c.timer.Stop() {
-				select {
-				case <-c.timer.C:
-				default:
-				}
-			}
-		}
-
-		c.timer.Reset(timeout)
-		timeoutCh = c.timer.C
-	}
-	return timeoutCh
-}
-
-func (c *Conn) exec(ctx context.Context, req frameWriter, tracer Tracer) (*framer, error) {
+func (c *Conn) exec(req frameWriter, tracer Tracer) (*framer, error) {
 	// TODO: move tracer onto conn
 	stream, ok := c.streams.GetStream()
 	if !ok {
+		fmt.Println(c.streams)
 		return nil, ErrNoStreams
 	}
 
@@ -633,24 +525,67 @@ func (c *Conn) exec(ctx context.Context, req frameWriter, tracer Tracer) (*frame
 		call = streamPool.Get().(*callReq)
 	}
 	c.calls[stream] = call
+	c.mu.Unlock()
 
 	call.framer = framer
 	call.timeout = make(chan struct{})
 	call.streamID = stream
-	call.req = req
-	c.mu.Unlock()
 
 	if tracer != nil {
 		framer.trace()
 	}
 
-	timeoutCh := call.resetTimeout(c.timeout)
-	if err := c.sendFrame(ctx, call, timeoutCh); err != nil {
+	err := req.writeFrame(framer, stream)
+	if err != nil {
+		// closeWithError will block waiting for this stream to either receive a response
+		// or for us to timeout, close the timeout chan here. Im not entirely sure
+		// but we should not get a response after an error on the write side.
+		close(call.timeout)
+		// I think this is the correct thing to do, im not entirely sure. It is not
+		// ideal as readers might still get some data, but they probably wont.
+		// Here we need to be careful as the stream is not available and if all
+		// writes just timeout or fail then the pool might use this connection to
+		// send a frame on, with all the streams used up and not returned.
+		c.closeWithError(err)
 		return nil, err
 	}
 
-	if err := c.getResp(ctx, call, timeoutCh); err != nil {
-		return nil, err
+	var timeoutCh <-chan time.Time
+	if c.timeout > 0 {
+		if call.timer == nil {
+			call.timer = time.NewTimer(0)
+			<-call.timer.C
+		} else {
+			if !call.timer.Stop() {
+				select {
+				case <-call.timer.C:
+				default:
+				}
+			}
+		}
+
+		call.timer.Reset(c.timeout)
+		timeoutCh = call.timer.C
+	}
+
+	select {
+	case err := <-call.resp:
+		if err != nil {
+			if !c.Closed() {
+				// if the connection is closed then we cant release the stream,
+				// this is because the request is still outstanding and we have
+				// been handed another error from another stream which caused the
+				// connection to close.
+				c.releaseStream(stream)
+			}
+			return nil, err
+		}
+	case <-timeoutCh:
+		close(call.timeout)
+		c.handleTimeout()
+		return nil, ErrTimeoutNoResponse
+	case <-c.quit:
+		return nil, ErrConnectionClosed
 	}
 
 	// dont release the stream if detect a timeout as another request can reuse
@@ -668,61 +603,6 @@ func (c *Conn) exec(ctx context.Context, req frameWriter, tracer Tracer) (*frame
 	return framer, nil
 }
 
-func (c *Conn) getResp(ctx context.Context, call *callReq, timeoutCh <-chan time.Time) error {
-	var ctxDone <-chan struct{}
-	if ctx != nil {
-		ctxDone = ctx.Done()
-	}
-
-	select {
-	case err := <-call.resp:
-		close(call.timeout)
-		if err != nil {
-			if !c.Closed() {
-				// if the connection is closed then we cant release the stream,
-				// this is because the request is still outstanding and we have
-				// been handed another error from another stream which caused the
-				// connection to close.
-				c.releaseStream(call.streamID)
-			}
-			return err
-		}
-		return nil
-	case <-timeoutCh:
-		close(call.timeout)
-		c.handleTimeout()
-		return ErrTimeoutNoResponse
-	case <-ctxDone:
-		close(call.timeout)
-		return ctx.Err()
-	case <-c.quit:
-		return ErrConnectionClosed
-	}
-}
-
-func (c *Conn) sendFrame(ctx context.Context, call *callReq, timeoutCh <-chan time.Time) error {
-	var ctxDone <-chan struct{}
-	if ctx != nil {
-		ctxDone = ctx.Done()
-	}
-
-	select {
-	case c.frameWriteArgChan <- call:
-		return nil
-	case <-timeoutCh:
-		c.releaseStream(call.streamID)
-		close(call.timeout)
-		c.handleTimeout()
-		return ErrTimeoutNoResponse
-	case <-ctxDone:
-		c.releaseStream(call.streamID)
-		close(call.timeout)
-		return ctx.Err()
-	case <-c.quit:
-		return ErrConnectionClosed
-	}
-}
-
 type preparedStatment struct {
 	id       []byte
 	request  preparedMetadata
@@ -736,7 +616,7 @@ type inflightPrepare struct {
 	preparedStatment *preparedStatment
 }
 
-func (c *Conn) prepareStatement(ctx context.Context, stmt string, tracer Tracer) (*preparedStatment, error) {
+func (c *Conn) prepareStatement(stmt string, tracer Tracer) (*preparedStatment, error) {
 	stmtCacheKey := c.session.stmtsLRU.keyFor(c.addr, c.currentKeyspace, stmt)
 	flight, ok := c.session.stmtsLRU.execIfMissing(stmtCacheKey, func(lru *lru.Cache) *inflightPrepare {
 		flight := new(inflightPrepare)
@@ -754,11 +634,10 @@ func (c *Conn) prepareStatement(ctx context.Context, stmt string, tracer Tracer)
 		statement: stmt,
 	}
 
-	framer, err := c.exec(ctx, prep, tracer)
+	framer, err := c.exec(prep, tracer)
 	if err != nil {
 		flight.err = err
 		flight.wg.Done()
-		c.session.stmtsLRU.remove(stmtCacheKey)
 		return nil, err
 	}
 
@@ -771,14 +650,14 @@ func (c *Conn) prepareStatement(ctx context.Context, stmt string, tracer Tracer)
 
 	// TODO(zariel): tidy this up, simplify handling of frame parsing so its not duplicated
 	// everytime we need to parse a frame.
-	if len(framer.traceID) > 0 && tracer != nil {
+	if len(framer.traceID) > 0 {
 		tracer.Trace(framer.traceID)
 	}
 
 	switch x := frame.(type) {
 	case *resultPreparedFrame:
 		flight.preparedStatment = &preparedStatment{
-			// defensively copy as we will recycle the underlying buffer after we
+			// defensivly copy as we will recycle the underlying buffer after we
 			// return.
 			id: copyBytes(x.preparedID),
 			// the type info's should _not_ have a reference to the framers read buffer,
@@ -802,26 +681,6 @@ func (c *Conn) prepareStatement(ctx context.Context, stmt string, tracer Tracer)
 	return flight.preparedStatment, flight.err
 }
 
-func marshalQueryValue(typ TypeInfo, value interface{}, dst *queryValues) error {
-	if named, ok := value.(*namedValue); ok {
-		dst.name = named.name
-		value = named.value
-	}
-
-	if _, ok := value.(unsetColumn); !ok {
-		val, err := Marshal(typ, value)
-		if err != nil {
-			return err
-		}
-
-		dst.value = val
-	} else {
-		dst.isUnset = true
-	}
-
-	return nil
-}
-
 func (c *Conn) executeQuery(qry *Query) *Iter {
 	params := queryParams{
 		consistency: qry.cons,
@@ -830,7 +689,6 @@ func (c *Conn) executeQuery(qry *Query) *Iter {
 	// frame checks that it is not 0
 	params.serialConsistency = qry.serialCons
 	params.defaultTimestamp = qry.defaultTimestamp
-	params.defaultTimestampValue = qry.defaultTimestampValue
 
 	if len(qry.pageState) > 0 {
 		params.pagingState = qry.pageState
@@ -847,7 +705,7 @@ func (c *Conn) executeQuery(qry *Query) *Iter {
 	if qry.shouldPrepare() {
 		// Prepare all DML queries. Other queries can not be prepared.
 		var err error
-		info, err = c.prepareStatement(qry.context, qry.stmt, qry.trace)
+		info, err = c.prepareStatement(qry.stmt, qry.trace)
 		if err != nil {
 			return &Iter{err: err}
 		}
@@ -875,15 +733,17 @@ func (c *Conn) executeQuery(qry *Query) *Iter {
 
 		params.values = make([]queryValues, len(values))
 		for i := 0; i < len(values); i++ {
-			v := &params.values[i]
-			value := values[i]
-			typ := info.request.columns[i].TypeInfo
-			if err := marshalQueryValue(typ, value, v); err != nil {
+			val, err := Marshal(info.request.columns[i].TypeInfo, values[i])
+			if err != nil {
 				return &Iter{err: err}
 			}
+
+			v := &params.values[i]
+			v.value = val
+			// TODO: handle query binding names
 		}
 
-		params.skipMeta = !(c.session.cfg.DisableSkipMetadata || qry.disableSkipMetadata)
+		params.skipMeta = !qry.disableSkipMetadata
 
 		frame = &writeExecuteFrame{
 			preparedID: info.id,
@@ -896,7 +756,7 @@ func (c *Conn) executeQuery(qry *Query) *Iter {
 		}
 	}
 
-	framer, err := c.exec(qry.context, frame, qry.trace)
+	framer, err := c.exec(frame, qry.trace)
 	if err != nil {
 		return &Iter{err: err}
 	}
@@ -906,7 +766,7 @@ func (c *Conn) executeQuery(qry *Query) *Iter {
 		return &Iter{err: err}
 	}
 
-	if len(framer.traceID) > 0 && qry.trace != nil {
+	if len(framer.traceID) > 0 {
 		qry.trace.Trace(framer.traceID)
 	}
 
@@ -933,9 +793,8 @@ func (c *Conn) executeQuery(qry *Query) *Iter {
 
 		if len(x.meta.pagingState) > 0 && !qry.disableAutoPage {
 			iter.next = &nextIter{
-				qry:  *qry,
-				pos:  int((1 - qry.prefetch) * float64(x.numRows)),
-				conn: c,
+				qry: *qry,
+				pos: int((1 - qry.prefetch) * float64(x.numRows)),
 			}
 
 			iter.next.qry.pageState = copyBytes(x.meta.pagingState)
@@ -947,11 +806,11 @@ func (c *Conn) executeQuery(qry *Query) *Iter {
 		return iter
 	case *resultKeyspaceFrame:
 		return &Iter{framer: framer}
-	case *schemaChangeKeyspace, *schemaChangeTable, *schemaChangeFunction, *schemaChangeAggregate, *schemaChangeType:
+	case *schemaChangeKeyspace, *schemaChangeTable, *schemaChangeFunction:
 		iter := &Iter{framer: framer}
 		if err := c.awaitSchemaAgreement(); err != nil {
 			// TODO: should have this behind a flag
-			Logger.Println(err)
+			log.Println(err)
 		}
 		// dont return an error from this, might be a good idea to give a warning
 		// though. The impact of this returning an error would be that the cluster
@@ -997,7 +856,7 @@ func (c *Conn) UseKeyspace(keyspace string) error {
 	q := &writeQueryFrame{statement: `USE "` + keyspace + `"`}
 	q.params.consistency = Any
 
-	framer, err := c.exec(context.Background(), q, nil)
+	framer, err := c.exec(q, nil)
 	if err != nil {
 		return err
 	}
@@ -1027,12 +886,11 @@ func (c *Conn) executeBatch(batch *Batch) *Iter {
 
 	n := len(batch.Entries)
 	req := &writeBatchFrame{
-		typ:                   batch.Type,
-		statements:            make([]batchStatment, n),
-		consistency:           batch.Cons,
-		serialConsistency:     batch.serialCons,
-		defaultTimestamp:      batch.defaultTimestamp,
-		defaultTimestampValue: batch.defaultTimestampValue,
+		typ:               batch.Type,
+		statements:        make([]batchStatment, n),
+		consistency:       batch.Cons,
+		serialConsistency: batch.serialCons,
+		defaultTimestamp:  batch.defaultTimestamp,
 	}
 
 	stmts := make(map[string]string, len(batch.Entries))
@@ -1041,7 +899,7 @@ func (c *Conn) executeBatch(batch *Batch) *Iter {
 		entry := &batch.Entries[i]
 		b := &req.statements[i]
 		if len(entry.Args) > 0 || entry.binding != nil {
-			info, err := c.prepareStatement(batch.context, entry.Stmt, nil)
+			info, err := c.prepareStatement(entry.Stmt, nil)
 			if err != nil {
 				return &Iter{err: err}
 			}
@@ -1062,7 +920,7 @@ func (c *Conn) executeBatch(batch *Batch) *Iter {
 			}
 
 			if len(values) != info.request.actualColCount {
-				return &Iter{err: fmt.Errorf("gocql: batch statement %d expected %d values send got %d", i, info.request.actualColCount, len(values))}
+				return &Iter{err: fmt.Errorf("gocql: batch statment %d expected %d values send got %d", i, info.request.actualColCount, len(values))}
 			}
 
 			b.preparedID = info.id
@@ -1071,12 +929,13 @@ func (c *Conn) executeBatch(batch *Batch) *Iter {
 			b.values = make([]queryValues, info.request.actualColCount)
 
 			for j := 0; j < info.request.actualColCount; j++ {
-				v := &b.values[j]
-				value := values[j]
-				typ := info.request.columns[j].TypeInfo
-				if err := marshalQueryValue(typ, value, v); err != nil {
+				val, err := Marshal(info.request.columns[j].TypeInfo, values[j])
+				if err != nil {
 					return &Iter{err: err}
 				}
+
+				b.values[j].value = val
+				// TODO: add names
 			}
 		} else {
 			b.statement = entry.Stmt
@@ -1084,7 +943,7 @@ func (c *Conn) executeBatch(batch *Batch) *Iter {
 	}
 
 	// TODO: should batch support tracing?
-	framer, err := c.exec(batch.context, req, nil)
+	framer, err := c.exec(req, nil)
 	if err != nil {
 		return &Iter{err: err}
 	}
@@ -1110,7 +969,7 @@ func (c *Conn) executeBatch(batch *Batch) *Iter {
 		if found {
 			return c.executeBatch(batch)
 		} else {
-			return &Iter{err: x, framer: framer}
+			return &Iter{err: err, framer: framer}
 		}
 	case *resultRowsFrame:
 		iter := &Iter{
@@ -1147,7 +1006,7 @@ func (c *Conn) query(statement string, values ...interface{}) (iter *Iter) {
 
 func (c *Conn) awaitSchemaAgreement() (err error) {
 	const (
-		peerSchemas  = "SELECT schema_version, peer FROM system.peers"
+		peerSchemas  = "SELECT schema_version FROM system.peers"
 		localSchemas = "SELECT schema_version FROM system.local WHERE key='local'"
 	)
 
@@ -1160,10 +1019,9 @@ func (c *Conn) awaitSchemaAgreement() (err error) {
 		versions = make(map[string]struct{})
 
 		var schemaVersion string
-		var peer string
-		for iter.Scan(&schemaVersion, &peer) {
+		for iter.Scan(&schemaVersion) {
 			if schemaVersion == "" {
-				Logger.Printf("skipping peer entry with empty schema_version: peer=%q", peer)
+				log.Println("skipping peer entry with empty schema_version")
 				continue
 			}
 
@@ -1204,25 +1062,6 @@ func (c *Conn) awaitSchemaAgreement() (err error) {
 
 	// not exported
 	return fmt.Errorf("gocql: cluster schema versions not consistent: %+v", schemas)
-}
-
-const localHostInfo = "SELECT * FROM system.local WHERE key='local'"
-
-func (c *Conn) localHostInfo() (*HostInfo, error) {
-	row, err := c.query(localHostInfo).rowMap()
-	if err != nil {
-		return nil, err
-	}
-
-	port := c.conn.RemoteAddr().(*net.TCPAddr).Port
-
-	// TODO(zariel): avoid doing this here
-	host, err := c.session.hostInfoFromMap(row, port)
-	if err != nil {
-		return nil, err
-	}
-
-	return c.session.ring.addOrUpdate(host), nil
 }
 
 var (

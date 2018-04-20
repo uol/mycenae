@@ -206,7 +206,7 @@ const TagValueForm string = "testTagValue-"
 var Sleep2 = 3 * time.Second
 var Sleep3 = 5 * time.Second
 
-func (m *mycenaeTool) Init(set MycenaeSettings) {
+func (m *mycenaeTool) Init(set RestAPISettings) {
 	ht := new(httpTool)
 	ht.Init(set.Node, set.Port, set.Timeout)
 	m.client = ht

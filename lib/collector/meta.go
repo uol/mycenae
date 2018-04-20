@@ -1,16 +1,28 @@
 package collector
 
 import (
-	"bytes"
-	"encoding/json"
-	"fmt"
-	"io"
 	"time"
 
 	"github.com/uol/gobol"
+	"github.com/uol/mycenae/lib/metadata"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
+
+func (collect *Collector) cloneMetadataMap() map[string][]metadata.Metadata {
+
+	cloned := map[string][]metadata.Metadata{}
+
+	if len(collect.metadataMap) > 0 {
+		for k, v := range collect.metadataMap {
+			cloned[k] = v
+		}
+
+		collect.metadataMap = map[string][]metadata.Metadata{}
+	}
+
+	return cloned
+}
 
 func (collect *Collector) metaCoordinator(saveInterval time.Duration) {
 
@@ -20,25 +32,9 @@ func (collect *Collector) metaCoordinator(saveInterval time.Duration) {
 		select {
 		case <-ticker.C:
 
-			if collect.metaPayload.Len() != 0 {
-
+			if len(collect.metadataMap) != 0 {
 				collect.concBulk <- struct{}{}
-
-				bulk := &bytes.Buffer{}
-
-				err := collect.readMeta(bulk)
-				if err != nil {
-					lf := []zapcore.Field{
-						zap.String("package", "collector"),
-						zap.String("func", "metaCoordinator"),
-						zap.String("action", "readMeta"),
-					}
-					gblog.Error(err.Error(), lf...)
-					continue
-				}
-
-				go collect.saveBulk(bulk)
-
+				go collect.saveBulk(collect.cloneMetadataMap())
 			}
 
 		case p := <-collect.metaChan:
@@ -53,51 +49,12 @@ func (collect *Collector) metaCoordinator(saveInterval time.Duration) {
 				gblog.Error(gerr.Error(), lf...)
 			}
 
-			if collect.metaPayload.Len() > collect.settings.MaxMetaBulkSize {
-
+			if len(collect.metadataMap) > collect.settings.MaxMetaBulkSize {
 				collect.concBulk <- struct{}{}
-
-				bulk := &bytes.Buffer{}
-
-				err := collect.readMeta(bulk)
-				if err != nil {
-					lf := []zapcore.Field{
-						zap.String("package", "collector"),
-						zap.String("func", "metaCoordinator"),
-						zap.String("action", "readMeta"),
-					}
-					gblog.Error(err.Error(), lf...)
-
-					continue
-				}
-
-				go collect.saveBulk(bulk)
+				go collect.saveBulk(collect.cloneMetadataMap())
 			}
 		}
 	}
-}
-
-func (collect *Collector) readMeta(bulk *bytes.Buffer) error {
-
-	for {
-		b, err := collect.metaPayload.ReadBytes(124)
-		if err != nil {
-			return err
-		}
-
-		b = b[:len(b)-1]
-
-		_, err = bulk.Write(b)
-		if err != nil {
-			return err
-		}
-
-		if bulk.Len() >= collect.settings.MaxMetaBulkSize || collect.metaPayload.Len() == 0 {
-			break
-		}
-	}
-
-	return nil
 }
 
 func (collect *Collector) saveMeta(packet Point) {
@@ -106,12 +63,10 @@ func (collect *Collector) saveMeta(packet Point) {
 
 	var gerr gobol.Error
 
-	ksts := fmt.Sprintf("%v|%v", packet.Keyset, packet.ID)
-
 	if packet.Number {
-		found, gerr = collect.keyspaceCache.GetTsNumber(ksts, collect.CheckTSID)
+		found, gerr = collect.keyspaceCache.GetTsNumber(packet.Keyset, "meta", collect.CheckTSID)
 	} else {
-		found, gerr = collect.keyspaceCache.GetTsText(ksts, collect.CheckTSID)
+		found, gerr = collect.keyspaceCache.GetTsText(packet.Keyset, "metatext", collect.CheckTSID)
 	}
 	if gerr != nil {
 		lf := []zapcore.Field{
@@ -133,150 +88,39 @@ func (collect *Collector) saveMeta(packet Point) {
 
 func (collect *Collector) generateBulk(packet Point) gobol.Error {
 
-	var metricType, tagkType, tagvType, metaType string
+	if _, ok := collect.metadataMap[packet.Keyset]; !ok {
+		collect.metadataMap[packet.Keyset] = []metadata.Metadata{}
+	}
 
+	var metaType string
 	if packet.Number {
-		metricType = "metric"
-		tagkType = "tagk"
-		tagvType = "tagv"
 		metaType = "meta"
 	} else {
-		metricType = "metrictext"
-		tagkType = "tagktext"
-		tagvType = "tagvtext"
 		metaType = "metatext"
 	}
 
-	idx := BulkType{
-		ID: EsIndex{
-			EsIndex: packet.Keyset,
-			EsType:  metricType,
-			EsID:    packet.Message.Metric,
-		},
+	var tagKeys, tagValues []string
+	for key, value := range packet.Message.Tags {
+		tagKeys = append(tagKeys, key)
+		tagValues = append(tagValues, value)
 	}
 
-	indexJSON, err := json.Marshal(idx)
-	if err != nil {
-		return errMarshal("saveTsInfo", err)
+	metadata := metadata.Metadata{
+		ID:       packet.ID,
+		Metric:   packet.Message.Metric,
+		MetaType: metaType,
+		TagKey:   tagKeys,
+		TagValue: tagValues,
 	}
 
-	collect.metaPayload.Write(indexJSON)
-	collect.metaPayload.WriteString("\n")
-
-	metric := EsMetric{
-		Metric: packet.Message.Metric,
-	}
-
-	docJSON, err := json.Marshal(metric)
-	if err != nil {
-		return errMarshal("saveTsInfo", err)
-	}
-
-	collect.metaPayload.Write(docJSON)
-	collect.metaPayload.WriteString("\n")
-
-	cleanTags := []Tag{}
-
-	for k, v := range packet.Message.Tags {
-
-		idx := BulkType{
-			ID: EsIndex{
-				EsIndex: packet.Keyset,
-				EsType:  tagkType,
-				EsID:    k,
-			},
-		}
-
-		indexJSON, err := json.Marshal(idx)
-
-		if err != nil {
-			return errMarshal("saveTsInfo", err)
-		}
-
-		collect.metaPayload.Write(indexJSON)
-		collect.metaPayload.WriteString("\n")
-
-		docTK := EsTagKey{
-			Key: k,
-		}
-
-		docJSON, err := json.Marshal(docTK)
-		if err != nil {
-			return errMarshal("saveTsInfo", err)
-		}
-
-		collect.metaPayload.Write(docJSON)
-		collect.metaPayload.WriteString("\n")
-
-		idx = BulkType{
-			ID: EsIndex{
-				EsIndex: packet.Keyset,
-				EsType:  tagvType,
-				EsID:    v,
-			},
-		}
-
-		indexJSON, err = json.Marshal(idx)
-		if err != nil {
-			return errMarshal("saveTsInfo", err)
-		}
-
-		collect.metaPayload.Write(indexJSON)
-		collect.metaPayload.WriteString("\n")
-
-		docTV := EsTagValue{
-			Value: v,
-		}
-
-		docJSON, err = json.Marshal(docTV)
-		if err != nil {
-			return errMarshal("saveTsInfo", err)
-		}
-
-		collect.metaPayload.Write(docJSON)
-		collect.metaPayload.WriteString("\n")
-
-		cleanTags = append(cleanTags, Tag{Key: k, Value: v})
-	}
-
-	idx = BulkType{
-		ID: EsIndex{
-			EsIndex: packet.Keyset,
-			EsType:  metaType,
-			EsID:    packet.ID,
-		},
-	}
-
-	indexJSON, err = json.Marshal(idx)
-	if err != nil {
-		return errMarshal("saveTsInfo", err)
-	}
-
-	collect.metaPayload.Write(indexJSON)
-	collect.metaPayload.WriteString("\n")
-
-	docM := MetaInfo{
-		ID:     packet.ID,
-		Metric: packet.Message.Metric,
-		Tags:   cleanTags,
-	}
-
-	docJSON, err = json.Marshal(docM)
-	if err != nil {
-		return errMarshal("saveTsInfo", err)
-	}
-
-	collect.metaPayload.Write(docJSON)
-	collect.metaPayload.WriteString("\n")
-
-	collect.metaPayload.WriteString("|")
+	collect.metadataMap[packet.Keyset] = append(collect.metadataMap[packet.Keyset], metadata)
 
 	return nil
 }
 
-func (collect *Collector) saveBulk(boby io.Reader) {
+func (collect *Collector) saveBulk(metadataMap map[string][]metadata.Metadata) {
 
-	gerr := collect.persist.SaveBulkES(boby)
+	gerr := collect.persist.SaveBulk(metadataMap)
 	if gerr != nil {
 		lf := []zapcore.Field{
 			zap.String("package", "collector"),

@@ -2,12 +2,11 @@ package collector
 
 import (
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/gocql/gocql"
 	"github.com/uol/gobol"
-	"github.com/uol/gobol/rubber"
+	"github.com/uol/mycenae/lib/metadata"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -17,8 +16,8 @@ const (
 )
 
 type persistence struct {
-	cassandra *gocql.Session
-	esearch   *rubber.Elastic
+	cassandra   *gocql.Session
+	metaStorage *metadata.Storage
 }
 
 func (persist *persistence) InsertPoint(ksid, tsid string, timestamp int64, value float64) gobol.Error {
@@ -65,35 +64,30 @@ func (persist *persistence) InsertText(ksid, tsid string, timestamp int64, text 
 	return nil
 }
 
-func (persist *persistence) HeadMetaFromES(index, eType, id string) (int, gobol.Error) {
+func (persist *persistence) CheckMetadata(index, tsType, id string) (bool, gobol.Error) {
+
 	start := time.Now()
-	respCode, err := persist.esearch.GetHead(index, eType, id)
+	ok, err := persist.metaStorage.CheckMetadata(index, tsType, id)
 	if err != nil {
-		statsIndexError(index, eType, "head")
-		return 0, errPersist("HeadMetaFromES", err)
+		statsIndexError(index, "all", "head")
+		return false, errPersist("CheckMetadata", err)
 	}
-	statsIndex(index, eType, "head", time.Since(start))
-	return respCode, nil
+	statsIndex(index, "all", "head", time.Since(start))
+
+	return ok, nil
 }
 
-func (persist *persistence) SendErrorToES(index, eType, id string, doc StructV2Error) gobol.Error {
+func (persist *persistence) SaveBulk(metadataMap map[string][]metadata.Metadata) gobol.Error {
 	start := time.Now()
-	_, err := persist.esearch.Put(index, eType, id, doc)
-	if err != nil {
-		statsIndexError(index, eType, "put")
-		return errPersist("SendErrorToES", err)
-	}
-	statsIndex(index, eType, "PUT", time.Since(start))
-	return nil
-}
 
-func (persist *persistence) SaveBulkES(body io.Reader) gobol.Error {
-	start := time.Now()
-	_, err := persist.esearch.PostBulk(body)
-	if err != nil {
-		statsIndexError("", "", "bulk")
-		return errPersist("SaveBulkES", err)
+	for collection, metadatas := range metadataMap {
+		err := persist.metaStorage.AddDocuments(collection, metadatas)
+		if err != nil {
+			statsIndexError(collection, "all", "bulk")
+			return errPersist("SaveBulk", err)
+		}
+		statsIndex(collection, "all", "bulk", time.Since(start))
 	}
-	statsIndex("", "", "bulk", time.Since(start))
+
 	return nil
 }

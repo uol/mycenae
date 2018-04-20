@@ -22,14 +22,8 @@ type CassandraSettings struct {
 	ProtoVersion   int
 }
 
-// ElasticsearchSettings abstracts the configuration of an Elastic Search cluster
-type ElasticsearchSettings struct {
-	Node    string
-	Port    string
-	Timeout time.Duration
-}
-
-type MycenaeSettings struct {
+// RestAPISettings abstracts the configuration of an Elastic Search cluster
+type RestAPISettings struct {
 	Node    string
 	Port    string
 	Timeout time.Duration
@@ -37,11 +31,11 @@ type MycenaeSettings struct {
 
 // Tool is the main structure to be created from this package
 type Tool struct {
-	Cassandra     *cassTool
-	ElasticSearch *esTool
-	HTTP          *httpTool
-	UDP           *udpTool
-	Mycenae       *mycenaeTool
+	Cassandra *cassTool
+	Solr      *solrTool
+	HTTP      *httpTool
+	UDP       *udpTool
+	Mycenae   *mycenaeTool
 }
 
 // InitCass initializes the cassandra session
@@ -51,11 +45,11 @@ func (t *Tool) InitCass(cassSet CassandraSettings) {
 	t.Cassandra = cass
 }
 
-// InitEs initializes the Elastic Search connection
-func (t *Tool) InitEs(esSet ElasticsearchSettings) {
-	es := new(esTool)
-	es.Init(esSet)
-	t.ElasticSearch = es
+// InitSolr initializes the Solr connection
+func (t *Tool) InitSolr(s RestAPISettings) {
+	es := new(solrTool)
+	es.Init(s)
+	t.Solr = es
 	return
 }
 
@@ -76,7 +70,7 @@ func (t *Tool) InitUDP(hostname string, port string) {
 }
 
 // InitMycenae initializes the Mycenae connection
-func (t *Tool) InitMycenae(mSet MycenaeSettings) {
+func (t *Tool) InitMycenae(mSet RestAPISettings) {
 	m := new(mycenaeTool)
 	m.Init(mSet)
 	t.Mycenae = m

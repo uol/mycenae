@@ -2,10 +2,10 @@ package structs
 
 import (
 	"github.com/uol/gobol/cassandra"
-	"github.com/uol/gobol/rubber"
 	"github.com/uol/gobol/snitch"
 	"github.com/uol/mycenae/lib/keyspace"
 	"github.com/uol/mycenae/lib/memcached"
+	"github.com/uol/mycenae/lib/metadata"
 	"go.uber.org/zap"
 )
 
@@ -39,9 +39,9 @@ type Settings struct {
 	MaxConcurrentBulks      int
 	MaxMetaBulkSize         int
 	MetaBufferSize          int
+	DefaultPaginationSize   int
 	MetaSaveInterval        string
 	HTTPserver              SettingsHTTP
-	UDPserver               SettingsUDP
 	UDPserverV2             SettingsUDP
 	DefaultTTL              uint8
 	MaxAllowedTTL           int
@@ -56,12 +56,9 @@ type Settings struct {
 		General     LogSetting
 		Stats       LogSetting
 	}
-	Stats         snitch.Settings
-	ElasticSearch struct {
-		Cluster rubber.Settings
-		Index   string
-	}
-	Probe struct {
+	Stats        snitch.Settings
+	SolrSettings metadata.Settings
+	Probe        struct {
 		Threshold float64
 	}
 }

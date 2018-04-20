@@ -1,6 +1,6 @@
 package persistence
 
-const formatAddKeyspace = `INSERT INTO %s.ts_keyspace (key, contact, datacenter, replication_factor) VALUES (?, ?, ?, ?)`
+const formatAddKeyspace = `INSERT INTO %s.ts_keyspace (key, contact, datacenter, replication_factor, creation_date) VALUES (?, ?, ?, ?, dateof(now()))`
 
 const formatCreateKeyspace = `
     CREATE KEYSPACE %s WITH replication={

@@ -16,7 +16,6 @@ import (
 
 	"github.com/uol/gobol/cassandra"
 	"github.com/uol/gobol/loader"
-	"github.com/uol/gobol/rubber"
 	"github.com/uol/gobol/saw"
 	"github.com/uol/gobol/snitch"
 	"go.uber.org/zap"
@@ -104,8 +103,8 @@ func main() {
 	defer cass.Close()
 
 	// --- Including metadata and persistence ---
-	meta, err := metadata.Create(
-		settings.ElasticSearch.Cluster,
+	metaStorage, err := metadata.Create(
+		&settings.SolrSettings,
 		tsLogger.General,
 		tssts,
 	)
@@ -119,7 +118,7 @@ func main() {
 		settings.Cassandra.Username,
 		tsLogger.General,
 		cass,
-		meta,
+		metaStorage,
 		tssts,
 		devMode,
 		settings.DefaultTTL,
@@ -129,12 +128,6 @@ func main() {
 		os.Exit(1)
 	}
 	// --- End of metadata and persistence ---
-
-	es, err := rubber.New(tsLogger.General, settings.ElasticSearch.Cluster)
-	if err != nil {
-		tsLogger.General.Fatal(fmt.Sprintf("ERROR - Connecting to elasticsearch: %s", err.Error()), lf...)
-		os.Exit(1)
-	}
 
 	ks := keyspace.New(
 		tssts,
@@ -155,7 +148,7 @@ func main() {
 			ttl)
 		keyspaceTTLMap[ttl] = k
 		if gerr != nil && gerr.StatusCode() != http.StatusConflict {
-			tsLogger.General.Fatal(fmt.Sprintf("error creating kayspace '%s': %s", k, gerr.Message()), lf...)
+			tsLogger.General.Fatal(fmt.Sprintf("error creating keyspace '%s': %s", k, gerr.Message()), lf...)
 			os.Exit(1)
 		}
 	}
@@ -167,7 +160,7 @@ func main() {
 	}
 
 	kc := cache.NewKeyspaceCache(mc, ks)
-	keySet := keyset.NewKeySet(es, tssts, mc)
+	keySet := keyset.NewKeySet(metaStorage, tssts, mc)
 
 	jsonStr, _ = json.Marshal(settings.DefaultKeysets)
 	tsLogger.General.Info(fmt.Sprintf("creating default keysets: %s", jsonStr), lf...)
@@ -187,7 +180,7 @@ func main() {
 		}
 	}
 
-	coll, err := collector.New(tsLogger, tssts, cass, es, kc, settings, keyspaceTTLMap, keySet)
+	coll, err := collector.New(tsLogger, tssts, cass, metaStorage, kc, settings, keyspaceTTLMap, keySet)
 	if err != nil {
 		log.Println(err)
 		return
@@ -196,17 +189,12 @@ func main() {
 	uV2server := udp.New(tsLogger.General, settings.UDPserverV2, coll)
 	uV2server.Start()
 
-	collectorV1 := collector.UDPv1{}
-	uV1server := udp.New(tsLogger.General, settings.UDPserver, collectorV1)
-	uV1server.Start()
-
 	p, err := plot.New(
 		tsLogger.General,
 		tssts,
 		cass,
-		es,
+		metaStorage,
 		kc,
-		settings.ElasticSearch.Index,
 		settings.MaxTimeseries,
 		settings.MaxConcurrentTimeseries,
 		settings.MaxConcurrentReads,
@@ -214,6 +202,7 @@ func main() {
 		keyspaceTTLMap,
 		keySet,
 		settings.DefaultTTL,
+		settings.DefaultPaginationSize,
 	)
 	if err != nil {
 		tsLogger.General.Fatal(err.Error(), lf...)

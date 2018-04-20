@@ -15,7 +15,7 @@ checkScyllaUpNodes () {
 ./start_scylla.sh 1
 ./start_scylla.sh 2
 ./start_scylla.sh 3
-sleep "1m"
+
 checkScyllaUpNodes 3
 
 docker cp $GOPATH/src/github.com/uol/mycenae/docs/scylladb.cql scylla1:/tmp/
@@ -31,7 +31,7 @@ do
 	echo "${cmd}"
 	eval "${cmd}"
 
-	curl --silent --max-time=5 -XPUT -d '{"name":"scylla","port":9042}' --header "Content-type: application/json" "http://${consulServerIp}:8500/v1/agent/service/register"
+	curl --silent -XPUT -d '{"name":"scylla","port":9042}' --header "Content-type: application/json" "http://${consulServerIp}:8500/v1/agent/service/register"
 done
 
 echo "Scylla Cluster OK"

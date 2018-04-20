@@ -106,41 +106,6 @@ func TestUDPv2MultiplePointsSameIDAndNoTimestamp(t *testing.T) {
 	assertElastic(t, ksMycenae, p.Metric, p.Tags, hashID)
 }
 
-func TestUDPv2CheckLocalElasticCache(t *testing.T) {
-	t.Parallel()
-
-	p := mycenaeTools.Mycenae.GetPayload(ksMycenae)
-
-	hashID := tools.GetHashFromMetricAndTags(p.Metric, p.Tags)
-
-	for i := 0; i < 2; i++ {
-
-		*p.Value = float32(i)
-		*p.Timestamp = time.Now().Unix()
-		mycenaeTools.UDP.Send(p.Marshal())
-
-		time.Sleep(tools.Sleep2)
-
-		assertMycenae(t, ksMycenae, *p.Timestamp, *p.Timestamp, *p.Value, hashID)
-	}
-
-	assertElastic(t, ksMycenae, p.Metric, p.Tags, hashID)
-
-	mycenaeTools.ElasticSearch.Timeseries.DeleteKey(ksMycenae, hashID)
-	mycenaeTools.ElasticSearch.Timeseries.DeleteMetric(ksMycenae, p.Metric)
-	mycenaeTools.ElasticSearch.Timeseries.DeleteTagKey(ksMycenae, p.TagKey)
-	mycenaeTools.ElasticSearch.Timeseries.DeleteTagValue(ksMycenae, p.TagValue)
-
-	*p.Value = 2
-	*p.Timestamp = time.Now().Unix()
-	mycenaeTools.UDP.Send(p.Marshal())
-	time.Sleep(tools.Sleep2)
-
-	assertMycenae(t, ksMycenae, *p.Timestamp, *p.Timestamp, *p.Value, hashID)
-
-	assertElasticEmpty(t, ksMycenae, p.Metric, p.Tags, hashID)
-}
-
 func TestUDPv2PayloadWithOnlyNumbersOrLetters(t *testing.T) {
 	t.Parallel()
 
@@ -367,7 +332,7 @@ func TestUDPv2PayloadWithEmptyValues(t *testing.T) {
 			tagValue,
 			timestamp,
 		)
-		tags := map[string]string{"ksid": ksMycenae,  "ttl": "1", tagKey: tagValue}
+		tags := map[string]string{"ksid": ksMycenae, "ttl": "1", tagKey: tagValue}
 
 		sendUDPPayloadStringAndAssertEmpty(t, payload, metric, tags, timestamp, timestamp)
 		wg.Done()
@@ -386,7 +351,7 @@ func TestUDPv2PayloadWithEmptyValues(t *testing.T) {
 			timestamp,
 		)
 		metric := ""
-		tags := map[string]string{"ksid": ksMycenae,  "ttl": "1", tagKey: tagValue}
+		tags := map[string]string{"ksid": ksMycenae, "ttl": "1", tagKey: tagValue}
 
 		sendUDPPayloadStringAndAssertEmpty(t, payload, metric, tags, timestamp, timestamp)
 		wg.Done()
@@ -404,7 +369,7 @@ func TestUDPv2PayloadWithEmptyValues(t *testing.T) {
 			tagValue,
 			timestamp,
 		)
-		tags := map[string]string{"ksid": "",  "ttl": "1", tagKey: tagValue}
+		tags := map[string]string{"ksid": "", "ttl": "1", tagKey: tagValue}
 
 		sendUDPPayloadStringAndAssertEmpty(t, payload, metric, tags, timestamp, timestamp)
 		wg.Done()

@@ -1,14 +1,12 @@
 package collector
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"hash/crc32"
 	"net"
 	"regexp"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
@@ -16,11 +14,11 @@ import (
 
 	"github.com/gocql/gocql"
 	"github.com/uol/gobol"
-	"github.com/uol/gobol/rubber"
 	"go.uber.org/zap"
 
 	"github.com/uol/mycenae/lib/cache"
 	"github.com/uol/mycenae/lib/keyset"
+	"github.com/uol/mycenae/lib/metadata"
 	"github.com/uol/mycenae/lib/structs"
 	"github.com/uol/mycenae/lib/tsstats"
 )
@@ -34,7 +32,7 @@ func New(
 	log *structs.TsLog,
 	sts *tsstats.StatsTS,
 	cass *gocql.Session,
-	es *rubber.Elastic,
+	metaStorage *metadata.Storage,
 	kc *cache.KeyspaceCache,
 	set *structs.Settings,
 	keyspaceTTLMap map[uint8]string,
@@ -51,12 +49,12 @@ func New(
 
 	collect := &Collector{
 		keyspaceCache:  kc,
-		persist:        persistence{cassandra: cass, esearch: es},
+		persist:        persistence{cassandra: cass, metaStorage: metaStorage},
 		validKey:       regexp.MustCompile(`^[0-9A-Za-z-\._\%\&\#\;\/]+$`),
 		settings:       set,
 		concBulk:       make(chan struct{}, set.MaxConcurrentBulks),
 		metaChan:       make(chan Point, set.MetaBufferSize),
-		metaPayload:    &bytes.Buffer{},
+		metadataMap:    map[string][]metadata.Metadata{},
 		jobChannel:     make(chan workerData, set.MaxConcurrentPoints),
 		keyspaceTTLMap: keyspaceTTLMap,
 		keySet:         ks,
@@ -79,7 +77,7 @@ type Collector struct {
 
 	concBulk    chan struct{}
 	metaChan    chan Point
-	metaPayload *bytes.Buffer
+	metadataMap map[string][]metadata.Metadata
 
 	receivedSinceLastProbe float64
 	errorsSinceLastProbe   float64
@@ -285,17 +283,15 @@ func GenerateID(rcvMsg TSDBpoint) string {
 	return fmt.Sprint(h.Sum32())
 }
 
-func (collect *Collector) CheckTSID(esType, id string) (bool, gobol.Error) {
+func (collect *Collector) CheckTSID(collection, esType, id string) (bool, gobol.Error) {
 
-	info := strings.Split(id, "|")
-
-	respCode, gerr := collect.persist.HeadMetaFromES(info[0], esType, info[1])
+	ok, gerr := collect.persist.CheckMetadata(collection, esType, id)
 	if gerr != nil {
 		return false, gerr
 	}
-	if respCode != 200 {
+	if !ok {
 		return false, nil
 	}
 
-	return true, nil
+	return ok, nil
 }
