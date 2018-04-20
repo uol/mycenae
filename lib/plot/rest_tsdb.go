@@ -44,32 +44,14 @@ func (plot *Plot) Lookup(w http.ResponseWriter, r *http.Request, ps httprouter.P
 	}
 
 	tagMap := map[string][]string{}
-
 	for _, tag := range tags {
-		if tag.Key == "" {
-			tag.Key = "*"
-		}
-		if tag.Value == "" {
-			tag.Key = "*"
-		}
 		if _, ok := tagMap[tag.Key]; !ok {
-			tagMap[tag.Key] = []string{
-				tag.Value,
-			}
-		} else {
-			if tag.Value == "*" {
-				tagMap[tag.Key] = []string{
-					tag.Value,
-				}
-			} else {
-				if tagMap[tag.Key][0] != "*" {
-					tagMap[tag.Key] = append(tagMap[tag.Key], tag.Value)
-				}
-			}
+			tagMap[tag.Key] = []string{}
 		}
+		tagMap[tag.Key] = append(tagMap[tag.Key], tag.Value)
 	}
 
-	tsds, total, gerr := plot.MetaOpenTSDB(keyset, "", metric, tagMap, int64(10000), int64(0))
+	tsds, total, gerr := plot.MetaOpenTSDB(keyset, metric, tagMap, 10000, 0)
 	if gerr != nil {
 		rip.Fail(w, gerr)
 		return
@@ -98,10 +80,10 @@ func (plot *Plot) Suggest(w http.ResponseWriter, r *http.Request, ps httprouter.
 
 	rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/suggest", "keyset": keyset})
 
-	q := r.URL.Query()
+	queryString := r.URL.Query()
 
-	maxStr := q.Get("max")
-	max := plot.maxSuggestions
+	maxStr := queryString.Get("max")
+	max := plot.defaultMaxResults
 	resp := []string{}
 
 	var err error
@@ -118,20 +100,20 @@ func (plot *Plot) Suggest(w http.ResponseWriter, r *http.Request, ps httprouter.
 
 	var gerr gobol.Error
 
-	switch q.Get("type") {
+	switch queryString.Get("type") {
 	case "":
 		gerr = errValidationS("Suggest", "type required")
 		rip.Fail(w, gerr)
 		return
 	case "metrics":
-		q := fmt.Sprintf("%v.*", q.Get("q"))
-		resp, _, gerr = plot.ListMetrics(keyset, "metric", q, int64(max), int64(0))
+		q := fmt.Sprintf("%v*", queryString.Get("q"))
+		resp, _, gerr = plot.FilterMetrics(keyset, q, max)
 	case "tagk":
-		q := fmt.Sprintf("%v.*", q.Get("q"))
-		resp, _, gerr = plot.ListTagKey(keyset, q, int64(max), int64(0))
+		q := fmt.Sprintf("%v*", queryString.Get("q"))
+		resp, _, gerr = plot.FilterTagKeys(keyset, q, max)
 	case "tagv":
-		q := fmt.Sprintf("%v.*", q.Get("q"))
-		resp, _, gerr = plot.ListTagValue(keyset, q, int64(max), int64(0))
+		q := fmt.Sprintf("%v*", queryString.Get("q"))
+		resp, _, gerr = plot.FilterTagValues(keyset, q, max)
 	default:
 		gerr = errValidationS("Suggest", "unsopported type")
 		rip.Fail(w, gerr)
@@ -314,7 +296,7 @@ func (plot *Plot) getTimeseries(
 			q.Filters = append(q.Filters[:ttlIndex], q.Filters[ttlIndex+1:]...)
 		}
 
-		tsobs, total, gerr := plot.MetaFilterOpenTSDB(keyset, "", m, q.Filters, int64(plot.MaxTimeseries))
+		tsobs, total, gerr := plot.MetaFilterOpenTSDB(keyset, m, q.Filters, plot.MaxTimeseries)
 		if gerr != nil {
 			return resps, gerr
 		}

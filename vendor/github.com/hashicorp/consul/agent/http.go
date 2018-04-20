@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/NYTimes/gziphandler"
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/acl"
 	"github.com/hashicorp/consul/agent/structs"
@@ -64,6 +65,7 @@ func registerEndpoint(pattern string, methods []string, fn unboundEndpoint) {
 	if endpoints[pattern] != nil || allowedMethods[pattern] != nil {
 		panic(fmt.Errorf("Pattern %q is already registered", pattern))
 	}
+
 	endpoints[pattern] = fn
 	allowedMethods[pattern] = methods
 }
@@ -111,7 +113,10 @@ func (s *HTTPServer) handler(enableDebug bool) http.Handler {
 			metrics.MeasureSince(append([]string{"consul"}, key...), start)
 			metrics.MeasureSince(key, start)
 		}
-		mux.HandleFunc(pattern, wrapper)
+
+		gzipWrapper, _ := gziphandler.GzipHandlerWithOpts(gziphandler.MinSize(0))
+		gzipHandler := gzipWrapper(http.HandlerFunc(wrapper))
+		mux.Handle(pattern, gzipHandler)
 	}
 
 	mux.HandleFunc("/", s.Index)
@@ -493,11 +498,35 @@ func (s *HTTPServer) parseToken(req *http.Request, token *string) {
 	*token = s.agent.tokens.UserToken()
 }
 
+func sourceAddrFromRequest(req *http.Request) string {
+	xff := req.Header.Get("X-Forwarded-For")
+	forwardHosts := strings.Split(xff, ",")
+	if len(forwardHosts) > 0 {
+		forwardIp := net.ParseIP(strings.TrimSpace(forwardHosts[0]))
+		if forwardIp != nil {
+			return forwardIp.String()
+		}
+	}
+
+	host, _, err := net.SplitHostPort(req.RemoteAddr)
+	if err != nil {
+		return ""
+	}
+
+	ip := net.ParseIP(host)
+	if ip != nil {
+		return ip.String()
+	} else {
+		return ""
+	}
+}
+
 // parseSource is used to parse the ?near=<node> query parameter, used for
 // sorting by RTT based on a source node. We set the source's DC to the target
 // DC in the request, if given, or else the agent's DC.
 func (s *HTTPServer) parseSource(req *http.Request, source *structs.QuerySource) {
 	s.parseDC(req, &source.Datacenter)
+	source.Ip = sourceAddrFromRequest(req)
 	if node := req.URL.Query().Get("near"); node != "" {
 		if node == "_agent" {
 			source.Node = s.agent.config.NodeName

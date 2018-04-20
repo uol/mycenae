@@ -48,13 +48,12 @@ func TestFuzzBugs(t *testing.T) {
 			continue
 		}
 
-		frame, err := framer.parseFrame()
+		_, err = framer.parseFrame()
 		if err != nil {
 			continue
 		}
 
-		t.Errorf("(%d) expected to fail for input % X", i, test)
-		t.Errorf("(%d) frame=%+#v", i, frame)
+		t.Errorf("(%d) expected to fail for input %q", i, test)
 	}
 }
 

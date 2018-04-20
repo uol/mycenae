@@ -3,25 +3,20 @@
 package gocql
 
 import (
-	"context"
 	"fmt"
 	"testing"
 )
 
 func TestSessionAPI(t *testing.T) {
+
 	cfg := &ClusterConfig{}
 
 	s := &Session{
-		cfg:    *cfg,
-		cons:   Quorum,
-		policy: RoundRobinHostPolicy(),
+		cfg:  *cfg,
+		cons: Quorum,
 	}
 
 	s.pool = cfg.PoolConfig.buildPool(s)
-	s.executor = &queryExecutor{
-		pool:   s.pool,
-		policy: s.policy,
-	}
 	defer s.Close()
 
 	s.SetConsistency(All)
@@ -90,12 +85,6 @@ func TestSessionAPI(t *testing.T) {
 	}
 }
 
-type funcQueryObserver func(context.Context, ObservedQuery)
-
-func (f funcQueryObserver) ObserveQuery(ctx context.Context, o ObservedQuery) {
-	f(ctx, o)
-}
-
 func TestQueryBasicAPI(t *testing.T) {
 	qry := &Query{}
 
@@ -121,12 +110,6 @@ func TestQueryBasicAPI(t *testing.T) {
 	qry.Trace(trace)
 	if qry.trace != trace {
 		t.Fatalf("expected Query.Trace to be '%v', got '%v'", trace, qry.trace)
-	}
-
-	observer := funcQueryObserver(func(context.Context, ObservedQuery) {})
-	qry.Observer(observer)
-	if qry.observer == nil { // can't compare func to func, checking not nil instead
-		t.Fatal("expected Query.QueryObserver to be set, got nil")
 	}
 
 	qry.PageSize(10)
@@ -215,7 +198,7 @@ func TestBatchBasicAPI(t *testing.T) {
 
 	b.Query("test", 1)
 	if b.Entries[0].Stmt != "test" {
-		t.Fatalf("expected batch.Entries[0].Statement to be 'test', got '%v'", b.Entries[0].Stmt)
+		t.Fatalf("expected batch.Entries[0].Stmt to be 'test', got '%v'", b.Entries[0].Stmt)
 	} else if b.Entries[0].Args[0].(int) != 1 {
 		t.Fatalf("expected batch.Entries[0].Args[0] to be 1, got %v", b.Entries[0].Args[0])
 	}
@@ -225,7 +208,7 @@ func TestBatchBasicAPI(t *testing.T) {
 	})
 
 	if b.Entries[1].Stmt != "test2" {
-		t.Fatalf("expected batch.Entries[1].Statement to be 'test2', got '%v'", b.Entries[1].Stmt)
+		t.Fatalf("expected batch.Entries[1].Stmt to be 'test2', got '%v'", b.Entries[1].Stmt)
 	} else if b.Entries[1].binding == nil {
 		t.Fatal("expected batch.Entries[1].binding to be defined, got nil")
 	}
@@ -260,33 +243,6 @@ func TestConsistencyNames(t *testing.T) {
 	for k, v := range names {
 		if k.String() != v {
 			t.Fatalf("expected '%v', got '%v'", v, k.String())
-		}
-	}
-}
-
-func TestIsUseStatement(t *testing.T) {
-	testCases := []struct {
-		input string
-		exp   bool
-	}{
-		{"USE foo", true},
-		{"USe foo", true},
-		{"UsE foo", true},
-		{"Use foo", true},
-		{"uSE foo", true},
-		{"uSe foo", true},
-		{"usE foo", true},
-		{"use foo", true},
-		{"SELECT ", false},
-		{"UPDATE ", false},
-		{"INSERT ", false},
-		{"", false},
-	}
-
-	for _, tc := range testCases {
-		v := isUseStatement(tc.input)
-		if v != tc.exp {
-			t.Fatalf("expected %v but got %v for statement %q", tc.exp, v, tc.input)
 		}
 	}
 }

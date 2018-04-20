@@ -10,11 +10,11 @@ fi
 
 scyllaIPs=$(docker inspect --format "{{ .NetworkSettings.IPAddress }}" scylla1 scylla2 scylla3 | sed 's/^.*$/"&"/' | tr '\n' ',' | sed 's/.$//')
 memcachedIPs=$(docker inspect --format "{{ .NetworkSettings.IPAddress }}" memcached1 memcached2 memcached3 | sed 's/^.*$/"&:11211"/' | tr '\n' ',' | sed 's/.$//')
-elasticIP=$(docker inspect --format "{{ .NetworkSettings.IPAddress }}" elasticsearch)
+solrIP=$(docker inspect --format "{{ .NetworkSettings.IPAddress }}" solr1)
 
 sed -i 's/nodes = \[[^]]*\]/nodes = \['$scyllaIPs'\]/' ../config.toml
 sed -i 's/pool = \[[^]]*\]/pool = \['$memcachedIPs'\]/' ../config.toml
-sed -i 's/"[^:]*:9200"/"'$elasticIP':9200"/' ../config.toml
+sed -i 's/http\:\/\/[^\:]*\:8983/http\:\/\/'$solrIP'\:8983/' ../config.toml
 
 if [ ! -d "${LOGS}" ]; then
     mkdir ${LOGS}

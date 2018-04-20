@@ -1,11 +1,6 @@
-// +build all integration
-
 package gocql
 
-import (
-	"net"
-	"testing"
-)
+import "testing"
 
 func TestUnmarshalCassVersion(t *testing.T) {
 	tests := [...]struct {
@@ -46,65 +41,4 @@ func TestCassVersionBefore(t *testing.T) {
 		}
 	}
 
-}
-
-func TestIsValidPeer(t *testing.T) {
-	host := &HostInfo{
-		rpcAddress: net.ParseIP("0.0.0.0"),
-		rack:       "myRack",
-		hostId:     "0",
-		dataCenter: "datacenter",
-		tokens:     []string{"0", "1"},
-	}
-
-	if !isValidPeer(host) {
-		t.Errorf("expected %+v to be a valid peer", host)
-	}
-
-	host.rack = ""
-	if isValidPeer(host) {
-		t.Errorf("expected %+v to NOT be a valid peer", host)
-	}
-}
-
-func TestGetHosts(t *testing.T) {
-	cluster := createCluster()
-	session := createSessionFromCluster(cluster, t)
-
-	hosts, partitioner, err := session.hostSource.GetHosts()
-
-	assertTrue(t, "err == nil", err == nil)
-	assertEqual(t, "len(hosts)", len(clusterHosts), len(hosts))
-	assertTrue(t, "len(partitioner) != 0", len(partitioner) != 0)
-}
-
-func TestHostInfo_ConnectAddress(t *testing.T) {
-	var localhost = net.IPv4(127, 0, 0, 1)
-	tests := []struct {
-		name          string
-		connectAddr   net.IP
-		rpcAddr       net.IP
-		broadcastAddr net.IP
-		peer          net.IP
-	}{
-		{name: "rpc_address", rpcAddr: localhost},
-		{name: "connect_address", connectAddr: localhost},
-		{name: "broadcast_address", broadcastAddr: localhost},
-		{name: "peer", peer: localhost},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			host := &HostInfo{
-				connectAddress:   test.connectAddr,
-				rpcAddress:       test.rpcAddr,
-				broadcastAddress: test.broadcastAddr,
-				peer:             test.peer,
-			}
-
-			if addr := host.ConnectAddress(); !addr.Equal(localhost) {
-				t.Fatalf("expected ConnectAddress to be %s got %s", localhost, addr)
-			}
-		})
-	}
 }

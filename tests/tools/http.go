@@ -56,7 +56,7 @@ func (hT *httpTool) POSTjson(url string, postData interface{}, respData interfac
 		log.Println("HTTPclient:", "postJSON:", "Marshal:", err)
 		return
 	}
-	headers := map[string]string{ "Content-Type": "application/json" }
+	headers := map[string]string{"Content-Type": "application/json"}
 	statusCode, respBytes, _ := hT.request("POST", url, payload, false, headers)
 
 	if len(respBytes) > 0 {
@@ -83,8 +83,18 @@ func (hT *httpTool) GET(url string) (statusCode int, respData []byte, err error)
 	return hT.request("GET", url, payload, false, nil)
 }
 
+func (hT *httpTool) CustomHeaderGET(url string, headers map[string]string) (statusCode int, respData []byte, err error) {
+	var payload []byte
+	return hT.request("GET", url, payload, false, headers)
+}
+
 func (hT *httpTool) POST(url string, payload []byte) (statusCode int, respData []byte, err error) {
 	statusCode, respData, err = hT.request("POST", url, payload, false, nil)
+	return
+}
+
+func (hT *httpTool) CustomHeaderPOST(url string, payload []byte, headers map[string]string) (statusCode int, respData []byte, err error) {
+	statusCode, respData, err = hT.request("POST", url, payload, false, headers)
 	return
 }
 
@@ -149,6 +159,9 @@ func (hT *httpTool) request(method string, url string, payload []byte, gzipit bo
 			req, err = http.NewRequest(method, fullPath, bytes.NewBuffer(payload))
 		}
 
+		for k, v := range headers {
+			req.Header.Add(k, v)
+		}
 	}
 
 	if err != nil {

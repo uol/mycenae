@@ -1,0 +1,84 @@
+hash: baf38428a14ca914b522ebd61c7ac478b678366efb6177af671e8dec7a58a882
+updated: 2018-04-20T16:29:59.409710739-03:00
+imports:
+- name: github.com/armon/go-metrics
+  version: 783273d703149aaeb9897cf58613d5af48861c25
+- name: github.com/BurntSushi/toml
+  version: b26d9c308763d68093482582cea63d69be07a0f0
+- name: github.com/gocql/gocql
+  version: 31b0c9c712d21a8d5e1b3098c12a2fd41086ff30
+  subpackages:
+  - internal/lru
+  - internal/murmur
+  - internal/streams
+- name: github.com/golang/snappy
+  version: 427fb6fc07997f43afa32f35e850833760e489a7
+- name: github.com/hailocab/go-hostpool
+  version: e80d13ce29ede4452c43dea11e79b9bc8a15b478
+- name: github.com/hashicorp/consul
+  version: fb848fc48818f58690db09d14640513aa6bf3c02
+  subpackages:
+  - api
+- name: github.com/hashicorp/go-cleanhttp
+  version: d5fe4b57a186c716b0e00b8c301cbd9b4182694d
+- name: github.com/hashicorp/go-immutable-radix
+  version: 7f3cd4390caab3250a57f30efdb2a65dd7649ecf
+- name: github.com/hashicorp/go-rootcerts
+  version: 6bb64b370b90e7ef1fa532be9e591a81c3493e00
+- name: github.com/hashicorp/golang-lru
+  version: 0fb14efe8c47ae851c0034ed7a448854d3d34cf3
+  subpackages:
+  - simplelru
+- name: github.com/hashicorp/serf
+  version: 3b250ce4404edb266330f53fcfc8ad0d0dacfae7
+  subpackages:
+  - coordinate
+- name: github.com/julienschmidt/httprouter
+  version: 8c199fb6259ffc1af525cc3ad52ee60ba8359669
+- name: github.com/mitchellh/go-homedir
+  version: b8bc1bf767474819792c23f32d8286a45736f1c6
+- name: github.com/pborman/uuid
+  version: e790cca94e6cc75c7064b1332e63811d4aae1a53
+- name: github.com/robfig/cron
+  version: b024fc5ea0e34bc3f83d9941c8d60b0622bfaca4
+- name: github.com/uol/go-solr
+  version: 921bd6da9ea4f5ae68f868791aa319c6e197bcb7
+  subpackages:
+  - solr
+- name: go.uber.org/atomic
+  version: 8474b86a5a6f79c443ce4b2992817ff32cf208b8
+- name: go.uber.org/multierr
+  version: 3c4937480c32f4c13a875a1829af76c98ca3d40a
+- name: go.uber.org/zap
+  version: eeedf312bc6c57391d84767a4cd413f02a917974
+  subpackages:
+  - buffer
+  - internal/bufferpool
+  - internal/color
+  - internal/exit
+  - zapcore
+- name: gopkg.in/inf.v0
+  version: 3887ee99ecf07df5b447e9b00d9c0b2adaa9f3e4
+- name: gopkg.in/yaml.v2
+  version: 5420a8b6744d3b0345ab293f6fcba19c978f1183
+testImports:
+- name: github.com/davecgh/go-spew
+  version: 8991bc29aa16c548c550c7ff78260e27b9ab7c73
+  subpackages:
+  - spew
+- name: github.com/pmezard/go-difflib
+  version: 792786c7400a136282c1664665ae0a8db921c6c2
+  subpackages:
+  - difflib
+- name: github.com/stretchr/testify
+  version: 12b6f73e6084dad08a7c6e575284b177ecafbc71
+  subpackages:
+  - assert
+- name: github.com/uol/mycenae
+  version: e17d5244c7cc78767257939c79335da1e0345bad
+  subpackages:
+  - lib/metadata
+  - lib/tserr
+  - lib/tsstats
+- name: gopkg.in/robfig/cron.v2
+  version: b024fc5ea0e34bc3f83d9941c8d60b0622bfaca4

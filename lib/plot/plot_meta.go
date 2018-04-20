@@ -2,292 +2,150 @@ package plot
 
 import (
 	"github.com/uol/gobol"
+	"github.com/uol/mycenae/lib/metadata"
 )
 
-func (plot Plot) ListTags(keyset, esType, tagKey string, size, from int64) ([]string, int, gobol.Error) {
+const DEFAULT_SIZE = 50
 
-	var esQuery QueryWrapper
-
-	if tagKey != "" {
-
-		tagTerm := EsRegexp{
-			Regexp: map[string]string{
-				"key": tagKey,
-			},
-		}
-
-		esQuery.Query.Bool.Must = append(esQuery.Query.Bool.Must, tagTerm)
-	}
-
-	if size != 0 {
-		esQuery.Size = size
-	} else {
-		esQuery.Size = 50
-	}
-
-	if from != 0 {
-		esQuery.From = from
-	}
-
-	var esResp EsResponseTag
-
-	gerr := plot.persist.ListESTags(keyset, esType, esQuery, &esResp)
-
-	total := esResp.Hits.Total
-
-	var tags []string
-
-	for _, docs := range esResp.Hits.Hits {
-
-		tag := docs.Id
-
-		tags = append(tags, tag)
-
-	}
-
-	return tags, total, gerr
-}
-
-func (plot Plot) ListMetrics(keyset, esType, metricName string, size, from int64) ([]string, int, gobol.Error) {
-
-	var esQuery QueryWrapper
+func (plot Plot) validateKeySet(keyset string) gobol.Error {
 
 	found, gerr := plot.keySet.KeySetExists(keyset)
 	if gerr != nil {
-		return nil, 0, gerr
+		return gerr
 	}
 	if !found {
-		return nil, 0, errNotFound("ListMetrics")
+		return errNotFound("ListTags")
 	}
 
-	if metricName != "" {
-
-		metricTerm := EsRegexp{
-			Regexp: map[string]string{
-				"metric": metricName,
-			},
-		}
-
-		esQuery.Query.Bool.Must = append(esQuery.Query.Bool.Must, metricTerm)
-	}
-
-	if size != 0 {
-		esQuery.Size = size
-	} else {
-		esQuery.Size = 50
-	}
-
-	if from != 0 {
-		esQuery.From = from
-	}
-
-	var esResp EsResponseMetric
-
-	gerr = plot.persist.ListESMetrics(keyset, esType, esQuery, &esResp)
-
-	total := esResp.Hits.Total
-
-	var metrics []string
-
-	for _, docs := range esResp.Hits.Hits {
-
-		metric := docs.Id
-
-		metrics = append(metrics, metric)
-
-	}
-
-	return metrics, total, gerr
+	return nil
 }
 
-func (plot Plot) ListTagKey(keyset, tagKname string, size, from int64) ([]string, int, gobol.Error) {
+func (plot Plot) checkParams(from, size int) (int, int) {
 
-	esType := "tagk"
-
-	var esQuery QueryWrapper
-
-	if tagKname != "" {
-
-		tagKterm := EsRegexp{
-			Regexp: map[string]string{
-				"key": tagKname,
-			},
-		}
-
-		esQuery.Query.Bool.Must = append(esQuery.Query.Bool.Must, tagKterm)
+	if from < 0 {
+		from = 0
 	}
 
-	if size != 0 {
-		esQuery.Size = size
-	} else {
-		esQuery.Size = 50
+	if size <= 0 {
+		size = plot.defaultMaxResults
 	}
 
-	if from != 0 {
-		esQuery.From = from
-	}
-
-	var esResp EsResponseTagKey
-
-	gerr := plot.persist.ListESTagKey(keyset, esType, esQuery, &esResp)
-
-	total := esResp.Hits.Total
-
-	var tagKs []string
-
-	for _, docs := range esResp.Hits.Hits {
-
-		tagk := docs.Id
-
-		tagKs = append(tagKs, tagk)
-
-	}
-
-	return tagKs, total, gerr
+	return from, size
 }
 
-func (plot Plot) ListTagValue(keyset, tagVname string, size, from int64) ([]string, int, gobol.Error) {
+func (plot Plot) FilterMetrics(keyset, metricName string, size int) ([]string, int, gobol.Error) {
 
-	esType := "tagv"
-
-	var esQuery QueryWrapper
-
-	if tagVname != "" {
-
-		tagVterm := EsRegexp{
-			Regexp: map[string]string{
-				"value": tagVname,
-			},
-		}
-
-		esQuery.Query.Bool.Must = append(esQuery.Query.Bool.Must, tagVterm)
+	err := plot.validateKeySet(keyset)
+	if err != nil {
+		return nil, 0, errNotFound("FilterMetrics")
 	}
 
-	if size != 0 {
-		esQuery.Size = size
-	} else {
-		esQuery.Size = 50
+	if size <= 0 {
+		size = plot.defaultMaxResults
 	}
 
-	if from != 0 {
-		esQuery.From = from
-	}
-
-	var esResp EsResponseTagValue
-
-	gerr := plot.persist.ListESTagValue(keyset, esType, esQuery, &esResp)
-
-	total := esResp.Hits.Total
-
-	var tagVs []string
-
-	for _, docs := range esResp.Hits.Hits {
-
-		tagv := docs.Id
-
-		tagVs = append(tagVs, tagv)
-
-	}
-
-	return tagVs, total, gerr
+	return plot.persist.metaStorage.FilterMetrics(keyset, metricName, size)
 }
 
-func (plot Plot) ListMeta(
-	keySet,
-	esType,
-	metric string,
-	tags map[string]string,
-	onlyids bool,
-	size,
-	from int64,
-) ([]TsMetaInfo, int, gobol.Error) {
+func (plot Plot) FilterTagKeys(keyset, tagKname string, size int) ([]string, int, gobol.Error) {
 
-	var esQuery QueryWrapper
+	err := plot.validateKeySet(keyset)
+	if err != nil {
+		return nil, 0, errNotFound("FilterTagKeys")
+	}
 
-	if metric != "" {
+	if size <= 0 {
+		size = plot.defaultMaxResults
+	}
 
-		metricTerm := EsRegexp{
-			Regexp: map[string]string{
-				"metric": metric,
-			},
+	return plot.persist.metaStorage.FilterTagKeys(keyset, tagKname, size)
+}
+
+func (plot Plot) FilterTagValues(keyset, tagVname string, size int) ([]string, int, gobol.Error) {
+
+	err := plot.validateKeySet(keyset)
+	if err != nil {
+		return nil, 0, errNotFound("FilterTagValues")
+	}
+
+	if size <= 0 {
+		size = plot.defaultMaxResults
+	}
+
+	return plot.persist.metaStorage.FilterTagValues(keyset, tagVname, size)
+}
+
+// toMetaParam - converts metric and tags to a Metadata struct to be used as query
+func (plot Plot) toMetaParam(metric string, tags map[string]string) *metadata.Metadata {
+
+	metaParams := &metadata.Metadata{Metric: metric}
+
+	if len(tags) > 0 {
+		keys := []string{}
+		values := []string{}
+		for k, v := range tags {
+			keys = append(keys, k)
+			values = append(values, v)
 		}
-
-		esQuery.Query.Bool.Must = append(esQuery.Query.Bool.Must, metricTerm)
+		metaParams.TagKey = keys
+		metaParams.TagValue = values
 	}
 
-	for k, v := range tags {
+	return metaParams
+}
 
-		var esQueryNest EsNestedQuery
+// toMetaParam - converts metric and tags to a Metadata struct to be used as query
+func (plot Plot) toMetaParamArray(metric string, tags map[string][]string) *metadata.Metadata {
 
-		esQueryNest.Nested.Path = "tagsNested"
+	metaParams := &metadata.Metadata{Metric: metric}
 
-		if k != "" || v != "" {
-
-			if k == "" {
-				k = ".*"
-			}
-
-			if v == "" {
-				v = ".*"
-			}
-
-			tagKTerm := EsRegexp{
-				Regexp: map[string]string{
-					"tagsNested.tagKey": k,
-				},
-			}
-			esQueryNest.Nested.Query.Bool.Must = append(esQueryNest.Nested.Query.Bool.Must, tagKTerm)
-
-			tagVTerm := EsRegexp{
-				Regexp: map[string]string{
-					"tagsNested.tagValue": v,
-				},
-			}
-			esQueryNest.Nested.Query.Bool.Must = append(esQueryNest.Nested.Query.Bool.Must, tagVTerm)
-
+	if len(tags) > 0 {
+		keys := []string{}
+		values := []string{}
+		for k, v := range tags {
+			keys = append(keys, k)
+			values = append(values, v...)
 		}
-
-		esQuery.Query.Bool.Must = append(esQuery.Query.Bool.Must, esQueryNest)
-
 	}
 
-	if size != 0 {
-		esQuery.Size = size
-	} else {
-		esQuery.Size = 50
+	return metaParams
+}
+
+// extractTagMap - extracts all tags and tag values to
+func (plot Plot) extractTagMap(metadata *metadata.Metadata) map[string]string {
+
+	tagMap := map[string]string{}
+	for i := 0; i < len(metadata.TagKey); i++ {
+		tagMap[metadata.TagKey[i]] = metadata.TagValue[i]
 	}
 
-	if from != 0 {
-		esQuery.From = from
-	}
+	return tagMap
+}
 
-	var esResp EsResponseMeta
+func (plot Plot) ListMeta(keySet, tsType, metric string, tags map[string]string, onlyids bool, size, from int) ([]TsMetaInfo, int, gobol.Error) {
 
-	gerr := plot.persist.ListESMeta(keySet, esType, esQuery, &esResp)
+	from, size = plot.checkParams(from, size)
 
-	total := esResp.Hits.Total
+	metadatas, total, gerr := plot.persist.metaStorage.ListMetadata(keySet, tsType, plot.toMetaParam(metric, tags), from, size)
 
 	var tsMetaInfos []TsMetaInfo
 
-	for _, docs := range esResp.Hits.Hits {
+	for _, metadata := range metadatas {
 
 		var tsmi TsMetaInfo
 
 		if !onlyids {
 
+			tagMap := plot.extractTagMap(&metadata)
+
 			tsmi = TsMetaInfo{
-				Metric: docs.Source.Metric,
-				TsId:   docs.Source.ID,
-				Tags:   map[string]string{},
+				Metric: metadata.Metric,
+				TsId:   metadata.ID,
+				Tags:   tagMap,
 			}
-
-			for _, tag := range docs.Source.Tags {
-				tsmi.Tags[tag.Key] = tag.Value
-			}
-
 		} else {
 			tsmi = TsMetaInfo{
-				TsId: docs.Source.ID,
+				TsId: metadata.ID,
 			}
 		}
 

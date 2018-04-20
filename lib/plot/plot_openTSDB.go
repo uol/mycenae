@@ -1,6 +1,7 @@
 package plot
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/uol/gobol"
@@ -59,91 +60,20 @@ func (plot Plot) GetGroups(filters []structs.TSDBfilter, tsobs []TSDBobj) (group
 	return groups
 }
 
-func (plot *Plot) MetaOpenTSDB(
-	keyset,
-	id,
-	metric string,
-	tags map[string][]string,
-	size,
-	from int64,
-) ([]TSDBobj, int, gobol.Error) {
+func (plot *Plot) MetaOpenTSDB(keyset, metric string, tags map[string][]string, size, from int) ([]TSDBobj, int, gobol.Error) {
 
-	esType := "meta"
+	from, size = plot.checkParams(from, size)
 
-	var esQuery QueryWrapper
-
-	if metric != "" && metric != "*" {
-
-		metricTerm := Term{
-			Term: map[string]string{
-				"metric": metric,
-			},
-		}
-
-		esQuery.Query.Bool.Must = append(esQuery.Query.Bool.Must, metricTerm)
-	}
-
-	for k, vs := range tags {
-
-		var esQueryNest EsNestedQuery
-
-		esQueryNest.Nested.Path = "tagsNested"
-
-		for _, v := range vs {
-
-			tagKTerm := EsRegexp{
-				Regexp: map[string]string{
-					"tagsNested.tagKey": k,
-				},
-			}
-
-			if v == "*" {
-				v = ".*"
-			}
-
-			tagVTerm := EsRegexp{
-				Regexp: map[string]string{
-					"tagsNested.tagValue": v,
-				},
-			}
-
-			esQueryNest.Nested.Query.Bool.Must = append(esQueryNest.Nested.Query.Bool.Must, tagKTerm)
-			esQueryNest.Nested.Query.Bool.Must = append(esQueryNest.Nested.Query.Bool.Must, tagVTerm)
-		}
-
-		esQuery.Query.Bool.Must = append(esQuery.Query.Bool.Must, esQueryNest)
-
-	}
-
-	if size != 0 {
-		esQuery.Size = size
-	} else {
-		esQuery.Size = 10000
-	}
-
-	if from != 0 {
-		esQuery.From = from
-	}
-
-	var esResp EsResponseMeta
-
-	gerr := plot.persist.ListESMeta(keyset, esType, esQuery, &esResp)
-
-	total := esResp.Hits.Total
+	metadatas, total, gerr := plot.persist.metaStorage.ListMetadata(keyset, "meta", plot.toMetaParamArray(metric, tags), from, size)
 
 	var tsds []TSDBobj
 
-	for _, docs := range esResp.Hits.Hits {
+	for _, metadata := range metadatas {
 
-		mapTags := map[string]string{}
-
-		for _, tag := range docs.Source.Tags {
-			mapTags[tag.Key] = tag.Value
-		}
-
+		mapTags := plot.extractTagMap(&metadata)
 		tsd := TSDBobj{
-			Tsuid:  docs.Source.ID,
-			Metric: docs.Source.Metric,
+			Tsuid:  metadata.ID,
+			Metric: metadata.Metric,
 			Tags:   mapTags,
 		}
 
@@ -153,98 +83,59 @@ func (plot *Plot) MetaOpenTSDB(
 	return tsds, total, gerr
 }
 
-func (plot *Plot) MetaFilterOpenTSDB(
-	keyset,
-	id,
-	metric string,
-	filters []structs.TSDBfilter,
-	size int64,
-) ([]TSDBobj, int, gobol.Error) {
+// SplitTagValues - splits the query if '|' is found
+func (plot *Plot) splitTagValues(value string) string {
 
-	esType := "meta"
-
-	esQuery := QueryWrapper{
-		Size: size,
-	}
-
-	if metric != "" && metric != "*" {
-
-		metricTerm := Term{
-			Term: map[string]string{
-				"metric": metric,
-			},
+	if strings.Contains(value, "|") {
+		q := "("
+		values := strings.Split(value, "|")
+		size := len(values)
+		for i := 0; i < size; i++ {
+			q += fmt.Sprintf("tagValue:%s", values[i])
+			if i < size-1 {
+				q += " OR "
+			}
 		}
+		q += ")"
 
-		esQuery.Query.Bool.Must = append(esQuery.Query.Bool.Must, metricTerm)
+		return q
 	}
+
+	return fmt.Sprintf("tagValue:%s", value)
+}
+
+func (plot *Plot) MetaFilterOpenTSDB(keyset, metric string, filters []structs.TSDBfilter, size int) ([]TSDBobj, int, gobol.Error) {
+
+	from, size := plot.checkParams(0, size)
+
+	q := fmt.Sprintf("metric:%s AND type:meta", metric)
 
 	for _, filter := range filters {
 
-		var esQueryNest EsNestedQuery
-
-		esQueryNest.Nested.Path = "tagsNested"
-
-		tk := filter.Tagk
-
-		tk = strings.Replace(tk, ".", "\\.", -1)
-		tk = strings.Replace(tk, "&", "\\&", -1)
-		tk = strings.Replace(tk, "#", "\\#", -1)
-
-		tagKTerm := EsRegexp{
-			Regexp: map[string]string{
-				"tagsNested.tagKey": tk,
-			},
+		if filter.Ftype == "regexp" {
+			filter.Filter = plot.persist.metaStorage.SetRegexValue(filter.Filter)
 		}
-
-		v := filter.Filter
-
-		if filter.Ftype != "regexp" {
-			v = strings.Replace(v, ".", "\\.", -1)
-			v = strings.Replace(v, "&", "\\&", -1)
-			v = strings.Replace(v, "#", "\\#", -1)
-		}
-
-		if filter.Ftype == "wildcard" {
-			v = strings.Replace(v, "*", ".*", -1)
-		}
-
-		tagVTerm := EsRegexp{
-			Regexp: map[string]string{
-				"tagsNested.tagValue": v,
-			},
-		}
-
-		esQueryNest.Nested.Query.Bool.Must = append(esQueryNest.Nested.Query.Bool.Must, tagKTerm)
 
 		if filter.Ftype == "not_literal_or" {
-			esQueryNest.Nested.Query.Bool.MustNot = append(esQueryNest.Nested.Query.Bool.MustNot, tagVTerm)
+			q += fmt.Sprintf(" AND -(tagKey:%s AND %s)", filter.Tagk, plot.splitTagValues(filter.Filter))
 		} else {
-			esQueryNest.Nested.Query.Bool.Must = append(esQueryNest.Nested.Query.Bool.Must, tagVTerm)
+			q += fmt.Sprintf(" AND tagKey:%s AND %s", filter.Tagk, plot.splitTagValues(filter.Filter))
 		}
-
-		esQuery.Query.Bool.Must = append(esQuery.Query.Bool.Must, esQueryNest)
-
 	}
 
-	var esResp EsResponseMeta
+	fmt.Println(q)
 
-	gerr := plot.persist.ListESMeta(keyset, esType, esQuery, &esResp)
-
-	total := esResp.Hits.Total
+	metadatas, total, gerr := plot.persist.metaStorage.Query(keyset, q, from, size)
 
 	var tsds []TSDBobj
 
-	for _, docs := range esResp.Hits.Hits {
+	for _, metadata := range metadatas {
 
-		mapTags := map[string]string{}
-
-		for _, tag := range docs.Source.Tags {
-			mapTags[tag.Key] = tag.Value
-		}
+		mapTags := plot.extractTagMap(&metadata)
 
 		tsd := TSDBobj{
-			Tsuid:  docs.Source.ID,
-			Metric: docs.Source.Metric,
+			Tsuid:  metadata.ID,
+			Metric: metadata.Metric,
 			Tags:   mapTags,
 		}
 

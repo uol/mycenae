@@ -3,11 +3,11 @@ package plot
 import (
 	"github.com/gocql/gocql"
 	"github.com/uol/gobol"
-	"github.com/uol/gobol/rubber"
 	"go.uber.org/zap"
 
 	"github.com/uol/mycenae/lib/cache"
 	"github.com/uol/mycenae/lib/keyset"
+	"github.com/uol/mycenae/lib/metadata"
 	"github.com/uol/mycenae/lib/tsstats"
 )
 
@@ -16,13 +16,17 @@ var (
 	stats *tsstats.StatsTS
 )
 
+type persistence struct {
+	metaStorage *metadata.Storage
+	cassandra   *gocql.Session
+}
+
 func New(
 	gbl *zap.Logger,
 	sts *tsstats.StatsTS,
 	cass *gocql.Session,
-	es *rubber.Elastic,
+	metaStorage *metadata.Storage,
 	ks *cache.KeyspaceCache,
-	esIndex string,
 	maxTimeseries int,
 	maxConcurrentTimeseries int,
 	maxConcurrentReads int,
@@ -30,6 +34,7 @@ func New(
 	keyspaceTTLMap map[uint8]string,
 	keySet *keyset.KeySet,
 	defaultTTL uint8,
+	defaultMaxResults int,
 
 ) (*Plot, gobol.Error) {
 
@@ -53,21 +58,20 @@ func New(
 	}
 
 	return &Plot{
-		esIndex:           esIndex,
 		MaxTimeseries:     maxTimeseries,
 		LogQueryThreshold: logQueryTSthreshold,
 		keyspaceCache:     ks,
-		persist:           persistence{cassandra: cass, esTs: es},
+		persist:           persistence{cassandra: cass, metaStorage: metaStorage},
 		concTimeseries:    make(chan struct{}, maxConcurrentTimeseries),
 		concReads:         make(chan struct{}, maxConcurrentReads),
 		keyspaceTTLMap:    keyspaceTTLMap,
 		keySet:            keySet,
 		defaultTTL:        defaultTTL,
+		defaultMaxResults: defaultMaxResults,
 	}, nil
 }
 
 type Plot struct {
-	esIndex           string
 	MaxTimeseries     int
 	LogQueryThreshold int
 	keyspaceCache     *cache.KeyspaceCache
@@ -77,5 +81,5 @@ type Plot struct {
 	keyspaceTTLMap    map[uint8]string
 	keySet            *keyset.KeySet
 	defaultTTL        uint8
-	maxSuggestions    int
+	defaultMaxResults int
 }

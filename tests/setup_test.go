@@ -11,9 +11,10 @@ import (
 	"github.com/uol/mycenae/tests/tools"
 )
 
-var setup = flag.Bool("setup", true, "flag used to skip setup when set to false")
+var skipSetup = false
 var mycenaeTools tools.Tool
 var ksMycenae, ksMycenaeMeta, ksMycenaeTsdb, ksTTLKeyspace string
+
 const datacenter = "dc_gt_a1"
 
 func createKeySetName() string {
@@ -43,26 +44,30 @@ func TestMain(m *testing.M) {
 
 	mycenaeTools.InitUDP("mycenae", "4243")
 
-	mycenaeTools.InitMycenae(tools.MycenaeSettings{
+	mycenaeTools.InitMycenae(tools.RestAPISettings{
 		Node:    "http://mycenae",
 		Port:    "8080",
 		Timeout: 5 * time.Minute,
 	})
 
-	mycenaeTools.InitEs(tools.ElasticsearchSettings{
-		Node:    "http://elasticsearch",
-		Port:    "9200",
+	mycenaeTools.InitSolr(tools.RestAPISettings{
+		Node:    "http://solr",
+		Port:    "8983",
 		Timeout: time.Minute,
 	})
 
 	flag.Parse()
 
-	ksMycenae = mycenaeTools.Mycenae.CreateKeySet(createKeySetName())
+	ksMycenae = "ts_699977514"
+	ksMycenaeMeta = "ts_544599234"
+	ksMycenaeTsdb = "ts_211147352"
+	ksTTLKeyspace = "ts_551067757"
 
-	if *setup {
+	if !skipSetup {
 
 		var wg sync.WaitGroup
 
+		ksMycenae = mycenaeTools.Mycenae.CreateKeySet(createKeySetName())
 		ksMycenaeMeta = mycenaeTools.Mycenae.CreateKeySet(createKeySetName())
 		ksMycenaeTsdb = mycenaeTools.Mycenae.CreateKeySet(createKeySetName())
 		ksTTLKeyspace = mycenaeTools.Mycenae.CreateKeySet(createKeySetName())
@@ -73,7 +78,7 @@ func TestMain(m *testing.M) {
 		go func() { sendPointsMetadata(ksMycenaeMeta); wg.Done() }()
 		go func() { sendPointsParseExp(ksMycenae); wg.Done() }()
 		go func() { sendPointsPointsGrafana(ksMycenae); wg.Done() }()
-		//go func() { sendPointsPointsGrafanaMem(ksMycenae); wg.Done() }()
+		// go func() { sendPointsPointsGrafanaMem(ksMycenae); wg.Done() }()
 		go func() { sendPointsTsdbAggAndSugAndLookup(ksMycenaeTsdb); wg.Done() }()
 		go func() { sendPointsV2(ksMycenae); wg.Done() }()
 		go func() { sendPointsV2Text(ksMycenae); wg.Done() }()
