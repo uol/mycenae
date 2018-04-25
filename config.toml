@@ -83,10 +83,6 @@ AllowCORS = true
   protoVersion = 4
 
 [UDPserver]
-  port = "4242"
-  readBuffer = 1048576
-
-[UDPserverV2]
   port = "4243"
   readBuffer = 1048576
 
@@ -119,10 +115,13 @@ AllowCORS = true
 [probe]
   threshold = 0.5
 
-[solrSettings]
+[metadataSettings]
   numShards = 1
   replicationFactor = 1
-  url = "http://172.17.0.2:8983/solr"
+  url = "http://172.17.0.4:8983/solr"
+  IDCacheTTL = 0
+  QueryCacheTTL = 0
+  KeysetCacheTTL = 0
 
 [memcached]
   pool = ["172.17.0.10:11211","172.17.0.11:11211","172.17.0.12:11211"]

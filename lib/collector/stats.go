@@ -1,20 +1,14 @@
 package collector
 
 import (
+	"strconv"
 	"time"
 )
 
-func statsUDPv1() {
-	go statsIncrement(
-		"points.received",
-		map[string]string{"protocol": "udp", "api": "v1"},
-	)
-}
-
-func statsProcTime(ks string, d time.Duration) {
+func statsProcTime(ksid string, d time.Duration) {
 	go statsValueAdd(
 		"points.processes_time",
-		map[string]string{"target_keyspace": ks},
+		map[string]string{"target_ksid": ksid},
 		float64(d.Nanoseconds())/float64(time.Millisecond),
 	)
 }
@@ -26,17 +20,17 @@ func statsLostMeta() {
 	)
 }
 
-func statsInsertQerror(ks, cf string) {
+func statsInsertQerror(ksid, cf string) {
 	go statsIncrement(
 		"cassandra.query.error",
-		map[string]string{"target_keyspace": ks, "column_family": cf, "operation": "insert"},
+		map[string]string{"target_ksid": ksid, "column_family": cf, "operation": "insert"},
 	)
 }
 
-func statsInsertFBerror(ks, cf string) {
+func statsInsertFBerror(ksid, cf string) {
 	go statsIncrement(
 		"cassandra.fallback.error",
-		map[string]string{"target_keyspace": ks, "column_family": cf, "operation": "insert"},
+		map[string]string{"target_ksid": ksid, "column_family": cf, "operation": "insert"},
 	)
 }
 
@@ -71,26 +65,26 @@ func statsBulkPoints() {
 	go statsIncrement("elastic.bulk.points", map[string]string{})
 }
 
-func statsInsert(ks, cf string, d time.Duration) {
-	go statsIncrement("cassandra.query", map[string]string{"target_keyspace": ks, "column_family": cf, "operation": "insert"})
+func statsInsert(ksid, cf string, d time.Duration) {
+	go statsIncrement("cassandra.query", map[string]string{"target_ksid": ksid, "column_family": cf, "operation": "insert"})
 	go statsValueAdd(
 		"cassandra.query.duration",
-		map[string]string{"target_keyspace": ks, "column_family": cf, "operation": "insert"},
+		map[string]string{"target_ksid": ksid, "column_family": cf, "operation": "insert"},
 		float64(d.Nanoseconds())/float64(time.Millisecond),
 	)
 }
 
-func statsPoints(ks, vt , protocol, ttl string) {
+func statsPoints(ksid, vt, protocol, ttl string) {
 	go statsIncrement(
 		"points.received",
-		map[string]string{"protocol": protocol, "api": "v2", "target_keyspace": ks, "type": vt, "target_time_to_live": ttl},
+		map[string]string{"protocol": protocol, "target_ksid": ksid, "type": vt, "target_ttl": ttl},
 	)
 }
 
-func statsPointsError(ks, vt, protocol, ttl string) {
+func statsPointsError(ksid, vt, protocol, ttl string) {
 	go statsIncrement(
 		"points.received.error",
-		map[string]string{"protocol": protocol, "api": "v2", "target_keyspace": ks, "type": vt, "target_time_to_live": ttl},
+		map[string]string{"protocol": protocol, "target_ksid": ksid, "type": vt, "target_ttl": ttl},
 	)
 }
 
@@ -100,4 +94,18 @@ func statsIncrement(metric string, tags map[string]string) {
 
 func statsValueAdd(metric string, tags map[string]string, v float64) {
 	stats.ValueAdd("collector", metric, tags, v)
+}
+
+func statsCountNewTimeseries(ksid, vt string, ttl uint8) {
+	go statsIncrement(
+		"timeseries.count.new",
+		map[string]string{"target_ksid": ksid, "type": vt, "target_ttl": strconv.FormatUint(uint64(ttl), 8)},
+	)
+}
+
+func statsCountOldTimeseries(ksid, vt string, ttl uint8) {
+	go statsIncrement(
+		"timeseries.count.old",
+		map[string]string{"target_ksid": ksid, "type": vt, "target_ttl": strconv.FormatUint(uint64(ttl), 8)},
+	)
 }

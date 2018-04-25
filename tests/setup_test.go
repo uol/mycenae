@@ -58,10 +58,10 @@ func TestMain(m *testing.M) {
 
 	flag.Parse()
 
-	ksMycenae = "ts_699977514"
-	ksMycenaeMeta = "ts_544599234"
-	ksMycenaeTsdb = "ts_211147352"
-	ksTTLKeyspace = "ts_551067757"
+	ksMycenae = "ts_312486240"
+	ksMycenaeMeta = "ts_439299136"
+	ksMycenaeTsdb = "ts_75996059"
+	ksTTLKeyspace = "ts_647688581"
 
 	if !skipSetup {
 

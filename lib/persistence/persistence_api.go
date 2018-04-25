@@ -47,7 +47,7 @@ func (storage *Storage) CreateKeyspace(
 // DeleteKeyspace is a wrapper around keyspace deletion to ensure the metadata
 // is deleted with the keyspace
 func (storage *Storage) DeleteKeyspace(id string) gobol.Error {
-	if err := storage.metadata.DeleteIndex(id); err != nil {
+	if err := storage.metadata.DeleteKeySet(id); err != nil {
 		return err
 	}
 	if err := storage.Backend.DeleteKeyspace(id); err != nil {

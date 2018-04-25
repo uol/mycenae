@@ -16,7 +16,6 @@ import (
 	"github.com/uol/gobol"
 	"go.uber.org/zap"
 
-	"github.com/uol/mycenae/lib/cache"
 	"github.com/uol/mycenae/lib/keyset"
 	"github.com/uol/mycenae/lib/metadata"
 	"github.com/uol/mycenae/lib/structs"
@@ -33,7 +32,6 @@ func New(
 	sts *tsstats.StatsTS,
 	cass *gocql.Session,
 	metaStorage *metadata.Storage,
-	kc *cache.KeyspaceCache,
 	set *structs.Settings,
 	keyspaceTTLMap map[uint8]string,
 	ks *keyset.KeySet,
@@ -48,7 +46,6 @@ func New(
 	stats = sts
 
 	collect := &Collector{
-		keyspaceCache:  kc,
 		persist:        persistence{cassandra: cass, metaStorage: metaStorage},
 		validKey:       regexp.MustCompile(`^[0-9A-Za-z-\._\%\&\#\;\/]+$`),
 		settings:       set,
@@ -70,10 +67,9 @@ func New(
 }
 
 type Collector struct {
-	keyspaceCache *cache.KeyspaceCache
-	persist       persistence
-	validKey      *regexp.Regexp
-	settings      *structs.Settings
+	persist  persistence
+	validKey *regexp.Regexp
+	settings *structs.Settings
 
 	concBulk    chan struct{}
 	metaChan    chan Point
@@ -135,11 +131,11 @@ func (collect *Collector) worker(id int, jobChannel <-chan workerData) {
 
 func (collect *Collector) CheckUDPbind() bool {
 	lf := []zapcore.Field{
-		zap.String("struct", "CollectorV2"),
+		zap.String("struct", "Collector"),
 		zap.String("func", "CheckUDPbind"),
 	}
 
-	port := ":" + collect.settings.UDPserverV2.Port
+	port := ":" + collect.settings.UDPserver.Port
 
 	addr, err := net.ResolveUDPAddr("udp", port)
 	if err != nil {
@@ -157,7 +153,7 @@ func (collect *Collector) CheckUDPbind() bool {
 
 func (collect *Collector) ReceivedErrorRatio() (ratio float64) {
 	lf := []zapcore.Field{
-		zap.String("struct", "CollectorV2"),
+		zap.String("struct", "Collector"),
 		zap.String("func", "ReceivedErrorRatio"),
 	}
 	if collect.receivedSinceLastProbe == 0 {
@@ -281,17 +277,4 @@ func GenerateID(rcvMsg TSDBpoint) string {
 	}
 
 	return fmt.Sprint(h.Sum32())
-}
-
-func (collect *Collector) CheckTSID(collection, esType, id string) (bool, gobol.Error) {
-
-	ok, gerr := collect.persist.CheckMetadata(collection, esType, id)
-	if gerr != nil {
-		return false, gerr
-	}
-	if !ok {
-		return false, nil
-	}
-
-	return ok, nil
 }

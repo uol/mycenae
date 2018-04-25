@@ -1,31 +1,35 @@
 package memcached
 
 import (
+	"time"
+
 	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/uol/gobol"
 	"github.com/uol/mycenae/lib/tsstats"
-	"time"
 )
 
+// Manages the memcached operations
+// @author rnojiri
+
+// Configuration - memcached configuration
 type Configuration struct {
-	Pool []string
-	TTL  int32
+	Pool         []string
 	MaxIdleConns int
-	Timeout int
+	Timeout      int
 }
 
+// Memcached - main struct
 type Memcached struct {
 	client *memcache.Client
-	ttl    int32
 }
 
+// New - initializes
 func New(s *tsstats.StatsTS, c *Configuration) (*Memcached, gobol.Error) {
 
 	stats = s
 
 	mc := &Memcached{
 		client: memcache.New(c.Pool...),
-		ttl:    c.TTL,
 	}
 
 	mc.client.MaxIdleConns = c.MaxIdleConns
@@ -34,15 +38,16 @@ func New(s *tsstats.StatsTS, c *Configuration) (*Memcached, gobol.Error) {
 	return mc, nil
 }
 
-func (mc *Memcached) fqn(items ...string) (string, gobol.Error) {
+// fqn - builds a new fully qualified name using the specified strings
+func (mc *Memcached) fqn(namespace string, fqnKeys ...string) (string, gobol.Error) {
 
-	if items == nil || len(items) == 0 {
+	if fqnKeys == nil || len(fqnKeys) == 0 {
 		return "", errInternalServerErrorM("fqn", "No ")
 	}
 
-	var result string
+	result := namespace + "/"
 
-	for _, item := range items {
+	for _, item := range fqnKeys {
 		result += item
 		result += "/"
 	}
@@ -50,11 +55,12 @@ func (mc *Memcached) fqn(items ...string) (string, gobol.Error) {
 	return result, nil
 }
 
-func (mc *Memcached) Get(namespace, key string) ([]byte, gobol.Error) {
+// Get - returns an object from the cache
+func (mc *Memcached) Get(namespace string, fqnKeys ...string) ([]byte, gobol.Error) {
 
 	start := time.Now()
 
-	fqn, err := mc.fqn(namespace, key)
+	fqn, err := mc.fqn(namespace, fqnKeys...)
 
 	if err != nil {
 		return nil, err
@@ -62,7 +68,7 @@ func (mc *Memcached) Get(namespace, key string) ([]byte, gobol.Error) {
 
 	item, error := mc.client.Get(fqn)
 
-	if error != nil && error.Error() != "memcache: cache miss" {
+	if error != nil && error != memcache.ErrCacheMiss {
 		return nil, errInternalServerError("get", "error retrieving value from "+fqn, error)
 	}
 
@@ -71,22 +77,17 @@ func (mc *Memcached) Get(namespace, key string) ([]byte, gobol.Error) {
 		return nil, nil
 	}
 
-	error = mc.client.Touch(fqn, mc.ttl)
-
-	if error != nil {
-		return nil, errInternalServerError("touch", "error touching value from "+fqn, error)
-	}
-
 	statsSuccess("Get", namespace, time.Since(start))
 
 	return item.Value, nil
 }
 
-func (mc *Memcached) Put(namespace, key string, value []byte) gobol.Error {
+// Put - puts an object in the cache
+func (mc *Memcached) Put(value []byte, ttl int32, namespace string, fqnKeys ...string) gobol.Error {
 
 	start := time.Now()
 
-	fqn, err := mc.fqn(namespace, key)
+	fqn, err := mc.fqn(namespace, fqnKeys...)
 
 	if err != nil {
 		return err
@@ -95,7 +96,7 @@ func (mc *Memcached) Put(namespace, key string, value []byte) gobol.Error {
 	item := &memcache.Item{
 		Key:        fqn,
 		Value:      value,
-		Expiration: mc.ttl,
+		Expiration: ttl,
 	}
 
 	error := mc.client.Set(item)
@@ -110,11 +111,12 @@ func (mc *Memcached) Put(namespace, key string, value []byte) gobol.Error {
 	return nil
 }
 
-func (mc *Memcached) Delete(namespace, key string) gobol.Error {
+// Delete - deletes an object from the cache
+func (mc *Memcached) Delete(namespace string, fqnKeys ...string) gobol.Error {
 
 	start := time.Now()
 
-	fqn, err := mc.fqn(namespace, key)
+	fqn, err := mc.fqn(namespace, fqnKeys...)
 
 	if err != nil {
 		return err

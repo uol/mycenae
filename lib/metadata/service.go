@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/uol/mycenae/lib/memcached"
+
 	"github.com/uol/go-solr/solr"
 	"github.com/uol/gobol"
 	"github.com/uol/gobol/solar"
@@ -21,10 +23,14 @@ type SolrBackend struct {
 	stats             *tsstats.StatsTS
 	logger            *zap.Logger
 	regexPattern      *regexp.Regexp
+	memcached         *memcached.Memcached
+	idCacheTTL        int32
+	queryCacheTTL     int32
+	keysetCacheTTL    int32
 }
 
 // NewSolrBackend - creates a new instance
-func NewSolrBackend(settings *Settings, stats *tsstats.StatsTS, logger *zap.Logger) (*SolrBackend, error) {
+func NewSolrBackend(settings *Settings, stats *tsstats.StatsTS, logger *zap.Logger, memcached *memcached.Memcached) (*SolrBackend, error) {
 
 	ss, err := solar.NewSolrService(settings.URL, logger)
 	if err != nil {
@@ -38,6 +44,10 @@ func NewSolrBackend(settings *Settings, stats *tsstats.StatsTS, logger *zap.Logg
 		replicationFactor: settings.ReplicationFactor,
 		numShards:         settings.NumShards,
 		regexPattern:      regexp.MustCompile("[\\{\\}\\*\\|\\$\\^\\?\\[\\]]+"),
+		memcached:         memcached,
+		idCacheTTL:        settings.IDCacheTTL,
+		queryCacheTTL:     settings.QueryCacheTTL,
+		keysetCacheTTL:    settings.KeysetCacheTTL,
 	}, nil
 }
 
@@ -67,45 +77,6 @@ func (sb *SolrBackend) setupSchema(collection string) error {
 	return nil
 }
 
-// CreateIndex - creates a new collection
-func (sb *SolrBackend) CreateIndex(collection string) gobol.Error {
-
-	start := time.Now()
-	err := sb.solrService.CreateCollection(collection, sb.numShards, sb.replicationFactor)
-	if err != nil {
-		sb.statsCollectionError(collection, "create", "solr.collection.action")
-		return errInternalServer("CreateIndex", err)
-	}
-
-	err = sb.setupSchema(collection)
-	if err != nil {
-		lf := []zapcore.Field{
-			zap.String("package", "metadata"),
-			zap.String("func", "createCollection"),
-			zap.String("step", "setupSchema"),
-		}
-		sb.logger.Error("error on schema setup", lf...)
-		return errInternalServer("CreateIndex", err)
-	}
-
-	sb.statsCollectionAction(collection, "create", "solr.collection.action", time.Since(start))
-
-	return nil
-}
-
-// DeleteIndex - deletes a collection
-func (sb *SolrBackend) DeleteIndex(collection string) gobol.Error {
-
-	start := time.Now()
-	err := sb.solrService.DeleteCollection(collection)
-	if err != nil {
-		sb.statsCollectionError(collection, "delete", "solr.collection.create.error")
-		return errInternalServer("DeleteIndex", err)
-	}
-	sb.statsCollectionAction(collection, "delete", "solr.collection.create.error", time.Since(start))
-	return nil
-}
-
 // removeRegexpSlashes - removes all regular expression slashes
 func (sb *SolrBackend) removeRegexpSlashes(value string) string {
 	length := len(value)
@@ -117,7 +88,7 @@ func (sb *SolrBackend) removeRegexpSlashes(value string) string {
 }
 
 // extractFacets - extract facets from the solr.SolrResult
-func (sb *SolrBackend) extractFacets(r *solr.SolrResult, field, value string, size int, regex bool) []string {
+func (sb *SolrBackend) extractFacets(r *solr.SolrResult, field, value string, regex bool) []string {
 
 	facets := []string{}
 
@@ -153,7 +124,7 @@ func (sb *SolrBackend) extractFacets(r *solr.SolrResult, field, value string, si
 	}
 
 	data := wrapper.([]interface{})
-	for i := 0; i < len(data) && len(facets) < size; i += 2 {
+	for i := 0; i < len(data); i += 2 {
 		if data[i+1].(float64) > 0 {
 			v := data[i].(string)
 			if !regex {
@@ -167,6 +138,23 @@ func (sb *SolrBackend) extractFacets(r *solr.SolrResult, field, value string, si
 	}
 
 	return facets
+}
+
+// cropFacets - crops to the desired size
+func (sb *SolrBackend) cropFacets(facets []string, size int) []string {
+
+	if size == 0 {
+		return []string{}
+	} else if len(facets) <= size {
+		return facets
+	}
+
+	resized := make([]string, size)
+	for i := 0; i < size; i++ {
+		resized[i] = facets[i]
+	}
+
+	return resized
 }
 
 // filterFieldValues - filter by field value using wildcard
@@ -184,13 +172,33 @@ func (sb *SolrBackend) filterFieldValues(field, value, collection, action string
 		q = fmt.Sprintf("%s:%s", field, value)
 	}
 
-	r, err := sb.solrService.Facets(collection, q, "", 0, 0, field)
+	facets, err := sb.getCachedFacets(collection, field, q)
 	if err != nil {
-		sb.statsCollectionError(collection, action, "solr.collection.search")
+		sb.statsCollectionError(collection, action, "memcached.collection.search.error")
 		return nil, 0, errInternalServer("filterFieldValues", err)
 	}
 
-	return sb.extractFacets(r, field, value, maxResults, regex), r.Results.NumFound, nil
+	if facets != nil && len(facets) > 0 {
+		resized := sb.cropFacets(facets, maxResults)
+		return resized, len(facets), nil
+	}
+
+	r, e := sb.solrService.Facets(collection, q, "", 0, 0, field)
+	if e != nil {
+		sb.statsCollectionError(collection, action, "solr.collection.search")
+		return nil, 0, errInternalServer("filterFieldValues", e)
+	}
+
+	facets = sb.extractFacets(r, field, value, regex)
+
+	err = sb.cacheFacets(facets, collection, field, q)
+	if err != nil {
+		sb.statsCollectionError(collection, action, "memcached.collection.search.error")
+		return nil, 0, errInternalServer("filterFieldValues", err)
+	}
+
+	resized := sb.cropFacets(facets, maxResults)
+	return resized, len(facets), nil
 }
 
 // FilterTagValues - list all tag values from a collection
@@ -392,7 +400,7 @@ func (sb *SolrBackend) fromDocuments(results *solr.Collection) []Metadata {
 }
 
 // AddDocuments - add/update a document or a series of documents
-func (sb *SolrBackend) AddDocuments(collection string, metadatas []Metadata) error {
+func (sb *SolrBackend) AddDocuments(collection string, metadatas []Metadata) gobol.Error {
 
 	start := time.Now()
 
@@ -402,43 +410,45 @@ func (sb *SolrBackend) AddDocuments(collection string, metadatas []Metadata) err
 		return errInternalServer("AddDocuments", err)
 	}
 
+	for i := 0; i < len(metadatas); i++ {
+		go sb.cacheID(collection, metadatas[i].MetaType, metadatas[i].ID)
+	}
+
 	sb.statsCollectionAction(collection, "add_documents", "solr.collection.add", time.Since(start))
 
 	return nil
 }
 
-// ListIndexes - list all indexes
-func (sb *SolrBackend) ListIndexes() ([]string, error) {
+// CheckMetadata - verifies if a metadata exists
+func (sb *SolrBackend) CheckMetadata(collection, tsType, tsid string) (bool, gobol.Error) {
 
-	start := time.Now()
-
-	indexes, err := sb.solrService.ListCollections()
+	isCached, err := sb.isIDCached(collection, tsType, tsid)
 	if err != nil {
-		sb.statsCollectionError("all", "list_collections", "solr.collection.list.error")
-		return nil, errInternalServer("AddDocuments", err)
+		return false, errInternalServer("CheckMetadata", err)
 	}
 
-	sb.statsCollectionAction("all", "list_collections", "solr.collection.list", time.Since(start))
-
-	return indexes, nil
-}
-
-// CheckMetadata - verifies if a metadata exists
-func (sb *SolrBackend) CheckMetadata(collection, tsType, tsid string) (bool, error) {
+	if isCached {
+		return true, nil
+	}
 
 	start := time.Now()
 
 	q := fmt.Sprintf("id:%s AND type:%s", tsid, tsType)
-	r, err := sb.solrService.SimpleQuery(collection, q, "", 0, 0)
+	r, e := sb.solrService.SimpleQuery(collection, q, "", 0, 0)
 
-	if err != nil {
+	if e != nil {
 		sb.statsCollectionError(collection, "check_metadata", "solr.collection.search.error")
 		return false, errInternalServer("CheckMetadata", err)
 	}
 
 	sb.statsCollectionAction(collection, "check_metadata", "solr.collection.search", time.Since(start))
 
-	return r.Results.NumFound > 0, nil
+	if r.Results.NumFound > 0 {
+		go sb.cacheID(collection, tsType, tsid)
+		return true, nil
+	}
+
+	return false, nil
 }
 
 // Query - executes a raw query

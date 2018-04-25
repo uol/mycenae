@@ -20,7 +20,6 @@ import (
 	"github.com/uol/gobol/snitch"
 	"go.uber.org/zap"
 
-	"github.com/uol/mycenae/lib/cache"
 	"github.com/uol/mycenae/lib/collector"
 	"github.com/uol/mycenae/lib/keyset"
 	"github.com/uol/mycenae/lib/keyspace"
@@ -102,11 +101,18 @@ func main() {
 	}
 	defer cass.Close()
 
+	mc, err := memcached.New(tssts, &settings.Memcached)
+	if err != nil {
+		tsLogger.General.Fatal(err.Error(), lf...)
+		os.Exit(1)
+	}
+
 	// --- Including metadata and persistence ---
 	metaStorage, err := metadata.Create(
-		&settings.SolrSettings,
+		&settings.MetadataSettings,
 		tsLogger.General,
 		tssts,
+		mc,
 	)
 	if err != nil {
 		tsLogger.General.Fatal(fmt.Sprintf("error creating metadata backend: %s", err.Error()), lf...)
@@ -153,19 +159,12 @@ func main() {
 		}
 	}
 
-	mc, err := memcached.New(tssts, &settings.Memcached)
-	if err != nil {
-		tsLogger.General.Fatal(err.Error(), lf...)
-		os.Exit(1)
-	}
-
-	kc := cache.NewKeyspaceCache(mc, ks)
-	keySet := keyset.NewKeySet(metaStorage, tssts, mc)
+	keySet := keyset.NewKeySet(metaStorage, tssts)
 
 	jsonStr, _ = json.Marshal(settings.DefaultKeysets)
 	tsLogger.General.Info(fmt.Sprintf("creating default keysets: %s", jsonStr), lf...)
 	for _, v := range settings.DefaultKeysets {
-		exists, err := keySet.KeySetExists(v)
+		exists, err := metaStorage.CheckKeySet(v)
 		if err != nil {
 			tsLogger.General.Fatal(fmt.Sprintf("error checking keyset '%s' existence: %s", v, err.Error()), lf...)
 			os.Exit(1)
@@ -180,27 +179,25 @@ func main() {
 		}
 	}
 
-	coll, err := collector.New(tsLogger, tssts, cass, metaStorage, kc, settings, keyspaceTTLMap, keySet)
+	coll, err := collector.New(tsLogger, tssts, cass, metaStorage, settings, keyspaceTTLMap, keySet)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
-	uV2server := udp.New(tsLogger.General, settings.UDPserverV2, coll)
-	uV2server.Start()
+	udpServer := udp.New(tsLogger.General, settings.UDPserver, coll)
+	udpServer.Start()
 
 	p, err := plot.New(
 		tsLogger.General,
 		tssts,
 		cass,
 		metaStorage,
-		kc,
 		settings.MaxTimeseries,
 		settings.MaxConcurrentTimeseries,
 		settings.MaxConcurrentReads,
 		settings.LogQueryTSthreshold,
 		keyspaceTTLMap,
-		keySet,
 		settings.DefaultTTL,
 		settings.DefaultPaginationSize,
 	)
@@ -263,7 +260,7 @@ func stop(logger *structs.TsLog, rest *rest.REST, collector *collector.Collector
 	rest.Stop()
 	logger.General.Info("REST stopped", lf...)
 
-	logger.General.Info("stopping UDPv2", lf...)
+	logger.General.Info("stopping UDP", lf...)
 	collector.Stop()
-	logger.General.Info("UDPv2 stopped", lf...)
+	logger.General.Info("UDP stopped", lf...)
 }

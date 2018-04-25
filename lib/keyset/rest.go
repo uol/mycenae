@@ -7,6 +7,7 @@ import (
 	"github.com/uol/gobol/rip"
 )
 
+// CreateKeySet - creates a new keyset
 func (ks *KeySet) CreateKeySet(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	keySetParam := ps.ByName("keyset")
@@ -25,7 +26,7 @@ func (ks *KeySet) CreateKeySet(w http.ResponseWriter, r *http.Request, ps httpro
 
 	rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset", "keyset": keySetParam})
 
-	exists, gerr := ks.KeySetExists(keySetParam)
+	exists, gerr := ks.storage.CheckKeySet(keySetParam)
 	if gerr != nil {
 		rip.Fail(w, gerr)
 		return
@@ -45,9 +46,10 @@ func (ks *KeySet) CreateKeySet(w http.ResponseWriter, r *http.Request, ps httpro
 	return
 }
 
+// GetKeySets - returns all stored keysets
 func (ks *KeySet) GetKeySets(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
-	keySetMap, gerr := ks.getKeySetMap()
+	keysets, gerr := ks.storage.ListKeySets()
 
 	if gerr != nil {
 		rip.AddStatsMap(r, map[string]string{"path": "/keysets"})
@@ -55,14 +57,10 @@ func (ks *KeySet) GetKeySets(w http.ResponseWriter, r *http.Request, ps httprout
 		return
 	}
 
-	if keySetMap == nil {
+	if keysets == nil || len(keysets) == 0 {
 		rip.SuccessJSON(w, http.StatusNoContent, nil)
 	} else {
-		keySets := []string{}
-		for k, _ := range keySetMap {
-			keySets = append(keySets, k)
-		}
-		rip.SuccessJSON(w, http.StatusOK, keySets)
+		rip.SuccessJSON(w, http.StatusOK, keysets)
 	}
 
 	return

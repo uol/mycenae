@@ -5,8 +5,6 @@ import (
 	"github.com/uol/gobol"
 	"go.uber.org/zap"
 
-	"github.com/uol/mycenae/lib/cache"
-	"github.com/uol/mycenae/lib/keyset"
 	"github.com/uol/mycenae/lib/metadata"
 	"github.com/uol/mycenae/lib/tsstats"
 )
@@ -26,13 +24,11 @@ func New(
 	sts *tsstats.StatsTS,
 	cass *gocql.Session,
 	metaStorage *metadata.Storage,
-	ks *cache.KeyspaceCache,
 	maxTimeseries int,
 	maxConcurrentTimeseries int,
 	maxConcurrentReads int,
 	logQueryTSthreshold int,
 	keyspaceTTLMap map[uint8]string,
-	keySet *keyset.KeySet,
 	defaultTTL uint8,
 	defaultMaxResults int,
 
@@ -60,12 +56,10 @@ func New(
 	return &Plot{
 		MaxTimeseries:     maxTimeseries,
 		LogQueryThreshold: logQueryTSthreshold,
-		keyspaceCache:     ks,
 		persist:           persistence{cassandra: cass, metaStorage: metaStorage},
 		concTimeseries:    make(chan struct{}, maxConcurrentTimeseries),
 		concReads:         make(chan struct{}, maxConcurrentReads),
 		keyspaceTTLMap:    keyspaceTTLMap,
-		keySet:            keySet,
 		defaultTTL:        defaultTTL,
 		defaultMaxResults: defaultMaxResults,
 	}, nil
@@ -74,12 +68,10 @@ func New(
 type Plot struct {
 	MaxTimeseries     int
 	LogQueryThreshold int
-	keyspaceCache     *cache.KeyspaceCache
 	persist           persistence
 	concTimeseries    chan struct{}
 	concReads         chan struct{}
 	keyspaceTTLMap    map[uint8]string
-	keySet            *keyset.KeySet
 	defaultTTL        uint8
 	defaultMaxResults int
 }

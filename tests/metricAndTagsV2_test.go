@@ -30,7 +30,6 @@ func postPoints(payload interface{}, text bool, t *testing.T) {
 func getResponse(path string, total, length int, t *testing.T) tools.ResponseMetricTags {
 
 	fullPath := fmt.Sprintf("keysets/%v/%v", ksMycenae, path)
-	fmt.Println(fullPath)
 	resp := tools.ResponseMetricTags{}
 	statusCode := mycenaeTools.HTTP.GETjson(fullPath, &resp)
 

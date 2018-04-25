@@ -57,6 +57,10 @@ func (collect *Collector) metaCoordinator(saveInterval time.Duration) {
 	}
 }
 
+func (collect *Collector) checkMetadata() {
+
+}
+
 func (collect *Collector) saveMeta(packet Point) {
 
 	found := false
@@ -64,9 +68,9 @@ func (collect *Collector) saveMeta(packet Point) {
 	var gerr gobol.Error
 
 	if packet.Number {
-		found, gerr = collect.keyspaceCache.GetTsNumber(packet.Keyset, "meta", collect.CheckTSID)
+		found, gerr = collect.persist.CheckMetadata(packet.Keyset, "meta", packet.ID)
 	} else {
-		found, gerr = collect.keyspaceCache.GetTsText(packet.Keyset, "metatext", collect.CheckTSID)
+		found, gerr = collect.persist.CheckMetadata(packet.Keyset, "metatext", packet.ID)
 	}
 	if gerr != nil {
 		lf := []zapcore.Field{
@@ -88,15 +92,31 @@ func (collect *Collector) saveMeta(packet Point) {
 
 func (collect *Collector) generateBulk(packet Point) gobol.Error {
 
-	if _, ok := collect.metadataMap[packet.Keyset]; !ok {
-		collect.metadataMap[packet.Keyset] = []metadata.Metadata{}
-	}
-
 	var metaType string
 	if packet.Number {
 		metaType = "meta"
 	} else {
 		metaType = "metatext"
+	}
+
+	exists, err := collect.persist.metaStorage.CheckMetadata(packet.Keyset, metaType, packet.ID)
+	if err != nil {
+		lf := []zapcore.Field{
+			zap.String("package", "collector"),
+			zap.String("func", "generateBulk"),
+		}
+		gblog.Error(err.Error(), lf...)
+	}
+
+	if exists {
+		statsCountNewTimeseries(packet.Keyset, metaType, packet.TTL)
+		return nil
+	} else {
+		statsCountNewTimeseries(packet.Keyset, metaType, packet.TTL)
+	}
+
+	if _, ok := collect.metadataMap[packet.Keyset]; !ok {
+		collect.metadataMap[packet.Keyset] = []metadata.Metadata{}
 	}
 
 	var tagKeys, tagValues []string
