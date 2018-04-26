@@ -18,11 +18,11 @@ func assertElasticText(t *testing.T, keyspace string, metric string, tags map[st
 	lenTags := len(tags)
 
 	count := mycenaeTools.Solr.Timeseries.GetTextMetricPost(keyspace, metric)
-	assert.Equal(t, 1, count, "metric sent in the payload does not match the one in elasticsearch")
+	assert.Equal(t, 1, count, "metric sent in the payload does not match the one in solr")
 
 	meta := mycenaeTools.Solr.Timeseries.GetTextMeta(keyspace, hashID)
-	assert.Equal(t, hashID, meta.ID, "meta id corresponding to the payload does not match the one in elasticsearch")
-	assert.Equal(t, metric, meta.Metric, "metric sent in the payload does not match the one in elasticsearch")
+	assert.Equal(t, hashID, meta.ID, "meta id corresponding to the payload does not match the one in solr")
+	assert.Equal(t, metric, meta.Metric, "metric sent in the payload does not match the one in solr")
 	assert.Equal(t, lenTags, len(meta.TagKey))
 	assert.Equal(t, lenTags, len(meta.TagValue))
 
@@ -33,20 +33,20 @@ func assertElasticText(t *testing.T, keyspace string, metric string, tags map[st
 		}
 
 		_, ok := tags[meta.TagKey[i]]
-		assert.True(t, ok, "tag key in elasticsearch was not sent in payload")
+		assert.True(t, ok, "tag key in solr was not sent in payload")
 
 		count := mycenaeTools.Solr.Timeseries.GetTextTagKeyPost(keyspace, meta.TagKey[i])
-		assert.Equal(t, 1, count, "tag key sent in the payload does not match the one in elasticsearch")
+		assert.Equal(t, 1, count, "tag key sent in the payload does not match the one in solr")
 
 		count = mycenaeTools.Solr.Timeseries.GetTextTagValuePost(keyspace, meta.TagValue[i])
-		assert.Equal(t, 1, count, "tag value sent in the payload does not match the one in elasticsearch")
+		assert.Equal(t, 1, count, "tag value sent in the payload does not match the one in solr")
 	}
 }
 
 func assertElasticTextEmpty(t *testing.T, keyspace string, metric string, tags map[string]string, hashID string) {
 
 	count := mycenaeTools.Solr.Timeseries.GetTextMetricPost(keyspace, metric)
-	assert.Equal(t, 0, count, "metric sent in the payload does not match the one in elasticsearch")
+	assert.Equal(t, 0, count, "metric sent in the payload does not match the one in solr")
 
 	for tagKey, tagValue := range tags {
 
@@ -195,7 +195,7 @@ func TestRESTv2TextMultiplePointsSameIDAndTimestampsGreaterThanDay(t *testing.T)
 
 		ps := tools.PayloadSlice{PS: []tools.Payload{*p}}
 
-		statusCode, _, _ := mycenaeTools.HTTP.POST("v2/text", ps.Marshal())
+		statusCode, _, _ := mycenaeTools.HTTP.POST("api/text/put", ps.Marshal())
 		assert.Equal(t, http.StatusNoContent, statusCode)
 	}
 
@@ -228,7 +228,7 @@ func TestRESTv2TextMultiplePointsSameIDAndNoTimestamp(t *testing.T) {
 
 		ps := tools.PayloadSlice{PS: []tools.Payload{*p}}
 
-		statusCode, _, _ := mycenaeTools.HTTP.POST("v2/text", ps.Marshal())
+		statusCode, _, _ := mycenaeTools.HTTP.POST("api/text/put", ps.Marshal())
 		assert.Equal(t, http.StatusNoContent, statusCode)
 
 		time.Sleep(tools.Sleep3)
@@ -294,7 +294,7 @@ func TestRESTv2TextPayloadWithSpecialChars(t *testing.T) {
 
 			ps := tools.PayloadSlice{PS: []tools.Payload{*p}}
 
-			statusCode, _, _ := mycenaeTools.HTTP.POST("v2/text", ps.Marshal())
+			statusCode, _, _ := mycenaeTools.HTTP.POST("api/text/put", ps.Marshal())
 			assert.Equal(t, http.StatusNoContent, statusCode)
 
 			// special chars take longer to be saved
@@ -356,7 +356,7 @@ func TestRESTv2TextPayloadWithSameMetricTagsTimestamp(t *testing.T) {
 
 	ps := tools.PayloadSlice{PS: []tools.Payload{*p}}
 
-	statusCode, _, _ := mycenaeTools.HTTP.POST("v2/text", ps.Marshal())
+	statusCode, _, _ := mycenaeTools.HTTP.POST("api/text/put", ps.Marshal())
 	assert.Equal(t, http.StatusNoContent, statusCode)
 	time.Sleep(tools.Sleep3)
 
@@ -410,10 +410,10 @@ func TestRESTv2TextPayloadsWithSameMetricTagsTimestampTwoEqualTags(t *testing.T)
 
 	hashID := tools.GetTextHashFromMetricAndTags(metric, tags)
 
-	statusCode, _ := mycenaeTools.HTTP.POSTstring("v2/text", payload1)
+	statusCode, _ := mycenaeTools.HTTP.POSTstring("api/text/put", payload1)
 	assert.Equal(t, http.StatusNoContent, statusCode)
 
-	statusCode, _ = mycenaeTools.HTTP.POSTstring("v2/text", payload2)
+	statusCode, _ = mycenaeTools.HTTP.POSTstring("api/text/put", payload2)
 	assert.Equal(t, http.StatusNoContent, statusCode)
 	time.Sleep(tools.Sleep3)
 
@@ -445,7 +445,7 @@ func TestRESTv2TextPayloadWithTwoTagsSameKeyAndDifferentValues(t *testing.T) {
 
 	tags := map[string]string{p.TagKey: tagValue2, "ksid": ksMycenae, "ttl": "1"}
 
-	statusCode, _ := mycenaeTools.HTTP.POSTstring("v2/text", payload)
+	statusCode, _ := mycenaeTools.HTTP.POSTstring("api/text/put", payload)
 	assert.Equal(t, http.StatusNoContent, statusCode)
 	time.Sleep(tools.Sleep3)
 
@@ -471,7 +471,7 @@ func TestRESTv2TextPayloadWithReservedTTLTag(t *testing.T) {
 
 	ps := tools.PayloadSlice{PS: []tools.Payload{*p}}
 
-	statusCode, _, _ := mycenaeTools.HTTP.POST("v2/text", ps.Marshal())
+	statusCode, _, _ := mycenaeTools.HTTP.POST("api/text/put", ps.Marshal())
 	assert.Equal(t, http.StatusBadRequest, statusCode)
 	time.Sleep(tools.Sleep3)
 }
@@ -670,7 +670,7 @@ func TestRESTv2TextPayloadWithInvalidCharsAtOnce(t *testing.T) {
 
 	ps := tools.PayloadSlice{PS: payload}
 
-	statusCode, _, err := mycenaeTools.HTTP.POST("v2/text", ps.Marshal())
+	statusCode, _, err := mycenaeTools.HTTP.POST("api/text/put", ps.Marshal())
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
@@ -1030,7 +1030,7 @@ func TestRESTv2TextEmptyPayload(t *testing.T) {
 
 	payload := fmt.Sprintf(`[]`)
 
-	statusCode, resp := mycenaeTools.HTTP.POSTstring("v2/text", payload)
+	statusCode, resp := mycenaeTools.HTTP.POSTstring("api/text/put", payload)
 	assert.Equal(t, 400, statusCode)
 
 	expectedErr := tools.Error{
@@ -1070,7 +1070,7 @@ func TestRESTv2TextBucketLimits(t *testing.T) {
 		*p.Text = fmt.Sprintf("%v%v", "text ", i)
 		*p.Timestamp = timestamps[i]
 
-		statusCode, _ := mycenaeTools.HTTP.POSTstring("v2/text", p.StringArray())
+		statusCode, _ := mycenaeTools.HTTP.POSTstring("api/text/put", p.StringArray())
 		assert.Equal(t, http.StatusNoContent, statusCode)
 	}
 
@@ -1118,7 +1118,7 @@ func TestRESTv2TextBucket53WeeksYear(t *testing.T) {
 		*p.Text = fmt.Sprintf("%v%v", "text ", i)
 		*p.Timestamp = timestamps[i]
 
-		statusCode, _ := mycenaeTools.HTTP.POSTstring("v2/text", p.StringArray())
+		statusCode, _ := mycenaeTools.HTTP.POSTstring("api/text/put", p.StringArray())
 		assert.Equal(t, http.StatusNoContent, statusCode)
 	}
 
@@ -1160,7 +1160,7 @@ func TestRESTv2TextBucket52WeeksYear(t *testing.T) {
 		*p.Text = fmt.Sprintf("%v%v", "text ", i)
 		*p.Timestamp = timestamps[i]
 
-		statusCode, _ := mycenaeTools.HTTP.POSTstring("v2/text", p.StringArray())
+		statusCode, _ := mycenaeTools.HTTP.POSTstring("api/text/put", p.StringArray())
 		assert.Equal(t, http.StatusNoContent, statusCode)
 	}
 
@@ -1200,7 +1200,7 @@ func TestRESTv2TextBucketFullYear(t *testing.T) {
 		*p.Timestamp = day.Unix()
 		timestamps[i] = *p.Timestamp
 
-		statusCode, _ := mycenaeTools.HTTP.POSTstring("v2/text", p.StringArray())
+		statusCode, _ := mycenaeTools.HTTP.POSTstring("api/text/put", p.StringArray())
 		assert.Equal(t, http.StatusNoContent, statusCode)
 
 		day = day.AddDate(0, 0, 7)
@@ -1246,7 +1246,7 @@ func TestRESTv2TextBucketFullPastYearAtOnce(t *testing.T) {
 
 	ps := tools.PayloadSlice{PS: payload}
 
-	statusCode, _, _ := mycenaeTools.HTTP.POST("v2/text", ps.Marshal())
+	statusCode, _, _ := mycenaeTools.HTTP.POST("api/text/put", ps.Marshal())
 	assert.Equal(t, http.StatusNoContent, statusCode)
 	time.Sleep(tools.Sleep3)
 
@@ -1278,7 +1278,7 @@ func TestRESTv2TextBucketFuturePoints(t *testing.T) {
 
 		*p.Text = fmt.Sprintf("%v%v", "text ", i)
 
-		statusCode, _ := mycenaeTools.HTTP.POSTstring("v2/text", p.StringArray())
+		statusCode, _ := mycenaeTools.HTTP.POSTstring("api/text/put", p.StringArray())
 		assert.Equal(t, http.StatusNoContent, statusCode)
 		time.Sleep(tools.Sleep3)
 
@@ -1322,7 +1322,7 @@ func TestRESTv2TextBucketFuturePointsAtOnceAndThenPast(t *testing.T) {
 
 	ps := tools.PayloadSlice{PS: payload}
 
-	statusCode, _, _ := mycenaeTools.HTTP.POST("v2/text", ps.Marshal())
+	statusCode, _, _ := mycenaeTools.HTTP.POST("api/text/put", ps.Marshal())
 	assert.Equal(t, http.StatusNoContent, statusCode)
 	time.Sleep(tools.Sleep3)
 
@@ -1355,7 +1355,7 @@ func TestRESTv2TextBucketFuturePointsAtOnceAndThenPast(t *testing.T) {
 	year, week := time.Unix(*p.Timestamp, 0).ISOWeek()
 	bucket := fmt.Sprintf("%v%v%v", year, week, hashID)
 
-	statusCode, _ = mycenaeTools.HTTP.POSTstring("v2/text", p.StringArray())
+	statusCode, _ = mycenaeTools.HTTP.POSTstring("api/text/put", p.StringArray())
 	assert.Equal(t, http.StatusNoContent, statusCode)
 	time.Sleep(tools.Sleep3)
 
@@ -1383,7 +1383,7 @@ func TestRESTv2TextBucketFuturePointsDifferentSeriesAtOnce(t *testing.T) {
 
 	ps := tools.PayloadSlice{PS: payload}
 
-	statusCode, _, _ := mycenaeTools.HTTP.POST("v2/text", ps.Marshal())
+	statusCode, _, _ := mycenaeTools.HTTP.POST("api/text/put", ps.Marshal())
 	assert.Equal(t, http.StatusNoContent, statusCode)
 	time.Sleep(tools.Sleep3)
 
@@ -1487,7 +1487,7 @@ func sendRESTextPayloadAndAssertPoint(t *testing.T, payload *tools.Payload, star
 
 	ps := tools.PayloadSlice{PS: []tools.Payload{*payload}}
 
-	statusCode, _, _ := mycenaeTools.HTTP.POST("v2/text", ps.Marshal())
+	statusCode, _, _ := mycenaeTools.HTTP.POST("api/text/put", ps.Marshal())
 	assert.Equal(t, http.StatusNoContent, statusCode)
 
 	time.Sleep(tools.Sleep3)
@@ -1505,10 +1505,10 @@ func sendRESTextPayloadAndAssertPoint(t *testing.T, payload *tools.Payload, star
 func sendRESTextPayloadWithMoreThanAPointAndAssertPoints(t *testing.T, payload tools.PayloadSlice, gzipit bool) {
 
 	if gzipit {
-		statusCode, _, _ := mycenaeTools.HTTP.POSTgziped("v2/text", payload.Marshal())
+		statusCode, _, _ := mycenaeTools.HTTP.POSTgziped("api/text/put", payload.Marshal())
 		assert.Equal(t, http.StatusNoContent, statusCode)
 	} else {
-		statusCode, _, _ := mycenaeTools.HTTP.POST("v2/text", payload.Marshal())
+		statusCode, _, _ := mycenaeTools.HTTP.POST("api/text/put", payload.Marshal())
 		assert.Equal(t, http.StatusNoContent, statusCode)
 	}
 
@@ -1528,7 +1528,7 @@ func sendRESTextPayloadWithMoreThanAPointAndAssertPoints(t *testing.T, payload t
 
 func sendRESTextPayloadStringAndAssertEmpty(t *testing.T, payload, metric string, tags map[string]string, start, end int64) {
 
-	statusCode, _ := mycenaeTools.HTTP.POSTstring("v2/text", payload)
+	statusCode, _ := mycenaeTools.HTTP.POSTstring("api/text/put", payload)
 	assert.Equal(t, 400, statusCode)
 
 	time.Sleep(tools.Sleep3)
@@ -1545,7 +1545,7 @@ func sendRESTextPayloadStringAndAssertEmpty(t *testing.T, payload, metric string
 // Payload must represent an array of length = 1
 func sendRESTextPayloadStringAndAssertErrorAndEmpty(t *testing.T, errMessage, payload, keyspace, metric string, tags map[string]string, start, end int64) {
 
-	statusCode, _ := mycenaeTools.HTTP.POSTstring("v2/text", payload)
+	statusCode, _ := mycenaeTools.HTTP.POSTstring("api/text/put", payload)
 	assert.Equal(t, 400, statusCode)
 
 	/*var restError tools.RestErrors
@@ -1581,7 +1581,7 @@ func sendRESTextPayloadStringAndAssertErrorAndEmpty(t *testing.T, errMessage, pa
 
 func sendRESTextPayloadWithMoreThanAPointAndAssertError(t *testing.T, errMessage string, payload tools.PayloadSlice, invalidPointPosition int) {
 
-	statusCode, _, _ := mycenaeTools.HTTP.POST("v2/text", payload.Marshal())
+	statusCode, _, _ := mycenaeTools.HTTP.POST("api/text/put", payload.Marshal())
 	assert.Equal(t, 400, statusCode)
 
 	/*var restError tools.RestErrors

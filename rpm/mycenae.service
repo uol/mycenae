@@ -8,6 +8,8 @@ ExecStart=/opt/mycenae/bin/mycenae -config $CONFIG $DEV_MODE
 KillMode=process
 User=mycenae
 Group=mycenae
+LimitNOFILE=65535
+LimitNPROC=65535
 
 [Install]
 Alias=mycenae.service

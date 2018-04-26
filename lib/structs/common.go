@@ -41,8 +41,9 @@ type Settings struct {
 	MetaBufferSize          int
 	DefaultPaginationSize   int
 	MetaSaveInterval        string
+	HostNameCleanerRegex    string
 	HTTPserver              SettingsHTTP
-	UDPserverV2             SettingsUDP
+	UDPserver               SettingsUDP
 	DefaultTTL              uint8
 	MaxAllowedTTL           int
 	DefaultKeysets          []string
@@ -56,9 +57,9 @@ type Settings struct {
 		General     LogSetting
 		Stats       LogSetting
 	}
-	Stats        snitch.Settings
-	SolrSettings metadata.Settings
-	Probe        struct {
+	Stats            snitch.Settings
+	MetadataSettings metadata.Settings
+	Probe            struct {
 		Threshold float64
 	}
 }

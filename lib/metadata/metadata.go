@@ -2,17 +2,24 @@ package metadata
 
 import (
 	"github.com/uol/gobol"
+	"github.com/uol/mycenae/lib/memcached"
 	"github.com/uol/mycenae/lib/tsstats"
 	"go.uber.org/zap"
 )
 
 // Backend hides the underlying implementation of the metadata storage
 type Backend interface {
-	// CreateIndex creates indexes in the metadata storage
-	CreateIndex(name string) gobol.Error
+	// CreateKeySet creates a keyset in the metadata storage
+	CreateKeySet(name string) gobol.Error
 
-	// DeleteIndex deletes the index in the metadata storage
-	DeleteIndex(name string) gobol.Error
+	// DeleteKeySet deletes a keyset in the metadata storage
+	DeleteKeySet(name string) gobol.Error
+
+	// ListKeySet - list all keyset
+	ListKeySets() ([]string, gobol.Error)
+
+	// CheckKeySet - verifies if a keyset exists
+	CheckKeySet(keyset string) (bool, gobol.Error)
 
 	// FilterTagValues - filter tag values from a collection
 	FilterTagValues(collection, prefix string, maxResults int) ([]string, int, gobol.Error)
@@ -27,13 +34,10 @@ type Backend interface {
 	ListMetadata(collection, tsType string, includeMeta *Metadata, from, maxResults int) ([]Metadata, int, gobol.Error)
 
 	// AddDocuments - add/update a document or a series of documents
-	AddDocuments(collection string, metadatas []Metadata) error
-
-	// ListIndexes - list all indexes
-	ListIndexes() ([]string, error)
+	AddDocuments(collection string, metadatas []Metadata) gobol.Error
 
 	// CheckMetadata - verifies if a metadata exists
-	CheckMetadata(collection, tsType, tsid string) (bool, error)
+	CheckMetadata(collection, tsType, tsid string) (bool, gobol.Error)
 
 	// Query - executes a raw query
 	Query(collection, query string, from, maxResults int) ([]Metadata, int, gobol.Error)
@@ -55,6 +59,9 @@ type Settings struct {
 	NumShards         int
 	ReplicationFactor int
 	URL               string
+	IDCacheTTL        int32
+	QueryCacheTTL     int32
+	KeysetCacheTTL    int32
 }
 
 // Metadata document
@@ -67,9 +74,9 @@ type Metadata struct {
 }
 
 // Create creates a metadata handler
-func Create(settings *Settings, logger *zap.Logger, stats *tsstats.StatsTS) (*Storage, error) {
+func Create(settings *Settings, logger *zap.Logger, stats *tsstats.StatsTS, memcached *memcached.Memcached) (*Storage, error) {
 
-	backend, err := NewSolrBackend(settings, stats, logger)
+	backend, err := NewSolrBackend(settings, stats, logger, memcached)
 	if err != nil {
 		return nil, err
 	}

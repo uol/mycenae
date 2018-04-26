@@ -122,10 +122,9 @@ func (trest *REST) asyncStart() {
 	router.PUT(path+"keyspaces/:keyspace", trest.kspace.Update)
 	router.GET(path+"keyspaces", trest.kspace.GetAll)
 	//WRITE
-	router.POST(path+"api/put", trest.writer.Scollector)
-	router.PUT(path+"api/put", trest.writer.Scollector)
-	router.POST(path+"v2/points", trest.writer.Scollector)
-	router.POST(path+"v2/text", trest.writer.Text)
+	router.POST(path+"api/put", trest.writer.HandleNumber)
+	router.PUT(path+"api/put", trest.writer.HandleNumber)
+	router.POST(path+"api/text/put", trest.writer.HandleText)
 	//OPENTSDB
 	router.POST("/keysets/:keyset/api/query", trest.reader.Query)
 	router.GET("/keysets/:keyset/api/suggest", trest.reader.Suggest)
@@ -163,9 +162,7 @@ func (trest *REST) check(w http.ResponseWriter, r *http.Request, _ httprouter.Pa
 
 	ratio := trest.writer.ReceivedErrorRatio()
 
-	UDPup := trest.writer.CheckUDPbind()
-
-	if UDPup && ratio < trest.probeThreshold {
+	if ratio < trest.probeThreshold {
 		w.WriteHeader(trest.probeStatus)
 	} else {
 		w.WriteHeader(http.StatusInternalServerError)

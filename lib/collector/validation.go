@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"time"
 
+	"strconv"
+
 	"github.com/uol/gobol"
 	"github.com/uol/mycenae/lib/utils"
-	"strconv"
 )
 
 func (collector *Collector) makePacket(packet *Point, rcvMsg TSDBpoint, number bool) gobol.Error {
@@ -55,7 +56,7 @@ func (collector *Collector) makePacket(packet *Point, rcvMsg TSDBpoint, number b
 		)
 	}
 
-	keySetExists, gerr := collector.keySet.KeySetExists(packet.Keyset)
+	keySetExists, gerr := collector.persist.metaStorage.CheckKeySet(packet.Keyset)
 	if gerr != nil {
 		return errISE("makePacket", "error checking keyspace existence", gerr)
 	}

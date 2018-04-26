@@ -9,7 +9,7 @@ const DEFAULT_SIZE = 50
 
 func (plot Plot) validateKeySet(keyset string) gobol.Error {
 
-	found, gerr := plot.keySet.KeySetExists(keyset)
+	found, gerr := plot.persist.metaStorage.CheckKeySet(keyset)
 	if gerr != nil {
 		return gerr
 	}

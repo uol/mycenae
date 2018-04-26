@@ -71,7 +71,7 @@ func tsPointsV2Text(keyspace string) {
 			log.Fatal(test, err, jsonPoints)
 		}
 
-		mycenaeTools.HTTP.POSTstring("v2/text", string(jsonPoints))
+		mycenaeTools.HTTP.POSTstring("api/text/put", string(jsonPoints))
 		hashMapPV2T[test] = tools.GetTextHashFromMetricAndTags(data.metric, data.tags)
 
 	}
@@ -125,7 +125,7 @@ func tsText4(keyspace string) bool {
 		log.Fatal("tsText4", err, jsonPoints)
 	}
 
-	mycenaeTools.HTTP.POSTstring("v2/text", string(jsonPoints))
+	mycenaeTools.HTTP.POSTstring("api/text/put", string(jsonPoints))
 	hashMapPV2T["tsText4"] = tools.GetTextHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, "ksid": keyspace, "ttl": "1"})
 	hashMapPV2T["tsText4_1"] = tools.GetTextHashFromMetricAndTags(metric2, map[string]string{tagKey: tagValue, "ksid": keyspace, "ttl": "1"})
 
@@ -162,7 +162,7 @@ func tsText6(keyspace string) bool {
 		log.Fatal("tsText6", err, jsonPoints)
 	}
 
-	mycenaeTools.HTTP.POSTstring("v2/text", string(jsonPoints))
+	mycenaeTools.HTTP.POSTstring("api/text/put", string(jsonPoints))
 	hashMapPV2T["tsText6"] = tools.GetTextHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, "ksid": keyspace, "ttl": "1"})
 
 	count = 1.0
