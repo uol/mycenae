@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash/crc32"
-	"net"
 	"regexp"
 	"sort"
 	"sync"
@@ -127,28 +126,6 @@ func (collect *Collector) worker(id int, jobChannel <-chan workerData) {
 			statsPoints(j.point.Tags["ksid"], collect.getType(j.number), j.source, j.point.Tags["ttl"])
 		}
 	}
-}
-
-func (collect *Collector) CheckUDPbind() bool {
-	lf := []zapcore.Field{
-		zap.String("struct", "Collector"),
-		zap.String("func", "CheckUDPbind"),
-	}
-
-	port := ":" + collect.settings.UDPserver.Port
-
-	addr, err := net.ResolveUDPAddr("udp", port)
-	if err != nil {
-		gblog.Error(fmt.Sprintf("addr: %s", err), lf...)
-	}
-
-	_, err = net.ListenUDP("udp", addr)
-	if err != nil {
-		gblog.Error(err.Error(), lf...)
-		return true
-	}
-
-	return false
 }
 
 func (collect *Collector) ReceivedErrorRatio() (ratio float64) {

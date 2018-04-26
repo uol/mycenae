@@ -6,9 +6,10 @@ import (
 	"log"
 	"testing"
 
+	"net/http"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/uol/mycenae/tests/tools"
-	"net/http"
 )
 
 var lookupMetaIDs []string
@@ -143,7 +144,7 @@ func sendPointsMetadata(keySet string) {
 	  }
 	]`
 
-	code, _, _ = mycenaeTools.HTTP.POST("v2/text", []byte(pointT))
+	code, _, _ = mycenaeTools.HTTP.POST("api/text/put", []byte(pointT))
 	if code != http.StatusNoContent {
 		log.Fatal("Error sending text points, code: ", code, " metadata_test.go")
 	}

@@ -41,6 +41,7 @@ type Settings struct {
 	MetaBufferSize          int
 	DefaultPaginationSize   int
 	MetaSaveInterval        string
+	HostNameCleanerRegex    string
 	HTTPserver              SettingsHTTP
 	UDPserver               SettingsUDP
 	DefaultTTL              uint8

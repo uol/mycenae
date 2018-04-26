@@ -18,8 +18,8 @@ func assertElastic(t *testing.T, keyspace string, metric string, tags map[string
 	lenTags := len(tags)
 
 	meta := mycenaeTools.Solr.Timeseries.GetMeta(tags["ksid"], hashID)
-	assert.Equal(t, hashID, meta.ID, "meta id corresponding to the payload does not match the one in elasticsearch")
-	assert.Equal(t, metric, meta.Metric, "metric sent in the payload does not match the one in elasticsearch")
+	assert.Equal(t, hashID, meta.ID, "meta id corresponding to the payload does not match the one in solr")
+	assert.Equal(t, metric, meta.Metric, "metric sent in the payload does not match the one in solr")
 	assert.Equal(t, lenTags, len(meta.TagKey))
 	assert.Equal(t, lenTags, len(meta.TagValue))
 	for i, k := range meta.TagKey {
@@ -34,7 +34,7 @@ func assertElastic(t *testing.T, keyspace string, metric string, tags map[string
 func assertElasticEmpty(t *testing.T, keyspace string, metric string, tags map[string]string, hashID string) {
 
 	count := mycenaeTools.Solr.Timeseries.GetMetricPost(tags["ksid"], metric)
-	assert.Equal(t, 0, count, "metric sent in the payload does not match the one in elasticsearch")
+	assert.Equal(t, 0, count, "metric sent in the payload does not match the one in solr")
 
 	for tagKey, tagValue := range tags {
 

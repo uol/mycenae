@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
-	"github.com/uol/gobol/rip"
 	"github.com/uol/gobol"
+	"github.com/uol/gobol/rip"
 )
 
 func (collect *Collector) handle(w http.ResponseWriter, r *http.Request, number bool) {
@@ -37,13 +37,12 @@ func (collect *Collector) handle(w http.ResponseWriter, r *http.Request, number 
 	return
 }
 
-
-func (collect *Collector) Scollector(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+func (collect *Collector) HandleNumber(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 	collect.handle(w, r, true)
 }
 
-func (collect *Collector) Text(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+func (collect *Collector) HandleText(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 	collect.handle(w, r, false)
 }

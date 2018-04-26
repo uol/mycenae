@@ -18,7 +18,7 @@ func postPoints(payload interface{}, text bool, t *testing.T) {
 	var statusCode int
 
 	if text {
-		statusCode = mycenaeTools.HTTP.POSTjson("v2/text", payload, x)
+		statusCode = mycenaeTools.HTTP.POSTjson("api/text/put", payload, x)
 	} else {
 		statusCode = mycenaeTools.HTTP.POSTjson("api/put", payload, x)
 	}

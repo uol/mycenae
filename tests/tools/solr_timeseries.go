@@ -133,7 +133,7 @@ func (ts *esTs) DeleteKey(ksid, tsid string) error {
 		)
 	}
 	if len(content) == 0 {
-		return fmt.Errorf("The elastic search server provided an invalid response: %d", code)
+		return fmt.Errorf("The solr search server provided an invalid response: %d", code)
 	}
 	return err
 }

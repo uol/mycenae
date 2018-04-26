@@ -22,14 +22,14 @@ func statsLostMeta() {
 
 func statsInsertQerror(ksid, cf string) {
 	go statsIncrement(
-		"cassandra.query.error",
+		"scylla.query.error",
 		map[string]string{"target_ksid": ksid, "column_family": cf, "operation": "insert"},
 	)
 }
 
 func statsInsertFBerror(ksid, cf string) {
 	go statsIncrement(
-		"cassandra.fallback.error",
+		"scylla.fallback.error",
 		map[string]string{"target_ksid": ksid, "column_family": cf, "operation": "insert"},
 	)
 }
@@ -42,7 +42,7 @@ func statsIndexError(i, t, m string) {
 	if t != "" {
 		tags["type"] = t
 	}
-	go statsIncrement("elastic.request.error", tags)
+	go statsIncrement("solr.request.error", tags)
 }
 
 func statsIndex(i, t, m string, d time.Duration) {
@@ -53,22 +53,22 @@ func statsIndex(i, t, m string, d time.Duration) {
 	if t != "" {
 		tags["type"] = t
 	}
-	go statsIncrement("elastic.request", tags)
+	go statsIncrement("solr.request", tags)
 	go statsValueAdd(
-		"elastic.request.duration",
+		"solr.request.duration",
 		tags,
 		float64(d.Nanoseconds())/float64(time.Millisecond),
 	)
 }
 
 func statsBulkPoints() {
-	go statsIncrement("elastic.bulk.points", map[string]string{})
+	go statsIncrement("solr.bulk.points", map[string]string{})
 }
 
 func statsInsert(ksid, cf string, d time.Duration) {
-	go statsIncrement("cassandra.query", map[string]string{"target_ksid": ksid, "column_family": cf, "operation": "insert"})
+	go statsIncrement("scylla.query", map[string]string{"target_ksid": ksid, "column_family": cf, "operation": "insert"})
 	go statsValueAdd(
-		"cassandra.query.duration",
+		"scylla.query.duration",
 		map[string]string{"target_ksid": ksid, "column_family": cf, "operation": "insert"},
 		float64(d.Nanoseconds())/float64(time.Millisecond),
 	)

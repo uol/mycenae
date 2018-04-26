@@ -37,7 +37,7 @@ func statsIndexError(i, t, m string) {
 	if t != "" {
 		tags["type"] = t
 	}
-	go statsIncrement("elastic.request.error", tags)
+	go statsIncrement("solr.request.error", tags)
 }
 
 func statsIndex(i, t, m string, d time.Duration) {
@@ -45,9 +45,9 @@ func statsIndex(i, t, m string, d time.Duration) {
 	if t != "" {
 		tags["type"] = t
 	}
-	go statsIncrement("elastic.request", tags)
+	go statsIncrement("solr.request", tags)
 	go statsValueAdd(
-		"elastic.request.duration",
+		"solr.request.duration",
 		tags,
 		float64(d.Nanoseconds())/float64(time.Millisecond),
 	)

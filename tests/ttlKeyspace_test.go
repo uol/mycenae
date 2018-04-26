@@ -114,7 +114,7 @@ func sendRandomPoints(num int, ttl uint8, metric string, isNumber bool, lastSent
 	if isNumber {
 		api = "api/put"
 	} else {
-		api = "v2/text"
+		api = "api/text/put"
 	}
 
 	jsonBytes, err := json.Marshal(ps)
