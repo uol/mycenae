@@ -5,8 +5,6 @@ POD_NAME="testMycenae"
 
 docker rm -f ${POD_NAME} || true
 
-consulServerIp=$(docker inspect --format "{{ .NetworkSettings.IPAddress }}" consulServer)
-
 pod_arguments=(
 	'-it'
     '--detach'
@@ -16,13 +14,6 @@ pod_arguments=(
 )
 
 docker run "${pod_arguments[@]}" jenkins.macs.intranet:5000/mycenae/test-mycenae:v1
-
-cmd="docker exec -d -it testMycenae consul agent -server -node testMycenae -join ${consulServerIp} -data-dir /tmp/consul"
-echo $cmd
-eval $cmd
-sleep 3
-
-curl --silent -XPUT -d '{"name":"testMycenae"}' --header "Content-type: application/json" "http://${consulServerIp}:8500/v1/agent/service/register"
 
 scylla1=$(docker inspect --format "{{ .NetworkSettings.IPAddress }}" scylla1)
 scylla2=$(docker inspect --format "{{ .NetworkSettings.IPAddress }}" scylla2)

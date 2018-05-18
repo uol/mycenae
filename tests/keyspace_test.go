@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/uol/mycenae/tests/tools"
 	"github.com/uol/mycenae/lib/keyspace"
+	"github.com/uol/mycenae/tests/tools"
 )
 
 var errKsName = "Wrong Format: Field \"keyspaceName\" is not well formed. NO information will be saved"
@@ -136,10 +136,9 @@ func checkKeyspacePropertiesAndIndex(data tools.Keyspace, t *testing.T) {
 		"rows_per_partition": "ALL",
 	}
 	var compaction = map[string]string{
-		"class":                "DateTieredCompactionStrategy",
-		"timestamp_resolution": "SECONDS",
-		"base_time_seconds":    "3600",
-		"max_sstable_age_days": "180",
+		"class":                  "TimeWindowCompactionStrategy",
+		"compaction_window_unit": "DAYS",
+		"compaction_window_size": "1",
 	}
 	var compression = map[string]string{
 		"crc_check_chance":    "0.250000",
@@ -148,7 +147,7 @@ func checkKeyspacePropertiesAndIndex(data tools.Keyspace, t *testing.T) {
 	}
 
 	var replication = map[string]string{
-		"class":    "NetworkTopologyStrategy",
+		"class":    "org.apache.cassandra.locator.NetworkTopologyStrategy",
 		datacenter: fmt.Sprintf("%v", data.ReplicationFactor),
 	}
 
@@ -334,8 +333,8 @@ func TestKeyspaceCreateFailContactError(t *testing.T) {
 	}
 
 	var (
-		rf  = 1
-		dc  = datacenter
+		rf = 1
+		dc = datacenter
 	)
 
 	cases := map[string]tools.Keyspace{

@@ -1,6 +1,5 @@
 #!/bin/bash
 
-./start_consul_server.sh
 ./start_scylla_cluster.sh
 ./start_zookeeper.sh
 ./start_solr.sh 1
