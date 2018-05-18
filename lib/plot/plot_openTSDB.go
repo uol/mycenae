@@ -1,11 +1,11 @@
 package plot
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/uol/gobol"
 
+	"github.com/uol/mycenae/lib/metadata"
 	"github.com/uol/mycenae/lib/structs"
 )
 
@@ -64,7 +64,7 @@ func (plot *Plot) MetaOpenTSDB(keyset, metric string, tags map[string][]string, 
 
 	from, size = plot.checkParams(from, size)
 
-	metadatas, total, gerr := plot.persist.metaStorage.ListMetadata(keyset, "meta", plot.toMetaParamArray(metric, tags), from, size)
+	metadatas, total, gerr := plot.persist.metaStorage.FilterMetadata(keyset, plot.toMetaParamArray(metric, "meta", tags), from, size)
 
 	var tsds []TSDBobj
 
@@ -83,49 +83,51 @@ func (plot *Plot) MetaOpenTSDB(keyset, metric string, tags map[string][]string, 
 	return tsds, total, gerr
 }
 
-// SplitTagValues - splits the query if '|' is found
-func (plot *Plot) splitTagValues(value string) string {
+// SplitTagFilters - splits the query if '|' is found
+func (plot *Plot) splitTagFilters(value string) []string {
 
+	var values []string
 	if strings.Contains(value, "|") {
-		q := "("
-		values := strings.Split(value, "|")
-		size := len(values)
-		for i := 0; i < size; i++ {
-			q += fmt.Sprintf("tagValue:%s", values[i])
-			if i < size-1 {
-				q += " OR "
-			}
-		}
-		q += ")"
-
-		return q
+		values = strings.Split(value, "|")
+	} else {
+		values = []string{value}
 	}
 
-	return fmt.Sprintf("tagValue:%s", value)
+	return values
 }
 
+// MetaFilterOpenTSDB - creates a metadata query
 func (plot *Plot) MetaFilterOpenTSDB(keyset, metric string, filters []structs.TSDBfilter, size int) ([]TSDBobj, int, gobol.Error) {
 
 	from, size := plot.checkParams(0, size)
 
-	q := fmt.Sprintf("metric:%s AND type:meta", metric)
-
-	for _, filter := range filters {
-
-		if filter.Ftype == "regexp" {
-			filter.Filter = plot.persist.metaStorage.SetRegexValue(filter.Filter)
-		}
-
-		if filter.Ftype == "not_literal_or" {
-			q += fmt.Sprintf(" AND -(tagKey:%s AND %s)", filter.Tagk, plot.splitTagValues(filter.Filter))
-		} else {
-			q += fmt.Sprintf(" AND tagKey:%s AND %s", filter.Tagk, plot.splitTagValues(filter.Filter))
-		}
+	query := &metadata.Query{
+		Metric:   metric,
+		MetaType: "meta",
+		Tags:     make([]metadata.QueryTag, len(filters)),
 	}
 
-	fmt.Println(q)
+	for i, filter := range filters {
 
-	metadatas, total, gerr := plot.persist.metaStorage.Query(keyset, q, from, size)
+		query.Tags[i] = metadata.QueryTag{
+			Key:    filter.Tagk,
+			Negate: filter.Ftype == "not_literal_or",
+			Regexp: filter.Ftype == "regexp" || filter.Ftype == "wildcard",
+		}
+
+		if filter.Ftype != "not_literal_or" && (filter.Filter == "*" || filter.Filter == ".*") {
+			continue
+		}
+
+		if filter.Ftype == "wildcard" {
+			filter.Filter = strings.Replace(filter.Filter, ".", "\\.", -1)
+			filter.Filter = strings.Replace(filter.Filter, "*", ".*", -1)
+		}
+
+		query.Tags[i].Values = plot.splitTagFilters(filter.Filter)
+	}
+
+	metadatas, total, gerr := plot.persist.metaStorage.FilterMetadata(keyset, query, from, size)
 
 	var tsds []TSDBobj
 

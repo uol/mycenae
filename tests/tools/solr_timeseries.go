@@ -18,11 +18,16 @@ type SolrResponse struct {
 }
 
 type SolrDocument struct {
-	ID       string   `json:"id"`
-	Metric   string   `json:"metric"`
-	TSType   string   `json:"type"`
-	TagKey   []string `json:"tagKey"`
-	TagValue []string `json:"tagValue"`
+	ID     string            `json:"id"`
+	Metric string            `json:"metric"`
+	TSType string            `json:"type"`
+	Tags   []SolrDocumentTag `json:"_childDocuments_"`
+}
+
+type SolrDocumentTag struct {
+	ID       string `json:"id"`
+	TagKey   string `json:"tag_key"`
+	TagValue string `json:"tag_value"`
 }
 
 type esTs struct {
@@ -41,52 +46,58 @@ func (ts *esTs) extractResponse(path string) SolrResponse {
 }
 
 func (ts *esTs) escapeSpecialChars(value string) string {
+	if value == "*" {
+		return "\\\\*"
+	}
+
 	re := regexp.MustCompile("([^a-zA-Z0-9]{1})")
 	return re.ReplaceAllString(value, "\\$0")
 }
 
 func (ts *esTs) GetMetricPost(ksid, metric string) int {
-	q := url.QueryEscape(fmt.Sprintf("metric:%s AND type:meta", ts.escapeSpecialChars(metric)))
+	q := url.QueryEscape(fmt.Sprintf("{!parent which=\"parent_doc:true AND type:meta AND metric:%s\"}", ts.escapeSpecialChars(metric)))
 	path := fmt.Sprintf("solr/%s/select?q=%s&rows=0&wt=json", ksid, q)
-	r := ts.extractResponse(path)
-	return r.Total
-}
-
-func (ts *esTs) GetTagValuePost(ksid, tagValue string) int {
-	q := url.QueryEscape(fmt.Sprintf("tagValue:%s AND type:meta", ts.escapeSpecialChars(tagValue)))
-	path := fmt.Sprintf("solr/%s/select?q=%s&rows=0&wt=json", ksid, q)
-	r := ts.extractResponse(path)
-	return r.Total
-}
-
-func (ts *esTs) GetTagKeyPost(ksid, tagKey string) int {
-	q := url.QueryEscape(fmt.Sprintf("tagKey:%s AND type:meta", ts.escapeSpecialChars(tagKey)))
-	path := fmt.Sprintf("solr/%s/select?q=%s&rows=0&wt=json", ksid, q)
-	r := ts.extractResponse(path)
-	return r.Total
+	return ts.extractResponse(path).Total
 }
 
 func (ts *esTs) GetTextMetricPost(ksid, metric string) int {
-	q := url.QueryEscape(fmt.Sprintf("metric:%s AND type:metatext", ts.escapeSpecialChars(metric)))
+	q := url.QueryEscape(fmt.Sprintf("{!parent which=\"parent_doc:true AND type:metatext AND metric:%s\"}", ts.escapeSpecialChars(metric)))
 	path := fmt.Sprintf("solr/%s/select?q=%s&rows=0&wt=json", ksid, q)
+	return ts.extractResponse(path).Total
+}
+
+func (ts *esTs) GetTagValuePost(ksid, tagValue string) int {
+	q := url.QueryEscape("{!parent which=\"parent_doc:true AND type:meta\"}")
+	fq := url.QueryEscape(fmt.Sprintf("{!parent which=\"parent_doc:true\"}tag_value:%s", ts.escapeSpecialChars(tagValue)))
+	path := fmt.Sprintf("solr/%s/select?q=%s&fq=%s&rows=0&wt=json", ksid, q, fq)
+	return ts.extractResponse(path).Total
+}
+
+func (ts *esTs) GetTagKeyPost(ksid, tagKey string) int {
+	q := url.QueryEscape("{!parent which=\"parent_doc:true AND type:meta\"}")
+	fq := url.QueryEscape(fmt.Sprintf("{!parent which=\"parent_doc:true\"}tag_key:%s", ts.escapeSpecialChars(tagKey)))
+	path := fmt.Sprintf("solr/%s/select?q=%s&fq=%s&rows=0&wt=json", ksid, q, fq)
 	return ts.extractResponse(path).Total
 }
 
 func (ts *esTs) GetTextTagValuePost(ksid, tagValue string) int {
-	q := url.QueryEscape(fmt.Sprintf("tagValue:%s AND type:metatext", ts.escapeSpecialChars(tagValue)))
-	path := fmt.Sprintf("solr/%s/select?q=%s&rows=0&wt=json", ksid, q)
+	q := url.QueryEscape("{!parent which=\"parent_doc:true AND type:metatext\"}")
+	fq := url.QueryEscape(fmt.Sprintf("{!parent which=\"parent_doc:true\"}tag_value:%s", ts.escapeSpecialChars(tagValue)))
+	path := fmt.Sprintf("solr/%s/select?q=%s&fq=%s&rows=0&wt=json", ksid, q, fq)
 	return ts.extractResponse(path).Total
 }
 
 func (ts *esTs) GetTextTagKeyPost(ksid, tagKey string) int {
-	q := url.QueryEscape(fmt.Sprintf("tagKey:%s AND type:metatext", ts.escapeSpecialChars(tagKey)))
-	path := fmt.Sprintf("solr/%s/select?q=%s&rows=0&wt=json", ksid, q)
+	q := url.QueryEscape("{!parent which=\"parent_doc:true AND type:metatext\"}")
+	fq := url.QueryEscape(fmt.Sprintf("{!parent which=\"parent_doc:true\"}tag_key:%s", ts.escapeSpecialChars(tagKey)))
+	path := fmt.Sprintf("solr/%s/select?q=%s&fq=%s&rows=0&wt=json", ksid, q, fq)
 	return ts.extractResponse(path).Total
 }
 
 func (ts *esTs) GetMeta(ksid, hash string) *SolrDocument {
-	q := url.QueryEscape(fmt.Sprintf("id:%s AND type:meta", hash))
-	path := fmt.Sprintf("solr/%s/select?q=%s&rows=1&wt=json", ksid, q)
+	q := url.QueryEscape(fmt.Sprintf("{!parent which=\"parent_doc:true AND type:meta AND id:%s\"}", hash))
+	fl := url.QueryEscape("*,[child parentFilter=parent_doc:true limit=10]")
+	path := fmt.Sprintf("solr/%s/select?q=%s&fl=%s&rows=1&wt=json", ksid, q, fl)
 	r := ts.extractResponse(path)
 	if r.Total == 0 {
 		return nil
@@ -95,8 +106,9 @@ func (ts *esTs) GetMeta(ksid, hash string) *SolrDocument {
 }
 
 func (ts *esTs) GetTextMeta(ksid, hash string) *SolrDocument {
-	q := url.QueryEscape(fmt.Sprintf("id:%s AND type:metatext", hash))
-	path := fmt.Sprintf("solr/%s/select?q=%s&rows=1&wt=json", ksid, q)
+	q := url.QueryEscape(fmt.Sprintf("{!parent which=\"parent_doc:true AND type:metatext AND id:%s\"}", hash))
+	fl := url.QueryEscape("*,[child parentFilter=parent_doc:true limit=10]")
+	path := fmt.Sprintf("solr/%s/select?q=%s&fl=%s&rows=1&wt=json", ksid, q, fl)
 	r := ts.extractResponse(path)
 	if r.Total == 0 {
 		return nil
@@ -115,7 +127,7 @@ type DeleteJSON struct {
 func (ts *esTs) DeleteKey(ksid, tsid string) error {
 	updateJSON := UpdateJSON{
 		Delete: DeleteJSON{
-			Query: fmt.Sprintf("id:%s", tsid),
+			Query: fmt.Sprintf("{!parent which=\"parent_doc:true AND id:%s\"}", tsid),
 		},
 	}
 	path := fmt.Sprintf("solr/%s/update?commit=true", ksid)

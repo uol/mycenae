@@ -48,7 +48,7 @@ func (query TSDBqueryPayload) Validate() gobol.Error {
 	}
 
 	if len(query.Queries) == 0 {
-		return errValidation(errors.New("At least one quey should be present"))
+		return errValidation(errors.New("At least one query should be present"))
 	}
 
 	for i, q := range query.Queries {

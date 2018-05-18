@@ -3,14 +3,15 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/stretchr/testify/assert"
-	"github.com/uol/mycenae/tests/tools"
 	"log"
 	"net/http"
 	"net/url"
 	"reflect"
 	"sort"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/uol/mycenae/tests/tools"
 )
 
 var (
@@ -40,6 +41,11 @@ func sendPointsTsdbAggAndSugAndLookup(keySet string) {
 	if err != nil || code != http.StatusNoContent {
 		log.Fatal("send points", code, string(resp), err)
 	}
+
+	// removing ksid tag
+	for i := 0; i < len(payloadArray); i++ {
+		delete(payloadArray[i].Tags, "ksid")
+	}
 }
 
 func TestTsdb(t *testing.T) {
@@ -61,13 +67,13 @@ func TestTsdb(t *testing.T) {
 		},
 		"SuggestTagk": {
 			fmt.Sprintf("keysets/%s/api/suggest?type=tagk", ksMycenaeTsdb),
-			[]string{"cpu", "host", "ksid", "ttl"},
-			4,
+			[]string{"cpu", "host", "ttl"},
+			3,
 		},
 		"SuggestTagv": {
 			fmt.Sprintf("keysets/%s/api/suggest?type=tagv", ksMycenaeTsdb),
-			[]string{"1", "a1-testTsdbMeta", "a2-testTsdbMeta", ksMycenaeTsdb},
-			4,
+			[]string{"1", "a1-testTsdbMeta", "a2-testTsdbMeta"},
+			3,
 		},
 		"SuggestMetricsMax": {
 			fmt.Sprintf("keysets/%s/api/suggest?type=metrics&max=1", ksMycenaeTsdb),
@@ -159,17 +165,17 @@ func TestTsdbLookupMetricFullNameMoreThanOneResult(t *testing.T) {
 		Time:   0,
 		Results: []tools.LookupResult{
 			tools.LookupResult{
-				TSUID:  tools.GetTSUIDFromPayload(&payloadArray[0], true),
+				TSUID:  payloadArray[0].TSID,
 				Tags:   payloadArray[0].Tags,
 				Metric: payloadArray[0].Metric,
 			},
 			tools.LookupResult{
-				TSUID:  tools.GetTSUIDFromPayload(&payloadArray[3], true),
+				TSUID:  payloadArray[3].TSID,
 				Tags:   payloadArray[3].Tags,
 				Metric: payloadArray[3].Metric,
 			},
 			tools.LookupResult{
-				TSUID:  tools.GetTSUIDFromPayload(&payloadArray[5], true),
+				TSUID:  payloadArray[5].TSID,
 				Tags:   payloadArray[5].Tags,
 				Metric: payloadArray[5].Metric,
 			},
@@ -206,7 +212,7 @@ func TestTsdbLookupMetricFullNameOnlyOneResult(t *testing.T) {
 		Time:   0,
 		Results: []tools.LookupResult{
 			tools.LookupResult{
-				TSUID:  tools.GetTSUIDFromPayload(&payloadArray[1], true),
+				TSUID:  payloadArray[1].TSID,
 				Tags:   payloadArray[1].Tags,
 				Metric: payloadArray[1].Metric,
 			},

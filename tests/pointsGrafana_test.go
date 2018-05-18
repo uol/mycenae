@@ -1,18 +1,19 @@
 package main
 
 import (
-	"net/http"
 	"encoding/json"
 	"fmt"
-	"github.com/stretchr/testify/assert"
-	"github.com/uol/mycenae/tests/tools"
 	"log"
 	"math"
+	"net/http"
 	"sort"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/uol/mycenae/tests/tools"
 )
 
 var (
@@ -33,7 +34,7 @@ var hashMap map[string]string
 // Helper
 func postAPIQueryAndCheck(t *testing.T, payload string, metric string, p, dps, tags, aggtags, tsuuidSize int, tsuuids ...string) ([]string, []tools.ResponseQuery) {
 
-	tags += 2 //ttl tag is automatically added if not sent, plus ksid tag
+	tags += 1 //ttl tag is automatically added if not sent
 	path := fmt.Sprintf("keysets/%s/api/query", ksMycenae)
 	code, response, err := mycenaeTools.HTTP.POST(path, []byte(payload))
 	if !assert.NoError(t, err) {
@@ -1098,7 +1099,7 @@ func TestTsdbQueryFilterDownsampleCountSec(t *testing.T) {
 	assert.Equal(t, 200, code)
 	assert.Equal(t, 1, len(payloadPoints))
 	assert.Equal(t, 180, len(payloadPoints[0].Dps))
-	assert.Equal(t, 3, len(payloadPoints[0].Tags))
+	assert.Equal(t, 2, len(payloadPoints[0].Tags))
 	assert.Equal(t, 0, len(payloadPoints[0].AggTags))
 	assert.Equal(t, 1, len(payloadPoints[0].Tsuuids))
 
@@ -1415,7 +1416,7 @@ func TestTsdbQueryFilterMoreThanOneTS(t *testing.T) {
 	sort.Strings(keys)
 
 	assert.Equal(t, 25, len(payloadPoints[1].Dps))
-	assert.Equal(t, 3, len(payloadPoints[1].Tags))
+	assert.Equal(t, 2, len(payloadPoints[1].Tags))
 	assert.Equal(t, 0, len(payloadPoints[1].AggTags))
 	assert.Equal(t, 1, len(payloadPoints[1].Tsuuids))
 	assert.Equal(t, "ts10tsdb", payloadPoints[1].Metric)
@@ -2869,7 +2870,7 @@ func TestTsdbQueryNullValuesDownsampleNan(t *testing.T) {
 	assert.Equal(t, 200, code)
 	assert.Equal(t, 1, len(payloadPoints))
 	assert.Equal(t, 30, len(payloadPoints[0].Dps))
-	assert.Equal(t, 3, len(payloadPoints[0].Tags))
+	assert.Equal(t, 2, len(payloadPoints[0].Tags))
 	assert.Equal(t, 0, len(payloadPoints[0].AggTags))
 	assert.Equal(t, 1, len(payloadPoints[0].Tsuuids))
 
@@ -2939,7 +2940,7 @@ func TestTsdbQueryNullValuesDownsampleZero(t *testing.T) {
 	assert.Equal(t, 200, code)
 	assert.Equal(t, 1, len(payloadPoints))
 	assert.Equal(t, 30, len(payloadPoints[0].Dps))
-	assert.Equal(t, 3, len(payloadPoints[0].Tags))
+	assert.Equal(t, 2, len(payloadPoints[0].Tags))
 	assert.Equal(t, 0, len(payloadPoints[0].AggTags))
 	assert.Equal(t, 1, len(payloadPoints[0].Tsuuids))
 
@@ -3175,7 +3176,7 @@ func TestTsdbQueryBothValuesNullMergeAndDownsampleNull(t *testing.T) {
 	assert.Equal(t, 200, code)
 	assert.Equal(t, 1, len(payloadPoints))
 	assert.Equal(t, 30, len(payloadPoints[0].Dps))
-	assert.Equal(t, 2, len(payloadPoints[0].Tags))
+	assert.Equal(t, 1, len(payloadPoints[0].Tags))
 	assert.Equal(t, 1, len(payloadPoints[0].AggTags))
 	assert.Equal(t, 2, len(payloadPoints[0].Tsuuids))
 
@@ -3247,7 +3248,7 @@ func TestTsdbQueryBothValuesNullMergeAndDownsampleNan(t *testing.T) {
 	assert.Equal(t, 200, code)
 	assert.Equal(t, 1, len(payloadPoints))
 	assert.Equal(t, 30, len(payloadPoints[0].Dps))
-	assert.Equal(t, 2, len(payloadPoints[0].Tags))
+	assert.Equal(t, 1, len(payloadPoints[0].Tags))
 	assert.Equal(t, 1, len(payloadPoints[0].AggTags))
 	assert.Equal(t, 2, len(payloadPoints[0].Tsuuids))
 
@@ -3549,7 +3550,7 @@ func TestTsdbQueryTwoTSMerge(t *testing.T) {
 		dateStart += 180
 	}
 
-	assert.Equal(t, 2, len(payloadPoints[1].Tags))
+	assert.Equal(t, 1, len(payloadPoints[1].Tags))
 	assert.Equal(t, 1, len(payloadPoints[1].AggTags))
 	assert.Equal(t, 30, len(payloadPoints[1].Dps))
 	assert.Equal(t, 2, len(payloadPoints[1].Tsuuids))
@@ -3631,7 +3632,7 @@ func TestTsdbQueryMoreThanOneTS(t *testing.T) {
 	sort.Strings(keys)
 
 	assert.Equal(t, 25, len(payloadPoints[1].Dps))
-	assert.Equal(t, 3, len(payloadPoints[1].Tags))
+	assert.Equal(t, 2, len(payloadPoints[1].Tags))
 	assert.Equal(t, 0, len(payloadPoints[1].AggTags))
 	assert.Equal(t, 1, len(payloadPoints[1].Tsuuids))
 	assert.Equal(t, "ts10tsdb", payloadPoints[1].Metric)
@@ -4720,7 +4721,7 @@ func TestTsdbQueryDefaultOrder(t *testing.T) {
 	assert.Equal(t, 200, code)
 	assert.Equal(t, 1, len(payloadPoints))
 	assert.Equal(t, 29, len(payloadPoints[0].Dps))
-	assert.Equal(t, 2, len(payloadPoints[0].Tags))
+	assert.Equal(t, 1, len(payloadPoints[0].Tags))
 	assert.Equal(t, 1, len(payloadPoints[0].AggTags))
 	assert.Equal(t, 2, len(payloadPoints[0].Tsuuids))
 
@@ -5114,7 +5115,7 @@ func TestTsdbQueryFilterGroupByWildcard(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 4, len(payloadPoints[i].Tags))
+			assert.Equal(t, 3, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 2, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -5152,7 +5153,7 @@ func TestTsdbQueryFilterGroupByWildcard(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 4, len(payloadPoints[i].Tags))
+			assert.Equal(t, 3, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 2, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -5192,7 +5193,7 @@ func TestTsdbQueryFilterGroupByWildcard(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 3, len(payloadPoints[i].Tags))
+			assert.Equal(t, 2, len(payloadPoints[i].Tags))
 			assert.Equal(t, 2, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 4, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -5272,7 +5273,7 @@ func TestTsdbQueryFilterGroupByWildcardPartialName(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 4, len(payloadPoints[i].Tags))
+			assert.Equal(t, 3, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 2, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -5310,7 +5311,7 @@ func TestTsdbQueryFilterGroupByWildcardPartialName(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 4, len(payloadPoints[i].Tags))
+			assert.Equal(t, 3, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 2, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -5350,7 +5351,7 @@ func TestTsdbQueryFilterGroupByWildcardPartialName(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 3, len(payloadPoints[i].Tags))
+			assert.Equal(t, 2, len(payloadPoints[i].Tags))
 			assert.Equal(t, 2, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 4, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -5536,7 +5537,7 @@ func TestTsdbQueryFilterGroupByLiteralOr(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 4, len(payloadPoints[i].Tags))
+			assert.Equal(t, 3, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 2, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -5574,7 +5575,7 @@ func TestTsdbQueryFilterGroupByLiteralOr(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 4, len(payloadPoints[i].Tags))
+			assert.Equal(t, 3, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 2, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -5653,7 +5654,7 @@ func TestTsdbQueryFilterGroupByNotLiteralOr(t *testing.T) {
 	sort.Strings(keys)
 
 	assert.Equal(t, 20, len(payloadPoints[0].Dps))
-	assert.Equal(t, 3, len(payloadPoints[0].Tags))
+	assert.Equal(t, 2, len(payloadPoints[0].Tags))
 	assert.Equal(t, 2, len(payloadPoints[0].AggTags))
 	assert.Equal(t, 4, len(payloadPoints[0].Tsuuids))
 	assert.Equal(t, "ts13tsdb", payloadPoints[0].Metric)
@@ -5728,7 +5729,7 @@ func TestTsdbQueryFilterGroupByRegexp(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 4, len(payloadPoints[i].Tags))
+			assert.Equal(t, 3, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 2, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -5766,7 +5767,7 @@ func TestTsdbQueryFilterGroupByRegexp(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 4, len(payloadPoints[i].Tags))
+			assert.Equal(t, 3, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 2, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -5806,7 +5807,7 @@ func TestTsdbQueryFilterGroupByRegexp(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 3, len(payloadPoints[i].Tags))
+			assert.Equal(t, 2, len(payloadPoints[i].Tags))
 			assert.Equal(t, 2, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 4, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -5897,7 +5898,7 @@ func TestTsdbQueryFilterGroupByRegexpNumbers(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 4, len(payloadPoints[i].Tags))
+			assert.Equal(t, 3, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 2, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -5935,7 +5936,7 @@ func TestTsdbQueryFilterGroupByRegexpNumbers(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 4, len(payloadPoints[i].Tags))
+			assert.Equal(t, 3, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 2, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -5975,7 +5976,7 @@ func TestTsdbQueryFilterGroupByRegexpNumbers(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 3, len(payloadPoints[i].Tags))
+			assert.Equal(t, 2, len(payloadPoints[i].Tags))
 			assert.Equal(t, 2, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 4, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -6066,7 +6067,7 @@ func TestTsdbQueryFilterGroupByILiteralOr(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 4, len(payloadPoints[i].Tags))
+			assert.Equal(t, 3, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 2, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -6104,7 +6105,7 @@ func TestTsdbQueryFilterGroupByILiteralOr(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 4, len(payloadPoints[i].Tags))
+			assert.Equal(t, 3, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 2, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -6144,7 +6145,7 @@ func TestTsdbQueryFilterGroupByILiteralOr(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 3, len(payloadPoints[i].Tags))
+			assert.Equal(t, 2, len(payloadPoints[i].Tags))
 			assert.Equal(t, 2, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 4, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -6240,7 +6241,7 @@ func TestTsdbQueryFilterGroupByAllEspecificTag(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 5, len(payloadPoints[i].Tags))
+			assert.Equal(t, 4, len(payloadPoints[i].Tags))
 			assert.Equal(t, 0, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -6271,7 +6272,7 @@ func TestTsdbQueryFilterGroupByAllEspecificTag(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 5, len(payloadPoints[i].Tags))
+			assert.Equal(t, 4, len(payloadPoints[i].Tags))
 			assert.Equal(t, 0, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -6304,7 +6305,7 @@ func TestTsdbQueryFilterGroupByAllEspecificTag(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 5, len(payloadPoints[i].Tags))
+			assert.Equal(t, 4, len(payloadPoints[i].Tags))
 			assert.Equal(t, 0, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -6389,7 +6390,7 @@ func TestTsdbQueryFilterGroupByIsntTheFirstFilter(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 5, len(payloadPoints[i].Tags))
+			assert.Equal(t, 4, len(payloadPoints[i].Tags))
 			assert.Equal(t, 0, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -6420,7 +6421,7 @@ func TestTsdbQueryFilterGroupByIsntTheFirstFilter(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 5, len(payloadPoints[i].Tags))
+			assert.Equal(t, 4, len(payloadPoints[i].Tags))
 			assert.Equal(t, 0, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -6453,7 +6454,7 @@ func TestTsdbQueryFilterGroupByIsntTheFirstFilter(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 5, len(payloadPoints[i].Tags))
+			assert.Equal(t, 4, len(payloadPoints[i].Tags))
 			assert.Equal(t, 0, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -6538,7 +6539,7 @@ func TestTsdbQueryFilterGroupByLiteralOrEspecificTag(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 5, len(payloadPoints[i].Tags))
+			assert.Equal(t, 4, len(payloadPoints[i].Tags))
 			assert.Equal(t, 0, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -6569,7 +6570,7 @@ func TestTsdbQueryFilterGroupByLiteralOrEspecificTag(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 5, len(payloadPoints[i].Tags))
+			assert.Equal(t, 4, len(payloadPoints[i].Tags))
 			assert.Equal(t, 0, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -6654,7 +6655,7 @@ func TestTsdbQueryFilterGroupByWildcardTwoTags(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 5, len(payloadPoints[i].Tags))
+			assert.Equal(t, 4, len(payloadPoints[i].Tags))
 			assert.Equal(t, 0, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -6687,7 +6688,7 @@ func TestTsdbQueryFilterGroupByWildcardTwoTags(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 5, len(payloadPoints[i].Tags))
+			assert.Equal(t, 4, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
 			assert.Equal(t, "host2", payloadPoints[i].Tags["host"])
@@ -6720,7 +6721,7 @@ func TestTsdbQueryFilterGroupByWildcardTwoTags(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 5, len(payloadPoints[i].Tags))
+			assert.Equal(t, 4, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
 			assert.Equal(t, "host3", payloadPoints[i].Tags["host"])
@@ -6753,7 +6754,7 @@ func TestTsdbQueryFilterGroupByWildcardTwoTags(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 2, len(payloadPoints[i].Tags))
+			assert.Equal(t, 1, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
 			assert.Equal(t, "host3", payloadPoints[i].Tags["host"])
@@ -6785,7 +6786,7 @@ func TestTsdbQueryFilterGroupByWildcardTwoTags(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 2, len(payloadPoints[i].Tags))
+			assert.Equal(t, 1, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
 			assert.Equal(t, "host3", payloadPoints[i].Tags["host"])
@@ -6873,7 +6874,7 @@ func TestTsdbQueryFilterGroupByWildcardTwoTagsFiltersOutOfOrder1(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 5, len(payloadPoints[i].Tags))
+			assert.Equal(t, 4, len(payloadPoints[i].Tags))
 			assert.Equal(t, 0, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -6906,7 +6907,7 @@ func TestTsdbQueryFilterGroupByWildcardTwoTagsFiltersOutOfOrder1(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 5, len(payloadPoints[i].Tags))
+			assert.Equal(t, 4, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
 			assert.Equal(t, "host2", payloadPoints[i].Tags["host"])
@@ -6939,7 +6940,7 @@ func TestTsdbQueryFilterGroupByWildcardTwoTagsFiltersOutOfOrder1(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 5, len(payloadPoints[i].Tags))
+			assert.Equal(t, 4, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
 			assert.Equal(t, "host3", payloadPoints[i].Tags["host"])
@@ -7027,7 +7028,7 @@ func TestTsdbQueryFilterGroupByWildcardTwoTagsFiltersOutOfOrder2(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 5, len(payloadPoints[i].Tags))
+			assert.Equal(t, 4, len(payloadPoints[i].Tags))
 			assert.Equal(t, 0, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -7060,7 +7061,7 @@ func TestTsdbQueryFilterGroupByWildcardTwoTagsFiltersOutOfOrder2(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 5, len(payloadPoints[i].Tags))
+			assert.Equal(t, 4, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
 			assert.Equal(t, "host2", payloadPoints[i].Tags["host"])
@@ -7093,7 +7094,7 @@ func TestTsdbQueryFilterGroupByWildcardTwoTagsFiltersOutOfOrder2(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 5, len(payloadPoints[i].Tags))
+			assert.Equal(t, 4, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
 			assert.Equal(t, "host3", payloadPoints[i].Tags["host"])
@@ -7181,7 +7182,7 @@ func TestTsdbQueryFilterGroupByWildcardTwoTagsFiltersOutOfOrder3(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 5, len(payloadPoints[i].Tags))
+			assert.Equal(t, 4, len(payloadPoints[i].Tags))
 			assert.Equal(t, 0, len(payloadPoints[i].AggTags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
@@ -7214,7 +7215,7 @@ func TestTsdbQueryFilterGroupByWildcardTwoTagsFiltersOutOfOrder3(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 5, len(payloadPoints[i].Tags))
+			assert.Equal(t, 4, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
 			assert.Equal(t, "host2", payloadPoints[i].Tags["host"])
@@ -7247,7 +7248,7 @@ func TestTsdbQueryFilterGroupByWildcardTwoTagsFiltersOutOfOrder3(t *testing.T) {
 			sort.Strings(keys)
 
 			assert.Equal(t, 20, len(payloadPoints[i].Dps))
-			assert.Equal(t, 5, len(payloadPoints[i].Tags))
+			assert.Equal(t, 4, len(payloadPoints[i].Tags))
 			assert.Equal(t, 1, len(payloadPoints[i].Tsuuids))
 			assert.Equal(t, "ts13tsdb", payloadPoints[i].Metric)
 			assert.Equal(t, "host3", payloadPoints[i].Tags["host"])
@@ -7324,7 +7325,7 @@ func TestTsdbQueryFilterGroupBySameTagk(t *testing.T) {
 	sort.Strings(payloadPoints[0].AggTags)
 
 	assert.Equal(t, 20, len(payloadPoints[0].Dps))
-	assert.Equal(t, 3, len(payloadPoints[0].Tags))
+	assert.Equal(t, 2, len(payloadPoints[0].Tags))
 	assert.Equal(t, 2, len(payloadPoints[0].AggTags))
 	assert.Equal(t, "app", payloadPoints[0].AggTags[0])
 	assert.Equal(t, "type", payloadPoints[0].AggTags[1])
@@ -7403,7 +7404,7 @@ func TestTsdbQueryFilterSameTagkOnGroupByAndTags(t *testing.T) {
 	sort.Strings(payloadPoints[0].AggTags)
 
 	assert.Equal(t, 20, len(payloadPoints[0].Dps))
-	assert.Equal(t, 3, len(payloadPoints[0].Tags))
+	assert.Equal(t, 2, len(payloadPoints[0].Tags))
 	assert.Equal(t, 2, len(payloadPoints[0].AggTags))
 	assert.Equal(t, "app", payloadPoints[0].AggTags[0])
 	assert.Equal(t, "type", payloadPoints[0].AggTags[1])

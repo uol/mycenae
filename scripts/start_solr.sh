@@ -6,7 +6,7 @@ zookeeperIP=$(docker inspect --format "{{ .NetworkSettings.IPAddress }}" zookeep
 
 docker rm -f "${POD_NAME}"
 
-docker run -d --name "${POD_NAME}" -e ZK_IP="${zookeeperIP}" --restart always jenkins.macs.intranet:5000/solr:v7.2.0
+docker run -d --name "${POD_NAME}" -e ZK_IP="${zookeeperIP}" -v $(pwd)/solr-configs:/opt/solr/server/solr/configsets/_default/conf --restart always jenkins.macs.intranet:5000/solr:v7.3.0
 
 sleep 2
 

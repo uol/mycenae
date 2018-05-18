@@ -31,10 +31,10 @@ func sendPointsMetadata(keySet string) {
 	lookupMetaIDs = []string{"m1", "m2", "m3", "m4"}
 
 	lookupMetas = map[string]tools.TsMeta{
-		lookupMetaIDs[0]: {Metric: metricX, Tags: map[string]string{"ksid": keySet, "testid": lookupMetaIDs[0], "ttl": "1", tagKx: tagVz}},
-		lookupMetaIDs[1]: {Metric: metricY, Tags: map[string]string{"ksid": keySet, "testid": lookupMetaIDs[1], "ttl": "1", tagKy: tagVx}},
-		lookupMetaIDs[2]: {Metric: metricZ, Tags: map[string]string{"ksid": keySet, "testid": lookupMetaIDs[2], "ttl": "1", tagKx: tagVx}},
-		lookupMetaIDs[3]: {Metric: metricZ, Tags: map[string]string{"ksid": keySet, "testid": lookupMetaIDs[3], "ttl": "1", tagKx: tagVz}},
+		lookupMetaIDs[0]: {Metric: metricX, Tags: map[string]string{"testid": lookupMetaIDs[0], "ttl": "1", tagKx: tagVz}},
+		lookupMetaIDs[1]: {Metric: metricY, Tags: map[string]string{"testid": lookupMetaIDs[1], "ttl": "1", tagKy: tagVx}},
+		lookupMetaIDs[2]: {Metric: metricZ, Tags: map[string]string{"testid": lookupMetaIDs[2], "ttl": "1", tagKx: tagVx}},
+		lookupMetaIDs[3]: {Metric: metricZ, Tags: map[string]string{"testid": lookupMetaIDs[3], "ttl": "1", tagKx: tagVz}},
 	}
 
 	point := `[
@@ -163,7 +163,6 @@ func TestListMetadata(t *testing.T) {
 	assert.Equal(t, 4, response.TotalRecord)
 
 	for _, payload := range response.Payload {
-
 		switch payload.Tags["testid"] {
 		case lookupMetaIDs[0]:
 			assert.Equal(t, lookupMetas[lookupMetaIDs[0]].Metric, payload.Metric)

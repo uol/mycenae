@@ -27,17 +27,6 @@ func (sb *SolrBackend) CreateKeySet(collection string) gobol.Error {
 		return errInternalServer("CreateKeySet", err)
 	}
 
-	err = sb.setupSchema(collection)
-	if err != nil {
-		lf := []zapcore.Field{
-			zap.String("package", "metadata"),
-			zap.String("func", "CreateKeySet"),
-			zap.String("step", "setupSchema"),
-		}
-		sb.logger.Error("error on schema setup", lf...)
-		return errInternalServer("CreateKeySet", err)
-	}
-
 	err = sb.deleteCachedKeySetMap()
 	if err != nil {
 		lf := []zapcore.Field{

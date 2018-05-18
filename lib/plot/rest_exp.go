@@ -454,10 +454,13 @@ func (plot *Plot) expandStruct(
 			filtersPlain := []structs.TSDBfilter{}
 
 			for _, filter := range tsdb.Filters {
+
 				if !filter.GroupBy {
 					filtersPlain = append(filtersPlain, filter)
 				}
 			}
+
+			breakOp := false
 
 			for _, filter := range tsdb.Filters {
 
@@ -472,6 +475,12 @@ func (plot *Plot) expandStruct(
 					}
 
 					if !found {
+
+						if tsobjs[0].Tags[filter.Tagk] == "" {
+							breakOp = true
+							break
+						}
+
 						filtersPlain = append(filtersPlain, structs.TSDBfilter{
 							Ftype:   "wildcard",
 							Tagk:    filter.Tagk,
@@ -480,6 +489,10 @@ func (plot *Plot) expandStruct(
 						})
 					}
 				}
+			}
+
+			if breakOp {
+				continue
 			}
 
 			query := structs.TSDBqueryPayload{

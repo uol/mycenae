@@ -1,3 +1,35 @@
+## 1.1.0 (May 11, 2018)
+
+FEATURES:
+
+* UI: The web UI has been completely redesigned and rebuilt and is in an opt-in beta period.
+Setting the `CONSUL_UI_BETA` environment variable to `1` or `true` will replace the existing UI
+with the new one. The existing UI will be deprecated and removed in a future release. [[GH-4086](https://github.com/hashicorp/consul/pull/4086)]
+* api: Added support for Prometheus client format in metrics endpoint with `?format=prometheus` (see [docs](https://www.consul.io/api/agent.html#view-metrics)) [[GH-4014](https://github.com/hashicorp/consul/issues/4014)]
+* agent: New Cloud Auto-join provider: Joyent Triton. [[GH-4108](https://github.com/hashicorp/consul/pull/4108)]
+* agent: (Consul Enterprise) Implemented license management with license propagation within a datacenter.
+
+BREAKING CHANGES:
+
+* agent: The following previously deprecated fields and config options have been removed [[GH-4097](https://github.com/hashicorp/consul/pull/4097)]:
+  - `CheckID` has been removed from config file check definitions (use `id` instead).
+  - `script` has been removed from config file check definitions (use `args` instead).
+  - `enableTagOverride` is no longer valid in service definitions (use `enable_tag_override` instead).
+  - The [deprecated set of metric names](https://consul.io/docs/upgrade-specific.html#metric-names-updated) (beginning with `consul.consul.`) has been removed along with the `enable_deprecated_names` option from the metrics configuration.
+
+IMPROVEMENTS:
+
+* agent: Improve DNS performance on large clusters [[GH-4036](https://github.com/hashicorp/consul/issues/4036)]
+* agent: `start_join`, `start_join_wan`, `retry_join`, `retry_join_wan` config params now all support go-sockaddr templates [[GH-4102](https://github.com/hashicorp/consul/pull/4102)]
+
+BUG FIXES:
+
+* agent: Only call signal.Notify once during agent startup [[PR-4024](https://github.com/hashicorp/consul/pull/4024)]
+* agent: Add support for the new Service Meta field in agent config [[GH-4045](https://github.com/hashicorp/consul/issues/4045)]
+* api: Add support for the new Service Meta field in API client [[GH-4045](https://github.com/hashicorp/consul/issues/4045)]
+* agent: Updated serf library for two bug fixes - allow enough time for leave intents to propagate [[GH-510](https://github.com/hashicorp/serf/pull/510)] and preventing a deadlock [[GH-507](https://github.com/hashicorp/serf/pull/510)]
+* agent: When node-level checks (e.g. maintenance mode) were deleted, some watchers currently in between blocking calls may have missed the change in index. See [[GH-3970](https://github.com/hashicorp/consul/pull/3970)]
+
 ## 1.0.7 (April 13, 2018)
 
 IMPROVEMENTS:

@@ -35,7 +35,7 @@ type AddField struct {
 func (ss *SolrService) AddNewField(collection, name, fieldType string, multiValued, stored, indexed, docValues bool) error {
 
 	lf := []zapcore.Field{
-		zap.String("package", "metadata"),
+		zap.String("package", "solar"),
 		zap.String("func", "AddNewField"),
 	}
 
@@ -85,7 +85,7 @@ func (ss *SolrService) getSchema(collection string) (*solr.Schema, error) {
 	schema, err := si.Schema()
 	if err != nil {
 		lf := []zapcore.Field{
-			zap.String("package", "metadata"),
+			zap.String("package", "solar"),
 			zap.String("func", "getSchema"),
 		}
 		ss.logger.Error("error creating a new schema instance", lf...)
@@ -99,7 +99,7 @@ func (ss *SolrService) getSchema(collection string) (*solr.Schema, error) {
 func (ss *SolrService) CreateCollection(collection string, numShards, replicationFactor int) error {
 
 	lf := []zapcore.Field{
-		zap.String("package", "metadata"),
+		zap.String("package", "solar"),
 		zap.String("func", "CreateCollection"),
 	}
 
@@ -129,7 +129,7 @@ func (ss *SolrService) CreateCollection(collection string, numShards, replicatio
 func (ss *SolrService) DeleteCollection(collection string) error {
 
 	lf := []zapcore.Field{
-		zap.String("package", "metadata"),
+		zap.String("package", "solar"),
 		zap.String("func", "DeleteCollection"),
 	}
 
@@ -160,7 +160,7 @@ func (ss *SolrService) ListCollections() ([]string, error) {
 	}
 	if r.Status != 0 {
 		lf := []zapcore.Field{
-			zap.String("package", "metadata"),
+			zap.String("package", "solar"),
 			zap.String("func", "ListCollections"),
 			zap.String("step", "Action"),
 		}

@@ -1,5 +1,5 @@
-hash: baf38428a14ca914b522ebd61c7ac478b678366efb6177af671e8dec7a58a882
-updated: 2018-04-20T16:29:59.409710739-03:00
+hash: f0be07cd305e0492acc7ada1435be835040290dc680c420b6ffd7f0406660e2e
+updated: 2018-05-17T19:45:19.102556315-03:00
 imports:
 - name: github.com/armon/go-metrics
   version: 783273d703149aaeb9897cf58613d5af48861c25
@@ -16,7 +16,7 @@ imports:
 - name: github.com/hailocab/go-hostpool
   version: e80d13ce29ede4452c43dea11e79b9bc8a15b478
 - name: github.com/hashicorp/consul
-  version: fb848fc48818f58690db09d14640513aa6bf3c02
+  version: 5174058f0d2bda63fa5198ab96c33d9a909c58ed
   subpackages:
   - api
 - name: github.com/hashicorp/go-cleanhttp
@@ -40,13 +40,13 @@ imports:
 - name: github.com/pborman/uuid
   version: e790cca94e6cc75c7064b1332e63811d4aae1a53
 - name: github.com/robfig/cron
-  version: b024fc5ea0e34bc3f83d9941c8d60b0622bfaca4
+  version: b41be1df696709bb6395fe435af20370037c0b4c
 - name: github.com/uol/go-solr
-  version: 921bd6da9ea4f5ae68f868791aa319c6e197bcb7
+  version: fd7937c280d3a64876bda1a6086a0ef0b6f9e459
   subpackages:
   - solr
 - name: go.uber.org/atomic
-  version: 8474b86a5a6f79c443ce4b2992817ff32cf208b8
+  version: 1ea20fb1cbb1cc08cbd0d913a96dead89aa18289
 - name: go.uber.org/multierr
   version: 3c4937480c32f4c13a875a1829af76c98ca3d40a
 - name: go.uber.org/zap
@@ -74,11 +74,3 @@ testImports:
   version: 12b6f73e6084dad08a7c6e575284b177ecafbc71
   subpackages:
   - assert
-- name: github.com/uol/mycenae
-  version: e17d5244c7cc78767257939c79335da1e0345bad
-  subpackages:
-  - lib/metadata
-  - lib/tserr
-  - lib/tsstats
-- name: gopkg.in/robfig/cron.v2
-  version: b024fc5ea0e34bc3f83d9941c8d60b0622bfaca4

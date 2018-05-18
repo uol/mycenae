@@ -285,7 +285,7 @@ func TestTsdbExpressionFilterPeriodMin(t *testing.T) {
 	metric, tsid := ts1TsdbExpression(startTime - 5940)
 
 	expression := fmt.Sprintf(`merge(sum,query(%v,{host=test},10m))`, metric)
-	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 10, 3, 0, 1)
+	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 10, 2, 0, 1)
 
 	assert.Equal(t, "test", queryPoints[0].Tags["host"])
 	assert.Equal(t, tsid, queryPoints[0].Tsuuids[0])
@@ -310,7 +310,7 @@ func TestTsdbExpressionFilterPeriodSec(t *testing.T) {
 	metric, tsid := ts1TsdbExpression(startTime - 5940)
 
 	expression := fmt.Sprintf(`merge(sum,query(%v,{host=test},599s))`, metric)
-	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 10, 3, 0, 1)
+	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 10, 2, 0, 1)
 
 	assert.Equal(t, "test", queryPoints[0].Tags["host"])
 	assert.Equal(t, tsid, queryPoints[0].Tsuuids[0])
@@ -335,7 +335,7 @@ func TestTsdbExpressionFilterPeriodMs(t *testing.T) {
 	metric, tsid := ts1TsdbExpression(startTime - 5940)
 
 	expression := fmt.Sprintf(`merge(sum,query(%v,{host=test},600000ms))`, metric)
-	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 10, 3, 0, 1)
+	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 10, 2, 0, 1)
 
 	assert.Equal(t, "test", queryPoints[0].Tags["host"])
 	assert.Equal(t, tsid, queryPoints[0].Tsuuids[0])
@@ -367,7 +367,7 @@ func TestTsdbExpressionFilterDownsampleAvg(t *testing.T) {
 	}
 
 	expression := fmt.Sprintf(`merge(avg, downsample(3m, avg, none, query(%v,{host=test},%s)))`, metric, offset)
-	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 30, 3, 0, 1)
+	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 30, 2, 0, 1)
 
 	assert.Equal(t, "test", queryPoints[0].Tags["host"])
 	assert.Equal(t, tsid, queryPoints[0].Tsuuids[0])
@@ -403,7 +403,7 @@ func TestTsdbExpressionFilterDownsampleMin(t *testing.T) {
 	}
 
 	expression := fmt.Sprintf(`merge(min, downsample(3m, min, none, query(%v,{host=test},%s)))`, metric, offset)
-	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 30, 3, 0, 1)
+	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 30, 2, 0, 1)
 
 	assert.Equal(t, "test", queryPoints[0].Tags["host"])
 	assert.Equal(t, tsid, queryPoints[0].Tsuuids[0])
@@ -437,7 +437,7 @@ func TestTsdbExpressionFilterDownsampleMax(t *testing.T) {
 	}
 
 	expression := fmt.Sprintf(`merge(max, downsample(3m, max, none, query(%v,{host=test},%s)))`, metric, offset)
-	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 30, 3, 0, 1)
+	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 30, 2, 0, 1)
 
 	assert.Equal(t, "test", queryPoints[0].Tags["host"])
 	assert.Equal(t, tsid, queryPoints[0].Tsuuids[0])
@@ -468,7 +468,7 @@ func TestTsdbExpressionFilterDownsampleSum(t *testing.T) {
 	}
 
 	expression := fmt.Sprintf(`merge(sum, downsample(3m, sum, none, query(%v,{host=test},%s)))`, metric, offset)
-	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 30, 3, 0, 1)
+	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 30, 2, 0, 1)
 
 	assert.Equal(t, "test", queryPoints[0].Tags["host"])
 	assert.Equal(t, tsid, queryPoints[0].Tsuuids[0])
@@ -493,7 +493,7 @@ func TestTsdbExpressionFilterDownsampleMaxHour(t *testing.T) {
 	metric, tsid := ts3TsdbExpression(startTime)
 
 	expression := fmt.Sprintf(`merge(max, downsample(2h, max, none, query(%v,{host=test},240h)))`, metric)
-	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 120, 3, 0, 1)
+	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 120, 2, 0, 1)
 
 	assert.Equal(t, "test", queryPoints[0].Tags["host"])
 	assert.Equal(t, tsid, queryPoints[0].Tsuuids[0])
@@ -519,7 +519,7 @@ func TestTsdbExpressionFilterDownsampleMaxDay(t *testing.T) {
 	metric, tsid := ts3TsdbExpression(startTime)
 
 	expression := fmt.Sprintf(`merge(max, downsample(2d, max, none, query(%v,{host=test},10d)))`, metric)
-	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 5, 3, 0, 1)
+	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 5, 2, 0, 1)
 
 	assert.Equal(t, "test", queryPoints[0].Tags["host"])
 	assert.Equal(t, tsid, queryPoints[0].Tsuuids[0])
@@ -546,7 +546,7 @@ func TestTsdbExpressionFilterDownsampleMaxWeek(t *testing.T) {
 	metric, tsid := ts4TsdbExpression(startTime)
 
 	expression := fmt.Sprintf(`merge(max, downsample(4w, max, none, query(%v,{host=test},207w)))`, metric)
-	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 52, 3, 0, 1)
+	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 52, 2, 0, 1)
 
 	assert.Equal(t, "test", queryPoints[0].Tags["host"])
 	assert.Equal(t, tsid, queryPoints[0].Tsuuids[0])
@@ -588,7 +588,7 @@ func TestTsdbExpressionMergeDateLimit(t *testing.T) {
 	metric, tsid1, tsid2 := ts1_1TsdbExpression(startTime - 5940)
 
 	expression := fmt.Sprintf(`merge(sum, query(%v,null,10m))`, metric)
-	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 10, 2, 1, 2)
+	queryPoints, keys := postExpressionAndCheck(t, url.QueryEscape(expression), metric, 1, 10, 1, 1, 2)
 
 	assert.Equal(t, "host", queryPoints[0].AggTags[0])
 	assert.Contains(t, queryPoints[0].Tsuuids, tsid1, "Tsuuid not found")

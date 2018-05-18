@@ -97,3 +97,16 @@ func (s *Search) SpellCheck(parser ResultParser) (*SolrResult, error) {
 	}
 	return parser.Parse(resp)
 }
+
+// This method is for making query to BlockJoin Faceting Handler
+// See https://lucene.apache.org/solr/guide/7_3/blockjoin-faceting.html
+func (s *Search) BlockJoinFaceting(parser ResultParser) (*SolrResult, error) {
+	resp, err := s.Resource("bjqfacet", s.QueryParams())
+	if err != nil {
+		return nil, err
+	}
+	if parser == nil {
+		parser = new(StandardResultParser)
+	}
+	return parser.Parse(resp)
+}

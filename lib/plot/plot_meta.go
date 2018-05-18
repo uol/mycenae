@@ -5,8 +5,6 @@ import (
 	"github.com/uol/mycenae/lib/metadata"
 )
 
-const DEFAULT_SIZE = 50
-
 func (plot Plot) validateKeySet(keyset string) gobol.Error {
 
 	found, gerr := plot.persist.metaStorage.CheckKeySet(keyset)
@@ -76,39 +74,65 @@ func (plot Plot) FilterTagValues(keyset, tagVname string, size int) ([]string, i
 }
 
 // toMetaParam - converts metric and tags to a Metadata struct to be used as query
-func (plot Plot) toMetaParam(metric string, tags map[string]string) *metadata.Metadata {
+func (plot Plot) toMetaParam(metric, tsType string, tags map[string]string) *metadata.Query {
 
-	metaParams := &metadata.Metadata{Metric: metric}
-
-	if len(tags) > 0 {
-		keys := []string{}
-		values := []string{}
-		for k, v := range tags {
-			keys = append(keys, k)
-			values = append(values, v)
-		}
-		metaParams.TagKey = keys
-		metaParams.TagValue = values
+	q := &metadata.Query{
+		Metric:   metric,
+		MetaType: tsType,
+		Regexp:   plot.persist.metaStorage.HasRegexPattern(metric),
 	}
 
-	return metaParams
+	size := len(tags)
+	if size > 0 {
+		q.Tags = make([]metadata.QueryTag, size)
+
+		i := 0
+		for k, v := range tags {
+			q.Tags[i] = metadata.QueryTag{
+				Key:    k,
+				Values: []string{v},
+				Negate: false,
+				Regexp: plot.persist.metaStorage.HasRegexPattern(k) || plot.persist.metaStorage.HasRegexPattern(v),
+			}
+			i++
+		}
+	}
+
+	return q
 }
 
 // toMetaParam - converts metric and tags to a Metadata struct to be used as query
-func (plot Plot) toMetaParamArray(metric string, tags map[string][]string) *metadata.Metadata {
+func (plot Plot) toMetaParamArray(metric, tsType string, tags map[string][]string) *metadata.Query {
 
-	metaParams := &metadata.Metadata{Metric: metric}
+	q := &metadata.Query{
+		Metric:   metric,
+		MetaType: tsType,
+		Regexp:   plot.persist.metaStorage.HasRegexPattern(metric),
+	}
 
-	if len(tags) > 0 {
-		keys := []string{}
-		values := []string{}
-		for k, v := range tags {
-			keys = append(keys, k)
-			values = append(values, v...)
+	size := len(tags)
+	if size > 0 {
+		q.Tags = make([]metadata.QueryTag, size)
+
+		i := 0
+		for k, vs := range tags {
+
+			hasRegex := plot.persist.metaStorage.HasRegexPattern(k)
+			for _, v := range vs {
+				hasRegex = hasRegex || plot.persist.metaStorage.HasRegexPattern(v)
+			}
+
+			q.Tags[i] = metadata.QueryTag{
+				Key:    k,
+				Values: vs,
+				Negate: false,
+				Regexp: hasRegex,
+			}
+			i++
 		}
 	}
 
-	return metaParams
+	return q
 }
 
 // extractTagMap - extracts all tags and tag values to
@@ -126,7 +150,7 @@ func (plot Plot) ListMeta(keySet, tsType, metric string, tags map[string]string,
 
 	from, size = plot.checkParams(from, size)
 
-	metadatas, total, gerr := plot.persist.metaStorage.ListMetadata(keySet, tsType, plot.toMetaParam(metric, tags), from, size)
+	metadatas, total, gerr := plot.persist.metaStorage.FilterMetadata(keySet, plot.toMetaParam(metric, tsType, tags), from, size)
 
 	var tsMetaInfos []TsMetaInfo
 

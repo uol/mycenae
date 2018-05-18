@@ -50,7 +50,7 @@ func (ss *SolrService) getSolrInterface(collection string) (*solr.SolrInterface,
 	si, err := solr.NewSolrInterface(ss.url, collection)
 	if err != nil {
 		lf := []zapcore.Field{
-			zap.String("package", "metadata"),
+			zap.String("package", "solar"),
 			zap.String("func", "getSolrInterface"),
 		}
 		ss.logger.Error("error creating a new instance of solr interface", lf...)
@@ -66,7 +66,7 @@ func (ss *SolrService) getSolrInterface(collection string) (*solr.SolrInterface,
 func (ss *SolrService) AddDocuments(collection string, commit bool, docs ...solr.Document) error {
 
 	lf := []zapcore.Field{
-		zap.String("package", "metadata"),
+		zap.String("package", "solar"),
 		zap.String("func", "AddDocuments"),
 	}
 

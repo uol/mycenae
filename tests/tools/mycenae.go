@@ -65,6 +65,7 @@ type Payload struct {
 	TagValue2 string            `json:"-"`
 	Timestamp *int64            `json:"timestamp,omitempty"`
 	Random    int               `json:"-"`
+	TSID      string            // to use in the tests only
 }
 
 type PayloadSlice struct {
@@ -325,6 +326,8 @@ func (m *mycenaeTool) GetPayload(keyspace string) *Payload {
 		"ttl":    "1",
 	}
 
+	p.TSID = GetTSUIDFromPayload(p, true)
+
 	return p
 }
 
@@ -348,6 +351,8 @@ func (m *mycenaeTool) GetTextPayload(keyspace string) *Payload {
 		"ksid":   keyspace,
 		"ttl":    "1",
 	}
+
+	p.TSID = GetTSUIDFromPayload(p, false)
 
 	return p
 }
@@ -415,11 +420,15 @@ func (k KeyspaceUpdate) Marshal() []byte {
 
 func CreatePayload(v float32, m string, t map[string]string) Payload {
 
-	return Payload{
+	p := Payload{
 		Value:  &v,
 		Metric: m,
 		Tags:   t,
 	}
+
+	p.TSID = GetTSUIDFromPayload(&p, true)
+
+	return p
 }
 
 func CreatePayloadTS(v float32, m string, t map[string]string, ts int64) Payload {
@@ -432,11 +441,15 @@ func CreatePayloadTS(v float32, m string, t map[string]string, ts int64) Payload
 
 func CreateTextPayload(txt string, m string, t map[string]string) Payload {
 
-	return Payload{
+	p := Payload{
 		Text:   &txt,
 		Metric: m,
 		Tags:   t,
 	}
+
+	p.TSID = GetTSUIDFromPayload(&p, false)
+
+	return p
 }
 
 func CreateTextPayloadTS(txt string, m string, t map[string]string, ts int64) Payload {

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<schema name="default-config" version="1.6">
+	
+    <field name="id" type="string" indexed="true" stored="true" required="true" multiValued="false" />
+    <field name="_version_" type="plong" indexed="false" stored="false"/>
+    <field name="_root_" type="string" indexed="true" stored="false" docValues="false" />
+	
+    <uniqueKey>id</uniqueKey>
+
+    <fieldType name="string" class="solr.StrField" sortMissingLast="true" docValues="true" />
+    <fieldType name="boolean" class="solr.BoolField" sortMissingLast="true"/>
+	<fieldType name="plong" class="solr.LongPointField" docValues="true"/>
+    <fieldType name="pdate" class="solr.DatePointField" docValues="true"/>
+
+	<field name="metric" 		type="string" 	indexed="true" multiValued="false" stored="true" />
+	<field name="tag_key" 		type="string" 	indexed="true" multiValued="false" stored="true" />
+	<field name="tag_value" 	type="string" 	indexed="true" multiValued="false" stored="true" />
+	<field name="type" 			type="string" 	indexed="true" multiValued="false" stored="true" />
+	<field name="parent_doc" 	type="boolean" 	indexed="true" multiValued="false" stored="false" />
+	<field name="creation_date" type="pdate" 	indexed="true" multiValued="false" stored="true" />
+
+</schema>

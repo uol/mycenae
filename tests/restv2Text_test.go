@@ -15,7 +15,7 @@ import (
 
 func assertElasticText(t *testing.T, keyspace string, metric string, tags map[string]string, hashID string) {
 
-	lenTags := len(tags)
+	lenTags := len(tags) - 1 // no ksid tag
 
 	count := mycenaeTools.Solr.Timeseries.GetTextMetricPost(keyspace, metric)
 	assert.Equal(t, 1, count, "metric sent in the payload does not match the one in solr")
@@ -23,22 +23,21 @@ func assertElasticText(t *testing.T, keyspace string, metric string, tags map[st
 	meta := mycenaeTools.Solr.Timeseries.GetTextMeta(keyspace, hashID)
 	assert.Equal(t, hashID, meta.ID, "meta id corresponding to the payload does not match the one in solr")
 	assert.Equal(t, metric, meta.Metric, "metric sent in the payload does not match the one in solr")
-	assert.Equal(t, lenTags, len(meta.TagKey))
-	assert.Equal(t, lenTags, len(meta.TagValue))
+	assert.Equal(t, lenTags, len(meta.Tags))
 
-	for i := 0; i < len(meta.TagKey); i++ {
+	for i := 0; i < len(meta.Tags); i++ {
 
-		if meta.TagKey[i] == "ksid" || meta.TagKey[i] == "ttl" {
+		if meta.Tags[i].TagKey == "ttl" {
 			continue
 		}
 
-		_, ok := tags[meta.TagKey[i]]
+		_, ok := tags[meta.Tags[i].TagKey]
 		assert.True(t, ok, "tag key in solr was not sent in payload")
 
-		count := mycenaeTools.Solr.Timeseries.GetTextTagKeyPost(keyspace, meta.TagKey[i])
+		count := mycenaeTools.Solr.Timeseries.GetTextTagKeyPost(keyspace, meta.Tags[i].TagKey)
 		assert.Equal(t, 1, count, "tag key sent in the payload does not match the one in solr")
 
-		count = mycenaeTools.Solr.Timeseries.GetTextTagValuePost(keyspace, meta.TagValue[i])
+		count = mycenaeTools.Solr.Timeseries.GetTextTagValuePost(keyspace, meta.Tags[i].TagValue)
 		assert.Equal(t, 1, count, "tag value sent in the payload does not match the one in solr")
 	}
 }
@@ -46,11 +45,11 @@ func assertElasticText(t *testing.T, keyspace string, metric string, tags map[st
 func assertElasticTextEmpty(t *testing.T, keyspace string, metric string, tags map[string]string, hashID string) {
 
 	count := mycenaeTools.Solr.Timeseries.GetTextMetricPost(keyspace, metric)
-	assert.Equal(t, 0, count, "metric sent in the payload does not match the one in solr")
+	assert.Equal(t, 0, count, fmt.Sprintf("text metric sent in the payload does not match the one in solr: m=%s, tags=%+v, ks=%s", metric, tags, keyspace))
 
 	for tagKey, tagValue := range tags {
 
-		if tagKey == "ksid" || tagKey == "ttl" {
+		if tagKey == "ttl" {
 			continue
 		}
 

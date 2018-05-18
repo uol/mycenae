@@ -58,15 +58,14 @@ func TestMain(m *testing.M) {
 
 	flag.Parse()
 
-	ksMycenae = "ts_312486240"
-	ksMycenaeMeta = "ts_439299136"
-	ksMycenaeTsdb = "ts_75996059"
-	ksTTLKeyspace = "ts_647688581"
+	ksMycenae = "ts_719740709"
+	ksMycenaeMeta = "ts_272914037"
+	ksMycenaeTsdb = "ts_833635908"
+	ksTTLKeyspace = "ts_841517502"
 
 	if !skipSetup {
 
 		var wg sync.WaitGroup
-
 		ksMycenae = mycenaeTools.Mycenae.CreateKeySet(createKeySetName())
 		ksMycenaeMeta = mycenaeTools.Mycenae.CreateKeySet(createKeySetName())
 		ksMycenaeTsdb = mycenaeTools.Mycenae.CreateKeySet(createKeySetName())
@@ -86,7 +85,7 @@ func TestMain(m *testing.M) {
 
 		wg.Wait()
 
-		time.Sleep(time.Second * 20)
+		time.Sleep(time.Second * 30)
 	}
 
 	os.Exit(m.Run())
