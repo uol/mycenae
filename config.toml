@@ -122,6 +122,7 @@ AllowCORS = true
   IDCacheTTL = 0
   QueryCacheTTL = 0
   KeysetCacheTTL = 0
+  MaxReturnedTags = 20
 
 [memcached]
   pool = ["172.17.0.10:11211","172.17.0.11:11211","172.17.0.12:11211"]

@@ -30,8 +30,8 @@ type Backend interface {
 	// FilterMetrics - filter metrics from a collection
 	FilterMetrics(collection, prefix string, maxResults int) ([]string, int, gobol.Error)
 
-	// ListMetadata - list all metas from a collection
-	ListMetadata(collection, tsType string, includeMeta *Metadata, from, maxResults int) ([]Metadata, int, gobol.Error)
+	// FilterMetadata - list all metas from a collection
+	FilterMetadata(collection string, query *Query, from, maxResults int) ([]Metadata, int, gobol.Error)
 
 	// AddDocuments - add/update a document or a series of documents
 	AddDocuments(collection string, metadatas []Metadata) gobol.Error
@@ -39,11 +39,11 @@ type Backend interface {
 	// CheckMetadata - verifies if a metadata exists
 	CheckMetadata(collection, tsType, tsid string) (bool, gobol.Error)
 
-	// Query - executes a raw query
-	Query(collection, query string, from, maxResults int) ([]Metadata, int, gobol.Error)
-
 	// SetRegexValue - add slashes to the value
 	SetRegexValue(value string) string
+
+	// HasRegexPattern - check if the value has a regular expression
+	HasRegexPattern(value string) bool
 }
 
 // Storage is a storage for metadata
@@ -62,6 +62,7 @@ type Settings struct {
 	IDCacheTTL        int32
 	QueryCacheTTL     int32
 	KeysetCacheTTL    int32
+	MaxReturnedTags   int
 }
 
 // Metadata document
@@ -71,6 +72,22 @@ type Metadata struct {
 	TagKey   []string `json:"tagKey"`
 	TagValue []string `json:"tagValue"`
 	MetaType string   `json:"type"`
+}
+
+// Query - query
+type Query struct {
+	Metric   string     `json:"metric"`
+	MetaType string     `json:"type"`
+	Regexp   bool       `json:regexp`
+	Tags     []QueryTag `json:"tags"`
+}
+
+// QueryTag - tags for query
+type QueryTag struct {
+	Key    string   `json:"key"`
+	Values []string `json:value`
+	Negate bool     `json:negate`
+	Regexp bool     `json:regexp`
 }
 
 // Create creates a metadata handler

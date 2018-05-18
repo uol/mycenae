@@ -109,7 +109,7 @@ func (collect *Collector) generateBulk(packet Point) gobol.Error {
 	}
 
 	if exists {
-		statsCountNewTimeseries(packet.Keyset, metaType, packet.TTL)
+		statsCountOldTimeseries(packet.Keyset, metaType, packet.TTL)
 		return nil
 	} else {
 		statsCountNewTimeseries(packet.Keyset, metaType, packet.TTL)
@@ -121,8 +121,10 @@ func (collect *Collector) generateBulk(packet Point) gobol.Error {
 
 	var tagKeys, tagValues []string
 	for key, value := range packet.Message.Tags {
-		tagKeys = append(tagKeys, key)
-		tagValues = append(tagValues, value)
+		if key != "ksid" {
+			tagKeys = append(tagKeys, key)
+			tagValues = append(tagValues, value)
+		}
 	}
 
 	metadata := metadata.Metadata{

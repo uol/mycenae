@@ -3,7 +3,9 @@ package metadata
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
+	"github.com/mitchellh/hashstructure"
 	"github.com/uol/gobol"
 	"github.com/uol/mycenae/lib/tserr"
 )
@@ -95,10 +97,24 @@ func (sb *SolrBackend) deleteCachedKeySetMap() gobol.Error {
 	return nil
 }
 
-// getCachedFacets - return all cached facets from the query
-func (sb *SolrBackend) getCachedFacets(collection, field, query string) ([]string, gobol.Error) {
+// hash - creates a new hash from a given string
+func (sb *SolrBackend) hash(query *Query) (string, gobol.Error) {
+	hash, err := hashstructure.Hash(*query, nil)
+	if err != nil {
+		return "", errInternalServer("hash", err)
+	}
+	return strconv.FormatUint(hash, 10), nil
+}
 
-	f, gerr := sb.memcached.Get(facetsNamespace, collection, field, query)
+// getCachedFacets - return all cached facets from the query
+func (sb *SolrBackend) getCachedFacets(collection, field string, query *Query) ([]string, gobol.Error) {
+
+	hash, gerr := sb.hash(query)
+	if gerr != nil {
+		return nil, gerr
+	}
+
+	f, gerr := sb.memcached.Get(facetsNamespace, collection, field, hash)
 	if gerr != nil {
 		return nil, gerr
 	}
@@ -117,7 +133,7 @@ func (sb *SolrBackend) getCachedFacets(collection, field, query string) ([]strin
 }
 
 // cacheFacets - caches the facets
-func (sb *SolrBackend) cacheFacets(facets []string, collection, field, query string) gobol.Error {
+func (sb *SolrBackend) cacheFacets(facets []string, collection, field string, query *Query) gobol.Error {
 
 	if facets == nil || len(facets) == 0 {
 		return nil
@@ -128,7 +144,12 @@ func (sb *SolrBackend) cacheFacets(facets []string, collection, field, query str
 		return tserr.New(err, "error converting string array to binary", http.StatusInternalServerError, nil)
 	}
 
-	gerr := sb.memcached.Put(data, sb.queryCacheTTL, facetsNamespace, collection, field, query)
+	hash, gerr := sb.hash(query)
+	if gerr != nil {
+		return gerr
+	}
+
+	gerr = sb.memcached.Put(data, sb.queryCacheTTL, facetsNamespace, collection, field, hash)
 	if gerr != nil {
 		return gerr
 	}

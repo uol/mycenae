@@ -276,7 +276,6 @@ func checkMetadata(t *testing.T, uri string) {
 		delete(ttlTagMap, ttl)
 
 		assert.True(t, payload.Metric == NUMBER_METRIC || payload.Metric == TEXT_METRIC, "unexpected metric %s found", payload.Metric)
-		assert.True(t, payload.Tags["ksid"] == ttlKeyspaceKeySet, "unexpected ksid %s found", payload.Tags["ksid"])
 
 		if value, ok := payload.Tags[HOST_TAG_KEY]; !ok {
 			assert.Fail(t, "tag key %s was not found", HOST_TAG_KEY)

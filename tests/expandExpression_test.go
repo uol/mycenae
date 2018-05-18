@@ -393,9 +393,12 @@ func TestExpandValidQuery(t *testing.T) {
 
 		assert.Equal(t, len(data.response), len(response), test)
 
-		for i := 0; i < len(response); i++ {
+		if len(data.response) == len(response) {
 
-			assert.Equal(t, data.response[i], response[i], test)
+			for i := 0; i < len(response); i++ {
+
+				assert.Equal(t, data.response[i], response[i], test)
+			}
 		}
 	}
 

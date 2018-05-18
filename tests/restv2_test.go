@@ -15,41 +15,38 @@ import (
 
 func assertElastic(t *testing.T, keyspace string, metric string, tags map[string]string, hashID string) {
 
-	lenTags := len(tags)
+	lenTags := len(tags) - 1 // remove ksid
 
-	meta := mycenaeTools.Solr.Timeseries.GetMeta(tags["ksid"], hashID)
+	meta := mycenaeTools.Solr.Timeseries.GetMeta(keyspace, hashID)
 	assert.Equal(t, hashID, meta.ID, "meta id corresponding to the payload does not match the one in solr")
 	assert.Equal(t, metric, meta.Metric, "metric sent in the payload does not match the one in solr")
-	assert.Equal(t, lenTags, len(meta.TagKey))
-	assert.Equal(t, lenTags, len(meta.TagValue))
-	for i, k := range meta.TagKey {
-		if value, ok := tags[k]; ok {
-			assert.Equal(t, value, meta.TagValue[i])
-		} else {
-			assert.Fail(t, "value for key "+k+" was not found")
-		}
+	assert.Equal(t, lenTags, len(meta.Tags))
+	for _, tag := range meta.Tags {
+		value, ok := tags[tag.TagKey]
+		assert.True(t, ok, fmt.Sprintf("tag key %s not found", tag.TagKey))
+		assert.Equal(t, value, tag.TagValue)
 	}
 }
 
 func assertElasticEmpty(t *testing.T, keyspace string, metric string, tags map[string]string, hashID string) {
 
-	count := mycenaeTools.Solr.Timeseries.GetMetricPost(tags["ksid"], metric)
-	assert.Equal(t, 0, count, "metric sent in the payload does not match the one in solr")
+	count := mycenaeTools.Solr.Timeseries.GetMetricPost(keyspace, metric)
+	assert.Equal(t, 0, count, fmt.Sprintf("metric sent in the payload does not match the one in solr: m=%s, tags=%+v, ks=%s", metric, tags, keyspace))
 
 	for tagKey, tagValue := range tags {
 
-		if tagKey == "ksid" || tagKey == "ttl" {
+		if tagKey == "ttl" {
 			continue
 		}
 
-		count := mycenaeTools.Solr.Timeseries.GetTagKeyPost(tags["ksid"], tagKey)
+		count := mycenaeTools.Solr.Timeseries.GetTagKeyPost(keyspace, tagKey)
 		assert.Equal(t, 0, count)
 
-		count = mycenaeTools.Solr.Timeseries.GetTagValuePost(tags["ksid"], tagValue)
+		count = mycenaeTools.Solr.Timeseries.GetTagValuePost(keyspace, tagValue)
 		assert.Equal(t, 0, count)
 	}
 
-	meta := mycenaeTools.Solr.Timeseries.GetMeta(tags["ksid"], hashID)
+	meta := mycenaeTools.Solr.Timeseries.GetMeta(keyspace, hashID)
 	assert.Nil(t, meta, "document has been found when it should not")
 }
 

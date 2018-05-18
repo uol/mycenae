@@ -15,6 +15,7 @@ import:
 - package: github.com/pborman/uuid
   version: ~1.1.0
 - package: github.com/uol/gobol
+  version: ^1.6.1
   subpackages:
   - cassandra
   - loader
@@ -22,7 +23,6 @@ import:
   - saw
   - snitch
   - solr
-  version: ^1.2
 - package: go.uber.org/zap
   version: ~1.7.1
   subpackages:
@@ -35,7 +35,8 @@ import:
 - package: gopkg.in/robfig/cron.v2
   version: ~1.0.0
 - package: github.com/uol/go-solr
-  version: ^0.5.0
+  version: ^0.8.1
+- package: github.com/mitchellh/hashstructure
 testImport:
 - package: github.com/stretchr/testify
   version: ~1.2.1
