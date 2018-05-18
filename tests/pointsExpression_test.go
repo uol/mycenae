@@ -244,6 +244,7 @@ func ts4TsdbExpression(startTime int) (string, string) {
 func postExpressionAndCheck(t *testing.T, expression, metric string, p, dps, tags, aggtags, tsuuidSize int) ([]tools.ResponseQuery, []string) {
 
 	path := fmt.Sprintf("keysets/%s/query/expression?tsuid=true&exp=%s", ksMycenae, expression)
+
 	code, response, err := mycenaeTools.HTTP.GET(path)
 	if err != nil {
 		t.Error(err)
