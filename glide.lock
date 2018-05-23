@@ -1,5 +1,5 @@
-hash: 47ed449ef034abcf6b857cab69e0d4bd167e84d90b8c76498a5aff81f0181697
-updated: 2018-05-17T19:50:27.302711965-03:00
+hash: 4ecbbc692f04a6c961e0810529a0559f30bca142efd521a8c3129b201d771264
+updated: 2018-05-22T20:47:29.570771577-03:00
 imports:
 - name: github.com/armon/go-metrics
   version: 783273d703149aaeb9897cf58613d5af48861c25
@@ -62,7 +62,7 @@ imports:
   subpackages:
   - solr
 - name: github.com/uol/gobol
-  version: edc4f3e14c963a283d0a620a9f762ad182a41a1e
+  version: 51e7126b47c0dd68cd96182ab242b9eab263a1ed
   subpackages:
   - cassandra
   - loader

@@ -28,6 +28,7 @@ type SolrBackend struct {
 	queryCacheTTL     int32
 	keysetCacheTTL    int32
 	fieldListQuery    string
+	zookeeperConfig   string
 }
 
 // NewSolrBackend - creates a new instance
@@ -53,6 +54,7 @@ func NewSolrBackend(settings *Settings, stats *tsstats.StatsTS, logger *zap.Logg
 		queryCacheTTL:     settings.QueryCacheTTL,
 		keysetCacheTTL:    settings.KeysetCacheTTL,
 		fieldListQuery:    fmt.Sprintf("*,[child parentFilter=parent_doc:true limit=%d]", settings.MaxReturnedTags),
+		zookeeperConfig:   settings.ZookeeperConfig,
 	}, nil
 }
 

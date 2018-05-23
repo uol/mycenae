@@ -15,7 +15,7 @@ import (
 func (sb *SolrBackend) CreateKeySet(collection string) gobol.Error {
 
 	start := time.Now()
-	err := sb.solrService.CreateCollection(collection, sb.numShards, sb.replicationFactor)
+	err := sb.solrService.CreateCollection(collection, sb.zookeeperConfig, sb.numShards, sb.replicationFactor)
 	if err != nil {
 		lf := []zapcore.Field{
 			zap.String("package", "metadata"),

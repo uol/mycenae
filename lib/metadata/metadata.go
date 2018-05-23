@@ -63,6 +63,7 @@ type Settings struct {
 	QueryCacheTTL     int32
 	KeysetCacheTTL    int32
 	MaxReturnedTags   int
+	ZookeeperConfig   string
 }
 
 // Metadata document

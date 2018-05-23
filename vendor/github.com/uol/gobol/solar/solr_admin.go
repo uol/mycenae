@@ -96,7 +96,7 @@ func (ss *SolrService) getSchema(collection string) (*solr.Schema, error) {
 }
 
 // CreateCollection - creates a new collection
-func (ss *SolrService) CreateCollection(collection string, numShards, replicationFactor int) error {
+func (ss *SolrService) CreateCollection(collection, configSet string, numShards, replicationFactor int) error {
 
 	lf := []zapcore.Field{
 		zap.String("package", "solar"),
@@ -108,6 +108,10 @@ func (ss *SolrService) CreateCollection(collection string, numShards, replicatio
 	params.Add("numShards", strconv.Itoa(numShards))
 	params.Add("replicationFactor", strconv.Itoa(replicationFactor))
 	params.Add("waitForFinalState", "true")
+
+	if configSet != "" {
+		params.Add("collection.configName", configSet)
+	}
 
 	ss.logger.Info(fmt.Sprintf("creating collection: %s", collection), lf...)
 
