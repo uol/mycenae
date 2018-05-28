@@ -454,7 +454,7 @@ func (sb *SolrBackend) toDocuments(metadatas []Metadata) []solr.Document {
 			"metric":           meta.Metric,
 			"type":             meta.MetaType,
 			"parent_doc":       true,
-			"creation_date":    time.Now(),
+			"creation_date":    time.UTC,
 			"_childDocuments_": tagDocs,
 		}
 	}
