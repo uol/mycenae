@@ -116,11 +116,11 @@ func (collect *Collector) worker(id int, jobChannel <-chan workerData) {
 					lf = append(lf, zap.String(k, v))
 				}
 			}
-			jsonStr, err := json.Marshal(j.point)
-			if err != nil {
-				gblog.Error("point lost (error converting to string)...", lf...)
+			jsonStr, errj := json.Marshal(j.point)
+			if errj != nil {
+				gblog.Error(fmt.Sprintf("point lost (error converting to string): %s", err.Error()), lf...)
 			} else {
-				gblog.Error(fmt.Sprintf("point lost: %s", jsonStr), lf...)
+				gblog.Error(fmt.Sprintf("point lost (%s): %s", jsonStr, err.Error()), lf...)
 			}
 		} else {
 			statsPoints(j.point.Tags["ksid"], collect.getType(j.number), j.source, j.point.Tags["ttl"])

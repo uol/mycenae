@@ -26,13 +26,13 @@ func (sb *SolrBackend) isIDCached(collection, tsType, tsid string) (bool, gobol.
 		return false, err
 	}
 
-	return (r != nil && len(r) > 0), nil
+	return len(r) > 0, nil
 }
 
 // cacheID - caches an ID
 func (sb *SolrBackend) cacheID(collection, tsType, tsid string) gobol.Error {
 
-	err := sb.memcached.Put([]byte(tsid), sb.idCacheTTL, idNamespace, collection, tsType)
+	err := sb.memcached.Put([]byte(tsid), sb.idCacheTTL, idNamespace, collection, tsType, tsid)
 	if err != nil {
 		return err
 	}

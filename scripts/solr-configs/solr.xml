@@ -28,6 +28,9 @@
 
 <solr>
 
+  <str name="coreRootDirectory">cores</str>
+  <str name="configSetBaseDir">/opt/solr-conf/</str> 
+
   <solrcloud>
 
     <str name="host">${host:}</str>

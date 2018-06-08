@@ -401,12 +401,6 @@ func (sb *SolrBackend) buildMetadataQuery(query *Query, parentQueryOnly bool) (s
 		}
 	}
 
-	//remove
-	fmt.Printf("Parent - %+v\n", parentQuery)
-	for _, i := range filterQueries {
-		fmt.Printf("Children - %+v\n", i)
-	}
-
 	return parentQuery, filterQueries
 }
 
