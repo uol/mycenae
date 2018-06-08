@@ -2,9 +2,6 @@ package: github.com/uol/mycenae
 import:
 - package: github.com/asaskevich/govalidator
   version: ~9.0.0
-- package: github.com/bradfitz/gomemcache
-  subpackages:
-  - memcache
 - package: github.com/gocql/gocql
 - package: github.com/golang/protobuf
   version: ~1.0.0
@@ -37,6 +34,7 @@ import:
 - package: github.com/uol/go-solr
   version: ^0.8.1
 - package: github.com/mitchellh/hashstructure
+- package: github.com/rainycape/memcache
 testImport:
 - package: github.com/stretchr/testify
   version: ~1.2.1

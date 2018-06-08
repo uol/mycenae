@@ -3,7 +3,7 @@ package memcached
 import (
 	"time"
 
-	"github.com/bradfitz/gomemcache/memcache"
+	"github.com/rainycape/memcache"
 	"github.com/uol/gobol"
 	"github.com/uol/mycenae/lib/tsstats"
 )
@@ -28,12 +28,17 @@ func New(s *tsstats.StatsTS, c *Configuration) (*Memcached, gobol.Error) {
 
 	stats = s
 
-	mc := &Memcached{
-		client: memcache.New(c.Pool...),
+	client, err := memcache.New(c.Pool...)
+	if err != nil {
+		return nil, errInternalServerErrorM("New", "error creating a new memcached client")
 	}
 
-	mc.client.MaxIdleConns = c.MaxIdleConns
-	mc.client.Timeout = time.Duration(c.Timeout) * time.Millisecond
+	mc := &Memcached{
+		client: client,
+	}
+
+	mc.client.SetMaxIdleConnsPerAddr(c.MaxIdleConns)
+	mc.client.SetTimeout(time.Duration(c.Timeout) * time.Millisecond)
 
 	return mc, nil
 }
@@ -42,7 +47,7 @@ func New(s *tsstats.StatsTS, c *Configuration) (*Memcached, gobol.Error) {
 func (mc *Memcached) fqn(namespace string, fqnKeys ...string) (string, gobol.Error) {
 
 	if fqnKeys == nil || len(fqnKeys) == 0 {
-		return "", errInternalServerErrorM("fqn", "No ")
+		return "", errInternalServerErrorM("fqn", "no fqn composition keys found")
 	}
 
 	result := namespace + "/"

@@ -1,5 +1,5 @@
-hash: 4ecbbc692f04a6c961e0810529a0559f30bca142efd521a8c3129b201d771264
-updated: 2018-05-22T20:47:29.570771577-03:00
+hash: 3da492f9b7d03d97dcba708b5bc26b58fda2df4a8b2b331a0c868d6281b93858
+updated: 2018-05-31T14:32:41.253794723-03:00
 imports:
 - name: github.com/armon/go-metrics
   version: 783273d703149aaeb9897cf58613d5af48861c25
@@ -55,6 +55,8 @@ imports:
   version: 2bca23e0e452137f789efbc8610126fd8b94f73b
 - name: github.com/pborman/uuid
   version: e790cca94e6cc75c7064b1332e63811d4aae1a53
+- name: github.com/rainycape/memcache
+  version: 1031fa0ce2f20c1c0e1e1b51951d8ea02c84fa05
 - name: github.com/robfig/cron
   version: b41be1df696709bb6395fe435af20370037c0b4c
 - name: github.com/uol/go-solr

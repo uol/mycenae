@@ -1,6 +1,6 @@
 #!/bin/bash
 
-image="test-scylla:latest"
+image="jenkins.macs.intranet:5000/mycenae/scylladb:v1"
 pod_name="scylla$1"
 
 pod_arguments=(
