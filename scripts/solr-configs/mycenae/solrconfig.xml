@@ -16,7 +16,7 @@
   <lib dir="${solr.install.dir:../../../..}/contrib/velocity/lib" regex=".*\.jar" />
   <lib dir="${solr.install.dir:../../../..}/dist/" regex="solr-velocity-\d.*\.jar" />
 
-  <dataDir>/opt/solr-data/</dataDir>
+  <!-- <dataDir>/opt/solr-data/</dataDir> -->
 
 
   <directoryFactory name="DirectoryFactory"
@@ -52,14 +52,14 @@
 
   </updateHandler>
 
-  <updateRequestProcessorChain name="ignore-commit-from-client" default="true">
+  <!-- <updateRequestProcessorChain name="ignore-commit-from-client" default="true">
     <processor class="solr.IgnoreCommitOptimizeUpdateProcessorFactory">
       <int name="statusCode">200</int>
     </processor>
     <processor class="solr.LogUpdateProcessorFactory" />
     <processor class="solr.DistributedUpdateProcessorFactory" />
     <processor class="solr.RunUpdateProcessorFactory" />
-  </updateRequestProcessorChain>
+  </updateRequestProcessorChain> -->
 
   <query>
 
