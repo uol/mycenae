@@ -13,11 +13,13 @@ checkScyllaUpNodes () {
 }
 
 ./start_scylla.sh 1
-sleep 20
+sleep 30
 ./start_scylla.sh 2
+sleep 30
 ./start_scylla.sh 3
+sleep 30
 
-checkScyllaUpNodes 1
+checkScyllaUpNodes 3
 
 docker cp $GOPATH/src/github.com/uol/mycenae/docs/scylladb.cql scylla1:/tmp/
 scyllaIP=$(docker inspect --format "{{ .NetworkSettings.IPAddress }}" scylla1)
