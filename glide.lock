@@ -1,14 +1,10 @@
-hash: 3da492f9b7d03d97dcba708b5bc26b58fda2df4a8b2b331a0c868d6281b93858
-updated: 2018-05-31T14:32:41.253794723-03:00
+hash: 53a8bb61d46ea8006d277e6e57558cd089d014b16dfc8c722416cc03ca094269
+updated: 2018-06-19T14:29:26.607656716-03:00
 imports:
 - name: github.com/armon/go-metrics
   version: 783273d703149aaeb9897cf58613d5af48861c25
 - name: github.com/asaskevich/govalidator
   version: ccb8e960c48f04d6935e72476ae4a51028f9e22f
-- name: github.com/bradfitz/gomemcache
-  version: 1952afaa557dc08e8e0d89eafab110fb501c1a2b
-  subpackages:
-  - memcache
 - name: github.com/BurntSushi/toml
   version: b26d9c308763d68093482582cea63d69be07a0f0
 - name: github.com/gocql/gocql
@@ -64,7 +60,7 @@ imports:
   subpackages:
   - solr
 - name: github.com/uol/gobol
-  version: 51e7126b47c0dd68cd96182ab242b9eab263a1ed
+  version: 9b9bf2f03d711f7a0fbb1c205d41342a6a29b1e7
   subpackages:
   - cassandra
   - loader
@@ -72,7 +68,6 @@ imports:
   - saw
   - snitch
   - solar
-  - solr
 - name: go.uber.org/atomic
   version: 1ea20fb1cbb1cc08cbd0d913a96dead89aa18289
 - name: go.uber.org/multierr
@@ -147,6 +142,6 @@ testImports:
   subpackages:
   - difflib
 - name: github.com/stretchr/testify
-  version: 12b6f73e6084dad08a7c6e575284b177ecafbc71
+  version: f35b8ab0b5a2cef36673838d662e249dd9c94686
   subpackages:
   - assert

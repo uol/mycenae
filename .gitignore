@@ -2,6 +2,7 @@
 *~
 mycenae
 .idea
+.vscode
 *.iml
 debug
 run-test
