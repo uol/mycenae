@@ -111,9 +111,9 @@ func (collect *Collector) generateBulk(packet Point) gobol.Error {
 	if exists {
 		statsCountOldTimeseries(packet.Keyset, metaType, packet.TTL)
 		return nil
-	} else {
-		statsCountNewTimeseries(packet.Keyset, metaType, packet.TTL)
 	}
+	
+	statsCountNewTimeseries(packet.Keyset, metaType, packet.TTL)
 
 	if _, ok := collect.metadataMap[packet.Keyset]; !ok {
 		collect.metadataMap[packet.Keyset] = []metadata.Metadata{}
