@@ -98,3 +98,63 @@ func (ss *SolrService) AddDocuments(collection string, commit bool, docs ...solr
 
 	return nil
 }
+
+// DeleteDocumentByID - delete a document by ID and its child documents
+func (ss *SolrService) DeleteDocumentByID(collection string, commit bool, id string) error {
+
+	lf := []zapcore.Field{
+		zap.String("package", "solar"),
+		zap.String("func", "DeleteDocumentByID"),
+	}
+
+	if id == "" {
+		return errors.New("document id not informed, no document will be deleted")
+	}
+
+	query := fmt.Sprintf("id:%s", id)
+
+	err := ss.DeleteDocumentByQuery(collection, commit, query)
+	if err != nil {
+		ss.logger.Error(fmt.Sprintf("error deleting document %s of collection %s: %s", id, collection, err.Error()), lf...)
+		return err
+	}
+
+	return nil
+}
+
+// DeleteDocumentByQuery - delete document by query
+func (ss *SolrService) DeleteDocumentByQuery(collection string, commit bool, query string) error {
+
+	lf := []zapcore.Field{
+		zap.String("package", "solar"),
+		zap.String("func", "DeleteDocumentByQuery"),
+	}
+
+	if query == "" {
+		return errors.New("query not informed, no document will be deleted")
+	}
+
+	si, err := ss.getSolrInterface(collection)
+	if err != nil {
+		ss.logger.Error("error getting solr interface", lf...)
+		return err
+	}
+
+	params := &url.Values{}
+	if commit {
+		params.Add("commit", "true")
+	}
+
+	doc := map[string]interface{}{}
+	doc["query"] = query
+
+	_, err = si.Delete(doc, params)
+	if err != nil {
+		ss.logger.Error(fmt.Sprintf("error deleting document of collection %s with query %s: %s", collection, query, err.Error()), lf...)
+		return err
+	}
+
+	ss.logger.Info(fmt.Sprintf("deleted document(s) of collection %s with query %s", collection, query), lf...)
+
+	return nil
+}

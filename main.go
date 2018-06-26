@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -14,6 +13,7 @@ import (
 
 	"go.uber.org/zap/zapcore"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/uol/gobol/cassandra"
 	"github.com/uol/gobol/loader"
 	"github.com/uol/gobol/saw"
@@ -32,6 +32,8 @@ import (
 	"github.com/uol/mycenae/lib/tsstats"
 	"github.com/uol/mycenae/lib/udp"
 )
+
+var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 func main() {
 	fmt.Println("Starting Mycenae")

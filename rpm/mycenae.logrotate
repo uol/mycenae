@@ -1,9 +1,0 @@
-/var/log/mycenae/*.log-* {
-    daily
-    rotate 7
-    copytruncate
-    compress
-    notifempty
-    missingok
-    olddir /var/log/mycenae
-}

@@ -33,7 +33,6 @@ Mycenae is a timeseries database that uses scylla, memcached and elasticsearch a
 cd ${GOPATH}/src/github.com/uol/%{projectname}
 make build
 
-
 #------------------------------------------------------------------------------
 # I N S T A L L  F I L E S
 #------------------------------------------------------------------------------
@@ -42,9 +41,6 @@ buildtmp=${GOPATH}/src/github.com/uol/%{projectname}
 rm -rf "%{buildroot}"
 install -m 755 -d "%{buildroot}"/opt/%{projectname}/bin
 install -m 755 ${buildtmp}/%{binaryname} "%{buildroot}"/opt/%{projectname}/bin
-install -m 755 -d "%{buildroot}"/export/logs/%{projectname}
-install -m 755 -d "%{buildroot}"/etc/logrotate.d
-install -m 644 ${buildtmp}/rpm/%{binaryname}.logrotate "%{buildroot}"/etc/logrotate.d/%{projectname}
 install -m 755 -d "%{buildroot}"/lib/systemd/system
 install -m 755 ${buildtmp}/rpm/%{projectname}.service "%{buildroot}"/lib/systemd/system/%{projectname}.service
 install -m 755 -d "%{buildroot}"/etc/sysconfig/
@@ -96,9 +92,6 @@ setcap CAP_NET_BIND_SERVICE=+eip /opt/%{projectname}/bin/%{projectname}
 #------------------------------------------------------------------------------
 %files
 %attr(0755, root, root) /opt/%{projectname}/bin/%{binaryname}
-%attr(0644, root, root) /etc/logrotate.d/%{projectname}
-%dir /export/logs/%{projectname}
-%attr(0755, %{binaryname}, %{binaryname}) /export/logs/%{projectname}
 %dir /var/run/%{projectname}
 %attr(0755, %{binaryname}, root) /var/run/%{projectname}
 %dir /lib/systemd/system
