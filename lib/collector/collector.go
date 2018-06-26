@@ -1,7 +1,6 @@
 package collector
 
 import (
-	"encoding/json"
 	"fmt"
 	"hash/crc32"
 	"regexp"
@@ -12,6 +11,7 @@ import (
 	"go.uber.org/zap/zapcore"
 
 	"github.com/gocql/gocql"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/uol/gobol"
 	"go.uber.org/zap"
 
@@ -24,6 +24,7 @@ import (
 var (
 	gblog *zap.Logger
 	stats *tsstats.StatsTS
+	json  = jsoniter.ConfigCompatibleWithStandardLibrary
 )
 
 func New(
