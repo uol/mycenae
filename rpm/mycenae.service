@@ -10,6 +10,10 @@ User=mycenae
 Group=mycenae
 LimitNOFILE=65535
 LimitNPROC=65535
+LimitMEMLOCK=infinity
+LimitNOFILE=800000
+LimitAS=infinity
+MemoryLimit=14G
 
 [Install]
 Alias=mycenae.service

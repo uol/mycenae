@@ -1,14 +1,16 @@
 package metadata
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/mitchellh/hashstructure"
 	"github.com/uol/gobol"
 	"github.com/uol/mycenae/lib/tserr"
 )
+
+var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 // Manages the the metadata cache
 // @author rnojiri

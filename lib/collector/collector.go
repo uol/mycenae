@@ -1,7 +1,6 @@
 package collector
 
 import (
-	"encoding/json"
 	"fmt"
 	"hash/crc32"
 	"regexp"
@@ -12,6 +11,7 @@ import (
 	"go.uber.org/zap/zapcore"
 
 	"github.com/gocql/gocql"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/uol/gobol"
 	"go.uber.org/zap"
 
@@ -24,6 +24,7 @@ import (
 var (
 	gblog *zap.Logger
 	stats *tsstats.StatsTS
+	json  = jsoniter.ConfigCompatibleWithStandardLibrary
 )
 
 func New(
@@ -116,12 +117,7 @@ func (collect *Collector) worker(id int, jobChannel <-chan workerData) {
 					lf = append(lf, zap.String(k, v))
 				}
 			}
-			jsonStr, errj := json.Marshal(j.point)
-			if errj != nil {
-				gblog.Error(fmt.Sprintf("point lost (error converting to string): %s", err.Error()), lf...)
-			} else {
-				gblog.Error(fmt.Sprintf("point lost (%s): %s", jsonStr, err.Error()), lf...)
-			}
+			collect.logPointError(&j.point, err, lf)
 		} else {
 			statsPoints(j.point.Tags["ksid"], collect.getType(j.number), j.source, j.point.Tags["ttl"])
 		}
