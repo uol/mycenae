@@ -554,3 +554,43 @@ func (sb *SolrBackend) CheckMetadata(collection, tsType, tsid string) (bool, gob
 
 	return false, nil
 }
+
+// DeleteDocumentByID - delete a document by ID and its child documents
+func (sb *SolrBackend) DeleteDocumentByID(collection, tsType, id string) gobol.Error {
+
+	start := time.Now()
+
+	lf := []zapcore.Field{
+		zap.String("package", "metadata"),
+		zap.String("func", "DeleteDocumentByID"),
+		zap.String("id", id),
+	}
+
+	queryID := fmt.Sprintf("/%s.*/", id)
+
+	err := sb.solrService.DeleteDocumentByID(collection, true, queryID)
+	if err != nil {
+		sb.statsCollectionError(collection, "delete_document", "solr.collection.delete")
+		return errInternalServer("DeleteDocumentByID", err)
+	}
+
+	isCached, er := sb.isIDCached(collection, tsType, id)
+	if er != nil {
+		sb.logger.Error("error getting tsid from the cache", lf...)
+		return errInternalServer("DeleteDocumentByID", er)
+	}
+
+	if isCached {
+		er = sb.deleteCacheID(collection, tsType, id)
+		if er != nil {
+			sb.logger.Error("error deleting tsid from cache", lf...)
+			return errInternalServer("DeleteDocumentByID", er)
+		}
+
+		sb.logger.Info("deleted cached tsid", lf...)
+	}
+
+	sb.statsCollectionAction(collection, "delete_document", "solr.collection.delete", time.Since(start))
+
+	return nil
+}

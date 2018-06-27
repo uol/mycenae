@@ -12,7 +12,7 @@ func (plot Plot) validateKeySet(keyset string) gobol.Error {
 		return gerr
 	}
 	if !found {
-		return errNotFound("ListTags")
+		return errNotFound("validateKeySet")
 	}
 
 	return nil
@@ -149,6 +149,11 @@ func (plot Plot) extractTagMap(metadata *metadata.Metadata) map[string]string {
 func (plot Plot) ListMeta(keySet, tsType, metric string, tags map[string]string, onlyids bool, size, from int) ([]TsMetaInfo, int, gobol.Error) {
 
 	from, size = plot.checkParams(from, size)
+
+	err := plot.validateKeySet(keySet)
+	if err != nil {
+		return nil, 0, errNotFound("ListMeta")
+	}
 
 	metadatas, total, gerr := plot.persist.metaStorage.FilterMetadata(keySet, plot.toMetaParam(metric, tsType, tags), from, size)
 

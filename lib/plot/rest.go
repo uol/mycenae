@@ -501,3 +501,88 @@ func (plot *Plot) listMeta(w http.ResponseWriter, r *http.Request, ps httprouter
 	rip.SuccessJSON(w, http.StatusOK, out)
 	return
 }
+
+// DeleteNumberTS - delete number serie(s)
+func (plot *Plot) DeleteNumberTS(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	plot.deleteTS(w, r, ps, "meta", map[string]string{"path": "/keysets/#keyset/delete/meta"})
+}
+
+// DeleteTextTS - delete text serie(s)
+func (plot *Plot) DeleteTextTS(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	plot.deleteTS(w, r, ps, "metatext", map[string]string{"path": "/keysets/#keyset/delete/text/meta"})
+}
+
+func (plot *Plot) deleteTS(w http.ResponseWriter, r *http.Request, ps httprouter.Params, tsType string, smap map[string]string) {
+
+	keyset := ps.ByName("keyset")
+	if keyset == "" {
+		smap["keyset"] = "empty"
+		rip.AddStatsMap(r, smap)
+		rip.Fail(w, errNotFound("deleteTS"))
+		return
+	}
+
+	smap["keyset"] = keyset
+	rip.AddStatsMap(r, smap)
+
+	err := plot.validateKeySet(keyset)
+	if err != nil {
+		rip.Fail(w, errNotFound("deleteTS"))
+		return
+	}
+
+	query := TSmeta{}
+
+	gerr := rip.FromJSON(r, &query)
+	if gerr != nil {
+		rip.Fail(w, gerr)
+		return
+	}
+
+	tags := map[string]string{}
+
+	for _, tag := range query.Tags {
+		tags[tag.Key] = tag.Value
+	}
+
+	onlyids := false
+	from := 0
+	size := plot.defaultMaxResults
+
+	keys, total, gerr := plot.ListMeta(keyset, tsType, query.Metric, tags, onlyids, size, from)
+	if gerr != nil {
+		rip.Fail(w, gerr)
+		return
+	}
+	if len(keys) == 0 {
+		gerr := errNoContent("deleteTS")
+		rip.Fail(w, gerr)
+		return
+	}
+
+	out := Response{
+		TotalRecords: total,
+		Payload:      keys,
+	}
+
+	q := r.URL.Query()
+	commit := q.Get("commit")
+
+	if commit != "true" {
+
+		rip.SuccessJSON(w, http.StatusOK, out)
+
+	} else {
+
+		for _, key := range keys {
+			gerr = plot.persist.metaStorage.DeleteDocumentByID(keyset, tsType, key.TsId)
+			if err != nil {
+				rip.Fail(w, gerr)
+				return
+			}
+		}
+
+		rip.SuccessJSON(w, http.StatusAccepted, out)
+		return
+	}
+}
