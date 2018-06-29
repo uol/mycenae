@@ -81,10 +81,6 @@ func (sb *SolrBackend) getCachedKeySetMap() (map[string]bool, gobol.Error) {
 // cacheKeysetMap - caches the keyset map
 func (sb *SolrBackend) cacheKeySetMap(keysets []string) (map[string]bool, gobol.Error) {
 
-	if sb.keysetCacheTTL < 0 {
-        return nil, nil
-	}
-
 	if keysets == nil || len(keysets) == 0 {
 		return nil, nil
 	}
@@ -92,6 +88,10 @@ func (sb *SolrBackend) cacheKeySetMap(keysets []string) (map[string]bool, gobol.
 	keysetMap := map[string]bool{}
 	for _, v := range keysets {
 		keysetMap[v] = true
+	}
+
+	if sb.keysetCacheTTL < 0 {
+        return keysetMap, nil
 	}
 
 	data, err := json.Marshal(keysetMap)
