@@ -593,7 +593,7 @@ func (sb *SolrBackend) DeleteCachedIDifExist(collection, tsType, id string) gobo
 	}
 
 	if isCached {
-		er = sb.deleteCacheID(collection, tsType, id)
+		er = sb.deleteCachedID(collection, tsType, id)
 		if er != nil {
 			sb.logger.Error("error deleting tsid from cache", lf...)
 			return errInternalServer("DeleteCachedIDifExist", er)

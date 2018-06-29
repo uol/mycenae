@@ -47,7 +47,7 @@ func (sb *SolrBackend) cacheID(collection, tsType, tsid string) gobol.Error {
 }
 
 // deleteID - remove cached id
-func (sb *SolrBackend) deleteCacheID(collection, tsType, tsid string) gobol.Error {
+func (sb *SolrBackend) deleteCachedID(collection, tsType, tsid string) gobol.Error {
 
 	err := sb.memcached.Delete(idNamespace, collection, tsType, tsid)
 	if err != nil {

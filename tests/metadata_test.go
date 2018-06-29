@@ -645,6 +645,87 @@ func TestListMetadataOnlyIDSFalse(t *testing.T) {
 
 }
 
+func TestDeleteMetadata(t *testing.T) {
+
+	const lengthPayload = 5
+	payloadPoint := [lengthPayload]tools.Payload{}
+
+	payload := fmt.Sprintf(`{
+	  "metric":"%s.*"
+	}`, tools.MetricForm)
+
+	// ts number //
+
+	for i := range payloadPoint {
+		p := mycenaeTools.Mycenae.GetPayload(ksMycenaeMeta)
+		payloadPoint[i] = *p
+	}
+
+	postPoints(payloadPoint, false, t)
+
+	// commit false
+	url := fmt.Sprintf("keysets/%s/delete/meta", ksMycenaeMeta)
+	code, response := requestResponse(t, url, payload)
+
+	assert.Equal(t, http.StatusOK, code)
+	assert.Equal(t, lengthPayload, response.TotalRecord)
+	assert.Equal(t, lengthPayload, len(response.Payload))
+
+	// commit true
+	url = fmt.Sprintf("keysets/%s/delete/meta?commit=true", ksMycenaeMeta)
+	code, response = requestResponse(t, url, payload)
+
+	assert.Equal(t, http.StatusAccepted, code)
+	assert.Equal(t, lengthPayload, response.TotalRecord)
+	assert.Equal(t, lengthPayload, len(response.Payload))
+
+	// commit true again
+	code, resp, err := mycenaeTools.HTTP.POST(url, []byte(payload))
+	if err != nil {
+		t.Error(err)
+		t.SkipNow()
+	}
+
+	assert.Equal(t, http.StatusNoContent, code)
+	assert.Empty(t, resp)
+
+	// ts text //
+
+	for i := range payloadPoint {
+		p := mycenaeTools.Mycenae.GetTextPayload(ksMycenaeMeta)
+		payloadPoint[i] = *p
+	}
+
+	postPoints(payloadPoint, true, t)
+
+	// commit false
+	url = fmt.Sprintf("keysets/%s/delete/text/meta", ksMycenaeMeta)
+	code, response = requestResponse(t, url, payload)
+
+	assert.Equal(t, http.StatusOK, code)
+	assert.Equal(t, lengthPayload, response.TotalRecord)
+	assert.Equal(t, lengthPayload, len(response.Payload))
+
+	// commit true
+	url = fmt.Sprintf("keysets/%s/delete/text/meta?commit=true", ksMycenaeMeta)
+	code, response = requestResponse(t, url, payload)
+
+	assert.Equal(t, http.StatusAccepted, code)
+	assert.Equal(t, lengthPayload, response.TotalRecord)
+	assert.Equal(t, lengthPayload, len(response.Payload))
+
+	// commit true again
+	code, resp, err = mycenaeTools.HTTP.POST(url, []byte(payload))
+	if err != nil {
+		t.Error(err)
+		t.SkipNow()
+	}
+
+	assert.Equal(t, http.StatusNoContent, code)
+	assert.Empty(t, resp)
+
+}
+
 func requestResponse(t *testing.T, url string, payload string) (int, tools.ResponseMeta) {
 
 	code, resp, err := mycenaeTools.HTTP.POST(url, []byte(payload))
