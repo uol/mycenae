@@ -74,7 +74,6 @@ imports:
   - saw
   - snitch
   - solar
-  - solr
 - name: go.uber.org/atomic
   version: 1ea20fb1cbb1cc08cbd0d913a96dead89aa18289
 - name: go.uber.org/multierr

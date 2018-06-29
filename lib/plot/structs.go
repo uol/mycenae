@@ -3,13 +3,8 @@ package plot
 import (
 	"regexp"
 	"sort"
-	//"fmt"
-	//"strings"
-	//"strconv"
 
 	"github.com/uol/gobol"
-	//"github.com/uol/mycenae/lib/config"
-	//"github.com/uol/mycenae/lib/structs"
 )
 
 var (

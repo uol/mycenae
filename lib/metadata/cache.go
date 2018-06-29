@@ -34,7 +34,22 @@ func (sb *SolrBackend) isIDCached(collection, tsType, tsid string) (bool, gobol.
 // cacheID - caches an ID
 func (sb *SolrBackend) cacheID(collection, tsType, tsid string) gobol.Error {
 
+	if sb.idCacheTTL < 0 {
+        return nil
+	}
+
 	err := sb.memcached.Put([]byte(tsid), sb.idCacheTTL, idNamespace, collection, tsType, tsid)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// deleteID - remove cached id
+func (sb *SolrBackend) deleteCachedID(collection, tsType, tsid string) gobol.Error {
+
+	err := sb.memcached.Delete(idNamespace, collection, tsType, tsid)
 	if err != nil {
 		return err
 	}
@@ -65,6 +80,10 @@ func (sb *SolrBackend) getCachedKeySetMap() (map[string]bool, gobol.Error) {
 
 // cacheKeysetMap - caches the keyset map
 func (sb *SolrBackend) cacheKeySetMap(keysets []string) (map[string]bool, gobol.Error) {
+
+	if sb.keysetCacheTTL < 0 {
+        return nil, nil
+	}
 
 	if keysets == nil || len(keysets) == 0 {
 		return nil, nil
@@ -136,6 +155,10 @@ func (sb *SolrBackend) getCachedFacets(collection, field string, query *Query) (
 
 // cacheFacets - caches the facets
 func (sb *SolrBackend) cacheFacets(facets []string, collection, field string, query *Query) gobol.Error {
+
+	if sb.queryCacheTTL < 0 {
+        return nil
+	}
 
 	if facets == nil || len(facets) == 0 {
 		return nil

@@ -44,6 +44,9 @@ type Backend interface {
 
 	// HasRegexPattern - check if the value has a regular expression
 	HasRegexPattern(value string) bool
+
+	// DeleteDocumentByID - delete a document by ID and its child documents
+	DeleteDocumentByID(collection, tsType, id string) gobol.Error
 }
 
 // Storage is a storage for metadata

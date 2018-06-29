@@ -554,3 +554,53 @@ func (sb *SolrBackend) CheckMetadata(collection, tsType, tsid string) (bool, gob
 
 	return false, nil
 }
+
+// DeleteDocumentByID - delete a document by ID and its child documents
+func (sb *SolrBackend) DeleteDocumentByID(collection, tsType, id string) gobol.Error {
+
+	start := time.Now()
+
+	queryID := fmt.Sprintf("/%s.*/", id)
+
+	err := sb.solrService.DeleteDocumentByID(collection, true, queryID)
+	if err != nil {
+		sb.statsCollectionError(collection, "delete_document", "solr.collection.delete")
+		return errInternalServer("DeleteDocumentByID", err)
+	}
+
+	go sb.DeleteCachedIDifExist(collection, tsType, id)
+
+	sb.statsCollectionAction(collection, "delete_document", "solr.collection.delete", time.Since(start))
+
+	return nil
+}
+
+// DeleteCachedIDifExist - check if ID is cached and delete it
+func (sb *SolrBackend) DeleteCachedIDifExist(collection, tsType, id string) gobol.Error {
+
+	lf := []zapcore.Field{
+		zap.String("package", "metadata"),
+		zap.String("func", "DeleteCachedIDifExist"),
+		zap.String("collection", collection),
+		zap.String("tsType", tsType),
+		zap.String("id", id),
+	}
+
+	isCached, er := sb.isIDCached(collection, tsType, id)
+	if er != nil {
+		sb.logger.Error("error getting tsid from the cache", lf...)
+		return errInternalServer("DeleteCachedIDifExist", er)
+	}
+
+	if isCached {
+		er = sb.deleteCachedID(collection, tsType, id)
+		if er != nil {
+			sb.logger.Error("error deleting tsid from cache", lf...)
+			return errInternalServer("DeleteCachedIDifExist", er)
+		}
+
+		sb.logger.Info("deleted cached tsid", lf...)
+	}
+
+	return nil
+}

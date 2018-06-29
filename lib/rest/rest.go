@@ -23,6 +23,7 @@ import (
 	"github.com/uol/mycenae/lib/structs"
 )
 
+// New returns http handler to the endpoints
 func New(
 	log *structs.TsLog,
 	gbs *snitch.Stats,
@@ -51,6 +52,7 @@ func New(
 	}
 }
 
+// REST is the http handler
 type REST struct {
 	probeThreshold float64
 	probeStatus    int
@@ -67,6 +69,7 @@ type REST struct {
 	keyset    *keyset.KeySet
 }
 
+// Start asynchronously the handler of the APIs
 func (trest *REST) Start() {
 
 	go trest.asyncStart()
@@ -138,6 +141,9 @@ func (trest *REST) asyncStart() {
 	router.POST("/keysets/:keyset", trest.keyset.CreateKeySet)
 	router.HEAD("/keysets/:keyset", trest.keyset.Check)
 	router.GET("/keysets", trest.keyset.GetKeySets)
+	//META
+	router.POST(path+"keysets/:keyset/delete/meta", trest.reader.DeleteNumberTS)
+	router.POST(path+"keysets/:keyset/delete/text/meta", trest.reader.DeleteTextTS)
 
 	trest.server = &http.Server{
 		Addr: fmt.Sprintf("%s:%s", trest.settings.Bind, trest.settings.Port),
