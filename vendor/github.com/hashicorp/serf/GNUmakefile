@@ -1,5 +1,5 @@
-GOTOOLS = github.com/mitchellh/gox github.com/kardianos/govendor
-VERSION = $(shell awk -F\" '/^const Version/ { print $$2; exit }' cmd/serf/version.go)
+GOTOOLS = github.com/mitchellh/gox golang.org/x/tools/cmd/vet github.com/kardianos/govendor
+VERSION = $(shell awk -F\" '/^const Version/ { print $$2; exit }' version.go)
 GITSHA:=$(shell git rev-parse HEAD)
 GITBRANCH:=$(shell git symbolic-ref --short HEAD 2>/dev/null)
 
@@ -20,7 +20,7 @@ dev::
 	@SERF_DEV=1 sh -c "'$(CURDIR)/scripts/build.sh'"
 
 # dist creates the binaries for distibution
-dist::
+dist:: bin
 	@sh -c "'$(CURDIR)/scripts/dist.sh' $(VERSION)"
 
 get-tools::
@@ -33,14 +33,14 @@ subnet::
 
 # test runs the test suite
 test:: subnet tools
-	@go list ./... | grep -v -E '^github.com/hashicorp/serf/(vendor|cmd/serf/vendor)' | xargs -n1 go test $(TESTARGS)
+	@govendor list -no-status +local | xargs -n1 go test $(TESTARGS)
 
 # testrace runs the race checker
 testrace:: subnet
 	go test -race `govendor list -no-status +local` $(TESTARGS)
 
 tools::
-	@which gox 2>/dev/null ; if [ $$? -eq 1 ]; then \
+	@go tool vet 2>/dev/null ; if [ $$? -eq 3 ]; then \
 		$(MAKE) get-tools; \
 	fi
 

@@ -294,7 +294,7 @@ func (c *CLI) commandHelp(command Command) {
 		// Get the matching keys
 		subcommands := c.helpCommands(c.Subcommand())
 		keys := make([]string, 0, len(subcommands))
-		for k := range subcommands {
+		for k, _ := range subcommands {
 			keys = append(keys, k)
 		}
 
@@ -311,13 +311,8 @@ func (c *CLI) commandHelp(command Command) {
 
 		// Go through and create their structures
 		subcommandsTpl = make([]map[string]interface{}, 0, len(subcommands))
-		for _, k := range keys {
+		for k, raw := range subcommands {
 			// Get the command
-			raw, ok := subcommands[k]
-			if !ok {
-				c.HelpWriter.Write([]byte(fmt.Sprintf(
-					"Error getting subcommand %q", k)))
-			}
 			sub, err := raw()
 			if err != nil {
 				c.HelpWriter.Write([]byte(fmt.Sprintf(

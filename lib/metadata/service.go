@@ -423,17 +423,21 @@ func (sb *SolrBackend) FilterMetadata(collection string, query *Query, from, max
 }
 
 // toDocuments - changes the metadata to the document format
-func (sb *SolrBackend) toDocuments(metadatas []Metadata) []solr.Document {
+func (sb *SolrBackend) toDocuments(metadatas []Metadata, collection string) (docs []solr.Document, ids []string) {
 
-	if metadatas == nil || len(metadatas) == 0 {
-		return nil
+	total := len(metadatas)
+	if total == 0 {
+		return nil, nil
 	}
 
-	docs := make([]solr.Document, len(metadatas))
+	docs = make([]solr.Document, total)
+	ids = make([]string, total)
 	for i, meta := range metadatas {
 
+		meta.Keyset = collection
 		numTags := len(meta.TagKey)
 		tagDocs := make([]solr.Document, numTags)
+		ids[i] = meta.ID
 
 		for j := 0; j < numTags; j++ {
 			tagDocs[j] = solr.Document{
@@ -448,12 +452,11 @@ func (sb *SolrBackend) toDocuments(metadatas []Metadata) []solr.Document {
 			"metric":           meta.Metric,
 			"type":             meta.MetaType,
 			"parent_doc":       true,
-			"creation_date":    time.UTC,
 			"_childDocuments_": tagDocs,
 		}
 	}
 
-	return docs
+	return docs, ids
 }
 
 // getTagKeysAndValues - extracts the array from the document
@@ -508,7 +511,17 @@ func (sb *SolrBackend) AddDocuments(collection string, metadatas []Metadata) gob
 
 	start := time.Now()
 
-	err := sb.solrService.AddDocuments(collection, true, sb.toDocuments(metadatas)...)
+	docs, ids := sb.toDocuments(metadatas, collection)
+
+	lf := []zapcore.Field{
+		zap.String("package", "metadata"),
+		zap.String("func", "AddDocuments"),
+		zap.String("collection", collection),
+	}
+
+	sb.logger.Info(fmt.Sprintf("adding documents: %v", ids), lf...)
+
+	err := sb.solrService.AddDocuments(collection, true, docs...)
 	if err != nil {
 		sb.statsCollectionError(collection, "add_documents", "solr.collection.add")
 		return errInternalServer("AddDocuments", err)

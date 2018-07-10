@@ -5,6 +5,8 @@ import (
 	"net/http"
 
 	"github.com/uol/gobol"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/uol/mycenae/lib/tserr"
 )
@@ -15,9 +17,9 @@ func errBasic(f, s string, code int, e error) gobol.Error {
 			e,
 			s,
 			code,
-			map[string]interface{}{
-				"package": "keyspace",
-				"func":    f,
+			[]zapcore.Field{
+				zap.String("package", "keyspace"),
+				zap.String("func", f),
 			},
 		)
 	}

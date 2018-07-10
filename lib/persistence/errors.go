@@ -7,14 +7,16 @@ import (
 
 	"github.com/uol/gobol"
 	"github.com/uol/mycenae/lib/tserr"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 func newUnimplementedMethod(funcname, structure string) gobol.Error {
 	const message = "Not implemented method"
-	fields := map[string]interface{}{
-		"function":  funcname,
-		"structure": structure,
-		"package":   "persistence",
+	fields := []zapcore.Field{
+		zap.String("package", "persistence"),
+		zap.String("structure", structure),
+		zap.String("func", funcname),
 	}
 	return tserr.New(
 		fmt.Errorf(message), message, http.StatusInternalServerError, fields,
@@ -30,10 +32,10 @@ func errBasic(
 			err,
 			message,
 			code,
-			map[string]interface{}{
-				"package":   "keyspace",
-				"structure": structure,
-				"method":    method,
+			[]zapcore.Field{
+				zap.String("package", "keyspace"),
+				zap.String("structure", structure),
+				zap.String("func", method),
 			},
 		)
 	}

@@ -236,7 +236,7 @@ will exit with an error at startup.
   <a href="#retry_join">`retry_join`</a> could be more appropriate to help
   mitigate node startup race conditions when automating a Consul cluster
   deployment.
-  
+
     In Consul 1.1.0 and later this can be set to a
     [go-sockaddr](https://godoc.org/github.com/hashicorp/go-sockaddr/template)
     template
@@ -293,7 +293,7 @@ will exit with an error at startup.
   times to specify multiple WAN agents to join. If Consul is unable to join with
   any of the specified addresses, agent startup will fail. By default, the agent
   won't [`-join-wan`](#_join_wan) any nodes when it starts up.
-    
+
     In Consul 1.1.0 and later this can be set to a
     [go-sockaddr](https://godoc.org/github.com/hashicorp/go-sockaddr/template)
     template.
@@ -364,14 +364,15 @@ will exit with an error at startup.
   rarely need to be changed. Very busy clusters experiencing excessive disk IO may increase this value to reduce disk IO, and minimize
   the chances of all servers taking snapshots at the same time. Increasing this trades off disk IO for disk space since the log will
   grow much larger and the space in the raft.db file can't be reclaimed till the next snapshot. Servers may take longer to recover from
-  crashes or failover if this is increased significantly as more logs will need to be replayed.
+  crashes or failover if this is increased significantly as more logs will need to be replayed. In Consul 1.1.0 and later this
+  defaults to 16384, and in prior versions it was set to 8192.
 
 * <a name="_raft_snapshot_interval"></a><a href="#_raft_snapshot_interval">`-raft-snapshot-interval`</a> - This controls how often servers
   check if they need to save a snapshot to disk. his is a low-level parameter that should rarely need to be changed. Very busy clusters
   experiencing excessive disk IO may increase this value to reduce disk IO, and minimize the chances of all servers taking snapshots at the same time.
   Increasing this trades off disk IO for disk space since the log will grow much larger and the space in the raft.db file can't be reclaimed
   till the next snapshot. Servers may take longer to recover from crashes or failover if this is increased significantly as more logs
-  will need to be replayed.
+  will need to be replayed. In Consul 1.1.0 and later this defaults to `30s`, and in prior versions it was set to `5s`.
 
 * <a name="_recursor"></a><a href="#_recursor">`-recursor`</a> - Specifies the address of an upstream DNS
   server. This option may be provided multiple times, and is functionally
@@ -668,6 +669,62 @@ Consul will not enable TLS for the HTTP API unless the `https` port has been ass
 * <a name="client_addr"></a><a href="#client_addr">`client_addr`</a> Equivalent to the
   [`-client` command-line flag](#_client).
 
+* <a name="connect"></a><a href="#connect">`connect`</a>
+    This object allows setting options for the Connect feature.
+
+    The following sub-keys are available:
+
+    * <a name="connect_enabled"></a><a href="#connect_enabled">`enabled`</a> Controls whether
+      Connect features are enabled on this agent. Should be enabled on all clients and
+      servers in the cluster in order for Connect to function properly. Defaults to false.
+
+    * <a name="connect_ca_provider"></a><a href="#connect_ca_provider">`ca_provider`</a> Controls
+      which CA provider to use for Connect's CA. Currently only the `consul` and `vault` providers
+      are supported. This is only used when initially bootstrapping the cluster. For an existing 
+      cluster, use the [Update CA Configuration Endpoint](/api/connect/ca.html#update-ca-configuration).
+
+    * <a name="connect_ca_config"></a><a href="#connect_ca_config">`ca_config`</a> An object which
+      allows setting different config options based on the CA provider chosen. This is only
+      used when initially bootstrapping the cluster. For an existing cluster, use the [Update CA
+      Configuration Endpoint](/api/connect/ca.html#update-ca-configuration).
+
+        The following providers are supported:
+
+        #### Consul CA Provider (`ca_provider = "consul"`)
+
+        * <a name="consul_ca_private_key"></a><a href="#consul_ca_private_key">`private_key`</a> The
+        PEM contents of the private key to use for the CA.
+
+        * <a name="consul_ca_root_cert"></a><a href="#consul_ca_root_cert">`root_cert`</a> The
+        PEM contents of the root certificate to use for the CA.
+
+        #### Vault CA Provider (`ca_provider = "vault"`)
+
+        * <a name="vault_ca_address"></a><a href="#vault_ca_address">`address`</a> The address of the Vault 
+        server to connect to.
+
+        * <a name="vault_ca_token"></a><a href="#vault_ca_token">`token`</a> The Vault token to use.
+
+        * <a name="vault_ca_root_pki"></a><a href="#vault_ca_root_pki">`root_pki_path`</a> The
+        path to use for the root CA pki backend in Vault. This can be an existing backend with a CA already
+        configured, or a blank/unmounted backend in which case Connect will automatically mount/generate the CA.
+        The Vault token given above must have `sudo` access to this backend, as well as permission to mount
+        the backend at this path if it is not already mounted.
+
+        * <a name="vault_ca_intermediate_pki"></a><a href="#vault_ca_intermediate_pki">`intermediate_pki_path`</a> 
+        The path to use for the temporary intermediate CA pki backend in Vault. *Connect will overwrite any data
+        at this path in order to generate a temporary intermediate CA*. The Vault token given above must have 
+        `write` access to this backend, as well as permission to mount the backend at this path if it is not 
+        already mounted.
+
+    * <a name="connect_proxy"></a><a href="#connect_proxy">`proxy`</a> This object allows setting options for the Connect proxies. The following sub-keys are available:
+
+        * <a name="connect_proxy_allow_managed_registration"></a><a href="#connect_proxy_allow_managed_registration">`allow_managed_api_registration`</a> Allows managed proxies to be configured with services that are registered via the Agent HTTP API. Enabling this would allow anyone with permission to register a service to define a command to execute for the proxy. By default, this is false to protect against arbitrary process execution.
+
+        * <a name="connect_proxy_allow_managed_root"></a><a href="#connect_proxy_allow_managed_root">`allow_managed_root`</a> Allows Consul to start managed proxies if Consul is running as root (EUID of the process is zero). We recommend running Consul as a non-root user. By default, this is false to protect inadvertently running external processes as root.
+
+    * <a name="connect_proxy_defaults"></a><a href="#connect_proxy_defaults">`proxy_defaults`</a> This object configures the default proxy settings for [service definitions with managed proxies](/docs/agent/services.html). It accepts the fields `exec_mode`, `daemon_command`, and `config`. These are used as default values for the respective fields in the service definition.
+
 * <a name="datacenter"></a><a href="#datacenter">`datacenter`</a> Equivalent to the
   [`-datacenter` command-line flag](#_datacenter).
 
@@ -687,13 +744,23 @@ Consul will not enable TLS for the HTTP API unless the `https` port has been ass
   0.8 the default was changed to true, to make remote exec opt-in instead of opt-out.
 
 * <a name="disable_update_check"></a><a href="#disable_update_check">`disable_update_check`</a>
-  Disables automatic checking for security bulletins and new version releases. This is disabled in 
+  Disables automatic checking for security bulletins and new version releases. This is disabled in
   Consul Enterprise.
 
 * <a name="discard_check_output"></a><a href="#discard_check_output">`discard_check_output`</a>
   Discards the output of health checks before storing them. This reduces the number of writes
   to the Consul raft log in environments where health checks have volatile output like
   timestamps, process ids, ...
+
+  * <a name="discovery_max_stale"></a><a href="#discovery_max_stale">`discovery_max_stale`</a> - Enables
+  stale requests for all service discovery HTTP endpoints. This is equivalent to the
+  [`max_stale`](#max_stale) configuration for DNS requests. If this value is zero (default), all service
+  discovery HTTP endpoints are forwarded to the leader. If this value is greater than zero, any Consul server
+  can handle the service discovery request.  If a Consul server is behind the leader by more than `discovery_max_stale`,
+  the query will be re-evaluated on the leader to get more up-to-date results. Consul agents also add a new
+  `X-Consul-Effective-Consistency` response header which indicates if the agent did a stale read. `discover-max-stale`
+  was introduced in Consul 1.0.7 as a way for Consul operators to force stale requests from clients at the agent level,
+  and defaults to zero which matches default consistency behavior in earlier Consul versions.
 
 *   <a name="dns_config"></a><a href="#dns_config">`dns_config`</a> This object allows a number
     of sub-keys to be set which can tune how DNS queries are serviced. See this guide on
@@ -716,17 +783,6 @@ Consul will not enable TLS for the HTTP API unless the `https` port has been ass
       by any server, no matter how stale. In practice, servers are usually only milliseconds behind the
       leader, so this lets Consul continue serving requests in long outage scenarios where no leader can
       be elected.
-
-    * <a name="discovery_max_stale"></a><a href="#discovery_max_stale">`discovery_max_stale`</a> - Enables
-      stale requests for all service discovery HTTP endpoints. This is equivalent to the
-      [`max_stale`](#max_stale) configuration for DNS requests. If this value is zero (default), all service
-      discovery HTTP endpoints are forwarded to the leader. If this value is greater than zero, any Consul server
-      can handle the service discovery request.  If a Consul server is behind the leader by more than `discovery_max_stale`,
-      the query will be re-evaluated on the leader to get more up-to-date results. Consul agents also add a new
-      `X-Consul-Effective-Consistency` response header which indicates if the agent did a stale read. `discover-max-stale`
-      was introduced in Consul 1.0.7 as a way for Consul operators to force stale requests from clients at the agent level,
-      and defaults to zero which matches default consistency behavior in earlier Consul versions.
-
 
     * <a name="node_ttl"></a><a href="#node_ttl">`node_ttl`</a> - By default, this is "0s", so all
       node lookups are served with a 0 TTL value. DNS caching for node lookups can be enabled by
@@ -760,7 +816,7 @@ Consul will not enable TLS for the HTTP API unless the `https` port has been ass
 
     * <a name="udp_answer_limit"></a><a href="#udp_answer_limit">`udp_answer_limit`</a> - Limit the number of
       resource records contained in the answer section of a UDP-based DNS
-      response. This parameter applies only to UDP DNS queries that are less than 512 bytes. This setting is deprecated 
+      response. This parameter applies only to UDP DNS queries that are less than 512 bytes. This setting is deprecated
       and replaced in Consul 1.0.7 by <a href="#a_record_limit">`a_record_limit`</a>.
 
     * <a name="a_record_limit"></a><a href="#a_record_limit">`a_record_limit`</a> - Limit the number of
@@ -768,7 +824,7 @@ Consul will not enable TLS for the HTTP API unless the `https` port has been ass
       When answering a question, Consul will use the complete list of
       matching hosts, shuffle the list randomly, and then limit the number of
       answers to `a_record_limit` (default: no limit). This limit does not apply to SRV records.
-      
+
       In environments where [RFC 3484 Section 6](https://tools.ietf.org/html/rfc3484#section-6) Rule 9
       is implemented and enforced (i.e. DNS answers are always sorted and
       therefore never random), clients may need to set this value to `1` to
@@ -777,6 +833,12 @@ Consul will not enable TLS for the HTTP API unless the `https` port has been ass
       [RFC 6724](https://tools.ietf.org/html/rfc6724) and as a result it should
       be increasingly uncommon to need to change this value with modern
       resolvers).
+      
+    * <a name="enable_additional_node_meta_txt"></a><a href="#enable_additional_node_meta_txt">`enable_additional_node_meta_txt`</a> - 
+      When set to true, Consul will add TXT records for Node metadata into the Additional section of the DNS responses for several
+      query types such as SRV queries. When set to false those records are emitted. This does not impact the behavior of those
+      same TXT records when they would be added to the Answer section of the response like when querying with type TXT or ANY. This
+      defaults to true.
 
 * <a name="domain"></a><a href="#domain">`domain`</a> Equivalent to the
   [`-domain` command-line flag](#_domain).
@@ -942,6 +1004,8 @@ Consul will not enable TLS for the HTTP API unless the `https` port has been ass
       to disable. **Note**: this will disable WAN federation which is not recommended. Various catalog and WAN related
       endpoints will return errors or empty results.
     * <a name="server_rpc_port"></a><a href="#server_rpc_port">`server`</a> - Server RPC address. Default 8300.
+    * <a name="proxy_min_port"></a><a href="#proxy_min_port">`proxy_min_port`</a> - Minimum port number to use for automatically assigned [managed Connect proxies](/docs/connect/proxies.html). If Connect is disabled, managed proxies are unused, or ports are always specified, then this value is unused. Defaults to 20000.
+    * <a name="proxy_max_port"></a><a href="#proxy_max_port">`proxy_max_port`</a> - Maximum port number to use for automatically assigned [managed Connect proxies](/docs/connect/proxies.html). See [`proxy_min_port`](#proxy_min_port) for more information. Defaults to 20255.
 
 * <a name="protocol"></a><a href="#protocol">`protocol`</a> Equivalent to the
   [`-protocol` command-line flag](#_protocol).
@@ -1135,7 +1199,7 @@ Consul will not enable TLS for the HTTP API unless the `https` port has been ass
       is overlap between two rules, the more specific rule will take precedence. Blocking will take priority if the same
       prefix is listed multiple times.
 
-    * <a name="telemetry-prometheus_retention_time"></a><a href="telemetry-prometheus_retention_time">prometheus_retention_time</a>
+    * <a name="telemetry-prometheus_retention_time"></a><a href="#telemetry-prometheus_retention_time">prometheus_retention_time</a>
       If the value is greater than `0s` (the default), this enables [Prometheus](https://prometheus.io/) export of metrics.
       The duration can be expressed using the duration semantics and will aggregates all counters for the duration specified
       (it might have an impact on Consul's memory usage). A good value for this parameter is at least 2 times the interval of scrape
@@ -1296,3 +1360,4 @@ items which are reloaded include:
 * <a href="#node_meta">Node Metadata</a>
 * <a href="#telemetry-prefix_filter">Metric Prefix Filter</a>
 * <a href="#discard_check_output">Discard Check Output</a>
+* <a href="#limits">RPC rate limiting</a>

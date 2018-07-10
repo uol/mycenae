@@ -12,11 +12,12 @@
 	<fieldType name="plong" class="solr.LongPointField" docValues="true"/>
     <fieldType name="pdate" class="solr.DatePointField" docValues="true"/>
 
+	<field name="tsid" 			type="string" 	indexed="true" multiValued="false" stored="true" />
 	<field name="metric" 		type="string" 	indexed="true" multiValued="false" stored="true" />
 	<field name="tag_key" 		type="string" 	indexed="true" multiValued="false" stored="true" />
 	<field name="tag_value" 	type="string" 	indexed="true" multiValued="false" stored="true" />
 	<field name="type" 			type="string" 	indexed="true" multiValued="false" stored="true" />
 	<field name="parent_doc" 	type="boolean" 	indexed="true" multiValued="false" stored="false" />
-	<field name="creation_date" type="pdate" 	indexed="true" multiValued="false" stored="true" />
+	<field name="creation_date" type="pdate" 	indexed="true" multiValued="false" stored="true" default="NOW"/>
 
 </schema>

@@ -1,8 +1,12 @@
 package gobol
 
+import (
+	"go.uber.org/zap/zapcore"
+)
+
 type Error interface {
 	error
 	StatusCode() int
 	Message() string
-	LogFields() map[string]interface{}
+	LogFields() []zapcore.Field
 }

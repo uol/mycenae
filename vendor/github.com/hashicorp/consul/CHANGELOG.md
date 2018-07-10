@@ -1,3 +1,27 @@
+## 1.2.0 (June 26, 2018)
+
+FEATURES:
+
+* **Connect Feature Beta**: This version includes a major new feature for Consul named Connect. Connect enables secure service-to-service communication with automatic TLS encryption and identity-based authorization. For more details and links to demos and getting started guides, see the [announcement blog post](https://www.hashicorp.com/blog/consul-1-2-service-mesh). 
+  * Connect must be enabled explicitly in configuration so upgrading a cluster will not affect any existing functionality until it's enabled.
+  * This is a Beta release, we don't recommend enabling this in production yet. Please see the documentation for more information.
+* dns: Enable PTR record lookups for services with IPs that have no registered node [[PR-4083](https://github.com/hashicorp/consul/pull/4083)]
+* ui: Default to serving the new UI. Setting the `CONSUL_UI_LEGACY` environment variable to `1` of `true` will revert to serving the old UI
+
+IMPROVEMENTS:
+
+* agent: A Consul user-agent string is now sent to providers when making retry-join requests [[GH-4013](https://github.com/hashicorp/consul/issues/4013)](https://github.com/hashicorp/consul/pull/4013)
+* client: Add metrics for failed RPCs [PR-4220](https://github.com/hashicorp/consul/pull/4220)
+* agent: Add configuration entry to control including TXT records for node meta in DNS responses [PR-4215](https://github.com/hashicorp/consul/pull/4215)
+* client: Make RPC rate limit configuration reloadable [GH-4012](https://github.com/hashicorp/consul/issues/4012)
+
+BUG FIXES:
+
+* agent: Fixed an issue where watches were being duplicated on reload. [[GH-4179](https://github.com/hashicorp/consul/issues/4179)]
+* agent: Fixed an issue with Agent watches on a HTTPS only agent would fail to use TLS. [[GH-4076](https://github.com/hashicorp/consul/issues/4076)]
+* agent: Fixed bug that would cause unnecessary and frequent logging yamux keepalives [[GH-3040](https://github.com/hashicorp/consul/issues/3040)]
+* dns: Re-enable full DNS compression [[GH-4071](https://github.com/hashicorp/consul/issues/4071)]
+
 ## 1.1.0 (May 11, 2018)
 
 FEATURES:
@@ -21,6 +45,7 @@ IMPROVEMENTS:
 
 * agent: Improve DNS performance on large clusters [[GH-4036](https://github.com/hashicorp/consul/issues/4036)]
 * agent: `start_join`, `start_join_wan`, `retry_join`, `retry_join_wan` config params now all support go-sockaddr templates [[GH-4102](https://github.com/hashicorp/consul/pull/4102)]
+* server: Added new configuration options `raft_snapshot_interval` and `raft_snapshot_threshold` to allow operators to  configure how often servers take raft snapshots. The default values for these have been tuned for large and busy clusters with high write load. [[GH-4105](https://github.com/hashicorp/consul/pull/4105/)]
 
 BUG FIXES:
 
