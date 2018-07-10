@@ -3,9 +3,14 @@ package memcached
 import (
 	"net/http"
 
+	"go.uber.org/zap"
+
+	"go.uber.org/zap/zapcore"
+
 	"github.com/uol/gobol"
 
 	"errors"
+
 	"github.com/uol/mycenae/lib/tserr"
 )
 
@@ -20,9 +25,9 @@ func errInternalServerError(function, message string, e error) gobol.Error {
 		e,
 		message,
 		http.StatusInternalServerError,
-		map[string]interface{}{
-			"package": "memcached/persistence",
-			"func":    function,
+		[]zapcore.Field{
+			zap.String("package", "memcached/persistence"),
+			zap.String("func", function),
 		},
 	)
 }

@@ -123,7 +123,7 @@ func (srvc *Service) RemoveCheck(checkID string) error {
 	return agent.CheckDeregister(checkID)
 }
 
-func (srvc *Service) AddJobCheck(name, path, interval string) error {
+func (srvc *Service) AddJobCheck(name, interval string) error {
 	agent := srvc.client.Agent()
 
 	check := &api.AgentCheckRegistration{
@@ -132,7 +132,6 @@ func (srvc *Service) AddJobCheck(name, path, interval string) error {
 		ServiceID: srvc.settings.ID,
 	}
 
-	check.Script = path
 	check.Interval = interval
 	return agent.CheckRegister(check)
 }

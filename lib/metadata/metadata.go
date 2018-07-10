@@ -76,6 +76,7 @@ type Metadata struct {
 	TagKey   []string `json:"tagKey"`
 	TagValue []string `json:"tagValue"`
 	MetaType string   `json:"type"`
+	Keyset   string   `json:"keyset"`
 }
 
 // Query - query

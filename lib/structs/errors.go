@@ -5,6 +5,8 @@ import (
 	"net/http"
 
 	"github.com/uol/gobol"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/uol/mycenae/lib/tserr"
 )
@@ -15,9 +17,9 @@ func errBasic(f, s string, e error) gobol.Error {
 			e,
 			s,
 			http.StatusBadRequest,
-			map[string]interface{}{
-				"package": "structs",
-				"func":    f,
+			[]zapcore.Field{
+				zap.String("package", "structs"),
+				zap.String("func", f),
 			},
 		)
 	}

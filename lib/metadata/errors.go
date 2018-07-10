@@ -4,6 +4,8 @@ import (
 	"net/http"
 
 	"github.com/uol/gobol"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/uol/mycenae/lib/tserr"
 )
@@ -14,9 +16,9 @@ func errBasic(f, s string, code int, e error) gobol.Error {
 			e,
 			s,
 			code,
-			map[string]interface{}{
-				"package": "metadata",
-				"func":    f,
+			[]zapcore.Field{
+				zap.String("package", "metadata"),
+				zap.String("func", f),
 			},
 		)
 	}

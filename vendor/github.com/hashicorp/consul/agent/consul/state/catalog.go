@@ -10,6 +10,10 @@ import (
 	"github.com/hashicorp/go-memdb"
 )
 
+const (
+	servicesTableName = "services"
+)
+
 // nodesTableSchema returns a new table schema used for storing node
 // information.
 func nodesTableSchema() *memdb.TableSchema {
@@ -86,6 +90,12 @@ func servicesTableSchema() *memdb.TableSchema {
 					Field:     "ServiceName",
 					Lowercase: true,
 				},
+			},
+			"connect": &memdb.IndexSchema{
+				Name:         "connect",
+				AllowMissing: true,
+				Unique:       false,
+				Indexer:      &IndexConnectService{},
 			},
 		},
 	}
@@ -779,15 +789,39 @@ func maxIndexForService(tx *memdb.Txn, serviceName string, checks bool) uint64 {
 	return maxIndexTxn(tx, "nodes", "services")
 }
 
+// ConnectServiceNodes returns the nodes associated with a Connect
+// compatible destination for the given service name. This will include
+// both proxies and native integrations.
+func (s *Store) ConnectServiceNodes(ws memdb.WatchSet, serviceName string) (uint64, structs.ServiceNodes, error) {
+	return s.serviceNodes(ws, serviceName, true)
+}
+
 // ServiceNodes returns the nodes associated with a given service name.
 func (s *Store) ServiceNodes(ws memdb.WatchSet, serviceName string) (uint64, structs.ServiceNodes, error) {
+	return s.serviceNodes(ws, serviceName, false)
+}
+
+func (s *Store) serviceNodes(ws memdb.WatchSet, serviceName string, connect bool) (uint64, structs.ServiceNodes, error) {
 	tx := s.db.Txn(false)
 	defer tx.Abort()
 
 	// Get the table index.
 	idx := maxIndexForService(tx, serviceName, false)
+
+	// Function for lookup
+	var f func() (memdb.ResultIterator, error)
+	if !connect {
+		f = func() (memdb.ResultIterator, error) {
+			return tx.Get("services", "service", serviceName)
+		}
+	} else {
+		f = func() (memdb.ResultIterator, error) {
+			return tx.Get("services", "connect", serviceName)
+		}
+	}
+
 	// List all the services.
-	services, err := tx.Get("services", "service", serviceName)
+	services, err := f()
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed service lookup: %s", err)
 	}
@@ -853,6 +887,36 @@ func serviceTagFilter(sn *structs.ServiceNode, tag string) bool {
 
 	// If we didn't hit the tag above then we should filter.
 	return true
+}
+
+// ServiceAddressNodes returns the nodes associated with a given service, filtering
+// out services that don't match the given serviceAddress
+func (s *Store) ServiceAddressNodes(ws memdb.WatchSet, address string) (uint64, structs.ServiceNodes, error) {
+	tx := s.db.Txn(false)
+	defer tx.Abort()
+
+	// List all the services.
+	services, err := tx.Get("services", "id")
+	if err != nil {
+		return 0, nil, fmt.Errorf("failed service lookup: %s", err)
+	}
+	ws.Add(services.WatchCh())
+
+	// Gather all the services and apply the tag filter.
+	var results structs.ServiceNodes
+	for service := services.Next(); service != nil; service = services.Next() {
+		svc := service.(*structs.ServiceNode)
+		if svc.ServiceAddress == address {
+			results = append(results, svc)
+		}
+	}
+
+	// Fill in the node details.
+	results, err = s.parseServiceNodes(tx, ws, results)
+	if err != nil {
+		return 0, nil, fmt.Errorf("failed parsing service nodes: %s", err)
+	}
+	return 0, results, nil
 }
 
 // parseServiceNodes iterates over a services query and fills in the node details,
@@ -1449,14 +1513,36 @@ func (s *Store) deleteCheckTxn(tx *memdb.Txn, idx uint64, node string, checkID t
 
 // CheckServiceNodes is used to query all nodes and checks for a given service.
 func (s *Store) CheckServiceNodes(ws memdb.WatchSet, serviceName string) (uint64, structs.CheckServiceNodes, error) {
+	return s.checkServiceNodes(ws, serviceName, false)
+}
+
+// CheckConnectServiceNodes is used to query all nodes and checks for Connect
+// compatible endpoints for a given service.
+func (s *Store) CheckConnectServiceNodes(ws memdb.WatchSet, serviceName string) (uint64, structs.CheckServiceNodes, error) {
+	return s.checkServiceNodes(ws, serviceName, true)
+}
+
+func (s *Store) checkServiceNodes(ws memdb.WatchSet, serviceName string, connect bool) (uint64, structs.CheckServiceNodes, error) {
 	tx := s.db.Txn(false)
 	defer tx.Abort()
 
 	// Get the table index.
 	idx := maxIndexForService(tx, serviceName, true)
 
+	// Function for lookup
+	var f func() (memdb.ResultIterator, error)
+	if !connect {
+		f = func() (memdb.ResultIterator, error) {
+			return tx.Get("services", "service", serviceName)
+		}
+	} else {
+		f = func() (memdb.ResultIterator, error) {
+			return tx.Get("services", "connect", serviceName)
+		}
+	}
+
 	// Query the state store for the service.
-	iter, err := tx.Get("services", "service", serviceName)
+	iter, err := f()
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed service lookup: %s", err)
 	}

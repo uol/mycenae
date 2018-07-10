@@ -5,6 +5,8 @@ import (
 	"net/http"
 
 	"github.com/uol/gobol"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/uol/mycenae/lib/tserr"
 )
@@ -25,9 +27,9 @@ func (p TSDBpoints) Validate() gobol.Error {
 			errors.New("no points"),
 			"no points",
 			http.StatusBadRequest,
-			map[string]interface{}{
-				"package": "Collector",
-				"struct":  "TSDBpoints",
+			[]zapcore.Field{
+				zap.String("package", "collector"),
+				zap.String("struct", "TSDBpoint"),
 			},
 		)
 	}

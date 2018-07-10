@@ -186,12 +186,12 @@ func TestDelegate_MergeRemoteState(t *testing.T) {
 	}
 
 	// Verify pending join for test
-	if join, ok := recentIntent(s1.recentIntents, "test", messageJoinType); !ok || join != 20 {
+	if s1.recentJoin[0].Node != "test" || s1.recentJoin[0].LTime != 20 {
 		t.Fatalf("bad recent join")
 	}
 
 	// Verify pending leave for foo
-	if leave, ok := recentIntent(s1.recentIntents, "foo", messageLeaveType); !ok || leave != 15 {
+	if s1.recentLeave[0].Node != "foo" || s1.recentLeave[0].LTime != 15 {
 		t.Fatalf("bad recent leave")
 	}
 

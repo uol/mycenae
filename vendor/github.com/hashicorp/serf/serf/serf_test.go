@@ -27,7 +27,6 @@ func testConfig() *Config {
 	config.MemberlistConfig.GossipInterval = 5 * time.Millisecond
 	config.MemberlistConfig.ProbeInterval = 50 * time.Millisecond
 	config.MemberlistConfig.ProbeTimeout = 25 * time.Millisecond
-	config.MemberlistConfig.TCPTimeout = 1 * time.Millisecond
 	config.MemberlistConfig.SuspicionMult = 1
 
 	config.NodeName = fmt.Sprintf("Node %s", config.MemberlistConfig.BindAddr)
@@ -326,52 +325,6 @@ func TestSerf_eventsUser_sizeLimit(t *testing.T) {
 	}
 	if !strings.HasPrefix(err.Error(), "user event exceeds limit of ") {
 		t.Fatalf("should get size limit error")
-	}
-}
-
-func TestSerf_getQueueMax(t *testing.T) {
-	s := &Serf{
-		config: DefaultConfig(),
-	}
-
-	// We don't need a running Serf so fake it out with the required
-	// state.
-	s.members = make(map[string]*memberState)
-	for i := 0; i < 100; i++ {
-		name := fmt.Sprintf("Member%d", i)
-		s.members[name] = &memberState{
-			Member: Member{
-				Name: name,
-			},
-		}
-	}
-
-	// Default mode just uses the max depth.
-	if got, want := s.getQueueMax(), 4096; got != want {
-		t.Fatalf("got %d want %d", got, want)
-	}
-
-	// Now configure a min which should take precedence.
-	s.config.MinQueueDepth = 1024
-	if got, want := s.getQueueMax(), 1024; got != want {
-		t.Fatalf("got %d want %d", got, want)
-	}
-
-	// Bring it under the number of nodes, so the calculation based on
-	// the number of nodes takes precedence.
-	s.config.MinQueueDepth = 16
-	if got, want := s.getQueueMax(), 200; got != want {
-		t.Fatalf("got %d want %d", got, want)
-	}
-
-	// Try adjusting the node count.
-	s.members["another"] = &memberState{
-		Member: Member{
-			Name: "another",
-		},
-	}
-	if got, want := s.getQueueMax(), 202; got != want {
-		t.Fatalf("got %d want %d", got, want)
 	}
 }
 
@@ -882,26 +835,18 @@ func TestSerf_ReapHandler_Shutdown(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
-	// Make sure the reap handler exits on shutdown.
-	doneCh := make(chan struct{})
 	go func() {
-		s.handleReap()
-		close(doneCh)
-	}()
-
-	s.Shutdown()
-	select {
-	case <-doneCh:
-	case <-time.After(1 * time.Second):
+		s.Shutdown()
+		time.Sleep(time.Millisecond)
 		t.Fatalf("timeout")
-	}
+	}()
+	s.handleReap()
 }
 
 func TestSerf_ReapHandler(t *testing.T) {
 	c := testConfig()
 	c.ReapInterval = time.Nanosecond
 	c.TombstoneTimeout = time.Second * 6
-	c.RecentIntentTimeout = time.Second * 7
 	s, err := Create(c)
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -915,15 +860,6 @@ func TestSerf_ReapHandler(t *testing.T) {
 		&memberState{m, 0, time.Now().Add(-10 * time.Second)},
 	}
 
-	upsertIntent(s.recentIntents, "alice", messageJoinType, 1, time.Now)
-	upsertIntent(s.recentIntents, "bob", messageJoinType, 2, func() time.Time {
-		return time.Now().Add(-10 * time.Second)
-	})
-	upsertIntent(s.recentIntents, "carol", messageLeaveType, 1, time.Now)
-	upsertIntent(s.recentIntents, "doug", messageLeaveType, 2, func() time.Time {
-		return time.Now().Add(-10 * time.Second)
-	})
-
 	go func() {
 		time.Sleep(time.Millisecond)
 		s.Shutdown()
@@ -933,18 +869,6 @@ func TestSerf_ReapHandler(t *testing.T) {
 
 	if len(s.leftMembers) != 2 {
 		t.Fatalf("should be shorter")
-	}
-	if _, ok := recentIntent(s.recentIntents, "alice", messageJoinType); !ok {
-		t.Fatalf("should be buffered")
-	}
-	if _, ok := recentIntent(s.recentIntents, "bob", messageJoinType); ok {
-		t.Fatalf("should be reaped")
-	}
-	if _, ok := recentIntent(s.recentIntents, "carol", messageLeaveType); !ok {
-		t.Fatalf("should be buffered")
-	}
-	if _, ok := recentIntent(s.recentIntents, "doug", messageLeaveType); ok {
-		t.Fatalf("should be reaped")
 	}
 }
 
@@ -962,7 +886,7 @@ func TestSerf_Reap(t *testing.T) {
 		&memberState{m, 0, time.Now().Add(-10 * time.Second)},
 	}
 
-	old = s.reap(old, time.Now(), time.Second*6)
+	old = s.reap(old, time.Second*6)
 	if len(old) != 2 {
 		t.Fatalf("should be shorter")
 	}
@@ -985,71 +909,28 @@ func TestRemoveOldMember(t *testing.T) {
 }
 
 func TestRecentIntent(t *testing.T) {
-	if _, ok := recentIntent(nil, "foo", messageJoinType); ok {
-		t.Fatalf("should get nothing on empty recent")
+	if recentIntent(nil, "foo") != nil {
+		t.Fatalf("should get nil on empty recent")
+	}
+	if recentIntent([]nodeIntent{}, "foo") != nil {
+		t.Fatalf("should get nil on empty recent")
 	}
 
-	now := time.Now()
-	expire := func() time.Time {
-		return now.Add(-2 * time.Second)
-	}
-	save := func() time.Time {
-		return now
-	}
-
-	intents := make(map[string]nodeIntent)
-	if _, ok := recentIntent(intents, "foo", messageJoinType); ok {
-		t.Fatalf("should get nothing on empty recent")
-	}
-	if added := upsertIntent(intents, "foo", messageJoinType, 1, expire); !added {
-		t.Fatalf("should have added")
-	}
-	if added := upsertIntent(intents, "bar", messageLeaveType, 2, expire); !added {
-		t.Fatalf("should have added")
-	}
-	if added := upsertIntent(intents, "baz", messageJoinType, 3, save); !added {
-		t.Fatalf("should have added")
-	}
-	if added := upsertIntent(intents, "bar", messageJoinType, 4, expire); !added {
-		t.Fatalf("should have added")
-	}
-	if added := upsertIntent(intents, "bar", messageJoinType, 0, expire); added {
-		t.Fatalf("should not have added")
-	}
-	if added := upsertIntent(intents, "bar", messageJoinType, 5, expire); !added {
-		t.Fatalf("should have added")
+	recent := []nodeIntent{
+		nodeIntent{1, "foo"},
+		nodeIntent{2, "bar"},
+		nodeIntent{3, "baz"},
+		nodeIntent{4, "bar"},
+		nodeIntent{0, "bar"},
+		nodeIntent{5, "bar"},
 	}
 
-	if ltime, ok := recentIntent(intents, "foo", messageJoinType); !ok || ltime != 1 {
-		t.Fatalf("bad: %v %v", ok, ltime)
-	}
-	if ltime, ok := recentIntent(intents, "bar", messageJoinType); !ok || ltime != 5 {
-		t.Fatalf("bad: %v %v", ok, ltime)
-	}
-	if ltime, ok := recentIntent(intents, "baz", messageJoinType); !ok || ltime != 3 {
-		t.Fatalf("bad: %v %v", ok, ltime)
-	}
-	if _, ok := recentIntent(intents, "tubez", messageJoinType); ok {
-		t.Fatalf("should get nothing")
+	if r := recentIntent(recent, "bar"); r.LTime != 4 {
+		t.Fatalf("bad time for bar")
 	}
 
-	reapIntents(intents, now, time.Second)
-	if _, ok := recentIntent(intents, "foo", messageJoinType); ok {
-		t.Fatalf("should get nothing")
-	}
-	if _, ok := recentIntent(intents, "bar", messageJoinType); ok {
-		t.Fatalf("should get nothing")
-	}
-	if ltime, ok := recentIntent(intents, "baz", messageJoinType); !ok || ltime != 3 {
-		t.Fatalf("bad: %v %v", ok, ltime)
-	}
-	if _, ok := recentIntent(intents, "tubez", messageJoinType); ok {
-		t.Fatalf("should get nothing")
-	}
-
-	reapIntents(intents, now.Add(2*time.Second), time.Second)
-	if _, ok := recentIntent(intents, "baz", messageJoinType); ok {
-		t.Fatalf("should get nothing")
+	if r := recentIntent(recent, "tubez"); r != nil {
+		t.Fatalf("got result for tubez")
 	}
 }
 
@@ -1562,25 +1443,10 @@ func TestSerf_Query_Filter(t *testing.T) {
 	}
 	testutil.Yield()
 
-	s3Config := testConfig()
-	s3, err := Create(s3Config)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer s3.Shutdown()
-	testutil.Yield()
-
-	_, err = s1.Join([]string{s3Config.MemberlistConfig.BindAddr}, false)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	testutil.Yield()
-
 	// Filter to only s1!
 	params := s2.DefaultQueryParams()
 	params.FilterNodes = []string{s1Config.NodeName}
 	params.RequestAck = true
-	params.RelayFactor = 1
 
 	// Start a query from s2
 	resp, err := s2.Query("load", []byte("sup girl"), params)
@@ -1617,57 +1483,6 @@ func TestSerf_Query_Filter(t *testing.T) {
 	}
 	if len(responses) != 1 {
 		t.Fatalf("missing responses: %v", responses)
-	}
-}
-
-func TestSerf_Query_Deduplicate(t *testing.T) {
-	s := &Serf{}
-
-	// Set up a dummy query and response
-	mq := &messageQuery{
-		LTime:   123,
-		ID:      123,
-		Timeout: time.Second,
-		Flags:   queryFlagAck,
-	}
-	query := newQueryResponse(3, mq)
-	response := &messageQueryResponse{
-		LTime: mq.LTime,
-		ID:    mq.ID,
-		From:  "node1",
-	}
-	s.queryResponse = map[LamportTime]*QueryResponse{mq.LTime: query}
-
-	// Send a few duplicate responses
-	s.handleQueryResponse(response)
-	s.handleQueryResponse(response)
-	response.Flags |= queryFlagAck
-	s.handleQueryResponse(response)
-	s.handleQueryResponse(response)
-
-	// Ensure we only get one NodeResponse off the channel
-	select {
-	case <-query.respCh:
-	default:
-		t.Fatalf("Should have a response")
-	}
-
-	select {
-	case <-query.ackCh:
-	default:
-		t.Fatalf("Should have an ack")
-	}
-
-	select {
-	case <-query.respCh:
-		t.Fatalf("Should not have any other responses")
-	default:
-	}
-
-	select {
-	case <-query.ackCh:
-		t.Fatalf("Should not have any other acks")
-	default:
 	}
 }
 
@@ -1919,7 +1734,6 @@ func TestSerfStats(t *testing.T) {
 		"failed":       "0",
 		"intent_queue": "0",
 		"left":         "0",
-		"health_score": "0",
 		"member_time":  "1",
 		"members":      "1",
 		"query_queue":  "0",
@@ -1972,7 +1786,7 @@ func TestSerf_Join_Cancel(t *testing.T) {
 	testutil.Yield()
 
 	_, err = s1.Join([]string{s2Config.MemberlistConfig.BindAddr}, false)
-	if !strings.Contains(err.Error(), "Merge canceled") {
+	if err.Error() != "Merge canceled" {
 		t.Fatalf("err: %s", err)
 	}
 

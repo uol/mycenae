@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 
+	"go.uber.org/zap/zapcore"
+
 	"github.com/uol/gobol"
 
 	"go.uber.org/zap"
@@ -17,7 +19,7 @@ type customError struct {
 	error
 	msg      string
 	httpCode int
-	lf       map[string]interface{}
+	lf       []zapcore.Field
 }
 
 func (e customError) Message() string {
@@ -28,7 +30,7 @@ func (e customError) StatusCode() int {
 	return e.httpCode
 }
 
-func (e customError) LogFields() map[string]interface{} {
+func (e customError) LogFields() []zapcore.Field {
 	return e.lf
 }
 
@@ -47,9 +49,9 @@ func errBasic(f, s string, code int, e error) gobol.Error {
 			e,
 			s,
 			code,
-			map[string]interface{}{
-				"package": "rest",
-				"func":    f,
+			[]zapcore.Field{
+				zap.String("package", "rest"),
+				zap.String("func", f),
 			},
 		}
 	}

@@ -99,7 +99,7 @@ func (ss *SolrService) AddDocuments(collection string, commit bool, docs ...solr
 	return nil
 }
 
-// DeleteDocumentByID - delete a document by ID and its child documents
+// DeleteDocumentByID - delete a document by ID
 func (ss *SolrService) DeleteDocumentByID(collection string, commit bool, id string) error {
 
 	lf := []zapcore.Field{
