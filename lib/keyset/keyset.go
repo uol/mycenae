@@ -27,7 +27,7 @@ func NewKeySet(storage *metadata.Storage, s *tsstats.StatsTS) *KeySet {
 	return &KeySet{
 		storage:      storage,
 		stats:        s,
-		keySetRegexp: regexp.MustCompile(`^[a-z_]{1}[a-z0-9_]+$`),
+		keySetRegexp: regexp.MustCompile(`^[a-z_]{1}[a-z0-9_\-]+[a-z]{1}$`),
 	}
 }
 
