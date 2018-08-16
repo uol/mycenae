@@ -11,7 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/hashicorp/go-uuid"
+	"github.com/armon/go-metrics"
 
 	"github.com/hashicorp/consul/acl"
 	"github.com/hashicorp/consul/agent/structs"
@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/consul/types"
+	"github.com/hashicorp/go-uuid"
 )
 
 // Config is the configuration for the State.
@@ -169,8 +170,9 @@ type State struct {
 	// Services tracks the local services
 	services map[string]*ServiceState
 
-	// Checks tracks the local checks
-	checks map[types.CheckID]*CheckState
+	// Checks tracks the local checks. checkAliases are aliased checks.
+	checks       map[types.CheckID]*CheckState
+	checkAliases map[string]map[types.CheckID]chan<- struct{}
 
 	// metadata tracks the node metadata fields
 	metadata map[string]string
@@ -204,6 +206,7 @@ func NewState(c Config, lg *log.Logger, tokens *token.Store) *State {
 		logger:               lg,
 		services:             make(map[string]*ServiceState),
 		checks:               make(map[types.CheckID]*CheckState),
+		checkAliases:         make(map[string]map[types.CheckID]chan<- struct{}),
 		metadata:             make(map[string]string),
 		tokens:               tokens,
 		managedProxies:       make(map[string]*ManagedProxy),
@@ -405,6 +408,40 @@ func (l *State) AddCheck(check *structs.HealthCheck, token string) error {
 	return nil
 }
 
+// AddAliasCheck creates an alias check. When any check for the srcServiceID
+// is changed, checkID will reflect that using the same semantics as
+// checks.CheckAlias.
+//
+// This is a local optimization so that the Alias check doesn't need to
+// use blocking queries against the remote server for check updates for
+// local services.
+func (l *State) AddAliasCheck(checkID types.CheckID, srcServiceID string, notifyCh chan<- struct{}) error {
+	l.Lock()
+	defer l.Unlock()
+
+	m, ok := l.checkAliases[srcServiceID]
+	if !ok {
+		m = make(map[types.CheckID]chan<- struct{})
+		l.checkAliases[srcServiceID] = m
+	}
+	m[checkID] = notifyCh
+
+	return nil
+}
+
+// RemoveAliasCheck removes the mapping for the alias check.
+func (l *State) RemoveAliasCheck(checkID types.CheckID, srcServiceID string) {
+	l.Lock()
+	defer l.Unlock()
+
+	if m, ok := l.checkAliases[srcServiceID]; ok {
+		delete(m, checkID)
+		if len(m) == 0 {
+			delete(l.checkAliases, srcServiceID)
+		}
+	}
+}
+
 // RemoveCheck is used to remove a health check from the local state.
 // The agent will make a best effort to ensure it is deregistered
 // todo(fs): RemoveService returns an error for a non-existant service. RemoveCheck should as well.
@@ -483,6 +520,20 @@ func (l *State) UpdateCheck(id types.CheckID, status, output string) {
 			})
 		}
 		return
+	}
+
+	// If this is a check for an aliased service, then notify the waiters.
+	if aliases, ok := l.checkAliases[c.Check.ServiceID]; ok && len(aliases) > 0 {
+		for _, notifyCh := range aliases {
+			// Do not block. All notify channels should be buffered to at
+			// least 1 in which case not-blocking does not result in loss
+			// of data because a failed send means a notification is
+			// already queued. This must be called with the lock held.
+			select {
+			case notifyCh <- struct{}{}:
+			default:
+			}
+		}
 	}
 
 	// Update status and mark out of sync
@@ -1087,6 +1138,7 @@ func (l *State) deleteService(id string) error {
 		// todo(fs): some backoff strategy might be a better solution
 		l.services[id].InSync = true
 		l.logger.Printf("[WARN] agent: Service %q deregistration blocked by ACLs", id)
+		metrics.IncrCounter([]string{"acl", "blocked", "service", "deregistration"}, 1)
 		return nil
 
 	default:
@@ -1124,6 +1176,7 @@ func (l *State) deleteCheck(id types.CheckID) error {
 		// todo(fs): some backoff strategy might be a better solution
 		l.checks[id].InSync = true
 		l.logger.Printf("[WARN] agent: Check %q deregistration blocked by ACLs", id)
+		metrics.IncrCounter([]string{"acl", "blocked", "check", "deregistration"}, 1)
 		return nil
 
 	default:
@@ -1194,6 +1247,7 @@ func (l *State) syncService(id string) error {
 			l.checks[check.CheckID].InSync = true
 		}
 		l.logger.Printf("[WARN] agent: Service %q registration blocked by ACLs", id)
+		metrics.IncrCounter([]string{"acl", "blocked", "service", "registration"}, 1)
 		return nil
 
 	default:
@@ -1239,6 +1293,7 @@ func (l *State) syncCheck(id types.CheckID) error {
 		// todo(fs): some backoff strategy might be a better solution
 		l.checks[id].InSync = true
 		l.logger.Printf("[WARN] agent: Check %q registration blocked by ACLs", id)
+		metrics.IncrCounter([]string{"acl", "blocked", "check", "registration"}, 1)
 		return nil
 
 	default:
@@ -1270,6 +1325,7 @@ func (l *State) syncNodeInfo() error {
 		// todo(fs): some backoff strategy might be a better solution
 		l.nodeInfoInSync = true
 		l.logger.Printf("[WARN] agent: Node info update blocked by ACLs")
+		metrics.IncrCounter([]string{"acl", "blocked", "node", "registration"}, 1)
 		return nil
 
 	default:

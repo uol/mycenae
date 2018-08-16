@@ -26,6 +26,7 @@ function build_ui {
    # Arguments:
    #   $1 - Path to the top level Consul source
    #   $2 - The docker image to run the build within (optional)
+   #   $3 - Version override
    #
    # Returns:
    #   0 - success
@@ -52,6 +53,11 @@ function build_ui {
    # parse the version
    version=$(parse_version "${sdir}")
    
+   if test -n "$3"
+   then
+      version="$3"
+   fi
+   
    local commit_hash="${GIT_COMMIT}"
    if test -z "${commit_hash}"
    then
@@ -61,14 +67,14 @@ function build_ui {
    # make sure we run within the ui dir
    pushd ${ui_dir} > /dev/null
    
-   status "Creating the UI Build Container with image: ${image_name}"
+   status "Creating the UI Build Container with image: ${image_name} and version '${version}'"
    local container_id=$(docker create -it -e "CONSUL_GIT_SHA=${commit_hash}" -e "CONSUL_VERSION=${version}" ${image_name})
    local ret=$?
    if test $ret -eq 0
    then
       status "Copying the source from '${ui_dir}' to /consul-src within the container"
       (
-         tar -c $(ls | grep -v "^(node_modules\|dist)") | docker cp - ${container_id}:/consul-src &&
+         tar -c $(ls -A | grep -v "^(node_modules\|dist\|tmp)") | docker cp - ${container_id}:/consul-src &&
          status "Running build in container" && docker start -i ${container_id} &&
          rm -rf ${1}/ui-v2/dist &&
          status "Copying back artifacts" && docker cp ${container_id}:/consul-src/dist ${1}/ui-v2/dist
@@ -79,9 +85,18 @@ function build_ui {
    
    if test ${ret} -eq 0
    then
-      rm -rf ${1}/pkg/web_ui/v2
-      cp -r ${1}/ui-v2/dist ${1}/pkg/web_ui/v2
+      local ui_vers=$(ui_version "${1}/ui-v2/dist/index.html")
+      if test "${version}" != "${ui_vers}"
+      then
+         err "ERROR: UI version mismatch. Expecting: '${version}' found '${ui_vers}'"
+         ret=1
+      else
+         rm -rf ${1}/pkg/web_ui/v2
+         mkdir -p ${1}/pkg/web_ui
+         cp -r ${1}/ui-v2/dist ${1}/pkg/web_ui/v2 
+      fi
    fi
+   
    popd > /dev/null
    return $ret
 }
@@ -218,7 +233,7 @@ function build_consul_post {
    rm -r pkg.bin.new
       
    DEV_PLATFORM="./pkg/bin/${extra_dir}$(go env GOOS)_$(go env GOARCH)"
-   for F in $(find ${DEV_PLATFORM} -mindepth 1 -maxdepth 1 -type f )
+   for F in $(find ${DEV_PLATFORM} -mindepth 1 -maxdepth 1 -type f 2>/dev/null)
    do
       # recreate the bin dir
       rm -r bin/* 2> /dev/null
@@ -409,13 +424,26 @@ function build_consul_local {
          do
             outdir="pkg.bin.new/${extra_dir}${os}_${arch}"
             osarch="${os}/${arch}"
-            if test "${osarch}" == "darwin/arm" -o "${osarch}" == "darwin/arm64"
+            if test "${osarch}" == "darwin/arm" -o "${osarch}" == "darwin/arm64" -o "${osarch}" == "freebsd/arm64" -o "${osarch}" == "windows/arm" -o "${osarch}" == "windows/arm64"
             then
                continue
             fi
             
+            if test "${os}" == "solaris" -a "${arch}" != "amd64"
+            then
+               continue 
+            fi
+            
+            echo "--->   ${osarch}"
+            
+            
             mkdir -p "${outdir}"
-            GOOS=${os} GOARCH=${arch} go install -ldflags "${GOLDFLAGS}" -tags "${GOTAGS}" && cp "${MAIN_GOPATH}/bin/consul" "${outdir}/consul"
+            GOBIN_EXTRA=""
+            if test "${os}" != "$(go env GOOS)" -o "${arch}" != "$(go env GOARCH)"
+            then
+               GOBIN_EXTRA="${os}_${arch}/"
+            fi
+            CGO_ENABLED=0 GOOS=${os} GOARCH=${arch} go install -ldflags "${GOLDFLAGS}" -tags "${GOTAGS}" && cp "${MAIN_GOPATH}/bin/${GOBIN_EXTRA}consul" "${outdir}/consul"
             if test $? -ne 0
             then
                err "ERROR: Failed to build Consul for ${osarch}"

@@ -33,7 +33,7 @@ description: |-
           </span>
           <span class='dot'></span>
           <h3>The Challenge</h3>
-          <span class='sub-heading'>Runtime configuration management loses performace at scale.</span>
+          <span class='sub-heading'>Runtime configuration management loses performance at scale.</span>
           <div id='configuration-challenge-animation' class='g-animation-block'>
             <%= inline_svg 'consul-connect/svgs/configuration-challenge.svg' %>
           </div>
@@ -71,7 +71,17 @@ description: |-
           </div>
         </div>
         <div>
-          <img src='/assets/images/consul-connect/ui-kv-store.jpg' alt='Service Registry'>
+          <picture>
+            <source type="image/webp" srcset="
+              /assets/images/consul-connect/ui-kv-store/ui-kv-store_230.webp 230w,
+              /assets/images/consul-connect/ui-kv-store/ui-kv-store_986.webp 986w,
+              /assets/images/consul-connect/ui-kv-store/ui-kv-store_1290.webp 1290w" />
+             <source type="image/jpg" srcset="
+              /assets/images/consul-connect/ui-kv-store/ui-kv-store_230.jpg 230w,
+              /assets/images/consul-connect/ui-kv-store/ui-kv-store_986.jpg 986w,
+              /assets/images/consul-connect/ui-kv-store/ui-kv-store_1290.jpg 1290w" />
+              <img src='/assets/images/consul-connect/ui-kv-store/ui-kv-store_1290.jpg' alt='Service Registry'>
+          </picture>
         </div>
       </div>
     </div>
@@ -160,7 +170,7 @@ description: |-
         <div>
           <div>
             <h3>Watches</h3>
-            <p>Watches use blocking queries monitor for any configuration or health status updates and invoke user specified scripts to handle changes. This makes it easy to build reactive infrastructure.</p>
+            <p>Watches use blocking queries to monitor for any configuration or health status updates and invoke user specified scripts to handle changes. This makes it easy to build reactive infrastructure.</p>
             <p>
               <a class="learn-more" href='/docs/agent/watches.html'>Learn more<svg xmlns="http://www.w3.org/2000/svg" width="6" height="10" viewBox="0 0 6 10"><g fill="none" fill-rule="evenodd" transform="translate(-6 -3)"><mask id="a" fill="#fff"><path d="M7.138 3.529a.666.666 0 1 0-.942.942l3.528 3.53-3.529 3.528a.666.666 0 1 0 .943.943l4-4a.666.666 0 0 0 0-.943l-4-4z"/></mask><g fill="#1563FF" mask="url(#a)"><path d="M0 0h16v16H0z"/></g></g></svg></a>
             </p>
@@ -207,8 +217,8 @@ description: |-
         <h2>Case Studies</h2>
       </div>
       <div class='g-carousel'>
-        <div class="siema">
-          <div class='card' href='#'>
+        <div class='siema'>
+          <a class='card' href='https://www.hashicorp.com/resources/groupon-orchestrates-daas-consul'>
             <div>
               <img src='/assets/images/consul-connect/case-studies/case-study_03.jpg' alt=''>
             </div>
@@ -216,10 +226,10 @@ description: |-
               <span class='tag video'>Video</span>
               <h4>How Groupon Orchestrates Databases as a Service with HashiCorp Consul</h4>
               <p>Group​o​n provides centrally managed, containerized database instances to its engineering teams. To make this process faster, more robust, and operationally safe, they deliver Databases-as-a-Service via an orchestration layer backed by HashiCorp Consul.</p>
-              <a href='https://www.hashicorp.com/resources/groupon-orchestrates-daas-consul'>Watch</a>
+              <span>Watch</span>
             </div>
-          </div>
-          <div class='card' href='#'>
+          </a>
+          <a class='card' href='https://www.hashicorp.com/resources/citadel-scaling-hashicorp-nomad-consul'>
             <div>
               <img src='/assets/images/consul-connect/case-studies/case-study_04.jpg' alt=''>
             </div>
@@ -227,9 +237,9 @@ description: |-
               <span class='tag video'>Video</span>
               <h4>Citadel - Extreme Scaling with HashiCorp Nomad and Consul</h4>
               <p>In this talk from HashiConf 2016, Caius Howcroft covers Citadel's use of HashiCorp Nomad and Consul to gain rapid scaling of its compute resources, for immediate market insights.</p>
-              <a href='https://www.hashicorp.com/resources/citadel-scaling-hashicorp-nomad-consul'>Watch</a>
+              <span>Watch</span>
             </div>
-          </div>
+          </a>
         </div>
         <ul class='pagination'>
           <li class='active'></li>
@@ -261,5 +271,6 @@ description: |-
 </div>
 
 <% content_for :scripts do %>
+  <script src='/assets/javascripts/consul-connect/vendor/object-fit-images.min.js' defer></script>
   <script src='/assets/javascripts/consul-connect/carousel.js' defer></script>
 <% end %>

@@ -7,8 +7,6 @@ import (
 	"reflect"
 	"testing"
 	"time"
-
-	"github.com/hashicorp/serf/coordinate"
 )
 
 func TestSnapshotter(t *testing.T) {
@@ -18,21 +16,12 @@ func TestSnapshotter(t *testing.T) {
 	}
 	defer os.RemoveAll(td)
 
-	// Set up a coordinate at a known location.
-	coordClient, err := coordinate.NewClient(coordinate.DefaultConfig())
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	coord := coordinate.NewCoordinate(coordinate.DefaultConfig())
-	coord.Vec[0] = 123.4
-	coordClient.SetCoordinate(coord)
-
 	clock := new(LamportClock)
 	outCh := make(chan Event, 64)
 	stopCh := make(chan struct{})
 	logger := log.New(os.Stderr, "", log.LstdFlags)
 	inCh, snap, err := NewSnapshotter(td+"snap", snapshotSizeLimit, false,
-		logger, clock, coordClient, outCh, stopCh)
+		logger, clock, outCh, stopCh)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -123,24 +112,14 @@ func TestSnapshotter(t *testing.T) {
 		t.Fatalf("timeout")
 	}
 
-	// Manually kick a coordinate update so the test doesn't have to wait
-	// for the long period.
-	snap.updateCoordinate()
-
 	// Close the snapshoter
 	close(stopCh)
 	snap.Wait()
 
-	// Make a new client back at the origin.
-	newClient, err := coordinate.NewClient(coordinate.DefaultConfig())
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
 	// Open the snapshoter
 	stopCh = make(chan struct{})
 	_, snap, err = NewSnapshotter(td+"snap", snapshotSizeLimit, false,
-		logger, clock, newClient, outCh, stopCh)
+		logger, clock, outCh, stopCh)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -167,11 +146,6 @@ func TestSnapshotter(t *testing.T) {
 		t.Fatalf("bad addr: %#v", prev[0])
 	}
 
-	coord = newClient.GetCoordinate()
-	if coord.Vec[0] != 123.4 {
-		t.Fatalf("bad coordinate: %v", coord)
-	}
-
 	// Close the snapshotter.
 	close(stopCh)
 	snap.Wait()
@@ -180,7 +154,7 @@ func TestSnapshotter(t *testing.T) {
 	// disabled.
 	stopCh = make(chan struct{})
 	_, snap, err = NewSnapshotter(td+"snap", snapshotSizeLimit, false,
-		logger, clock, nil, outCh, stopCh)
+		logger, clock, outCh, stopCh)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -196,22 +170,13 @@ func TestSnapshotter_forceCompact(t *testing.T) {
 	}
 	defer os.RemoveAll(td)
 
-	// Set up a coordinate at a known location.
-	coordClient, err := coordinate.NewClient(coordinate.DefaultConfig())
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	coord := coordinate.NewCoordinate(coordinate.DefaultConfig())
-	coord.Vec[0] = 123.4
-	coordClient.SetCoordinate(coord)
-
 	clock := new(LamportClock)
 	stopCh := make(chan struct{})
 	logger := log.New(os.Stderr, "", log.LstdFlags)
 
 	// Create a very low limit
 	inCh, snap, err := NewSnapshotter(td+"snap", 1024, false,
-		logger, clock, coordClient, nil, stopCh)
+		logger, clock, nil, stopCh)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -241,16 +206,10 @@ func TestSnapshotter_forceCompact(t *testing.T) {
 	close(stopCh)
 	snap.Wait()
 
-	// Make a new client back at the origin.
-	newClient, err := coordinate.NewClient(coordinate.DefaultConfig())
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
 	// Open the snapshoter
 	stopCh = make(chan struct{})
 	_, snap, err = NewSnapshotter(td+"snap", snapshotSizeLimit, false,
-		logger, clock, newClient, nil, stopCh)
+		logger, clock, nil, stopCh)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -262,11 +221,6 @@ func TestSnapshotter_forceCompact(t *testing.T) {
 
 	if snap.LastQueryClock() != 1023 {
 		t.Fatalf("bad clock %d", snap.LastQueryClock())
-	}
-
-	coord = newClient.GetCoordinate()
-	if coord.Vec[0] != 123.4 {
-		t.Fatalf("bad coordinate: %v", coord)
 	}
 
 	close(stopCh)
@@ -284,7 +238,7 @@ func TestSnapshotter_leave(t *testing.T) {
 	stopCh := make(chan struct{})
 	logger := log.New(os.Stderr, "", log.LstdFlags)
 	inCh, snap, err := NewSnapshotter(td+"snap", snapshotSizeLimit, false,
-		logger, clock, nil, nil, stopCh)
+		logger, clock, nil, stopCh)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -332,7 +286,7 @@ func TestSnapshotter_leave(t *testing.T) {
 	// Open the snapshoter
 	stopCh = make(chan struct{})
 	_, snap, err = NewSnapshotter(td+"snap", snapshotSizeLimit, false,
-		logger, clock, nil, nil, stopCh)
+		logger, clock, nil, stopCh)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -365,7 +319,7 @@ func TestSnapshotter_leave_rejoin(t *testing.T) {
 	stopCh := make(chan struct{})
 	logger := log.New(os.Stderr, "", log.LstdFlags)
 	inCh, snap, err := NewSnapshotter(td+"snap", snapshotSizeLimit, true,
-		logger, clock, nil, nil, stopCh)
+		logger, clock, nil, stopCh)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -413,7 +367,7 @@ func TestSnapshotter_leave_rejoin(t *testing.T) {
 	// Open the snapshoter
 	stopCh = make(chan struct{})
 	_, snap, err = NewSnapshotter(td+"snap", snapshotSizeLimit, true,
-		logger, clock, nil, nil, stopCh)
+		logger, clock, nil, stopCh)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

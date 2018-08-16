@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/pborman/uuid"
+	"github.com/rs/cors"
 	"github.com/uol/gobol/snitch"
-
 	"go.uber.org/zap"
 )
 
@@ -46,10 +46,16 @@ func (w *LogResponseWriter) Header() http.Header {
 
 func NewLogMiddleware(service, system string, logger *zap.Logger, sts *snitch.Stats, next http.Handler, allowCORS bool) *LogHandler {
 	logger = logger.WithOptions(zap.AddStacktrace(zap.PanicLevel))
+	var fullHandler http.Handler
+	if allowCORS {
+		fullHandler = cors.AllowAll().Handler(next)
+	} else {
+		fullHandler = next
+	}
 	return &LogHandler{
 		service:   service,
 		system:    system,
-		next:      next,
+		next:      fullHandler,
 		logger:    logger,
 		stats:     sts,
 		allowCORS: allowCORS,
@@ -76,10 +82,6 @@ func (h *LogHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if header.Get(fmt.Sprintf("X-REQUEST-%s-ID", h.system)) == "" {
 		header.Add(fmt.Sprintf("X-REQUEST-%s-ID", h.system), rid)
-	}
-
-	if h.allowCORS {
-		header.Add("Access-Control-Allow-Origin", "*")
 	}
 
 	logw := &LogResponseWriter{

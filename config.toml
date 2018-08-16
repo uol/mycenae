@@ -71,7 +71,7 @@ AllowCORS = true
 [cassandra]
   keyspace = "mycenae"
   consistency = "one"
-  nodes = ["172.17.0.5","172.17.0.6","172.17.0.7"]
+  nodes = ["172.17.0.2","172.17.0.3","172.17.0.4"]
   username = "cassandra"
   password = "cassandra"
   connections = 3
@@ -118,11 +118,11 @@ AllowCORS = true
 [metadataSettings]
   numShards = 1
   replicationFactor = 1
-  url = "http://172.17.0.3:8983/solr"
-  IDCacheTTL = 0
-  QueryCacheTTL = 0
-  KeysetCacheTTL = 0
-  MaxReturnedTags = 20
+  url = "http://172.17.0.6:8983/solr"
+  IDCacheTTL = -1
+  QueryCacheTTL = -1
+  KeysetCacheTTL = -1
+  MaxReturnedMetadata = 10000
   ZookeeperConfig = "mycenae"
 
 [memcached]

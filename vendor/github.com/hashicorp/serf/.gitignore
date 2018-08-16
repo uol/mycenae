@@ -1,5 +1,7 @@
 # Platform
 .DS_Store
+/.idea
+*.iml
 
 # Compiled Object files, Static and Dynamic libs (Shared Objects)
 *.o
@@ -7,10 +9,8 @@
 *.so
 
 # Folders
-bin
-_obj
-_test
-pkg/
+/bin/
+/pkg/
 
 # Architecture specific extensions/prefixes
 *.[568vq]
