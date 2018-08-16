@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/consul/acl"
 	"github.com/hashicorp/consul/agent/connect"
@@ -177,6 +178,7 @@ func (s *ConnectCA) ConfigurationSet(
 		newRoot := *r
 		if newRoot.Active {
 			newRoot.Active = false
+			newRoot.RotatedOutAt = time.Now()
 		}
 		newRoots = append(newRoots, &newRoot)
 	}
@@ -215,6 +217,11 @@ func (s *ConnectCA) Roots(
 		return err
 	}
 
+	// Exit early if Connect hasn't been enabled.
+	if !s.srv.config.ConnectEnabled {
+		return ErrConnectNotEnabled
+	}
+
 	// Load the ClusterID to generate TrustDomain. We do this outside the loop
 	// since by definition this value should be immutable once set for lifetime of
 	// the cluster so we don't need to look it up more than once. We also don't
@@ -228,6 +235,7 @@ func (s *ConnectCA) Roots(
 		if err != nil {
 			return err
 		}
+
 		// Check CA is actually bootstrapped...
 		if config != nil {
 			// Build TrustDomain based on the ClusterID stored.

@@ -1,14 +1,14 @@
 language: go
 
 go:
-  - 1.6
+  - 1.10.x
 
 branches:
   only:
     - master
 
 install:
-  - make
+  - make bin
   - make get-tools
 
 script:

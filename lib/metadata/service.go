@@ -17,18 +17,19 @@ import (
 
 // SolrBackend - struct
 type SolrBackend struct {
-	solrService       *solar.SolrService
-	numShards         int
-	replicationFactor int
-	regexPattern      *regexp.Regexp
-	stats             *tsstats.StatsTS
-	logger            *zap.Logger
-	memcached         *memcached.Memcached
-	idCacheTTL        int32
-	queryCacheTTL     int32
-	keysetCacheTTL    int32
-	fieldListQuery    string
-	zookeeperConfig   string
+	solrService         *solar.SolrService
+	numShards           int
+	replicationFactor   int
+	regexPattern        *regexp.Regexp
+	stats               *tsstats.StatsTS
+	logger              *zap.Logger
+	memcached           *memcached.Memcached
+	idCacheTTL          int32
+	queryCacheTTL       int32
+	keysetCacheTTL      int32
+	fieldListQuery      string
+	zookeeperConfig     string
+	maxReturnedMetadata int
 }
 
 // NewSolrBackend - creates a new instance
@@ -43,18 +44,19 @@ func NewSolrBackend(settings *Settings, stats *tsstats.StatsTS, logger *zap.Logg
 	rp := regexp.MustCompile("^\\.?\\*" + baseWordRegexp + "|" + baseWordRegexp + "\\.?\\*$|\\[" + baseWordRegexp + "\\][\\+\\*]{1}|\\(" + baseWordRegexp + "\\)|" + baseWordRegexp + "\\{[0-9]+\\}")
 
 	return &SolrBackend{
-		solrService:       ss,
-		stats:             stats,
-		logger:            logger,
-		replicationFactor: settings.ReplicationFactor,
-		numShards:         settings.NumShards,
-		regexPattern:      rp,
-		memcached:         memcached,
-		idCacheTTL:        settings.IDCacheTTL,
-		queryCacheTTL:     settings.QueryCacheTTL,
-		keysetCacheTTL:    settings.KeysetCacheTTL,
-		fieldListQuery:    fmt.Sprintf("*,[child parentFilter=parent_doc:true limit=%d]", settings.MaxReturnedTags),
-		zookeeperConfig:   settings.ZookeeperConfig,
+		solrService:         ss,
+		stats:               stats,
+		logger:              logger,
+		replicationFactor:   settings.ReplicationFactor,
+		numShards:           settings.NumShards,
+		regexPattern:        rp,
+		memcached:           memcached,
+		idCacheTTL:          settings.IDCacheTTL,
+		queryCacheTTL:       settings.QueryCacheTTL,
+		keysetCacheTTL:      settings.KeysetCacheTTL,
+		fieldListQuery:      fmt.Sprintf("*,[child parentFilter=parent_doc:true limit=%d]", settings.MaxReturnedMetadata),
+		zookeeperConfig:     settings.ZookeeperConfig,
+		maxReturnedMetadata: settings.MaxReturnedMetadata,
 	}, nil
 }
 
@@ -187,7 +189,7 @@ func (sb *SolrBackend) filterFieldValues(collection, action, field, value string
 
 	q, _ := sb.buildMetadataQuery(&query, true)
 
-	r, e := sb.solrService.Facets(collection, q, "", 0, 0, nil, facetFields, childFacetFields, true)
+	r, e := sb.solrService.Facets(collection, q, "", 0, 0, nil, facetFields, childFacetFields, true, sb.maxReturnedMetadata, 1)
 	if e != nil {
 		sb.statsCollectionError(collection, action, "solr.collection.search")
 		return nil, 0, errInternalServer("filterFieldValues", e)

@@ -1,7 +1,7 @@
 {{#app-view class="service show"}}
     {{#block-slot 'breadcrumbs'}}
         <ol>
-            <li><a href={{href-to 'dc.services'}}>All Services</a></li>
+            <li><a data-test-back href={{href-to 'dc.services'}}>All Services</a></li>
         </ol>
     {{/block-slot}}
     {{#block-slot 'header'}}
@@ -36,7 +36,8 @@
                         data-test-node=item.Node.Node
                         href=(href-to 'dc.nodes.show' item.Node.Node)
                         name=item.Node.Node
-                        address=(concat item.Node.Address ':' item.Service.Port)
+                        service=item.Service.ID
+                        address=(concat item.Service.Address ':' item.Service.Port)
                         checks=item.Checks
                     }}
     {{/each}}
@@ -49,13 +50,14 @@
             <h2>Healthy Nodes</h2>
             {{#list-collection
                 items=healthy
-                cell-layout=(percentage-columns-layout healthy.length columns 100) as |item index|
+                cell-layout=(percentage-columns-layout healthy.length columns 113) as |item index|
             }}
                 {{healthchecked-resource
                     href=(href-to 'dc.nodes.show' item.Node.Node)
                     data-test-node=item.Node.Node
                     name=item.Node.Node
-                    address=(concat item.Node.Address ':' item.Service.Port)
+                    service=item.Service.ID
+                    address=(concat item.Service.Address ':' item.Service.Port)
                     checks=item.Checks
                     status=item.Checks.[0].Status
                 }}

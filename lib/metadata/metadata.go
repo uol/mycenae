@@ -59,14 +59,14 @@ type Storage struct {
 
 // Settings for the metadata package
 type Settings struct {
-	NumShards         int
-	ReplicationFactor int
-	URL               string
-	IDCacheTTL        int32
-	QueryCacheTTL     int32
-	KeysetCacheTTL    int32
-	MaxReturnedTags   int
-	ZookeeperConfig   string
+	NumShards           int
+	ReplicationFactor   int
+	URL                 string
+	IDCacheTTL          int32
+	QueryCacheTTL       int32
+	KeysetCacheTTL      int32
+	MaxReturnedMetadata int
+	ZookeeperConfig     string
 }
 
 // Metadata document

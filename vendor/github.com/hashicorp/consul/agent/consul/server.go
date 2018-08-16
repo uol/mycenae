@@ -107,6 +107,12 @@ type Server struct {
 	caProviderRoot *structs.CARoot
 	caProviderLock sync.RWMutex
 
+	// caPruningCh is used to shut down the CA root pruning goroutine when we
+	// lose leadership.
+	caPruningCh      chan struct{}
+	caPruningLock    sync.RWMutex
+	caPruningEnabled bool
+
 	// Consul configuration
 	config *Config
 
@@ -358,12 +364,6 @@ func NewServerLogger(config *Config, logger *log.Logger, tokens *token.Store) (*
 		return nil, fmt.Errorf("Failed to start Raft: %v", err)
 	}
 
-	// Start enterprise specific functionality
-	if err := s.startEnterprise(); err != nil {
-		s.Shutdown()
-		return nil, err
-	}
-
 	// Serf and dynamic bind ports
 	//
 	// The LAN serf cluster announces the port of the WAN serf cluster
@@ -426,6 +426,12 @@ func NewServerLogger(config *Config, logger *log.Logger, tokens *token.Store) (*
 			return 0, false
 		}
 		go s.Flood(nil, portFn, s.serfWAN)
+	}
+
+	// Start enterprise specific functionality
+	if err := s.startEnterprise(); err != nil {
+		s.Shutdown()
+		return nil, err
 	}
 
 	// Start monitoring leadership. This must happen after Serf is set up

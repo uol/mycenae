@@ -90,16 +90,13 @@ The options below are all specified on the command-line.
   By default, this is "0.0.0.0", meaning Consul will bind to all addresses on
 the local machine and will [advertise](/docs/agent/options.html#_advertise)
 the first available private IPv4 address to the rest of the cluster. If there
-are multiple private IPv4 addresses available, Consul will exit with an error
+are **multiple private IPv4 addresses** available, Consul will exit with an error
 at startup. If you specify "[::]", Consul will
 [advertise](/docs/agent/options.html#_advertise) the first available public
-IPv6 address. If there are multiple public IPv6 addresses available, Consul
+IPv6 address. If there are **multiple public IPv6 addresses** available, Consul
 will exit with an error at startup.
   Consul uses both TCP and UDP and the same port for both. If you
-  have any firewalls, be sure to allow both protocols. In Consul 1.0 and later
-  this can be set to a space-separated list of addresses to bind to, or a
-  [go-sockaddr](https://godoc.org/github.com/hashicorp/go-sockaddr/template) template
-  that can potentially resolve to multiple addresses.
+  have any firewalls, be sure to allow both protocols. **In Consul 1.0 and later this can be set to a [go-sockaddr](https://godoc.org/github.com/hashicorp/go-sockaddr/template) template that needs to resolve to a single address.**
 
 * <a name="_serf_wan_bind"></a><a href="#_serf_wan_bind">`-serf-wan-bind`</a> -
   The address that should be bound to for Serf WAN gossip communications. By
@@ -139,7 +136,7 @@ will exit with an error at startup.
 
 * <a name="_config_dir"></a><a href="#_config_dir">`-config-dir`</a> - A directory of
   configuration files to load. Consul will
-  load all files in this directory with the suffix ".json". The load order
+  load all files in this directory with the suffix ".json" or ".hcl". The load order
   is alphabetical, and the the same merge routine is used as with the
   [`config-file`](#_config_file) option above. This option can be specified multiple times
   to load multiple directories. Sub-directories of the config directory are not loaded.
@@ -175,7 +172,9 @@ will exit with an error at startup.
 * <a name="_dev"></a><a href="#_dev">`-dev`</a> - Enable development server
   mode. This is useful for quickly starting a Consul agent with all persistence
   options turned off, enabling an in-memory server which can be used for rapid
-  prototyping or developing against the API. This mode is **not** intended for
+  prototyping or developing against the API. In this mode,
+  [Connect is enabled](/docs/connect/configuration.html) and will by default
+  create a new root CA certificate on startup. This mode is **not** intended for
   production use as it does not write any data to disk.
 
 * <a name="_disable_host_node_id"></a><a href="#_disable_host_node_id">`-disable-host-node-id`</a> - Setting
@@ -388,6 +387,12 @@ will exit with an error at startup.
   within its network segment. See the [Network Segments Guide](/docs/guides/segments.html) for more details.
   By default, this is an empty string, which is the default network segment.
 
+* <a name="_serf_lan_port"></a><a href="#_serf_lan_port">`-serf-lan-port`</a> - the Serf LAN port to listen on.
+  This overrides the default Serf LAN port 8301. This is available in Consul 1.2.2 and later.
+
+* <a name="_serf_wan_port"></a><a href="#_serf_wan_port">`-serf-wan-port`</a> - the Serf WAN port to listen on.
+  This overrides the default Serf WAN port 8302. This is available in Consul 1.2.2 and later.
+
 * <a name="_server"></a><a href="#_server">`-server`</a> - This flag is used to control if an
   agent is in server or client mode. When provided,
   an agent will act as a Consul server. Each Consul cluster must have at least one server and ideally
@@ -396,6 +401,9 @@ will exit with an error at startup.
   is maintained on all server nodes to ensure availability in the case of node failure. Server nodes also
   participate in a WAN gossip pool with server nodes in other datacenters. Servers act as gateways
   to other datacenters and forward traffic as appropriate.
+
+* <a name="_server_port"></a><a href="#_server_port">`-server-port`</a> - the server RPC port to listen on.
+  This overrides the default server RPC port 8300. This is available in Consul 1.2.2 and later.
 
 * <a name="_non_voting_server"></a><a href="#_non_voting_server">`-non-voting-server`</a> - (Enterprise-only)
   This flag is used to make the server not participate in the Raft quorum, and have it only receive the data
@@ -499,11 +507,14 @@ Consul will not enable TLS for the HTTP API unless the `https` port has been ass
   to enable ACL support.
 
 * <a name="acl_down_policy"></a><a href="#acl_down_policy">`acl_down_policy`</a> - Either
-  "allow", "deny" or "extend-cache"; "extend-cache" is the default. In the case that the
+  "allow", "deny", "extend-cache" or "async-cache"; "extend-cache" is the default. In the case that the
   policy for a token cannot be read from the [`acl_datacenter`](#acl_datacenter) or leader
   node, the down policy is applied. In "allow" mode, all actions are permitted, "deny" restricts
   all operations, and "extend-cache" allows any cached ACLs to be used, ignoring their TTL
   values. If a non-cached ACL is used, "extend-cache" acts like "deny".
+  The value "async-cache" acts the same way as "extend-cache" but performs updates
+  asynchronously when ACL is present but its TTL is expired, thus, if latency is bad between
+  ACL authoritative and other datacenters, latency of operations is not impacted.
 
 * <a name="acl_agent_master_token"></a><a href="#acl_agent_master_token">`acl_agent_master_token`</a> -
   Used to access <a href="/api/agent.html">agent endpoints</a> that require agent read
@@ -680,7 +691,7 @@ Consul will not enable TLS for the HTTP API unless the `https` port has been ass
 
     * <a name="connect_ca_provider"></a><a href="#connect_ca_provider">`ca_provider`</a> Controls
       which CA provider to use for Connect's CA. Currently only the `consul` and `vault` providers
-      are supported. This is only used when initially bootstrapping the cluster. For an existing 
+      are supported. This is only used when initially bootstrapping the cluster. For an existing
       cluster, use the [Update CA Configuration Endpoint](/api/connect/ca.html#update-ca-configuration).
 
     * <a name="connect_ca_config"></a><a href="#connect_ca_config">`ca_config`</a> An object which
@@ -700,7 +711,7 @@ Consul will not enable TLS for the HTTP API unless the `https` port has been ass
 
         #### Vault CA Provider (`ca_provider = "vault"`)
 
-        * <a name="vault_ca_address"></a><a href="#vault_ca_address">`address`</a> The address of the Vault 
+        * <a name="vault_ca_address"></a><a href="#vault_ca_address">`address`</a> The address of the Vault
         server to connect to.
 
         * <a name="vault_ca_token"></a><a href="#vault_ca_token">`token`</a> The Vault token to use.
@@ -711,11 +722,26 @@ Consul will not enable TLS for the HTTP API unless the `https` port has been ass
         The Vault token given above must have `sudo` access to this backend, as well as permission to mount
         the backend at this path if it is not already mounted.
 
-        * <a name="vault_ca_intermediate_pki"></a><a href="#vault_ca_intermediate_pki">`intermediate_pki_path`</a> 
+        * <a name="vault_ca_intermediate_pki"></a><a href="#vault_ca_intermediate_pki">`intermediate_pki_path`</a>
         The path to use for the temporary intermediate CA pki backend in Vault. *Connect will overwrite any data
-        at this path in order to generate a temporary intermediate CA*. The Vault token given above must have 
-        `write` access to this backend, as well as permission to mount the backend at this path if it is not 
+        at this path in order to generate a temporary intermediate CA*. The Vault token given above must have
+        `write` access to this backend, as well as permission to mount the backend at this path if it is not
         already mounted.
+
+        #### Common CA Config Options
+
+        <p>There are also a number of common configuration options supported by all providers:</p>
+        
+        * <a name="ca_leaf_cert_ttl"></a><a href="#ca_leaf_cert_ttl">`leaf_cert_ttl`</a> The upper bound on the
+        lease duration of a leaf certificate issued for a service. In most cases a new leaf certificate will be
+        requested by a proxy before this limit is reached. This is also the effective limit on how long a server
+        outage can last (with no leader) before network connections will start being rejected, and as a result the
+        defaults is `72h` to last through a weekend without intervention. This value cannot be lower than 1 hour
+        or higher than 1 year.
+
+        This value is also used when rotating out old root certificates from the cluster. When a root certificate
+        has been inactive (rotated out) for more than twice the *current* `leaf_cert_ttl`, it will be removed from
+        the trusted list.
 
     * <a name="connect_proxy"></a><a href="#connect_proxy">`proxy`</a> This object allows setting options for the Connect proxies. The following sub-keys are available:
 
@@ -738,6 +764,17 @@ Consul will not enable TLS for the HTTP API unless the `https` port has been ass
 * <a name="disable_host_node_id"></a><a href="#disable_host_node_id">`disable_host_node_id`</a>
   Equivalent to the [`-disable-host-node-id` command-line flag](#_disable_host_node_id).
 
+* <a name="disable_http_unprintable_char_filter"></a><a href="#disable_http_unprintable_char_filter">`disable_http_unprintable_char_filter`</a>
+  Defaults to false. Consul 1.0.3 fixed a potential security vulnerability where
+  malicious users could craft KV keys with unprintable chars that would confuse
+  operators using the CLI or UI into taking wrong actions. Users who had data
+  written in older versions of Consul that did not have this restriction will be
+  unable to delete those values by default in 1.0.3 or later. This setting
+  enables those users to _temporarily_ disable the filter such that delete
+  operations can work on those keys again to get back to a healthy state. It is
+  strongly recommended that this filter is not disabled permanently as it
+  exposes the original security vulnerability.
+
 * <a name="disable_remote_exec"></a><a href="#disable_remote_exec">`disable_remote_exec`</a>
   Disables support for remote execution. When set to true, the agent will ignore any incoming
   remote exec requests. In versions of Consul prior to 0.8, this defaulted to false. In Consul
@@ -752,7 +789,7 @@ Consul will not enable TLS for the HTTP API unless the `https` port has been ass
   to the Consul raft log in environments where health checks have volatile output like
   timestamps, process ids, ...
 
-  * <a name="discovery_max_stale"></a><a href="#discovery_max_stale">`discovery_max_stale`</a> - Enables
+* <a name="discovery_max_stale"></a><a href="#discovery_max_stale">`discovery_max_stale`</a> - Enables
   stale requests for all service discovery HTTP endpoints. This is equivalent to the
   [`max_stale`](#max_stale) configuration for DNS requests. If this value is zero (default), all service
   discovery HTTP endpoints are forwarded to the leader. If this value is greater than zero, any Consul server
@@ -825,7 +862,7 @@ Consul will not enable TLS for the HTTP API unless the `https` port has been ass
       matching hosts, shuffle the list randomly, and then limit the number of
       answers to `a_record_limit` (default: no limit). This limit does not apply to SRV records.
 
-      In environments where [RFC 3484 Section 6](https://tools.ietf.org/html/rfc3484#section-6) Rule 9
+        In environments where [RFC 3484 Section 6](https://tools.ietf.org/html/rfc3484#section-6) Rule 9
       is implemented and enforced (i.e. DNS answers are always sorted and
       therefore never random), clients may need to set this value to `1` to
       preserve the expected randomized distribution behavior (note:
@@ -833,10 +870,10 @@ Consul will not enable TLS for the HTTP API unless the `https` port has been ass
       [RFC 6724](https://tools.ietf.org/html/rfc6724) and as a result it should
       be increasingly uncommon to need to change this value with modern
       resolvers).
-      
-    * <a name="enable_additional_node_meta_txt"></a><a href="#enable_additional_node_meta_txt">`enable_additional_node_meta_txt`</a> - 
+
+    * <a name="enable_additional_node_meta_txt"></a><a href="#enable_additional_node_meta_txt">`enable_additional_node_meta_txt`</a> -
       When set to true, Consul will add TXT records for Node metadata into the Additional section of the DNS responses for several
-      query types such as SRV queries. When set to false those records are emitted. This does not impact the behavior of those
+      query types such as SRV queries. When set to false those records are not emitted. This does not impact the behavior of those
       same TXT records when they would be added to the Answer section of the response like when querying with type TXT or ANY. This
       defaults to true.
 
@@ -880,6 +917,76 @@ Consul will not enable TLS for the HTTP API unless the `https` port has been ass
 
 * <a name="disable_keyring_file"></a><a href="#disable_keyring_file">`disable_keyring_file`</a> - Equivalent to the
   [`-disable-keyring-file` command-line flag](#_disable_keyring_file).
+
+* <a name="gossip_lan"></a><a href="#gossip_lan">`gossip_lan`</a> - **(Advanced)** This object contains a number of sub-keys
+  which can be set to tune the LAN gossip communications. These are only provided for users running especially large 
+  clusters that need fine tuning and are prepared to spend significant effort correctly tuning them for their
+  environment and workload. **Tuning these improperly can cause Consul to fail in unexpected ways**.
+  The default values are appropriate in almost all deployments.
+  
+  * <a name="gossip_nodes"></a><a href="#gossip_nodes">`gossip_nodes`</a> - The number of random nodes to send
+     gossip messages to per gossip_interval. Increasing this number causes the gossip messages to propagate 
+     across the cluster more quickly at the expense of increased bandwidth. The default is 3.
+  
+  * <a name="gossip_interval"></a><a href="#gossip_interval">`gossip_interval`</a> - The interval between sending
+    messages that need to be gossiped that haven't been able to piggyback on probing messages. If this is set to 
+    zero, non-piggyback gossip is disabled. By lowering this value (more frequent) gossip messages are propagated
+    across the cluster more quickly at the expense of increased bandwidth. The default is 200ms.
+  
+  * <a name="probe_interval"></a><a href="#probe_interval">`probe_interval`</a> - The interval between random node
+    probes. Setting this lower (more frequent) will cause the cluster to detect failed nodes more quickly 
+    at the expense of increased bandwidth usage. The default is 1s.
+  
+  * <a name="probe_timeout"></a><a href="#probe_timeout">`probe_timeout`</a> - The timeout to wait for an ack from
+    a probed node before assuming it is unhealthy. This should be at least the 99-percentile of RTT (round-trip time) on
+    your network. The default is 500ms and is a conservative value suitable for almost all realistic deployments.
+  
+  * <a name="retransmit_mult"></a><a href="#retransmit_mult">`retransmit_mult`</a> - The multiplier for the number 
+    of retransmissions that are attempted for messages broadcasted over gossip. The number of retransmits is scaled
+    using this multiplier and the cluster size. The higher the multiplier, the more likely a failed broadcast is to
+    converge at the expense of increased bandwidth. The default is 4.
+  
+  * <a name="suspicion_mult"></a><a href="#suspicion_mult">`suspicion_mult`</a> - The multiplier for determining the
+    time an inaccessible node is considered suspect before declaring it dead. The timeout is scaled with the cluster
+    size and the probe_interval. This allows the timeout to scale properly with expected propagation delay with a 
+    larger cluster size. The higher the multiplier, the longer an inaccessible node is considered part of the 
+    cluster before declaring it dead, giving that suspect node more time to refute if it is indeed still alive. The
+    default is 4.
+  
+* <a name="gossip_wan"></a><a href="#gossip_wan">`gossip_wan`</a> - **(Advanced)** This object contains a number of sub-keys
+  which can be set to tune the WAN gossip communications. These are only provided for users running especially large 
+  clusters that need fine tuning and are prepared to spend significant effort correctly tuning them for their
+  environment and workload. **Tuning these improperly can cause Consul to fail in unexpected ways**.
+  The default values are appropriate in almost all deployments.
+  
+    * <a name="gossip_nodes"></a><a href="#gossip_nodes">`gossip_nodes`</a> - The number of random nodes to send
+     gossip messages to per gossip_interval. Increasing this number causes the gossip messages to propagate 
+     across the cluster more quickly at the expense of increased bandwidth. The default is 3.
+  
+  * <a name="gossip_interval"></a><a href="#gossip_interval">`gossip_interval`</a> - The interval between sending
+    messages that need to be gossiped that haven't been able to piggyback on probing messages. If this is set to 
+    zero, non-piggyback gossip is disabled. By lowering this value (more frequent) gossip messages are propagated
+    across the cluster more quickly at the expense of increased bandwidth. The default is 200ms.
+  
+  * <a name="probe_interval"></a><a href="#probe_interval">`probe_interval`</a> - The interval between random node
+    probes. Setting this lower (more frequent) will cause the cluster to detect failed nodes more quickly 
+    at the expense of increased bandwidth usage. The default is 1s.
+  
+  * <a name="probe_timeout"></a><a href="#probe_timeout">`probe_timeout`</a> - The timeout to wait for an ack from
+    a probed node before assuming it is unhealthy. This should be at least the 99-percentile of RTT (round-trip time) on
+    your network. The default is 500ms and is a conservative value suitable for almost all realistic deployments.
+  
+  * <a name="retransmit_mult"></a><a href="#retransmit_mult">`retransmit_mult`</a> - The multiplier for the number 
+    of retransmissions that are attempted for messages broadcasted over gossip. The number of retransmits is scaled
+    using this multiplier and the cluster size. The higher the multiplier, the more likely a failed broadcast is to
+    converge at the expense of increased bandwidth. The default is 4.
+  
+  * <a name="suspicion_mult"></a><a href="#suspicion_mult">`suspicion_mult`</a> - The multiplier for determining the
+    time an inaccessible node is considered suspect before declaring it dead. The timeout is scaled with the cluster
+    size and the probe_interval. This allows the timeout to scale properly with expected propagation delay with a 
+    larger cluster size. The higher the multiplier, the longer an inaccessible node is considered part of the 
+    cluster before declaring it dead, giving that suspect node more time to refute if it is indeed still alive. The
+    default is 4.
 
 * <a name="key_file"></a><a href="#key_file">`key_file`</a> This provides a the file path to a
   PEM-encoded private key. The key is used with the certificate to verify the agent's authenticity.
@@ -1150,10 +1257,10 @@ Consul will not enable TLS for the HTTP API unless the `https` port has been ass
     * <a name="telemetry-circonus_check_search_tag"></a><a href="#telemetry-circonus_check_search_tag">`circonus_check_search_tag`</a>
       A special tag which, when coupled with the instance id, helps to narrow down the search results when neither a Submission URL or Check ID is provided. By default, this is set to service:application name (e.g. "service:consul").
 
-    * <a name="telemetry-circonus_check_display_name"</a><a href="#telemetry-circonus_check_display_name">`circonus_check_display_name`</a>
+    * <a name="telemetry-circonus_check_display_name"></a><a href="#telemetry-circonus_check_display_name">`circonus_check_display_name`</a>
       Specifies a name to give a check when it is created. This name is displayed in the Circonus UI Checks list. Available in Consul 0.7.2 and later.
 
-    * <a name="telemetry-circonus_check_tags"</a><a href="#telemetry-circonus_check_tags">`circonus_check_tags`</a>
+    * <a name="telemetry-circonus_check_tags"></a><a href="#telemetry-circonus_check_tags">`circonus_check_tags`</a>
       Comma separated list of additional tags to add to a check when it is created. Available in Consul 0.7.2 and later.
 
     * <a name="telemetry-circonus_broker_id"></a><a href="#telemetry-circonus_broker_id">`circonus_broker_id`</a>
@@ -1209,6 +1316,14 @@ Consul will not enable TLS for the HTTP API unless the `https` port has been ass
       the Accept header with value `text/plain; version=0.0.4; charset=utf-8`  to the `/v1/agent/metrics` (as done by Prometheus).
       The format is compatible natively with prometheus. When running in this mode, it is recommended to also enable the option
       <a href="#telemetry-disable_hostname">`disable_hostname`</a> to avoid having prefixed metrics with hostname.
+      Consul does not use the default Prometheus path, so Prometheus must be configured as follows.
+      Note that using ?format=prometheus in the path won't work as ? will be escaped, so it must be specified as a parameter.
+
+        ```yaml
+          metrics_path: "/v1/agent/metrics"
+          params:
+            format: ['prometheus']
+        ```
 
     * <a name="telemetry-statsd_address"></a><a href="#telemetry-statsd_address">`statsd_address`</a> This provides the
       address of a statsd instance in the format `host:port`. If provided, Consul will send various telemetry information to that instance for
@@ -1237,7 +1352,7 @@ Consul will not enable TLS for the HTTP API unless the `https` port has been ass
   `tls_prefer_server_cipher_suites`</a> Added in Consul 0.8.2, this will cause Consul to prefer the
   server's ciphersuite over the client ciphersuites.
 
-*   <a name="translate_wan_addrs"</a><a href="#translate_wan_addrs">`translate_wan_addrs`</a> If
+*   <a name="translate_wan_addrs"></a><a href="#translate_wan_addrs">`translate_wan_addrs`</a> If
     set to true, Consul will prefer a node's configured <a href="#_advertise-wan">WAN address</a>
     when servicing DNS and HTTP requests for a node in a remote datacenter. This allows the node to
     be reached within its own datacenter using its local address, and reached from other datacenters

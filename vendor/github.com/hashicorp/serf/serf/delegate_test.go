@@ -1,19 +1,11 @@
 package serf
 
 import (
-	"github.com/hashicorp/memberlist"
-	"github.com/hashicorp/serf/testutil"
 	"reflect"
 	"testing"
-)
 
-func TestDelegate_impl(t *testing.T) {
-	var raw interface{}
-	raw = new(delegate)
-	if _, ok := raw.(memberlist.Delegate); !ok {
-		t.Fatal("should be an Delegate")
-	}
-}
+	"github.com/hashicorp/serf/testutil"
+)
 
 func TestDelegate_NodeMeta_Old(t *testing.T) {
 	c := testConfig()
@@ -116,12 +108,13 @@ func TestDelegate_LocalState(t *testing.T) {
 	}
 
 	// Verify the status
-	if len(pp.StatusLTimes) != 2 {
+	// Leave waits until propagation so this should only have one member
+	if len(pp.StatusLTimes) != 1 {
 		t.Fatalf("missing ltimes")
 	}
 
-	if len(pp.LeftMembers) != 1 {
-		t.Fatalf("missing left members")
+	if len(pp.LeftMembers) != 0 {
+		t.Fatalf("should have no left members")
 	}
 
 	if pp.EventLTime != s1.eventClock.Time() {
@@ -186,12 +179,12 @@ func TestDelegate_MergeRemoteState(t *testing.T) {
 	}
 
 	// Verify pending join for test
-	if s1.recentJoin[0].Node != "test" || s1.recentJoin[0].LTime != 20 {
+	if join, ok := recentIntent(s1.recentIntents, "test", messageJoinType); !ok || join != 20 {
 		t.Fatalf("bad recent join")
 	}
 
 	// Verify pending leave for foo
-	if s1.recentLeave[0].Node != "foo" || s1.recentLeave[0].LTime != 15 {
+	if leave, ok := recentIntent(s1.recentIntents, "foo", messageLeaveType); !ok || leave != 16 {
 		t.Fatalf("bad recent leave")
 	}
 

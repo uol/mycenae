@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/agent/structs"
+	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/consul/tlsutil"
 	"github.com/hashicorp/consul/types"
@@ -46,14 +47,6 @@ type RuntimeConfig struct {
 	ConsulRaftElectionTimeout        time.Duration
 	ConsulRaftHeartbeatTimeout       time.Duration
 	ConsulRaftLeaderLeaseTimeout     time.Duration
-	ConsulSerfLANGossipInterval      time.Duration
-	ConsulSerfLANProbeInterval       time.Duration
-	ConsulSerfLANProbeTimeout        time.Duration
-	ConsulSerfLANSuspicionMult       int
-	ConsulSerfWANGossipInterval      time.Duration
-	ConsulSerfWANProbeInterval       time.Duration
-	ConsulSerfWANProbeTimeout        time.Duration
-	ConsulSerfWANSuspicionMult       int
 	ConsulServerHealthInterval       time.Duration
 
 	// ACLAgentMasterToken is a special token that has full read and write
@@ -94,8 +87,10 @@ type RuntimeConfig struct {
 	//                    ACL's to be used to service requests. This
 	//                    is the default. If the ACL is not in the cache,
 	//                    this acts like deny.
+	//   * async-cache - Same behaviour as extend-cache, but perform ACL
+	//                   Lookups asynchronously when cache TTL is expired.
 	//
-	// hcl: acl_down_policy = ("allow"|"deny"|"extend-cache")
+	// hcl: acl_down_policy = ("allow"|"deny"|"extend-cache"|"async-cache")
 	ACLDownPolicy string
 
 	// ACLEnforceVersion8 is used to gate a set of ACL policy features that
@@ -561,6 +556,16 @@ type RuntimeConfig struct {
 	// flag: -disable-host-node-id
 	DisableHostNodeID bool
 
+	// DisableHTTPUnprintableCharFilter will bypass the filter preventing HTTP
+	// URLs from containing unprintable chars. This filter was added in 1.0.3 as a
+	// response to a vulnerability report. Disabling this is never recommended in
+	// general however some users who have keys written in older versions of
+	// Consul may use this to temporarily disable the filter such that they can
+	// delete those keys again! We do not recommend leaving it disabled long term.
+	//
+	// hcl: disable_http_unprintable_char_filter
+	DisableHTTPUnprintableCharFilter bool
+
 	// DisableKeyringFile disables writing the keyring to a file.
 	//
 	// hcl: disable_keyring_file = (true|false)
@@ -951,6 +956,160 @@ type RuntimeConfig struct {
 	// hcl: ports { serf_wan = int }
 	SerfPortWAN int
 
+	// GossipLANGossipInterval is the interval between sending messages that need
+	// to be gossiped that haven't been able to piggyback on probing messages.
+	// If this is set to zero, non-piggyback gossip is disabled. By lowering
+	// this value (more frequent) gossip messages are propagated across
+	// the cluster more quickly at the expense of increased bandwidth. This
+	// configuration only applies to LAN gossip communications
+	//
+	// The default is: 200ms
+	//
+	// hcl: gossip_lan { gossip_interval = duration}
+	GossipLANGossipInterval time.Duration
+
+	// GossipLANGossipNodes is the number of random nodes to send gossip messages to
+	// per GossipInterval. Increasing this number causes the gossip messages to
+	// propagate across the cluster more quickly at the expense of increased
+	// bandwidth. This configuration only applies to LAN gossip communications
+	//
+	// The default is: 3
+	//
+	// hcl: gossip_lan { gossip_nodes = int }
+	GossipLANGossipNodes int
+
+	// GossipLANProbeInterval is the interval between random node probes. Setting
+	// this lower (more frequent) will cause the memberlist cluster to detect
+	// failed nodes more quickly at the expense of increased bandwidth usage.
+	// This configuration only applies to LAN gossip communications
+	//
+	// The default is: 1s
+	//
+	// hcl: gossip_lan { probe_interval = duration }
+	GossipLANProbeInterval time.Duration
+
+	// GossipLANProbeTimeout is the timeout to wait for an ack from a probed node
+	// before assuming it is unhealthy. This should be set to 99-percentile
+	// of RTT (round-trip time) on your network. This configuration
+	// only applies to the LAN gossip communications
+	//
+	// The default is: 500ms
+	//
+	// hcl: gossip_lan { probe_timeout = duration }
+	GossipLANProbeTimeout time.Duration
+
+	// GossipLANSuspicionMult is the multiplier for determining the time an
+	// inaccessible node is considered suspect before declaring it dead. This
+	// configuration only applies to LAN gossip communications
+	//
+	// The actual timeout is calculated using the formula:
+	//
+	//   SuspicionTimeout = SuspicionMult * log(N+1) * ProbeInterval
+	//
+	// This allows the timeout to scale properly with expected propagation
+	// delay with a larger cluster size. The higher the multiplier, the longer
+	// an inaccessible node is considered part of the cluster before declaring
+	// it dead, giving that suspect node more time to refute if it is indeed
+	// still alive.
+	//
+	// The default is: 4
+	//
+	// hcl: gossip_lan { suspicion_mult = int }
+	GossipLANSuspicionMult int
+
+	// GossipLANRetransmitMult is the multiplier for the number of retransmissions
+	// that are attempted for messages broadcasted over gossip. This
+	// configuration only applies to LAN gossip communications. The actual
+	// count of retransmissions is calculated using the formula:
+	//
+	//   Retransmits = RetransmitMult * log(N+1)
+	//
+	// This allows the retransmits to scale properly with cluster size. The
+	// higher the multiplier, the more likely a failed broadcast is to converge
+	// at the expense of increased bandwidth.
+	//
+	// The default is: 4
+	//
+	// hcl: gossip_lan { retransmit_mult = int }
+	GossipLANRetransmitMult int
+
+	// GossipWANGossipInterval  is the interval between sending messages that need
+	// to be gossiped that haven't been able to piggyback on probing messages.
+	// If this is set to zero, non-piggyback gossip is disabled. By lowering
+	// this value (more frequent) gossip messages are propagated across
+	// the cluster more quickly at the expense of increased bandwidth. This
+	// configuration only applies to WAN gossip communications
+	//
+	// The default is: 200ms
+	//
+	// hcl: gossip_wan { gossip_interval = duration}
+	GossipWANGossipInterval time.Duration
+
+	// GossipWANGossipNodes is the number of random nodes to send gossip messages to
+	// per GossipInterval. Increasing this number causes the gossip messages to
+	// propagate across the cluster more quickly at the expense of increased
+	// bandwidth. This configuration only applies to WAN gossip communications
+	//
+	// The default is: 3
+	//
+	// hcl: gossip_wan { gossip_nodes = int }
+	GossipWANGossipNodes int
+
+	// GossipWANProbeInterval is the interval between random node probes. Setting
+	// this lower (more frequent) will cause the memberlist cluster to detect
+	// failed nodes more quickly at the expense of increased bandwidth usage.
+	// This configuration only applies to WAN gossip communications
+	//
+	// The default is: 1s
+	//
+	// hcl: gossip_wan { probe_interval = duration }
+	GossipWANProbeInterval time.Duration
+
+	// GossipWANProbeTimeout is the timeout to wait for an ack from a probed node
+	// before assuming it is unhealthy. This should be set to 99-percentile
+	// of RTT (round-trip time) on your network. This configuration
+	// only applies to the WAN gossip communications
+	//
+	// The default is: 500ms
+	//
+	// hcl: gossip_wan { probe_timeout = duration }
+	GossipWANProbeTimeout time.Duration
+
+	// GossipWANSuspicionMult is the multiplier for determining the time an
+	// inaccessible node is considered suspect before declaring it dead. This
+	// configuration only applies to WAN gossip communications
+	//
+	// The actual timeout is calculated using the formula:
+	//
+	//   SuspicionTimeout = SuspicionMult * log(N+1) * ProbeInterval
+	//
+	// This allows the timeout to scale properly with expected propagation
+	// delay with a larger cluster size. The higher the multiplier, the longer
+	// an inaccessible node is considered part of the cluster before declaring
+	// it dead, giving that suspect node more time to refute if it is indeed
+	// still alive.
+	//
+	// The default is: 4
+	//
+	// hcl: gossip_wan { suspicion_mult = int }
+	GossipWANSuspicionMult int
+
+	// GossipWANRetransmitMult is the multiplier for the number of retransmissions
+	// that are attempted for messages broadcasted over gossip. This
+	// configuration only applies to WAN gossip communications. The actual
+	// count of retransmissions is calculated using the formula:
+	//
+	//   Retransmits = RetransmitMult * log(N+1)
+	//
+	// This allows the retransmits to scale properly with cluster size. The
+	// higher the multiplier, the more likely a failed broadcast is to converge
+	// at the expense of increased bandwidth.
+	//
+	// The default is: 4
+	//
+	// hcl: gossip_wan { retransmit_mult = int }
+	GossipWANRetransmitMult int
+
 	// ServerMode controls if this agent acts like a Consul server,
 	// or merely as a client. Servers have more state, take part
 	// in leader election, etc.
@@ -1185,6 +1344,137 @@ func (c *RuntimeConfig) IncomingHTTPSConfig() (*tls.Config, error) {
 		PreferServerCipherSuites: c.TLSPreferServerCipherSuites,
 	}
 	return tc.IncomingTLSConfig()
+}
+
+func (c *RuntimeConfig) apiAddresses(maxPerType int) (unixAddrs, httpAddrs, httpsAddrs []string) {
+	if len(c.HTTPSAddrs) > 0 {
+		for i, addr := range c.HTTPSAddrs {
+			if maxPerType < 1 || i < maxPerType {
+				httpsAddrs = append(httpsAddrs, addr.String())
+			} else {
+				break
+			}
+		}
+	}
+	if len(c.HTTPAddrs) > 0 {
+		unix_count := 0
+		http_count := 0
+		for _, addr := range c.HTTPAddrs {
+			switch addr.(type) {
+			case *net.UnixAddr:
+				if maxPerType < 1 || unix_count < maxPerType {
+					unixAddrs = append(unixAddrs, addr.String())
+					unix_count += 1
+				}
+			default:
+				if maxPerType < 1 || http_count < maxPerType {
+					httpAddrs = append(httpAddrs, addr.String())
+					http_count += 1
+				}
+			}
+		}
+	}
+
+	return
+}
+
+func (c *RuntimeConfig) ClientAddress() (unixAddr, httpAddr, httpsAddr string) {
+	unixAddrs, httpAddrs, httpsAddrs := c.apiAddresses(0)
+
+	if len(unixAddrs) > 0 {
+		unixAddr = "unix://" + unixAddrs[0]
+	}
+
+	http_any := ""
+	if len(httpAddrs) > 0 {
+		for _, addr := range httpAddrs {
+			host, port, err := net.SplitHostPort(addr)
+			if err != nil {
+				continue
+			}
+
+			if host == "0.0.0.0" || host == "::" {
+				if http_any == "" {
+					if host == "0.0.0.0" {
+						http_any = net.JoinHostPort("127.0.0.1", port)
+					} else {
+						http_any = net.JoinHostPort("::1", port)
+					}
+				}
+				continue
+			}
+
+			httpAddr = addr
+			break
+		}
+
+		if httpAddr == "" && http_any != "" {
+			httpAddr = http_any
+		}
+	}
+
+	https_any := ""
+	if len(httpsAddrs) > 0 {
+		for _, addr := range httpsAddrs {
+			host, port, err := net.SplitHostPort(addr)
+			if err != nil {
+				continue
+			}
+
+			if host == "0.0.0.0" || host == "::" {
+				if https_any == "" {
+					if host == "0.0.0.0" {
+						https_any = net.JoinHostPort("127.0.0.1", port)
+					} else {
+						https_any = net.JoinHostPort("::1", port)
+					}
+				}
+				continue
+			}
+
+			httpsAddr = addr
+			break
+		}
+
+		if httpsAddr == "" && https_any != "" {
+			httpsAddr = https_any
+		}
+	}
+
+	return
+}
+
+func (c *RuntimeConfig) APIConfig(includeClientCerts bool) (*api.Config, error) {
+	cfg := &api.Config{
+		Datacenter: c.Datacenter,
+		TLSConfig:  api.TLSConfig{InsecureSkipVerify: !c.VerifyOutgoing},
+	}
+
+	unixAddr, httpAddr, httpsAddr := c.ClientAddress()
+
+	if httpsAddr != "" {
+		cfg.Address = httpsAddr
+		cfg.Scheme = "https"
+		cfg.TLSConfig.CAFile = c.CAFile
+		cfg.TLSConfig.CAPath = c.CAPath
+		cfg.TLSConfig.Address = httpsAddr
+		if includeClientCerts {
+			cfg.TLSConfig.CertFile = c.CertFile
+			cfg.TLSConfig.KeyFile = c.KeyFile
+		}
+	} else if httpAddr != "" {
+		cfg.Address = httpAddr
+		cfg.Scheme = "http"
+	} else if unixAddr != "" {
+		cfg.Address = unixAddr
+		// this should be ignored - however we are still talking http over a unix socket
+		// so it makes sense to set it like this
+		cfg.Scheme = "http"
+	} else {
+		return nil, fmt.Errorf("No suitable client address can be found")
+	}
+
+	return cfg, nil
 }
 
 // Sanitized returns a JSON/HCL compatible representation of the runtime

@@ -2304,19 +2304,15 @@ func TestAgent_Token(t *testing.T) {
 func TestAgentConnectCARoots_empty(t *testing.T) {
 	t.Parallel()
 
-	assert := assert.New(t)
 	require := require.New(t)
 	a := NewTestAgent(t.Name(), "connect { enabled = false }")
 	defer a.Shutdown()
 
 	req, _ := http.NewRequest("GET", "/v1/agent/connect/ca/roots", nil)
 	resp := httptest.NewRecorder()
-	obj, err := a.srv.AgentConnectCARoots(resp, req)
-	require.NoError(err)
-
-	value := obj.(structs.IndexedCARoots)
-	assert.Equal(value.ActiveRootID, "")
-	assert.Len(value.Roots, 0)
+	_, err := a.srv.AgentConnectCARoots(resp, req)
+	require.Error(err)
+	require.Contains(err.Error(), "Connect must be enabled")
 }
 
 func TestAgentConnectCARoots_list(t *testing.T) {
@@ -2918,7 +2914,7 @@ func TestAgentConnectProxyConfig_Blocking(t *testing.T) {
 			},
 			"bind_address":          "127.0.0.1",
 			"local_service_address": "127.0.0.1:8000",
-			"bind_port":             float64(1234),
+			"bind_port":             int(1234),
 			"connect_timeout_ms":    float64(500),
 		},
 	}
@@ -3473,7 +3469,7 @@ func TestAgentConnectProxyConfig_ConfigHandling(t *testing.T) {
 			wantCommand: []string{"foo.sh"},
 			wantConfig: map[string]interface{}{
 				"bind_address":          "127.0.0.1",
-				"bind_port":             float64(1024),
+				"bind_port":             int(1024),
 				"local_service_address": "127.0.0.1:9191",
 				"connect_timeout_ms":    float64(2000),
 				"telemetry": lib.TelemetryConfig{
@@ -3564,7 +3560,7 @@ func TestAgentConnectProxyConfig_ConfigHandling(t *testing.T) {
 			wantCommand: []string{"foo.sh"},
 			wantConfig: map[string]interface{}{
 				"bind_address":          "127.0.0.1",
-				"bind_port":             float64(1024),
+				"bind_port":             int(1024),
 				"local_service_address": "127.0.0.1:9191",
 				"connect_timeout_ms":    float64(2000),
 				"telemetry": map[string]interface{}{ // No defaults merged

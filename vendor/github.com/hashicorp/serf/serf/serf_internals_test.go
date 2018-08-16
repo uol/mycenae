@@ -1,9 +1,11 @@
 package serf
 
 import (
+	"testing"
+	"time"
+
 	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/serf/testutil"
-	"testing"
 )
 
 func TestSerf_joinLeave_ltime(t *testing.T) {
@@ -63,8 +65,7 @@ func TestSerf_join_pendingIntent(t *testing.T) {
 	}
 	defer s.Shutdown()
 
-	s.recentJoin[0] = nodeIntent{5, "test"}
-
+	upsertIntent(s.recentIntents, "test", messageJoinType, 5, time.Now)
 	n := memberlist.Node{Name: "test",
 		Addr: nil,
 		Meta: []byte("test"),
@@ -89,9 +90,8 @@ func TestSerf_join_pendingIntents(t *testing.T) {
 	}
 	defer s.Shutdown()
 
-	s.recentJoin[0] = nodeIntent{5, "test"}
-	s.recentLeave[0] = nodeIntent{6, "test"}
-
+	upsertIntent(s.recentIntents, "test", messageJoinType, 5, time.Now)
+	upsertIntent(s.recentIntents, "test", messageLeaveType, 6, time.Now)
 	n := memberlist.Node{Name: "test",
 		Addr: nil,
 		Meta: []byte("test"),
@@ -126,10 +126,7 @@ func TestSerf_leaveIntent_bufferEarly(t *testing.T) {
 	}
 
 	// Check that we buffered
-	if s.recentLeaveIndex != 1 {
-		t.Fatalf("bad index")
-	}
-	if s.recentLeave[0].Node != "test" || s.recentLeave[0].LTime != 10 {
+	if leave, ok := recentIntent(s.recentIntents, "test", messageLeaveType); !ok || leave != 10 {
 		t.Fatalf("bad buffer")
 	}
 }
@@ -154,8 +151,8 @@ func TestSerf_leaveIntent_oldMessage(t *testing.T) {
 		t.Fatalf("should not rebroadcast")
 	}
 
-	if s.recentLeaveIndex != 0 {
-		t.Fatalf("bad index")
+	if _, ok := recentIntent(s.recentIntents, "test", messageLeaveType); ok {
+		t.Fatalf("should not have buffered intent")
 	}
 }
 
@@ -179,8 +176,8 @@ func TestSerf_leaveIntent_newer(t *testing.T) {
 		t.Fatalf("should rebroadcast")
 	}
 
-	if s.recentLeaveIndex != 0 {
-		t.Fatalf("bad index")
+	if _, ok := recentIntent(s.recentIntents, "test", messageLeaveType); ok {
+		t.Fatalf("should not have buffered intent")
 	}
 
 	if s.members["test"].Status != StatusLeaving {
@@ -210,10 +207,7 @@ func TestSerf_joinIntent_bufferEarly(t *testing.T) {
 	}
 
 	// Check that we buffered
-	if s.recentJoinIndex != 1 {
-		t.Fatalf("bad index")
-	}
-	if s.recentJoin[0].Node != "test" || s.recentJoin[0].LTime != 10 {
+	if join, ok := recentIntent(s.recentIntents, "test", messageJoinType); !ok || join != 10 {
 		t.Fatalf("bad buffer")
 	}
 }
@@ -235,8 +229,9 @@ func TestSerf_joinIntent_oldMessage(t *testing.T) {
 		t.Fatalf("should not rebroadcast")
 	}
 
-	if s.recentJoinIndex != 0 {
-		t.Fatalf("bad index")
+	// Check that we didn't buffer anything
+	if _, ok := recentIntent(s.recentIntents, "test", messageJoinType); ok {
+		t.Fatalf("should not have buffered intent")
 	}
 }
 
@@ -258,8 +253,8 @@ func TestSerf_joinIntent_newer(t *testing.T) {
 		t.Fatalf("should rebroadcast")
 	}
 
-	if s.recentJoinIndex != 0 {
-		t.Fatalf("bad index")
+	if _, ok := recentIntent(s.recentIntents, "test", messageJoinType); ok {
+		t.Fatalf("should not have buffered intent")
 	}
 
 	if s.members["test"].statusLTime != 14 {
@@ -291,8 +286,8 @@ func TestSerf_joinIntent_resetLeaving(t *testing.T) {
 		t.Fatalf("should rebroadcast")
 	}
 
-	if s.recentJoinIndex != 0 {
-		t.Fatalf("bad index")
+	if _, ok := recentIntent(s.recentIntents, "test", messageJoinType); ok {
+		t.Fatalf("should not have buffered intent")
 	}
 
 	if s.members["test"].statusLTime != 14 {

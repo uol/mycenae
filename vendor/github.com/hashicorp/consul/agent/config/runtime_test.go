@@ -286,14 +286,14 @@ func TestConfigFlagsAndEdgecases(t *testing.T) {
 				rt.ConsulRaftElectionTimeout = 52 * time.Millisecond
 				rt.ConsulRaftHeartbeatTimeout = 35 * time.Millisecond
 				rt.ConsulRaftLeaderLeaseTimeout = 20 * time.Millisecond
-				rt.ConsulSerfLANGossipInterval = 100 * time.Millisecond
-				rt.ConsulSerfLANProbeInterval = 100 * time.Millisecond
-				rt.ConsulSerfLANProbeTimeout = 100 * time.Millisecond
-				rt.ConsulSerfLANSuspicionMult = 3
-				rt.ConsulSerfWANGossipInterval = 100 * time.Millisecond
-				rt.ConsulSerfWANProbeInterval = 100 * time.Millisecond
-				rt.ConsulSerfWANProbeTimeout = 100 * time.Millisecond
-				rt.ConsulSerfWANSuspicionMult = 3
+				rt.GossipLANGossipInterval = 100 * time.Millisecond
+				rt.GossipLANProbeInterval = 100 * time.Millisecond
+				rt.GossipLANProbeTimeout = 100 * time.Millisecond
+				rt.GossipLANSuspicionMult = 3
+				rt.GossipWANGossipInterval = 100 * time.Millisecond
+				rt.GossipWANProbeInterval = 100 * time.Millisecond
+				rt.GossipWANProbeTimeout = 100 * time.Millisecond
+				rt.GossipWANSuspicionMult = 3
 				rt.ConsulServerHealthInterval = 10 * time.Millisecond
 			},
 		},
@@ -644,6 +644,19 @@ func TestConfigFlagsAndEdgecases(t *testing.T) {
 			},
 		},
 		{
+			desc: "-serf-lan-port",
+			args: []string{
+				`-serf-lan-port=123`,
+				`-data-dir=` + dataDir,
+			},
+			patch: func(rt *RuntimeConfig) {
+				rt.SerfPortLAN = 123
+				rt.SerfAdvertiseAddrLAN = tcpAddr("10.0.0.1:123")
+				rt.SerfBindAddrLAN = tcpAddr("0.0.0.0:123")
+				rt.DataDir = dataDir
+			},
+		},
+		{
 			desc: "-serf-wan-bind",
 			args: []string{
 				`-serf-wan-bind=1.2.3.4`,
@@ -651,6 +664,19 @@ func TestConfigFlagsAndEdgecases(t *testing.T) {
 			},
 			patch: func(rt *RuntimeConfig) {
 				rt.SerfBindAddrWAN = tcpAddr("1.2.3.4:8302")
+				rt.DataDir = dataDir
+			},
+		},
+		{
+			desc: "-serf-wan-port",
+			args: []string{
+				`-serf-wan-port=123`,
+				`-data-dir=` + dataDir,
+			},
+			patch: func(rt *RuntimeConfig) {
+				rt.SerfPortWAN = 123
+				rt.SerfAdvertiseAddrWAN = tcpAddr("10.0.0.1:123")
+				rt.SerfBindAddrWAN = tcpAddr("0.0.0.0:123")
 				rt.DataDir = dataDir
 			},
 		},
@@ -664,6 +690,19 @@ func TestConfigFlagsAndEdgecases(t *testing.T) {
 				rt.ServerMode = true
 				rt.LeaveOnTerm = false
 				rt.SkipLeaveOnInt = true
+				rt.DataDir = dataDir
+			},
+		},
+		{
+			desc: "-server-port",
+			args: []string{
+				`-server-port=123`,
+				`-data-dir=` + dataDir,
+			},
+			patch: func(rt *RuntimeConfig) {
+				rt.ServerPort = 123
+				rt.RPCAdvertiseAddr = tcpAddr("10.0.0.1:123")
+				rt.RPCBindAddr = tcpAddr("0.0.0.0:123")
 				rt.DataDir = dataDir
 			},
 		},
@@ -1942,6 +1981,24 @@ func TestConfigFlagsAndEdgecases(t *testing.T) {
 			},
 		},
 		{
+			desc: "alias check with no node",
+			args: []string{
+				`-data-dir=` + dataDir,
+			},
+			json: []string{
+				`{ "check": { "name": "a", "alias_service": "foo" } }`,
+			},
+			hcl: []string{
+				`check = { name = "a", alias_service = "foo" }`,
+			},
+			patch: func(rt *RuntimeConfig) {
+				rt.Checks = []*structs.CheckDefinition{
+					&structs.CheckDefinition{Name: "a", AliasService: "foo"},
+				}
+				rt.DataDir = dataDir
+			},
+		},
+		{
 			desc: "multiple service files",
 			args: []string{
 				`-data-dir=` + dataDir,
@@ -2154,6 +2211,65 @@ func TestConfigFlagsAndEdgecases(t *testing.T) {
 								},
 							},
 						},
+					},
+				}
+			},
+		},
+
+		{
+			desc: "JSON multiple services managed proxy 'upstreams'",
+			args: []string{
+				`-data-dir=` + dataDir,
+			},
+			json: []string{
+				`{
+						"services": [{
+							"name": "web",
+							"port": 8080,
+							"connect": {
+								"proxy": {
+									"config": {
+										"upstreams": [{
+											"local_bind_port": 1234
+										}, {
+											"local_bind_port": 2345
+										}]
+									}
+								}
+							}
+						},{
+							"name": "service-A2",
+							"port": 81,
+							"tags": [],
+							"checks": []
+						}]
+					}`,
+			},
+			skipformat: true, // skipping HCL cause we get slightly diff types (okay)
+			patch: func(rt *RuntimeConfig) {
+				rt.DataDir = dataDir
+				rt.Services = []*structs.ServiceDefinition{
+					&structs.ServiceDefinition{
+						Name: "web",
+						Port: 8080,
+						Connect: &structs.ServiceConnect{
+							Proxy: &structs.ServiceDefinitionConnectProxy{
+								Config: map[string]interface{}{
+									"upstreams": []interface{}{
+										map[string]interface{}{
+											"local_bind_port": float64(1234),
+										},
+										map[string]interface{}{
+											"local_bind_port": float64(2345),
+										},
+									},
+								},
+							},
+						},
+					},
+					&structs.ServiceDefinition{
+						Name: "service-A2",
+						Port: 81,
 					},
 				}
 			},
@@ -2486,7 +2602,8 @@ func TestFullConfig(t *testing.T) {
 			"connect": {
 				"ca_provider": "consul",
 				"ca_config": {
-					"RotationPeriod": "90h"
+					"RotationPeriod": "90h",
+					"LeafCertTTL": "1h"
 				},
 				"enabled": true,
 				"proxy_defaults": {
@@ -2500,11 +2617,28 @@ func TestFullConfig(t *testing.T) {
 					}
 				}
 			},
+			"gossip_lan" : {
+				"gossip_nodes": 6,
+				"gossip_interval" : "25252s",
+				"retransmit_mult" : 1234,
+				"suspicion_mult"  : 1235,
+				"probe_interval"  : "101ms",
+				"probe_timeout"   : "102ms"
+			},
+			"gossip_wan" : {
+				"gossip_nodes" : 2,
+				"gossip_interval" : "6966s",
+				"retransmit_mult" : 16384,
+				"suspicion_mult"  : 16385,
+				"probe_interval" : "103ms",
+				"probe_timeout"  : "104ms"
+			},
 			"data_dir": "` + dataDir + `",
 			"datacenter": "rzo029wg",
 			"disable_anonymous_signature": true,
 			"disable_coordinates": true,
 			"disable_host_node_id": true,
+			"disable_http_unprintable_char_filter": true,
 			"disable_keyring_file": true,
 			"disable_remote_exec": true,
 			"disable_update_check": true,
@@ -2678,7 +2812,10 @@ func TestFullConfig(t *testing.T) {
 						"ttl": "1181s",
 						"deregister_critical_service_after": "4992s"
 					}
-				]
+				],
+				"connect": {
+					"native": true
+				}
 			},
 			"services": [
 				{
@@ -2772,6 +2909,13 @@ func TestFullConfig(t *testing.T) {
 							}
 						}
 					}
+				},
+				{
+					"id": "Kh81CPF6",
+					"name": "Kh81CPF6-proxy",
+					"port": 31471,
+					"kind": "connect-proxy",
+					"proxy_destination": "6L6BVfgH"
 				}
 			],
 			"session_ttl_min": "26627s",
@@ -2947,7 +3091,8 @@ func TestFullConfig(t *testing.T) {
 			connect {
 				ca_provider = "consul"
 				ca_config {
-					"RotationPeriod" = "90h"
+					rotation_period = "90h"
+					leaf_cert_ttl = "1h"
 				}
 				enabled = true
 				proxy_defaults {
@@ -2963,11 +3108,28 @@ func TestFullConfig(t *testing.T) {
 					}
 				}
 			}
+			gossip_lan {
+				gossip_nodes    = 6
+				gossip_interval = "25252s"
+				retransmit_mult = 1234
+				suspicion_mult  = 1235
+				probe_interval  = "101ms"
+				probe_timeout   = "102ms"
+			}
+			gossip_wan {
+				gossip_nodes    = 2
+				gossip_interval = "6966s"
+				retransmit_mult = 16384
+				suspicion_mult  = 16385
+				probe_interval  = "103ms"
+				probe_timeout   = "104ms"
+			}
 			data_dir = "` + dataDir + `"
 			datacenter = "rzo029wg"
 			disable_anonymous_signature = true
 			disable_coordinates = true
 			disable_host_node_id = true
+			disable_http_unprintable_char_filter = true
 			disable_keyring_file = true
 			disable_remote_exec = true
 			disable_update_check = true
@@ -3142,6 +3304,9 @@ func TestFullConfig(t *testing.T) {
 						deregister_critical_service_after = "4992s"
 					}
 				]
+				connect {
+					native = true
+				}
 			}
 			services = [
 				{
@@ -3235,6 +3400,13 @@ func TestFullConfig(t *testing.T) {
 							}
 						}
 					}
+				},
+				{
+					id = "Kh81CPF6"
+					name = "Kh81CPF6-proxy"
+					port = 31471
+					kind = "connect-proxy"
+					proxy_destination = "6L6BVfgH"
 				}
 			]
 			session_ttl_min = "26627s"
@@ -3333,22 +3505,6 @@ func TestFullConfig(t *testing.T) {
 							"heartbeat_timeout": "25699s",
 							"leader_lease_timeout": "15351s"
 						},
-						"serf_lan": {
-							"memberlist": {
-								"gossip_interval": "25252s",
-								"probe_interval": "5105s",
-								"probe_timeout": "29179s",
-								"suspicion_mult": 8263
-							}
-						},
-						"serf_wan": {
-							"memberlist": {
-								"gossip_interval": "6966s",
-								"probe_interval": "20148s",
-								"probe_timeout": "3007s",
-								"suspicion_mult": 32096
-							}
-						},
 						"server": {
 							"health_interval": "17455s"
 						}
@@ -3387,22 +3543,6 @@ func TestFullConfig(t *testing.T) {
 							heartbeat_timeout = "25699s"
 							leader_lease_timeout = "15351s"
 						}
-						serf_lan = {
-							memberlist = {
-								gossip_interval = "25252s"
-								probe_interval = "5105s"
-								probe_timeout = "29179s"
-								suspicion_mult = 8263
-							}
-						}
-						serf_wan = {
-							memberlist = {
-								gossip_interval = "6966s"
-								probe_interval = "20148s"
-								probe_timeout = "3007s"
-								suspicion_mult = 32096
-							}
-						}
 						server = {
 							health_interval = "17455s"
 						}
@@ -3434,14 +3574,18 @@ func TestFullConfig(t *testing.T) {
 		ConsulRaftElectionTimeout:        5 * 31947 * time.Second,
 		ConsulRaftHeartbeatTimeout:       5 * 25699 * time.Second,
 		ConsulRaftLeaderLeaseTimeout:     5 * 15351 * time.Second,
-		ConsulSerfLANGossipInterval:      25252 * time.Second,
-		ConsulSerfLANProbeInterval:       5105 * time.Second,
-		ConsulSerfLANProbeTimeout:        29179 * time.Second,
-		ConsulSerfLANSuspicionMult:       8263,
-		ConsulSerfWANGossipInterval:      6966 * time.Second,
-		ConsulSerfWANProbeInterval:       20148 * time.Second,
-		ConsulSerfWANProbeTimeout:        3007 * time.Second,
-		ConsulSerfWANSuspicionMult:       32096,
+		GossipLANGossipInterval:          25252 * time.Second,
+		GossipLANGossipNodes:             6,
+		GossipLANProbeInterval:           101 * time.Millisecond,
+		GossipLANProbeTimeout:            102 * time.Millisecond,
+		GossipLANSuspicionMult:           1235,
+		GossipLANRetransmitMult:          1234,
+		GossipWANGossipInterval:          6966 * time.Second,
+		GossipWANGossipNodes:             2,
+		GossipWANProbeInterval:           103 * time.Millisecond,
+		GossipWANProbeTimeout:            104 * time.Millisecond,
+		GossipWANSuspicionMult:           16385,
+		GossipWANRetransmitMult:          16384,
 		ConsulServerHealthInterval:       17455 * time.Second,
 
 		// user configurable values
@@ -3551,6 +3695,7 @@ func TestFullConfig(t *testing.T) {
 		ConnectCAProvider:       "consul",
 		ConnectCAConfig: map[string]interface{}{
 			"RotationPeriod": "90h",
+			"LeafCertTTL":    "1h",
 		},
 		ConnectProxyAllowManagedRoot:            false,
 		ConnectProxyAllowManagedAPIRegistration: false,
@@ -3562,75 +3707,76 @@ func TestFullConfig(t *testing.T) {
 			"connect_timeout_ms": float64(1000),
 			"pedantic_mode":      true,
 		},
-		DNSAddrs:                  []net.Addr{tcpAddr("93.95.95.81:7001"), udpAddr("93.95.95.81:7001")},
-		DNSARecordLimit:           29907,
-		DNSAllowStale:             true,
-		DNSDisableCompression:     true,
-		DNSDomain:                 "7W1xXSqd",
-		DNSEnableTruncate:         true,
-		DNSMaxStale:               29685 * time.Second,
-		DNSNodeTTL:                7084 * time.Second,
-		DNSOnlyPassing:            true,
-		DNSPort:                   7001,
-		DNSRecursorTimeout:        4427 * time.Second,
-		DNSRecursors:              []string{"63.38.39.58", "92.49.18.18"},
-		DNSServiceTTL:             map[string]time.Duration{"*": 32030 * time.Second},
-		DNSUDPAnswerLimit:         29909,
-		DNSNodeMetaTXT:            true,
-		DataDir:                   dataDir,
-		Datacenter:                "rzo029wg",
-		DevMode:                   true,
-		DisableAnonymousSignature: true,
-		DisableCoordinates:        true,
-		DisableHostNodeID:         true,
-		DisableKeyringFile:        true,
-		DisableRemoteExec:         true,
-		DisableUpdateCheck:        true,
-		DiscardCheckOutput:        true,
-		DiscoveryMaxStale:         5 * time.Second,
-		EnableACLReplication:      true,
-		EnableAgentTLSForChecks:   true,
-		EnableDebug:               true,
-		EnableScriptChecks:        true,
-		EnableSyslog:              true,
-		EnableUI:                  true,
-		EncryptKey:                "A4wELWqH",
-		EncryptVerifyIncoming:     true,
-		EncryptVerifyOutgoing:     true,
-		HTTPAddrs:                 []net.Addr{tcpAddr("83.39.91.39:7999")},
-		HTTPBlockEndpoints:        []string{"RBvAFcGD", "fWOWFznh"},
-		HTTPPort:                  7999,
-		HTTPResponseHeaders:       map[string]string{"M6TKa9NP": "xjuxjOzQ", "JRCrHZed": "rl0mTx81"},
-		HTTPSAddrs:                []net.Addr{tcpAddr("95.17.17.19:15127")},
-		HTTPSPort:                 15127,
-		KeyFile:                   "IEkkwgIA",
-		LeaveDrainTime:            8265 * time.Second,
-		LeaveOnTerm:               true,
-		LogLevel:                  "k1zo9Spt",
-		NodeID:                    types.NodeID("AsUIlw99"),
-		NodeMeta:                  map[string]string{"5mgGQMBk": "mJLtVMSG", "A7ynFMJB": "0Nx6RGab"},
-		NodeName:                  "otlLxGaI",
-		NonVotingServer:           true,
-		PidFile:                   "43xN80Km",
-		RPCAdvertiseAddr:          tcpAddr("17.99.29.16:3757"),
-		RPCBindAddr:               tcpAddr("16.99.34.17:3757"),
-		RPCHoldTimeout:            15707 * time.Second,
-		RPCProtocol:               30793,
-		RPCRateLimit:              12029.43,
-		RPCMaxBurst:               44848,
-		RaftProtocol:              19016,
-		RaftSnapshotThreshold:     16384,
-		RaftSnapshotInterval:      30 * time.Second,
-		ReconnectTimeoutLAN:       23739 * time.Second,
-		ReconnectTimeoutWAN:       26694 * time.Second,
-		RejoinAfterLeave:          true,
-		RetryJoinIntervalLAN:      8067 * time.Second,
-		RetryJoinIntervalWAN:      28866 * time.Second,
-		RetryJoinLAN:              []string{"pbsSFY7U", "l0qLtWij"},
-		RetryJoinMaxAttemptsLAN:   913,
-		RetryJoinMaxAttemptsWAN:   23160,
-		RetryJoinWAN:              []string{"PFsR02Ye", "rJdQIhER"},
-		SegmentName:               "BC2NhTDi",
+		DNSAddrs:                         []net.Addr{tcpAddr("93.95.95.81:7001"), udpAddr("93.95.95.81:7001")},
+		DNSARecordLimit:                  29907,
+		DNSAllowStale:                    true,
+		DNSDisableCompression:            true,
+		DNSDomain:                        "7W1xXSqd",
+		DNSEnableTruncate:                true,
+		DNSMaxStale:                      29685 * time.Second,
+		DNSNodeTTL:                       7084 * time.Second,
+		DNSOnlyPassing:                   true,
+		DNSPort:                          7001,
+		DNSRecursorTimeout:               4427 * time.Second,
+		DNSRecursors:                     []string{"63.38.39.58", "92.49.18.18"},
+		DNSServiceTTL:                    map[string]time.Duration{"*": 32030 * time.Second},
+		DNSUDPAnswerLimit:                29909,
+		DNSNodeMetaTXT:                   true,
+		DataDir:                          dataDir,
+		Datacenter:                       "rzo029wg",
+		DevMode:                          true,
+		DisableAnonymousSignature:        true,
+		DisableCoordinates:               true,
+		DisableHostNodeID:                true,
+		DisableHTTPUnprintableCharFilter: true,
+		DisableKeyringFile:               true,
+		DisableRemoteExec:                true,
+		DisableUpdateCheck:               true,
+		DiscardCheckOutput:               true,
+		DiscoveryMaxStale:                5 * time.Second,
+		EnableACLReplication:             true,
+		EnableAgentTLSForChecks:          true,
+		EnableDebug:                      true,
+		EnableScriptChecks:               true,
+		EnableSyslog:                     true,
+		EnableUI:                         true,
+		EncryptKey:                       "A4wELWqH",
+		EncryptVerifyIncoming:            true,
+		EncryptVerifyOutgoing:            true,
+		HTTPAddrs:                        []net.Addr{tcpAddr("83.39.91.39:7999")},
+		HTTPBlockEndpoints:               []string{"RBvAFcGD", "fWOWFznh"},
+		HTTPPort:                         7999,
+		HTTPResponseHeaders:              map[string]string{"M6TKa9NP": "xjuxjOzQ", "JRCrHZed": "rl0mTx81"},
+		HTTPSAddrs:                       []net.Addr{tcpAddr("95.17.17.19:15127")},
+		HTTPSPort:                        15127,
+		KeyFile:                          "IEkkwgIA",
+		LeaveDrainTime:                   8265 * time.Second,
+		LeaveOnTerm:                      true,
+		LogLevel:                         "k1zo9Spt",
+		NodeID:                           types.NodeID("AsUIlw99"),
+		NodeMeta:                         map[string]string{"5mgGQMBk": "mJLtVMSG", "A7ynFMJB": "0Nx6RGab"},
+		NodeName:                         "otlLxGaI",
+		NonVotingServer:                  true,
+		PidFile:                          "43xN80Km",
+		RPCAdvertiseAddr:                 tcpAddr("17.99.29.16:3757"),
+		RPCBindAddr:                      tcpAddr("16.99.34.17:3757"),
+		RPCHoldTimeout:                   15707 * time.Second,
+		RPCProtocol:                      30793,
+		RPCRateLimit:                     12029.43,
+		RPCMaxBurst:                      44848,
+		RaftProtocol:                     19016,
+		RaftSnapshotThreshold:            16384,
+		RaftSnapshotInterval:             30 * time.Second,
+		ReconnectTimeoutLAN:              23739 * time.Second,
+		ReconnectTimeoutWAN:              26694 * time.Second,
+		RejoinAfterLeave:                 true,
+		RetryJoinIntervalLAN:             8067 * time.Second,
+		RetryJoinIntervalWAN:             28866 * time.Second,
+		RetryJoinLAN:                     []string{"pbsSFY7U", "l0qLtWij"},
+		RetryJoinMaxAttemptsLAN:          913,
+		RetryJoinMaxAttemptsWAN:          23160,
+		RetryJoinWAN:                     []string{"PFsR02Ye", "rJdQIhER"},
+		SegmentName:                      "BC2NhTDi",
 		Segments: []structs.NetworkSegment{
 			{
 				Name:        "PExYMe2E",
@@ -3746,6 +3892,13 @@ func TestFullConfig(t *testing.T) {
 				},
 			},
 			{
+				ID:               "Kh81CPF6",
+				Name:             "Kh81CPF6-proxy",
+				Port:             31471,
+				Kind:             "connect-proxy",
+				ProxyDestination: "6L6BVfgH",
+			},
+			{
 				ID:                "dLOXpSCI",
 				Name:              "o1ynPkp0",
 				Tags:              []string{"nkwshvM5", "NTDWn3ek"},
@@ -3754,6 +3907,9 @@ func TestFullConfig(t *testing.T) {
 				Meta:              map[string]string{"mymeta": "data"},
 				Port:              24237,
 				EnableTagOverride: true,
+				Connect: &structs.ServiceConnect{
+					Native: true,
+				},
 				Checks: structs.CheckTypes{
 					&structs.CheckType{
 						CheckID:    "Zv99e9Ka",
@@ -4212,6 +4368,8 @@ func TestSanitize(t *testing.T) {
     "CheckUpdateInterval": "0s",
     "Checks": [
         {
+            "AliasNode": "",
+            "AliasService": "",
             "DeregisterCriticalServiceAfter": "0s",
             "DockerContainerID": "",
             "GRPC": "",
@@ -4253,14 +4411,18 @@ func TestSanitize(t *testing.T) {
     "ConsulRaftElectionTimeout": "0s",
     "ConsulRaftHeartbeatTimeout": "0s",
     "ConsulRaftLeaderLeaseTimeout": "0s",
-    "ConsulSerfLANGossipInterval": "0s",
-    "ConsulSerfLANProbeInterval": "0s",
-    "ConsulSerfLANProbeTimeout": "0s",
-    "ConsulSerfLANSuspicionMult": 0,
-    "ConsulSerfWANGossipInterval": "0s",
-    "ConsulSerfWANProbeInterval": "0s",
-    "ConsulSerfWANProbeTimeout": "0s",
-    "ConsulSerfWANSuspicionMult": 0,
+    "GossipLANGossipInterval": "0s",
+    "GossipLANGossipNodes": 0,
+    "GossipLANProbeInterval": "0s",
+    "GossipLANProbeTimeout": "0s",
+    "GossipLANRetransmitMult": 0,
+    "GossipLANSuspicionMult": 0,
+    "GossipWANGossipInterval": "0s",
+    "GossipWANGossipNodes": 0,
+    "GossipWANProbeInterval": "0s",
+    "GossipWANProbeTimeout": "0s",
+    "GossipWANRetransmitMult": 0,
+    "GossipWANSuspicionMult": 0,
     "ConsulServerHealthInterval": "0s",
     "DNSARecordLimit": 0,
     "DNSAddrs": [
@@ -4285,6 +4447,7 @@ func TestSanitize(t *testing.T) {
     "DevMode": false,
     "DisableAnonymousSignature": false,
     "DisableCoordinates": false,
+    "DisableHTTPUnprintableCharFilter": false,
     "DisableHostNodeID": false,
     "DisableKeyringFile": false,
     "DisableRemoteExec": false,
@@ -4358,6 +4521,8 @@ func TestSanitize(t *testing.T) {
         {
             "Address": "",
             "Check": {
+                "AliasNode": "",
+                "AliasService": "",
                 "CheckID": "",
                 "DeregisterCriticalServiceAfter": "0s",
                 "DockerContainerID": "",
@@ -4446,6 +4611,201 @@ func TestSanitize(t *testing.T) {
 		t.Fatal(err)
 	}
 	require.JSONEq(t, rtJSON, string(b))
+}
+
+func TestRuntime_apiAddresses(t *testing.T) {
+	rt := RuntimeConfig{
+		HTTPAddrs: []net.Addr{
+			&net.TCPAddr{IP: net.ParseIP("198.18.0.1"), Port: 5678},
+			&net.UnixAddr{Name: "/var/run/foo"},
+		},
+		HTTPSAddrs: []net.Addr{
+			&net.TCPAddr{IP: net.ParseIP("198.18.0.2"), Port: 5678},
+		}}
+
+	unixAddrs, httpAddrs, httpsAddrs := rt.apiAddresses(1)
+
+	require.Len(t, unixAddrs, 1)
+	require.Len(t, httpAddrs, 1)
+	require.Len(t, httpsAddrs, 1)
+
+	require.Equal(t, "/var/run/foo", unixAddrs[0])
+	require.Equal(t, "198.18.0.1:5678", httpAddrs[0])
+	require.Equal(t, "198.18.0.2:5678", httpsAddrs[0])
+}
+
+func TestRuntime_APIConfigHTTPS(t *testing.T) {
+	rt := RuntimeConfig{
+		HTTPAddrs: []net.Addr{
+			&net.TCPAddr{IP: net.ParseIP("198.18.0.1"), Port: 5678},
+			&net.UnixAddr{Name: "/var/run/foo"},
+		},
+		HTTPSAddrs: []net.Addr{
+			&net.TCPAddr{IP: net.ParseIP("198.18.0.2"), Port: 5678},
+		},
+		Datacenter:     "dc-test",
+		CAFile:         "/etc/consul/ca.crt",
+		CAPath:         "/etc/consul/ca.dir",
+		CertFile:       "/etc/consul/server.crt",
+		KeyFile:        "/etc/consul/ssl/server.key",
+		VerifyOutgoing: false,
+	}
+
+	cfg, err := rt.APIConfig(false)
+	require.NoError(t, err)
+	require.Equal(t, "198.18.0.2:5678", cfg.Address)
+	require.Equal(t, "https", cfg.Scheme)
+	require.Equal(t, rt.CAFile, cfg.TLSConfig.CAFile)
+	require.Equal(t, rt.CAPath, cfg.TLSConfig.CAPath)
+	require.Equal(t, "", cfg.TLSConfig.CertFile)
+	require.Equal(t, "", cfg.TLSConfig.KeyFile)
+	require.Equal(t, rt.Datacenter, cfg.Datacenter)
+	require.Equal(t, true, cfg.TLSConfig.InsecureSkipVerify)
+
+	rt.VerifyOutgoing = true
+	cfg, err = rt.APIConfig(true)
+	require.NoError(t, err)
+	require.Equal(t, "198.18.0.2:5678", cfg.Address)
+	require.Equal(t, "https", cfg.Scheme)
+	require.Equal(t, rt.CAFile, cfg.TLSConfig.CAFile)
+	require.Equal(t, rt.CAPath, cfg.TLSConfig.CAPath)
+	require.Equal(t, rt.CertFile, cfg.TLSConfig.CertFile)
+	require.Equal(t, rt.KeyFile, cfg.TLSConfig.KeyFile)
+	require.Equal(t, rt.Datacenter, cfg.Datacenter)
+	require.Equal(t, false, cfg.TLSConfig.InsecureSkipVerify)
+}
+
+func TestRuntime_APIConfigHTTP(t *testing.T) {
+	rt := RuntimeConfig{
+		HTTPAddrs: []net.Addr{
+			&net.UnixAddr{Name: "/var/run/foo"},
+			&net.TCPAddr{IP: net.ParseIP("198.18.0.1"), Port: 5678},
+		},
+		Datacenter: "dc-test",
+	}
+
+	cfg, err := rt.APIConfig(false)
+	require.NoError(t, err)
+	require.Equal(t, rt.Datacenter, cfg.Datacenter)
+	require.Equal(t, "198.18.0.1:5678", cfg.Address)
+	require.Equal(t, "http", cfg.Scheme)
+	require.Equal(t, "", cfg.TLSConfig.CAFile)
+	require.Equal(t, "", cfg.TLSConfig.CAPath)
+	require.Equal(t, "", cfg.TLSConfig.CertFile)
+	require.Equal(t, "", cfg.TLSConfig.KeyFile)
+}
+
+func TestRuntime_APIConfigUNIX(t *testing.T) {
+	rt := RuntimeConfig{
+		HTTPAddrs: []net.Addr{
+			&net.UnixAddr{Name: "/var/run/foo"},
+		},
+		Datacenter: "dc-test",
+	}
+
+	cfg, err := rt.APIConfig(false)
+	require.NoError(t, err)
+	require.Equal(t, rt.Datacenter, cfg.Datacenter)
+	require.Equal(t, "unix:///var/run/foo", cfg.Address)
+	require.Equal(t, "http", cfg.Scheme)
+	require.Equal(t, "", cfg.TLSConfig.CAFile)
+	require.Equal(t, "", cfg.TLSConfig.CAPath)
+	require.Equal(t, "", cfg.TLSConfig.CertFile)
+	require.Equal(t, "", cfg.TLSConfig.KeyFile)
+}
+
+func TestRuntime_APIConfigANYAddrV4(t *testing.T) {
+	rt := RuntimeConfig{
+		HTTPAddrs: []net.Addr{
+			&net.TCPAddr{IP: net.ParseIP("0.0.0.0"), Port: 5678},
+		},
+		Datacenter: "dc-test",
+	}
+
+	cfg, err := rt.APIConfig(false)
+	require.NoError(t, err)
+	require.Equal(t, rt.Datacenter, cfg.Datacenter)
+	require.Equal(t, "127.0.0.1:5678", cfg.Address)
+	require.Equal(t, "http", cfg.Scheme)
+	require.Equal(t, "", cfg.TLSConfig.CAFile)
+	require.Equal(t, "", cfg.TLSConfig.CAPath)
+	require.Equal(t, "", cfg.TLSConfig.CertFile)
+	require.Equal(t, "", cfg.TLSConfig.KeyFile)
+}
+
+func TestRuntime_APIConfigANYAddrV6(t *testing.T) {
+	rt := RuntimeConfig{
+		HTTPAddrs: []net.Addr{
+			&net.TCPAddr{IP: net.ParseIP("::"), Port: 5678},
+		},
+		Datacenter: "dc-test",
+	}
+
+	cfg, err := rt.APIConfig(false)
+	require.NoError(t, err)
+	require.Equal(t, rt.Datacenter, cfg.Datacenter)
+	require.Equal(t, "[::1]:5678", cfg.Address)
+	require.Equal(t, "http", cfg.Scheme)
+	require.Equal(t, "", cfg.TLSConfig.CAFile)
+	require.Equal(t, "", cfg.TLSConfig.CAPath)
+	require.Equal(t, "", cfg.TLSConfig.CertFile)
+	require.Equal(t, "", cfg.TLSConfig.KeyFile)
+}
+
+func TestRuntime_ClientAddress(t *testing.T) {
+	rt := RuntimeConfig{
+		HTTPAddrs: []net.Addr{
+			&net.TCPAddr{IP: net.ParseIP("::"), Port: 5678},
+			&net.TCPAddr{IP: net.ParseIP("198.18.0.1"), Port: 5679},
+			&net.UnixAddr{Name: "/var/run/foo", Net: "unix"},
+		},
+		HTTPSAddrs: []net.Addr{
+			&net.TCPAddr{IP: net.ParseIP("::"), Port: 5688},
+			&net.TCPAddr{IP: net.ParseIP("198.18.0.1"), Port: 5689},
+		},
+	}
+
+	unix, http, https := rt.ClientAddress()
+
+	require.Equal(t, "unix:///var/run/foo", unix)
+	require.Equal(t, "198.18.0.1:5679", http)
+	require.Equal(t, "198.18.0.1:5689", https)
+}
+
+func TestRuntime_ClientAddressAnyV4(t *testing.T) {
+	rt := RuntimeConfig{
+		HTTPAddrs: []net.Addr{
+			&net.TCPAddr{IP: net.ParseIP("0.0.0.0"), Port: 5678},
+			&net.UnixAddr{Name: "/var/run/foo", Net: "unix"},
+		},
+		HTTPSAddrs: []net.Addr{
+			&net.TCPAddr{IP: net.ParseIP("0.0.0.0"), Port: 5688},
+		},
+	}
+
+	unix, http, https := rt.ClientAddress()
+
+	require.Equal(t, "unix:///var/run/foo", unix)
+	require.Equal(t, "127.0.0.1:5678", http)
+	require.Equal(t, "127.0.0.1:5688", https)
+}
+
+func TestRuntime_ClientAddressAnyV6(t *testing.T) {
+	rt := RuntimeConfig{
+		HTTPAddrs: []net.Addr{
+			&net.TCPAddr{IP: net.ParseIP("::"), Port: 5678},
+			&net.UnixAddr{Name: "/var/run/foo", Net: "unix"},
+		},
+		HTTPSAddrs: []net.Addr{
+			&net.TCPAddr{IP: net.ParseIP("::"), Port: 5688},
+		},
+	}
+
+	unix, http, https := rt.ClientAddress()
+
+	require.Equal(t, "unix:///var/run/foo", unix)
+	require.Equal(t, "[::1]:5678", http)
+	require.Equal(t, "[::1]:5688", https)
 }
 
 func splitIPPort(hostport string) (net.IP, int) {

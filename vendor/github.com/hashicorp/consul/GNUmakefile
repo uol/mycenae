@@ -79,11 +79,14 @@ PUB_GIT_ARG=
 endif
 
 ifeq ($(PUB_WEBSITE),1)
-PUB_WEBSITE_ARG=-g
+PUB_WEBSITE_ARG=-w
 else
 PUB_WEBSITE_ARG=
 endif
 
+NOGOX?=1
+
+export NOGOX
 export GO_BUILD_TAG
 export UI_BUILD_TAG
 export UI_LEGACY_BUILD_TAG
@@ -94,10 +97,19 @@ export GIT_DESCRIBE
 export GOTAGS
 export GOLDFLAGS
 
+
+DEV_PUSH?=0
+ifeq ($(DEV_PUSH),1)
+DEV_PUSH_ARG=
+else
+DEV_PUSH_ARG=--no-push
+endif
+
 # all builds binaries for all targets
 all: bin
 
-bin: tools dev-build
+bin: tools
+	@$(SHELL) $(CURDIR)/build-support/scripts/build-local.sh
 
 # dev creates binaries for testing locally - these are put into ./bin and $GOPATH
 dev: changelogfmt vendorfmt dev-build
@@ -124,27 +136,34 @@ linux:
 # dist builds binaries for all platforms and packages them for distribution
 dist:
 	@$(SHELL) $(CURDIR)/build-support/scripts/release.sh -t '$(DIST_TAG)' -b '$(DIST_BUILD)' -S '$(DIST_SIGN)' $(DIST_VERSION_ARG) $(DIST_DATE_ARG) $(DIST_REL_ARG)
-	
+
+verify:
+	@$(SHELL) $(CURDIR)/build-support/scripts/verify.sh	
+
 publish:
 	@$(SHELL) $(CURDIR)/build-support/scripts/publish.sh $(PUB_GIT_ARG) $(PUB_WEBSITE_ARG)
 
 dev-tree:
-	@$(SHELL) $(CURDIR)/build-support/scripts/dev.sh
+	@$(SHELL) $(CURDIR)/build-support/scripts/dev.sh $(DEV_PUSH_ARG)
 
 cov:
 	gocov test $(GOFILES) | gocov-html > /tmp/coverage.html
 	open /tmp/coverage.html
 
-test: other-consul dev-build vet
+test: other-consul dev-build vet test-install-deps test-internal
+
+test-install-deps:
+	go test -tags '$(GOTAGS)' -i $(GOTEST_PKGS)
+
+test-internal:
 	@echo "--> Running go test"
 	@rm -f test.log exit-code
-	go test -tags '$(GOTAGS)' -i $(GOTEST_PKGS)
 	@# Dump verbose output to test.log so we can surface test names on failure but
 	@# hide it from travis as it exceeds their log limits and causes job to be
 	@# terminated (over 4MB and over 10k lines in the UI). We need to output
 	@# _something_ to stop them terminating us due to inactivity...
-	{ go test $(GOTEST_FLAGS) -tags '$(GOTAGS)' -timeout 5m $(GOTEST_PKGS) 2>&1 ; echo $$? > exit-code ; } | tee test.log | egrep '^(ok|FAIL)\s*github.com/hashicorp/consul'
-	@echo "Exit code: $$(cat exit-code)" >> test.log
+	{ go test $(GOTEST_FLAGS) -tags '$(GOTAGS)' -timeout 7m $(GOTEST_PKGS) 2>&1 ; echo $$? > exit-code ; } | tee test.log | egrep '^(ok|FAIL)\s*github.com/hashicorp/consul'
+	@echo "Exit code: $$(cat exit-code)"
 	@# This prints all the race report between ====== lines
 	@awk '/^WARNING: DATA RACE/ {do_print=1; print "=================="} do_print==1 {print} /^={10,}/ {do_print=0}' test.log || true
 	@grep -A10 'panic: ' test.log || true
@@ -160,6 +179,15 @@ test: other-consul dev-build vet
 
 test-race:
 	$(MAKE) GOTEST_FLAGS=-race
+
+# Run tests with config for CI so `make test` can still be local-dev friendly.
+test-ci: other-consul dev-build vet test-install-deps
+	@ if ! GOTEST_FLAGS="-p 3 -parallel 1" make test-internal; then \
+	    echo "    ============"; \
+			echo "      Retrying"; \
+	    echo "    ============"; \
+			GOTEST_FLAGS="-p 5 -parallel 1" make test-internal; \
+		fi
 
 other-consul:
 	@echo "--> Checking for other consul instances"
@@ -236,5 +264,5 @@ ui-legacy-docker: ui-legacy-build-image
 	@$(SHELL) $(CURDIR)/build-support/scripts/build-docker.sh ui-legacy
 	
 	
-.PHONY: all ci bin dev dist cov test cover format vet ui static-assets tools vendorfmt 
+.PHONY: all ci bin dev dist cov test test-ci test-internal test-install-deps cover format vet ui static-assets tools vendorfmt
 .PHONY: docker-images go-build-image ui-build-image ui-legacy-build-image static-assets-docker consul-docker ui-docker ui-legacy-docker version
