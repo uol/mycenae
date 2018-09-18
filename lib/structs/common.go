@@ -47,6 +47,7 @@ type Settings struct {
 	DefaultTTL              uint8
 	MaxAllowedTTL           int
 	DefaultKeysets          []string
+	BlacklistedKeysets      []string
 	DefaultKeyspaceData     keyspace.Config
 	DefaultKeyspaces        map[string]uint8
 	Cassandra               cassandra.Settings

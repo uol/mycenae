@@ -124,6 +124,7 @@ AllowCORS = true
   KeysetCacheTTL = -1
   MaxReturnedMetadata = 10000
   ZookeeperConfig = "mycenae"
+  BlacklistedKeysets = ["chimera", "blacklist"]
 
 [memcached]
   pool = ["172.17.0.9:11211","172.17.0.10:11211","172.17.0.11:11211"]

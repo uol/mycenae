@@ -67,6 +67,7 @@ type Settings struct {
 	KeysetCacheTTL      int32
 	MaxReturnedMetadata int
 	ZookeeperConfig     string
+	BlacklistedKeysets  []string
 }
 
 // Metadata document

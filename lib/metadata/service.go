@@ -17,19 +17,20 @@ import (
 
 // SolrBackend - struct
 type SolrBackend struct {
-	solrService         *solar.SolrService
-	numShards           int
-	replicationFactor   int
-	regexPattern        *regexp.Regexp
-	stats               *tsstats.StatsTS
-	logger              *zap.Logger
-	memcached           *memcached.Memcached
-	idCacheTTL          int32
-	queryCacheTTL       int32
-	keysetCacheTTL      int32
-	fieldListQuery      string
-	zookeeperConfig     string
-	maxReturnedMetadata int
+	solrService          *solar.SolrService
+	numShards            int
+	replicationFactor    int
+	regexPattern         *regexp.Regexp
+	stats                *tsstats.StatsTS
+	logger               *zap.Logger
+	memcached            *memcached.Memcached
+	idCacheTTL           int32
+	queryCacheTTL        int32
+	keysetCacheTTL       int32
+	fieldListQuery       string
+	zookeeperConfig      string
+	maxReturnedMetadata  int
+	blacklistedKeysetMap map[string]bool
 }
 
 // NewSolrBackend - creates a new instance
@@ -43,20 +44,26 @@ func NewSolrBackend(settings *Settings, stats *tsstats.StatsTS, logger *zap.Logg
 	baseWordRegexp := "[0-9A-Za-z\\-\\.\\_\\%\\&\\#\\;\\/\\?]+(\\{[0-9]+\\})?"
 	rp := regexp.MustCompile("^\\.?\\*" + baseWordRegexp + "|" + baseWordRegexp + "\\.?\\*$|\\[" + baseWordRegexp + "\\][\\+\\*]{1}|\\(" + baseWordRegexp + "\\)|" + baseWordRegexp + "\\{[0-9]+\\}")
 
+	blacklistedKeysetMap := map[string]bool{}
+	for _, value := range settings.BlacklistedKeysets {
+		blacklistedKeysetMap[value] = true
+	}
+
 	return &SolrBackend{
-		solrService:         ss,
-		stats:               stats,
-		logger:              logger,
-		replicationFactor:   settings.ReplicationFactor,
-		numShards:           settings.NumShards,
-		regexPattern:        rp,
-		memcached:           memcached,
-		idCacheTTL:          settings.IDCacheTTL,
-		queryCacheTTL:       settings.QueryCacheTTL,
-		keysetCacheTTL:      settings.KeysetCacheTTL,
-		fieldListQuery:      fmt.Sprintf("*,[child parentFilter=parent_doc:true limit=%d]", settings.MaxReturnedMetadata),
-		zookeeperConfig:     settings.ZookeeperConfig,
-		maxReturnedMetadata: settings.MaxReturnedMetadata,
+		solrService:          ss,
+		stats:                stats,
+		logger:               logger,
+		replicationFactor:    settings.ReplicationFactor,
+		numShards:            settings.NumShards,
+		regexPattern:         rp,
+		memcached:            memcached,
+		idCacheTTL:           settings.IDCacheTTL,
+		queryCacheTTL:        settings.QueryCacheTTL,
+		keysetCacheTTL:       settings.KeysetCacheTTL,
+		fieldListQuery:       fmt.Sprintf("*,[child parentFilter=parent_doc:true limit=%d]", settings.MaxReturnedMetadata),
+		zookeeperConfig:      settings.ZookeeperConfig,
+		maxReturnedMetadata:  settings.MaxReturnedMetadata,
+		blacklistedKeysetMap: blacklistedKeysetMap,
 	}, nil
 }
 
