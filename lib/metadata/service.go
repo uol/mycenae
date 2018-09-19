@@ -218,7 +218,7 @@ func (sb *SolrBackend) filterFieldValues(collection, action, field, value string
 func (sb *SolrBackend) FilterTagValues(collection, prefix string, maxResults int) ([]string, int, gobol.Error) {
 
 	start := time.Now()
-	tags, total, err := sb.filterFieldValues(collection, "filter_metrics", "tag_value", prefix, maxResults)
+	tags, total, err := sb.filterFieldValues(collection, "filter_tag_values", "tag_value", prefix, maxResults)
 	if err != nil {
 		sb.statsCollectionError(collection, "filter_tag_values", "solr.collection.search.error")
 		return nil, 0, errInternalServer("FilterTagValues", err)
@@ -232,7 +232,7 @@ func (sb *SolrBackend) FilterTagValues(collection, prefix string, maxResults int
 func (sb *SolrBackend) FilterTagKeys(collection, prefix string, maxResults int) ([]string, int, gobol.Error) {
 
 	start := time.Now()
-	tags, total, err := sb.filterFieldValues(collection, "filter_metrics", "tag_key", prefix, maxResults)
+	tags, total, err := sb.filterFieldValues(collection, "filter_tag_keys", "tag_key", prefix, maxResults)
 	if err != nil {
 		sb.statsCollectionError(collection, "filter_tag_keys", "solr.collection.search.error")
 		return nil, 0, errInternalServer("FilterTagKeys", err)
@@ -625,4 +625,47 @@ func (sb *SolrBackend) DeleteCachedIDifExist(collection, tsType, id string) gobo
 	}
 
 	return nil
+}
+
+func (sb *SolrBackend) FilterTagValuesByMetricAndTag(collection, tsType, metric, tag, prefix string, maxResults int) ([]string, int, gobol.Error) {
+
+	action := "filter_tag_values_by_query"
+	field := "tag_value"
+	functionName := "FilterTagValuesByMetricAndTag"
+	query := "{!parent which=\"parent_doc:true AND type:" + tsType +
+		" AND metric:" + metric +
+		" \"} tag_key:" + tag
+
+	start := time.Now()
+
+	facets, gerr := sb.getCachedFacets(collection, field, query)
+	if gerr != nil {
+		sb.statsCollectionError(collection, action, "memcached.collection.search.error")
+		return nil, 0, errInternalServer(functionName, gerr)
+	}
+
+	if facets != nil && len(facets) > 0 {
+		cropped := sb.cropFacets(facets, maxResults)
+		return cropped, len(facets), nil
+	}
+
+	r, err := sb.solrService.Facets(collection, query, "", 0, 0, nil, nil, []string{field}, true, maxResults, 0)
+	if err != nil {
+		sb.statsCollectionError(collection, action, "solr.collection.search.error")
+		return nil, 0, errInternalServer(functionName, err)
+	}
+
+	facets = sb.extractFacets(r, field, prefix)
+
+	err = sb.cacheFacets(facets, collection, field, &query)
+	if err != nil {
+		sb.statsCollectionError(collection, action, "memcached.collection.search.error")
+		return nil, 0, errInternalServer(functionName, err)
+	}
+
+	cropped := sb.cropFacets(facets, maxResults)
+
+	sb.statsCollectionAction(collection, action, "solr.collection.search", time.Since(start))
+
+	return cropped, len(facets), nil
 }

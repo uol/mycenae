@@ -47,6 +47,9 @@ type Backend interface {
 
 	// DeleteDocumentByID - delete a document by ID and its child documents
 	DeleteDocumentByID(collection, tsType, id string) gobol.Error
+
+	// FilterTagValuesByMetricAndTag - filter tag values from a collection given its metric and tag
+	FilterTagValuesByMetricAndTag(collection, tsType, metric, tag, prefix string, maxResults int) ([]string, int, gobol.Error)
 }
 
 // Storage is a storage for metadata

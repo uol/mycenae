@@ -150,11 +150,6 @@ func (plot Plot) ListMeta(keySet, tsType, metric string, tags map[string]string,
 
 	from, size = plot.checkParams(from, size)
 
-	err := plot.validateKeySet(keySet)
-	if err != nil {
-		return nil, 0, errNotFound("ListMeta")
-	}
-
 	metadatas, total, gerr := plot.persist.metaStorage.FilterMetadata(keySet, plot.toMetaParam(metric, tsType, tags), from, size)
 
 	var tsMetaInfos []TsMetaInfo
