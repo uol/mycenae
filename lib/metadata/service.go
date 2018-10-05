@@ -627,18 +627,39 @@ func (sb *SolrBackend) DeleteCachedIDifExist(collection, tsType, id string) gobo
 	return nil
 }
 
+// FilterTagValuesByMetricAndTag - returns all tag values related to the specified metric and tag
 func (sb *SolrBackend) FilterTagValuesByMetricAndTag(collection, tsType, metric, tag, prefix string, maxResults int) ([]string, int, gobol.Error) {
 
-	action := "filter_tag_values_by_query"
-	field := "tag_value"
-	functionName := "FilterTagValuesByMetricAndTag"
+	childrenQuery := "tag_key:" + tag
+
+	return sb.filterTagsByMetric(collection, tsType, metric, childrenQuery, prefix, "filter_tag_values_by_metric_and_tag", "tag_value", "FilterTagValuesByMetricAndTag", maxResults)
+}
+
+// FilterTagKeysByMetric - returns all tag keys related to the specified metric
+func (sb *SolrBackend) FilterTagKeysByMetric(collection, tsType, metric, prefix string, maxResults int) ([]string, int, gobol.Error) {
+
+	childrenQuery := "tag_key:"
+
+	if sb.HasRegexPattern(prefix) {
+		childrenQuery += sb.SetRegexValue(prefix)
+	} else {
+		childrenQuery += prefix
+	}
+
+	return sb.filterTagsByMetric(collection, tsType, metric, childrenQuery, prefix, "filter_tag_values_by_metric", "tag_key", "FilterTagKeysByMetric", maxResults)
+}
+
+// filterTagsByMetric - returns all tag keys or values related to the specified metric
+func (sb *SolrBackend) filterTagsByMetric(collection, tsType, metric, childrenQuery, prefix, action, field, functionName string, maxResults int) ([]string, int, gobol.Error) {
+
 	query := "{!parent which=\"parent_doc:true AND type:" + tsType +
 		" AND metric:" + metric +
-		" \"} tag_key:" + tag
+		" \"}" + childrenQuery
 
 	start := time.Now()
+	cacheKey := query + prefix
 
-	facets, gerr := sb.getCachedFacets(collection, field, query)
+	facets, gerr := sb.getCachedFacets(collection, field, cacheKey)
 	if gerr != nil {
 		sb.statsCollectionError(collection, action, "memcached.collection.search.error")
 		return nil, 0, errInternalServer(functionName, gerr)
@@ -657,7 +678,7 @@ func (sb *SolrBackend) FilterTagValuesByMetricAndTag(collection, tsType, metric,
 
 	facets = sb.extractFacets(r, field, prefix)
 
-	err = sb.cacheFacets(facets, collection, field, &query)
+	err = sb.cacheFacets(facets, collection, field, cacheKey)
 	if err != nil {
 		sb.statsCollectionError(collection, action, "memcached.collection.search.error")
 		return nil, 0, errInternalServer(functionName, err)

@@ -58,11 +58,6 @@ func TestMain(m *testing.M) {
 
 	flag.Parse()
 
-	ksMycenae = "ts_719740709"
-	ksMycenaeMeta = "ts_272914037"
-	ksMycenaeTsdb = "ts_833635908"
-	ksTTLKeyspace = "ts_841517502"
-
 	if !skipSetup {
 
 		var wg sync.WaitGroup

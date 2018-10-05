@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/julienschmidt/httprouter"
+	"github.com/uol/gobol"
 	"github.com/uol/gobol/rip"
 
 	"github.com/uol/mycenae/lib/structs"
@@ -601,18 +602,29 @@ func (plot *Plot) deleteTS(w http.ResponseWriter, r *http.Request, ps httprouter
 	}
 }
 
-func (plot *Plot) ListNumberMetaTagValues(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	plot.listMetaTagValues(w, r, ps, "meta", map[string]string{"path": "/keysets/#keyset/tag/values"})
+// ListNumberTagValuesByMetric - returns tag values filtered by metric
+func (plot *Plot) ListNumberTagValuesByMetric(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	plot.listTagsByMetric(w, r, ps, "meta", "ListNumberTagValuesByMetric", map[string]string{"path": "/keysets/#keyset/metric/tag/values"}, true)
 }
 
-func (plot *Plot) ListTextMetaTagValues(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	plot.listMetaTagValues(w, r, ps, "metatext", map[string]string{"path": "/keysets/#keyset/text/tag/values"})
+// ListTextTagValuesByMetric - returns text tag values filtered by metric
+func (plot *Plot) ListTextTagValuesByMetric(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	plot.listTagsByMetric(w, r, ps, "metatext", "ListTextTagValuesByMetric", map[string]string{"path": "/keysets/#keyset/text/metric/tag/values"}, true)
 }
 
-// listMetaTagValues
-func (plot *Plot) listMetaTagValues(w http.ResponseWriter, r *http.Request, ps httprouter.Params, tsType string, smap map[string]string) {
+// ListNumberTagKeysByMetric - returns tag keys filtered by metric
+func (plot *Plot) ListNumberTagKeysByMetric(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	plot.listTagsByMetric(w, r, ps, "meta", "ListNumberTagKeysByMetric", map[string]string{"path": "/keysets/#keyset/metric/tag/keys"}, false)
+}
 
-	functionName := "listMetaValues"
+// ListTextTagKeysByMetric - returns text tag keys filtered by metric
+func (plot *Plot) ListTextTagKeysByMetric(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	plot.listTagsByMetric(w, r, ps, "metatext", "ListTextTagKeysByMetric", map[string]string{"path": "/keysets/#keyset/text/metric/tag/keys"}, false)
+}
+
+// listTagsByMetric - returns tags filtered by metric
+func (plot *Plot) listTagsByMetric(w http.ResponseWriter, r *http.Request, ps httprouter.Params, tsType, functionName string, smap map[string]string, filterValues bool) {
+
 	keyset, fail := plot.getKeysetParameter(w, r, ps, functionName, smap)
 	if fail {
 		return
@@ -625,38 +637,57 @@ func (plot *Plot) listMetaTagValues(w http.ResponseWriter, r *http.Request, ps h
 		return
 	}
 
-	tag := q.Get("tag")
-	if tag == "" {
-		rip.Fail(w, errMandatoryParam(functionName, "tag"))
-		return
-	}
-
-	value := q.Get("value")
-	if value == "" {
-		value = "*"
-	}
-
 	size, fail := plot.getSizeParameter(w, q, functionName)
 	if fail {
 		return
 	}
 
-	keys, total, gerr := plot.persist.metaStorage.FilterTagValuesByMetricAndTag(*keyset, tsType, metric, tag, value, size)
+	var results []string
+	var total int
+	var gerr gobol.Error
+
+	if filterValues {
+
+		tag := q.Get("tag")
+		if tag == "" {
+			rip.Fail(w, errMandatoryParam(functionName, "tag"))
+			return
+		}
+
+		value := q.Get("value")
+		if value == "" {
+			value = "*"
+		}
+
+		results, total, gerr = plot.persist.metaStorage.FilterTagValuesByMetricAndTag(*keyset, tsType, metric, tag, value, size)
+
+	} else {
+
+		tag := q.Get("tag")
+		if tag == "" {
+			tag = "*"
+		}
+
+		results, total, gerr = plot.persist.metaStorage.FilterTagKeysByMetric(*keyset, tsType, metric, tag, size)
+	}
+
 	if gerr != nil {
 		rip.Fail(w, gerr)
 		return
 	}
-	if len(keys) == 0 {
-		gerr := errNoContent("ListMeta")
+
+	if len(results) == 0 {
+		gerr := errNoContent(functionName)
 		rip.Fail(w, gerr)
 		return
 	}
 
 	out := Response{
 		TotalRecords: total,
-		Payload:      keys,
+		Payload:      results,
 	}
 
 	rip.SuccessJSON(w, http.StatusOK, out)
+
 	return
 }

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<schema name="inventory-config" version="1.6">
+	
+    <field name="id" type="string" indexed="true" stored="true" required="true" multiValued="false" />
+    <field name="_version_" type="plong" indexed="false" stored="false"/>
+    <field name="_root_" type="string" indexed="true" stored="false" docValues="false" />
+
+	<fieldType name="arraytext" class="solr.TextField">
+		<analyzer type="query">
+			<tokenizer class="solr.WhitespaceTokenizerFactory" rule="java" />
+		</analyzer>
+	</fieldType>
+	
+    <uniqueKey>id</uniqueKey>
+
+    <fieldType name="string" 	class="solr.StrField" 		sortMissingLast="true" docValues="true" />
+    <fieldType name="boolean" 	class="solr.BoolField" 		sortMissingLast="true"/>
+	<fieldType name="pint" 		class="solr.IntPointField" 	docValues="true"/>
+	<fieldType name="plong" 	class="solr.LongPointField" docValues="true"/>
+    <fieldType name="pdate" 	class="solr.DatePointField" docValues="true"/>
+
+	<dynamicField name="a_ansible_*"	type="arraytext"	indexed="true" multiValued="true"  stored="true"/>
+	<dynamicField name="s_ansible_*" 	type="string"		indexed="true" multiValued="false" stored="true"/>
+	<dynamicField name="i_ansible_*" 	type="pint"			indexed="true" multiValued="false" stored="true"/>
+	<dynamicField name="b_ansible_*" 	type="boolean"		indexed="true" multiValued="false" stored="true"/>
+	<field 		  name="products"		type="string"		indexed="true" multiValued="true"  stored="true"/>
+	<field 		  name="creation_date"	type="pdate"		indexed="true" multiValued="false" stored="true" default="NOW"/>
+
+</schema>

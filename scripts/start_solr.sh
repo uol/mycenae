@@ -6,7 +6,7 @@ zookeeperIP=$(docker inspect --format "{{ .NetworkSettings.IPAddress }}" zookeep
 
 docker rm -f "${POD_NAME}"
 
-docker run -d --name "${POD_NAME}" -v $(pwd)/solr-configs:/solr-configs --restart always solr:7.3.1-alpine -cloud -z ${zookeeperIP}
+docker run -d --name "${POD_NAME}" -v $(pwd)/solr-configs:/solr-configs --restart always solr:7.4.0-alpine -cloud -z ${zookeeperIP}
 
 sleep 2
 

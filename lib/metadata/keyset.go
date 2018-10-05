@@ -126,19 +126,20 @@ func (sb *SolrBackend) CheckKeySet(keyset string) (bool, gobol.Error) {
 		return keySetMap[keyset], nil
 	}
 
-	indexes, e := sb.solrService.ListCollections()
+	keysets, e := sb.solrService.ListCollections()
 	if e != nil {
 		sb.statsCollectionError("all", "list", "solr.collection.list.error")
 		return false, errInternalServer("CheckKeySet", e)
 	}
 
-	for i, value := range indexes {
-		if _, ok := sb.blacklistedKeysetMap[value]; ok {
-			indexes = append(indexes[:i], indexes[i+1:]...)
+	filteredKeysets := []string{}
+	for i := 0; i < len(keysets); i++ {
+		if _, ok := sb.blacklistedKeysetMap[keysets[i]]; !ok {
+			filteredKeysets = append(filteredKeysets, keysets[i])
 		}
 	}
 
-	keySetMap, err = sb.cacheKeySetMap(indexes)
+	keySetMap, err = sb.cacheKeySetMap(filteredKeysets)
 	if err != nil {
 		sb.statsCollectionError("all", "list_cached", "memcached.collection.list.error")
 		return false, errInternalServer("CheckKeySet", e)
