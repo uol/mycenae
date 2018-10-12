@@ -35,7 +35,7 @@ func (sb *SolrBackend) isIDCached(collection, tsType, tsid string) (bool, gobol.
 func (sb *SolrBackend) cacheID(collection, tsType, tsid string) gobol.Error {
 
 	if sb.idCacheTTL < 0 {
-        return nil
+		return nil
 	}
 
 	err := sb.memcached.Put([]byte(tsid), sb.idCacheTTL, idNamespace, collection, tsType, tsid)
@@ -91,7 +91,7 @@ func (sb *SolrBackend) cacheKeySetMap(keysets []string) (map[string]bool, gobol.
 	}
 
 	if sb.keysetCacheTTL < 0 {
-        return keysetMap, nil
+		return keysetMap, nil
 	}
 
 	data, err := json.Marshal(keysetMap)
@@ -119,8 +119,8 @@ func (sb *SolrBackend) deleteCachedKeySetMap() gobol.Error {
 }
 
 // hash - creates a new hash from a given string
-func (sb *SolrBackend) hash(query *Query) (string, gobol.Error) {
-	hash, err := hashstructure.Hash(*query, nil)
+func (sb *SolrBackend) hash(v interface{}) (string, gobol.Error) {
+	hash, err := hashstructure.Hash(v, nil)
 	if err != nil {
 		return "", errInternalServer("hash", err)
 	}
@@ -128,9 +128,9 @@ func (sb *SolrBackend) hash(query *Query) (string, gobol.Error) {
 }
 
 // getCachedFacets - return all cached facets from the query
-func (sb *SolrBackend) getCachedFacets(collection, field string, query *Query) ([]string, gobol.Error) {
+func (sb *SolrBackend) getCachedFacets(collection, field string, v interface{}) ([]string, gobol.Error) {
 
-	hash, gerr := sb.hash(query)
+	hash, gerr := sb.hash(v)
 	if gerr != nil {
 		return nil, gerr
 	}
@@ -154,10 +154,10 @@ func (sb *SolrBackend) getCachedFacets(collection, field string, query *Query) (
 }
 
 // cacheFacets - caches the facets
-func (sb *SolrBackend) cacheFacets(facets []string, collection, field string, query *Query) gobol.Error {
+func (sb *SolrBackend) cacheFacets(facets []string, collection, field string, v interface{}) gobol.Error {
 
 	if sb.queryCacheTTL < 0 {
-        return nil
+		return nil
 	}
 
 	if facets == nil || len(facets) == 0 {
@@ -169,7 +169,7 @@ func (sb *SolrBackend) cacheFacets(facets []string, collection, field string, qu
 		return tserr.New(err, "error converting string array to binary", http.StatusInternalServerError, nil)
 	}
 
-	hash, gerr := sb.hash(query)
+	hash, gerr := sb.hash(v)
 	if gerr != nil {
 		return gerr
 	}

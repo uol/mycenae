@@ -17,19 +17,20 @@ import (
 
 // SolrBackend - struct
 type SolrBackend struct {
-	solrService         *solar.SolrService
-	numShards           int
-	replicationFactor   int
-	regexPattern        *regexp.Regexp
-	stats               *tsstats.StatsTS
-	logger              *zap.Logger
-	memcached           *memcached.Memcached
-	idCacheTTL          int32
-	queryCacheTTL       int32
-	keysetCacheTTL      int32
-	fieldListQuery      string
-	zookeeperConfig     string
-	maxReturnedMetadata int
+	solrService          *solar.SolrService
+	numShards            int
+	replicationFactor    int
+	regexPattern         *regexp.Regexp
+	stats                *tsstats.StatsTS
+	logger               *zap.Logger
+	memcached            *memcached.Memcached
+	idCacheTTL           int32
+	queryCacheTTL        int32
+	keysetCacheTTL       int32
+	fieldListQuery       string
+	zookeeperConfig      string
+	maxReturnedMetadata  int
+	blacklistedKeysetMap map[string]bool
 }
 
 // NewSolrBackend - creates a new instance
@@ -43,20 +44,26 @@ func NewSolrBackend(settings *Settings, stats *tsstats.StatsTS, logger *zap.Logg
 	baseWordRegexp := "[0-9A-Za-z\\-\\.\\_\\%\\&\\#\\;\\/\\?]+(\\{[0-9]+\\})?"
 	rp := regexp.MustCompile("^\\.?\\*" + baseWordRegexp + "|" + baseWordRegexp + "\\.?\\*$|\\[" + baseWordRegexp + "\\][\\+\\*]{1}|\\(" + baseWordRegexp + "\\)|" + baseWordRegexp + "\\{[0-9]+\\}")
 
+	blacklistedKeysetMap := map[string]bool{}
+	for _, value := range settings.BlacklistedKeysets {
+		blacklistedKeysetMap[value] = true
+	}
+
 	return &SolrBackend{
-		solrService:         ss,
-		stats:               stats,
-		logger:              logger,
-		replicationFactor:   settings.ReplicationFactor,
-		numShards:           settings.NumShards,
-		regexPattern:        rp,
-		memcached:           memcached,
-		idCacheTTL:          settings.IDCacheTTL,
-		queryCacheTTL:       settings.QueryCacheTTL,
-		keysetCacheTTL:      settings.KeysetCacheTTL,
-		fieldListQuery:      fmt.Sprintf("*,[child parentFilter=parent_doc:true limit=%d]", settings.MaxReturnedMetadata),
-		zookeeperConfig:     settings.ZookeeperConfig,
-		maxReturnedMetadata: settings.MaxReturnedMetadata,
+		solrService:          ss,
+		stats:                stats,
+		logger:               logger,
+		replicationFactor:    settings.ReplicationFactor,
+		numShards:            settings.NumShards,
+		regexPattern:         rp,
+		memcached:            memcached,
+		idCacheTTL:           settings.IDCacheTTL,
+		queryCacheTTL:        settings.QueryCacheTTL,
+		keysetCacheTTL:       settings.KeysetCacheTTL,
+		fieldListQuery:       fmt.Sprintf("*,[child parentFilter=parent_doc:true limit=%d]", settings.MaxReturnedMetadata),
+		zookeeperConfig:      settings.ZookeeperConfig,
+		maxReturnedMetadata:  settings.MaxReturnedMetadata,
+		blacklistedKeysetMap: blacklistedKeysetMap,
 	}, nil
 }
 
@@ -211,7 +218,7 @@ func (sb *SolrBackend) filterFieldValues(collection, action, field, value string
 func (sb *SolrBackend) FilterTagValues(collection, prefix string, maxResults int) ([]string, int, gobol.Error) {
 
 	start := time.Now()
-	tags, total, err := sb.filterFieldValues(collection, "filter_metrics", "tag_value", prefix, maxResults)
+	tags, total, err := sb.filterFieldValues(collection, "filter_tag_values", "tag_value", prefix, maxResults)
 	if err != nil {
 		sb.statsCollectionError(collection, "filter_tag_values", "solr.collection.search.error")
 		return nil, 0, errInternalServer("FilterTagValues", err)
@@ -225,7 +232,7 @@ func (sb *SolrBackend) FilterTagValues(collection, prefix string, maxResults int
 func (sb *SolrBackend) FilterTagKeys(collection, prefix string, maxResults int) ([]string, int, gobol.Error) {
 
 	start := time.Now()
-	tags, total, err := sb.filterFieldValues(collection, "filter_metrics", "tag_key", prefix, maxResults)
+	tags, total, err := sb.filterFieldValues(collection, "filter_tag_keys", "tag_key", prefix, maxResults)
 	if err != nil {
 		sb.statsCollectionError(collection, "filter_tag_keys", "solr.collection.search.error")
 		return nil, 0, errInternalServer("FilterTagKeys", err)
@@ -618,4 +625,68 @@ func (sb *SolrBackend) DeleteCachedIDifExist(collection, tsType, id string) gobo
 	}
 
 	return nil
+}
+
+// FilterTagValuesByMetricAndTag - returns all tag values related to the specified metric and tag
+func (sb *SolrBackend) FilterTagValuesByMetricAndTag(collection, tsType, metric, tag, prefix string, maxResults int) ([]string, int, gobol.Error) {
+
+	childrenQuery := "tag_key:" + tag
+
+	return sb.filterTagsByMetric(collection, tsType, metric, childrenQuery, prefix, "filter_tag_values_by_metric_and_tag", "tag_value", "FilterTagValuesByMetricAndTag", maxResults)
+}
+
+// FilterTagKeysByMetric - returns all tag keys related to the specified metric
+func (sb *SolrBackend) FilterTagKeysByMetric(collection, tsType, metric, prefix string, maxResults int) ([]string, int, gobol.Error) {
+
+	childrenQuery := "tag_key:"
+
+	if sb.HasRegexPattern(prefix) {
+		childrenQuery += sb.SetRegexValue(prefix)
+	} else {
+		childrenQuery += prefix
+	}
+
+	return sb.filterTagsByMetric(collection, tsType, metric, childrenQuery, prefix, "filter_tag_values_by_metric", "tag_key", "FilterTagKeysByMetric", maxResults)
+}
+
+// filterTagsByMetric - returns all tag keys or values related to the specified metric
+func (sb *SolrBackend) filterTagsByMetric(collection, tsType, metric, childrenQuery, prefix, action, field, functionName string, maxResults int) ([]string, int, gobol.Error) {
+
+	query := "{!parent which=\"parent_doc:true AND type:" + tsType +
+		" AND metric:" + metric +
+		" \"}" + childrenQuery
+
+	start := time.Now()
+	cacheKey := query + prefix
+
+	facets, gerr := sb.getCachedFacets(collection, field, cacheKey)
+	if gerr != nil {
+		sb.statsCollectionError(collection, action, "memcached.collection.search.error")
+		return nil, 0, errInternalServer(functionName, gerr)
+	}
+
+	if facets != nil && len(facets) > 0 {
+		cropped := sb.cropFacets(facets, maxResults)
+		return cropped, len(facets), nil
+	}
+
+	r, err := sb.solrService.Facets(collection, query, "", 0, 0, nil, nil, []string{field}, true, maxResults, 0)
+	if err != nil {
+		sb.statsCollectionError(collection, action, "solr.collection.search.error")
+		return nil, 0, errInternalServer(functionName, err)
+	}
+
+	facets = sb.extractFacets(r, field, prefix)
+
+	err = sb.cacheFacets(facets, collection, field, cacheKey)
+	if err != nil {
+		sb.statsCollectionError(collection, action, "memcached.collection.search.error")
+		return nil, 0, errInternalServer(functionName, err)
+	}
+
+	cropped := sb.cropFacets(facets, maxResults)
+
+	sb.statsCollectionAction(collection, action, "solr.collection.search", time.Since(start))
+
+	return cropped, len(facets), nil
 }

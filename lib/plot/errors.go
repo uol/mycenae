@@ -73,3 +73,7 @@ func errValidationE(f string, e error) gobol.Error {
 func errEmptyExpression(f string) gobol.Error {
 	return errBasic(f, "no expression found", http.StatusBadRequest, errors.New("no expression found"))
 }
+
+func errMandatoryParam(function string, parameter string) gobol.Error {
+	return errBasic(function, "query string parameter \""+parameter+"\" is mandatory", http.StatusBadRequest, errors.New(""))
+}

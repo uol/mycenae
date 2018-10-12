@@ -16,13 +16,8 @@
   <lib dir="${solr.install.dir:../../../..}/contrib/velocity/lib" regex=".*\.jar" />
   <lib dir="${solr.install.dir:../../../..}/dist/" regex="solr-velocity-\d.*\.jar" />
 
-  <!-- <dataDir>/opt/solr-data/</dataDir> -->
-
-
-  <directoryFactory name="DirectoryFactory"
-                    class="${solr.directoryFactory:solr.NRTCachingDirectoryFactory}"/>
-
-
+  <directoryFactory name="DirectoryFactory" class="${solr.directoryFactory:solr.NRTCachingDirectoryFactory}"/>
+	
   <codecFactory class="solr.SchemaCodecFactory"/>
 
   <indexConfig>
@@ -39,27 +34,18 @@
     </updateLog>
 
     <autoCommit>
-      <maxDocs>1000</maxDocs>
+      <maxDocs>100</maxDocs>
       <maxTime>60000</maxTime>
       <openSearcher>false</openSearcher>
     </autoCommit>
 
     <autoSoftCommit>
-      <maxDocs>100</maxDocs>
-      <maxTime>10000</maxTime>
+      <maxDocs>10</maxDocs>
+      <maxTime>100</maxTime>
       <openSearcher>false</openSearcher>
     </autoSoftCommit>
 
   </updateHandler>
-
-  <!-- <updateRequestProcessorChain name="ignore-commit-from-client" default="true">
-    <processor class="solr.IgnoreCommitOptimizeUpdateProcessorFactory">
-      <int name="statusCode">200</int>
-    </processor>
-    <processor class="solr.LogUpdateProcessorFactory" />
-    <processor class="solr.DistributedUpdateProcessorFactory" />
-    <processor class="solr.RunUpdateProcessorFactory" />
-  </updateRequestProcessorChain> -->
 
   <query>
 
@@ -134,23 +120,11 @@
 
   <requestHandler name="/update" class="solr.UpdateRequestHandler" />
 
-   <searchComponent name="bjqFacetComponent" class="org.apache.solr.search.join.BlockJoinDocSetFacetComponent"/>
-
-   <requestHandler name="/bjqfacet" class="org.apache.solr.handler.component.SearchHandler">
-    <lst name="defaults">
-      <str name="shards.qt">/bjqfacet</str>
-    </lst>
-    <arr name="last-components">
-      <str>bjqFacetComponent</str>
-    </arr>
-  </requestHandler>
-
   <initParams path="/update/**,/query,/select">
     <lst name="defaults">
       <str name="df">metric</str>
     </lst>
   </initParams>
-
 
   <updateProcessor class="solr.UUIDUpdateProcessorFactory" name="uuid"/>
   <updateProcessor class="solr.RemoveBlankFieldUpdateProcessorFactory" name="remove-blank"/>
