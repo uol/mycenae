@@ -10,13 +10,6 @@
 # The idea is to change the cassandra gobol package to accept
 # multiple consistencies and abstract that to the applications
 
-# MaxConcurrentTimeseries CANNOT BE BIGGER THAN MaxConcurrentReads
-# Max number of concurrent timeseries being processed
-MaxConcurrentTimeseries = 50
-
-# Max number of concurrent read queries on cassandra
-MaxConcurrentReads = 100
-
 # Max number of timeseries allowed to be queried
 MaxTimeseries = 5000
 
@@ -66,7 +59,7 @@ AllowCORS = true
 [DefaultKeyspaceData]
   Datacenter = "dc_gt_a1"
   ReplicationFactor = 2
-  Contact = "l-pd-plat-servicos@uolinc.com"
+  Contact = "l-pd-engenharia@uolinc.com"
 
 [cassandra]
   keyspace = "mycenae"

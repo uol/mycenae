@@ -25,8 +25,6 @@ func New(
 	cass *gocql.Session,
 	metaStorage *metadata.Storage,
 	maxTimeseries int,
-	maxConcurrentTimeseries int,
-	maxConcurrentReads int,
 	logQueryTSthreshold int,
 	keyspaceTTLMap map[uint8]string,
 	defaultTTL uint8,
@@ -41,24 +39,14 @@ func New(
 		return nil, errInit("MaxTimeseries needs to be bigger than zero")
 	}
 
-	if maxConcurrentReads < 1 {
-		return nil, errInit("MaxConcurrentReads needs to be bigger than zero")
-	}
-
 	if logQueryTSthreshold < 1 {
 		return nil, errInit("LogQueryTSthreshold needs to be bigger than zero")
-	}
-
-	if maxConcurrentTimeseries > maxConcurrentReads {
-		return nil, errInit("maxConcurrentTimeseries cannot be bigger than maxConcurrentReads")
 	}
 
 	return &Plot{
 		MaxTimeseries:     maxTimeseries,
 		LogQueryThreshold: logQueryTSthreshold,
 		persist:           persistence{cassandra: cass, metaStorage: metaStorage},
-		concTimeseries:    make(chan struct{}, maxConcurrentTimeseries),
-		concReads:         make(chan struct{}, maxConcurrentReads),
 		keyspaceTTLMap:    keyspaceTTLMap,
 		defaultTTL:        defaultTTL,
 		defaultMaxResults: defaultMaxResults,
@@ -69,8 +57,6 @@ type Plot struct {
 	MaxTimeseries     int
 	LogQueryThreshold int
 	persist           persistence
-	concTimeseries    chan struct{}
-	concReads         chan struct{}
 	keyspaceTTLMap    map[uint8]string
 	defaultTTL        uint8
 	defaultMaxResults int

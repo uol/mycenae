@@ -37,6 +37,26 @@ config if they prefer more frequent snapshots. See the documentation for [raft_s
 and [raft_snapshot_threshold](/docs/agent/options.html#_raft_snapshot_threshold) to understand the trade-offs
 when tuning these.
 
+## Consul 1.0.7
+
+When requesting a specific service (`/v1/health/:service` or
+`/v1/catalog/:service` endpoints), the `X-Consul-Index` returned is now the
+index at which that _specific service_ was last modified. In version 1.0.6 and
+earlier the `X-Consul-Index` returned was the index at which _any_ service was
+last modified. See [GH-3890](https://github.com/hashicorp/consul/issues/3890)
+for more details.
+
+During upgrades from 1.0.6 or lower to 1.0.7 or higher, watchers are likely to
+see `X-Consul-Index` for these endpoints decrease between blocking calls.
+
+Consul’s watch feature and `consul-template` should gracefully handle this case.
+Other tools relying on blocking service or health queries are also likely to
+work; some may require a restart. It is possible external tools could break and
+either stop working or continually re-request data without blocking if they
+have assumed indexes can never decrease or be reset and/or persist index
+values. Please test any blocking query integrations in a controlled environment
+before proceeding.
+
 ## Consul 1.0.1
 
 #### Carefully Check and Remove Stale Servers During Rolling Upgrades
@@ -71,10 +91,6 @@ All of Consul's previously deprecated command line flags and config options have
 
 | Removed Option | Equivalent |
 | -------------- | ---------- |
-| `-atlas` | None, Atlas is no longer supported. |
-| `-atlas-token`| None, Atlas is no longer supported. |
-| `-atlas-join` | None, Atlas is no longer supported. |
-| `-atlas-endpoint` | None, Atlas is no longer supported. |
 | `-dc` | [`-datacenter`](/docs/agent/options.html#_datacenter) |
 | `-retry-join-azure-tag-name` | [`-retry-join`](/docs/agent/options.html#microsoft-azure) |
 | `-retry-join-azure-tag-value` | [`-retry-join`](/docs/agent/options.html#microsoft-azure) |
@@ -87,11 +103,6 @@ All of Consul's previously deprecated command line flags and config options have
 | `-retry-join-gce-zone-pattern` | [`-retry-join`](/docs/agent/options.html#google-compute-engine) |
 | `addresses.rpc` | None, the RPC server for CLI commands is no longer supported. |
 | `advertise_addrs` | [`ports`](/docs/agent/options.html#ports) with [`advertise_addr`](https://www.consul/io/docs/agent/options.html#advertise_addr) and/or [`advertise_addr_wan`](/docs/agent/options.html#advertise_addr_wan) |
-| `atlas_infrastructure` | None, Atlas is no longer supported. |
-| `atlas_token` | None, Atlas is no longer supported. |
-| `atlas_acl_token` | None, Atlas is no longer supported. |
-| `atlas_join` | None, Atlas is no longer supported. |
-| `atlas_endpoint` | None, Atlas is no longer supported. |
 | `dogstatsd_addr` | [`telemetry.dogstatsd_addr`](/docs/agent/options.html#telemetry-dogstatsd_addr) |
 | `dogstatsd_tags` | [`telemetry.dogstatsd_tags`](/docs/agent/options.html#telemetry-dogstatsd_tags) |
 | `http_api_response_headers` | [`http_config.response_headers`](/docs/agent/options.html#response_headers) |

@@ -301,6 +301,22 @@ func (b *Builder) Build() (rt RuntimeConfig, err error) {
 		dnsServiceTTL[k] = b.durationVal(fmt.Sprintf("dns_config.service_ttl[%q]", k), &v)
 	}
 
+	soa := RuntimeSOAConfig{Refresh: 3600, Retry: 600, Expire: 86400, Minttl: 0}
+	if c.DNS.SOA != nil {
+		if c.DNS.SOA.Expire != nil {
+			soa.Expire = *c.DNS.SOA.Expire
+		}
+		if c.DNS.SOA.Minttl != nil {
+			soa.Minttl = *c.DNS.SOA.Minttl
+		}
+		if c.DNS.SOA.Refresh != nil {
+			soa.Refresh = *c.DNS.SOA.Refresh
+		}
+		if c.DNS.SOA.Retry != nil {
+			soa.Retry = *c.DNS.SOA.Retry
+		}
+	}
+
 	leaveOnTerm := !b.boolVal(c.ServerMode)
 	if c.LeaveOnTerm != nil {
 		leaveOnTerm = b.boolVal(c.LeaveOnTerm)
@@ -340,13 +356,20 @@ func (b *Builder) Build() (rt RuntimeConfig, err error) {
 	httpPort := b.portVal("ports.http", c.Ports.HTTP)
 	httpsPort := b.portVal("ports.https", c.Ports.HTTPS)
 	serverPort := b.portVal("ports.server", c.Ports.Server)
+	grpcPort := b.portVal("ports.grpc", c.Ports.GRPC)
 	serfPortLAN := b.portVal("ports.serf_lan", c.Ports.SerfLAN)
 	serfPortWAN := b.portVal("ports.serf_wan", c.Ports.SerfWAN)
 	proxyMinPort := b.portVal("ports.proxy_min_port", c.Ports.ProxyMinPort)
 	proxyMaxPort := b.portVal("ports.proxy_max_port", c.Ports.ProxyMaxPort)
+	sidecarMinPort := b.portVal("ports.sidecar_min_port", c.Ports.SidecarMinPort)
+	sidecarMaxPort := b.portVal("ports.sidecar_max_port", c.Ports.SidecarMaxPort)
 	if proxyMaxPort < proxyMinPort {
 		return RuntimeConfig{}, fmt.Errorf(
 			"proxy_min_port must be less than proxy_max_port. To disable, set both to zero.")
+	}
+	if sidecarMaxPort < sidecarMinPort {
+		return RuntimeConfig{}, fmt.Errorf(
+			"sidecar_min_port must be less than sidecar_max_port. To disable, set both to zero.")
 	}
 
 	// determine the default bind and advertise address
@@ -439,6 +462,7 @@ func (b *Builder) Build() (rt RuntimeConfig, err error) {
 	dnsAddrs := b.makeAddrs(b.expandAddrs("addresses.dns", c.Addresses.DNS), clientAddrs, dnsPort)
 	httpAddrs := b.makeAddrs(b.expandAddrs("addresses.http", c.Addresses.HTTP), clientAddrs, httpPort)
 	httpsAddrs := b.makeAddrs(b.expandAddrs("addresses.https", c.Addresses.HTTPS), clientAddrs, httpsPort)
+	grpcAddrs := b.makeAddrs(b.expandAddrs("addresses.grpc", c.Addresses.GRPC), clientAddrs, grpcPort)
 
 	for _, a := range dnsAddrs {
 		if x, ok := a.(*net.TCPAddr); ok {
@@ -555,6 +579,9 @@ func (b *Builder) Build() (rt RuntimeConfig, err error) {
 	proxyDefaultScriptCommand := c.Connect.ProxyDefaults.ScriptCommand
 	proxyDefaultConfig := c.Connect.ProxyDefaults.Config
 
+	enableRemoteScriptChecks := b.boolVal(c.EnableScriptChecks)
+	enableLocalScriptChecks := b.boolValWithDefault(c.EnableLocalScriptChecks, enableRemoteScriptChecks)
+
 	// ----------------------------------------------------------------
 	// build runtime config
 	//
@@ -632,6 +659,7 @@ func (b *Builder) Build() (rt RuntimeConfig, err error) {
 		DNSRecursorTimeout:    b.durationVal("recursor_timeout", c.DNS.RecursorTimeout),
 		DNSRecursors:          dnsRecursors,
 		DNSServiceTTL:         dnsServiceTTL,
+		DNSSOA:                soa,
 		DNSUDPAnswerLimit:     b.intVal(c.DNS.UDPAnswerLimit),
 		DNSNodeMetaTXT:        b.boolValWithDefault(c.DNS.NodeMetaTXT, true),
 
@@ -689,6 +717,8 @@ func (b *Builder) Build() (rt RuntimeConfig, err error) {
 		ConnectProxyAllowManagedAPIRegistration: b.boolVal(c.Connect.Proxy.AllowManagedAPIRegistration),
 		ConnectProxyBindMinPort:                 proxyMinPort,
 		ConnectProxyBindMaxPort:                 proxyMaxPort,
+		ConnectSidecarMinPort:                   sidecarMinPort,
+		ConnectSidecarMaxPort:                   sidecarMaxPort,
 		ConnectProxyDefaultExecMode:             proxyDefaultExecMode,
 		ConnectProxyDefaultDaemonCommand:        proxyDefaultDaemonCommand,
 		ConnectProxyDefaultScriptCommand:        proxyDefaultScriptCommand,
@@ -707,16 +737,22 @@ func (b *Builder) Build() (rt RuntimeConfig, err error) {
 		DiscoveryMaxStale:                       b.durationVal("discovery_max_stale", c.DiscoveryMaxStale),
 		EnableAgentTLSForChecks:                 b.boolVal(c.EnableAgentTLSForChecks),
 		EnableDebug:                             b.boolVal(c.EnableDebug),
-		EnableScriptChecks:                      b.boolVal(c.EnableScriptChecks),
+		EnableRemoteScriptChecks:                enableRemoteScriptChecks,
+		EnableLocalScriptChecks:                 enableLocalScriptChecks,
 		EnableSyslog:                            b.boolVal(c.EnableSyslog),
 		EnableUI:                                b.boolVal(c.UI),
 		EncryptKey:                              b.stringVal(c.EncryptKey),
 		EncryptVerifyIncoming:                   b.boolVal(c.EncryptVerifyIncoming),
 		EncryptVerifyOutgoing:                   b.boolVal(c.EncryptVerifyOutgoing),
+		GRPCPort:                                grpcPort,
+		GRPCAddrs:                               grpcAddrs,
 		KeyFile:                                 b.stringVal(c.KeyFile),
 		LeaveDrainTime:                          b.durationVal("performance.leave_drain_time", c.Performance.LeaveDrainTime),
 		LeaveOnTerm:                             leaveOnTerm,
 		LogLevel:                                b.stringVal(c.LogLevel),
+		LogFile:                                 b.stringVal(c.LogFile),
+		LogRotateBytes:                          b.intVal(c.LogRotateBytes),
+		LogRotateDuration:                       b.durationVal("log_rotate_duration", c.LogRotateDuration),
 		NodeID:                                  types.NodeID(b.stringVal(c.NodeID)),
 		NodeMeta:                                c.NodeMeta,
 		NodeName:                                b.nodeName(c.NodeName),
@@ -946,7 +982,7 @@ func (b *Builder) Validate(rt RuntimeConfig) error {
 
 	// Validate the given Connect CA provider config
 	validCAProviders := map[string]bool{
-		"": true,
+		"":                       true,
 		structs.ConsulCAProvider: true,
 		structs.VaultCAProvider:  true,
 	}
@@ -1039,27 +1075,27 @@ func (b *Builder) checkVal(v *CheckDefinition) *structs.CheckDefinition {
 	id := types.CheckID(b.stringVal(v.ID))
 
 	return &structs.CheckDefinition{
-		ID:                id,
-		Name:              b.stringVal(v.Name),
-		Notes:             b.stringVal(v.Notes),
-		ServiceID:         b.stringVal(v.ServiceID),
-		Token:             b.stringVal(v.Token),
-		Status:            b.stringVal(v.Status),
-		ScriptArgs:        v.ScriptArgs,
-		HTTP:              b.stringVal(v.HTTP),
-		Header:            v.Header,
-		Method:            b.stringVal(v.Method),
-		TCP:               b.stringVal(v.TCP),
-		Interval:          b.durationVal(fmt.Sprintf("check[%s].interval", id), v.Interval),
-		DockerContainerID: b.stringVal(v.DockerContainerID),
-		Shell:             b.stringVal(v.Shell),
-		GRPC:              b.stringVal(v.GRPC),
-		GRPCUseTLS:        b.boolVal(v.GRPCUseTLS),
-		TLSSkipVerify:     b.boolVal(v.TLSSkipVerify),
-		AliasNode:         b.stringVal(v.AliasNode),
-		AliasService:      b.stringVal(v.AliasService),
-		Timeout:           b.durationVal(fmt.Sprintf("check[%s].timeout", id), v.Timeout),
-		TTL:               b.durationVal(fmt.Sprintf("check[%s].ttl", id), v.TTL),
+		ID:                             id,
+		Name:                           b.stringVal(v.Name),
+		Notes:                          b.stringVal(v.Notes),
+		ServiceID:                      b.stringVal(v.ServiceID),
+		Token:                          b.stringVal(v.Token),
+		Status:                         b.stringVal(v.Status),
+		ScriptArgs:                     v.ScriptArgs,
+		HTTP:                           b.stringVal(v.HTTP),
+		Header:                         v.Header,
+		Method:                         b.stringVal(v.Method),
+		TCP:                            b.stringVal(v.TCP),
+		Interval:                       b.durationVal(fmt.Sprintf("check[%s].interval", id), v.Interval),
+		DockerContainerID:              b.stringVal(v.DockerContainerID),
+		Shell:                          b.stringVal(v.Shell),
+		GRPC:                           b.stringVal(v.GRPC),
+		GRPCUseTLS:                     b.boolVal(v.GRPCUseTLS),
+		TLSSkipVerify:                  b.boolVal(v.TLSSkipVerify),
+		AliasNode:                      b.stringVal(v.AliasNode),
+		AliasService:                   b.stringVal(v.AliasService),
+		Timeout:                        b.durationVal(fmt.Sprintf("check[%s].timeout", id), v.Timeout),
+		TTL:                            b.durationVal(fmt.Sprintf("check[%s].ttl", id), v.TTL),
 		DeregisterCriticalServiceAfter: b.durationVal(fmt.Sprintf("check[%s].deregister_critical_service_after", id), v.DeregisterCriticalServiceAfter),
 	}
 }
@@ -1083,6 +1119,19 @@ func (b *Builder) serviceVal(v *ServiceDefinition) *structs.ServiceDefinition {
 	} else {
 		meta = v.Meta
 	}
+	serviceWeights := &structs.Weights{Passing: 1, Warning: 1}
+	if v.Weights != nil {
+		if v.Weights.Passing != nil {
+			serviceWeights.Passing = *v.Weights.Passing
+		}
+		if v.Weights.Warning != nil {
+			serviceWeights.Warning = *v.Weights.Warning
+		}
+	}
+
+	if err := structs.ValidateWeights(serviceWeights); err != nil {
+		b.err = multierror.Append(fmt.Errorf("Invalid weight definition for service %s: %s", b.stringVal(v.Name), err))
+	}
 	return &structs.ServiceDefinition{
 		Kind:              b.serviceKindVal(v.Kind),
 		ID:                b.stringVal(v.ID),
@@ -1093,9 +1142,12 @@ func (b *Builder) serviceVal(v *ServiceDefinition) *structs.ServiceDefinition {
 		Port:              b.intVal(v.Port),
 		Token:             b.stringVal(v.Token),
 		EnableTagOverride: b.boolVal(v.EnableTagOverride),
+		Weights:           serviceWeights,
 		Checks:            checks,
-		ProxyDestination:  b.stringVal(v.ProxyDestination),
-		Connect:           b.serviceConnectVal(v.Connect),
+		// DEPRECATED (ProxyDestination) - don't populate deprecated field, just use
+		// it as a default below on read. Remove that when remofing ProxyDestination
+		Proxy:   b.serviceProxyVal(v.Proxy, v.ProxyDestination),
+		Connect: b.serviceConnectVal(v.Connect),
 	}
 }
 
@@ -1111,6 +1163,45 @@ func (b *Builder) serviceKindVal(v *string) structs.ServiceKind {
 	}
 }
 
+func (b *Builder) serviceProxyVal(v *ServiceProxy, deprecatedDest *string) *structs.ConnectProxyConfig {
+	if v == nil {
+		if deprecatedDest != nil {
+			return &structs.ConnectProxyConfig{
+				DestinationServiceName: b.stringVal(deprecatedDest),
+			}
+		}
+		return nil
+	}
+
+	return &structs.ConnectProxyConfig{
+		DestinationServiceName: b.stringVal(v.DestinationServiceName),
+		DestinationServiceID:   b.stringVal(v.DestinationServiceID),
+		LocalServiceAddress:    b.stringVal(v.LocalServiceAddress),
+		LocalServicePort:       b.intVal(v.LocalServicePort),
+		Config:                 v.Config,
+		Upstreams:              b.upstreamsVal(v.Upstreams),
+	}
+}
+
+func (b *Builder) upstreamsVal(v []Upstream) structs.Upstreams {
+	ups := make(structs.Upstreams, len(v))
+	for i, u := range v {
+		ups[i] = structs.Upstream{
+			DestinationType:      b.stringVal(u.DestinationType),
+			DestinationNamespace: b.stringVal(u.DestinationNamespace),
+			DestinationName:      b.stringVal(u.DestinationName),
+			Datacenter:           b.stringVal(u.Datacenter),
+			LocalBindAddress:     b.stringVal(u.LocalBindAddress),
+			LocalBindPort:        b.intVal(u.LocalBindPort),
+			Config:               u.Config,
+		}
+		if ups[i].DestinationType == "" {
+			ups[i].DestinationType = structs.UpstreamDestTypeService
+		}
+	}
+	return ups
+}
+
 func (b *Builder) serviceConnectVal(v *ServiceConnect) *structs.ServiceConnect {
 	if v == nil {
 		return nil
@@ -1119,15 +1210,36 @@ func (b *Builder) serviceConnectVal(v *ServiceConnect) *structs.ServiceConnect {
 	var proxy *structs.ServiceDefinitionConnectProxy
 	if v.Proxy != nil {
 		proxy = &structs.ServiceDefinitionConnectProxy{
-			ExecMode: b.stringVal(v.Proxy.ExecMode),
-			Command:  v.Proxy.Command,
-			Config:   v.Proxy.Config,
+			ExecMode:  b.stringVal(v.Proxy.ExecMode),
+			Command:   v.Proxy.Command,
+			Config:    v.Proxy.Config,
+			Upstreams: b.upstreamsVal(v.Proxy.Upstreams),
+		}
+	}
+
+	sidecar := b.serviceVal(v.SidecarService)
+	if sidecar != nil {
+		// Sanity checks
+		if sidecar.ID != "" {
+			b.err = multierror.Append(b.err, fmt.Errorf("sidecar_service can't specify an ID"))
+			sidecar.ID = ""
+		}
+		if sidecar.Connect != nil {
+			if sidecar.Connect.SidecarService != nil {
+				b.err = multierror.Append(b.err, fmt.Errorf("sidecar_service can't have a nested sidecar_service"))
+				sidecar.Connect.SidecarService = nil
+			}
+			if sidecar.Connect.Proxy != nil {
+				b.err = multierror.Append(b.err, fmt.Errorf("sidecar_service can't have a managed proxy"))
+				sidecar.Connect.Proxy = nil
+			}
 		}
 	}
 
 	return &structs.ServiceConnect{
-		Native: b.boolVal(v.Native),
-		Proxy:  proxy,
+		Native:         b.boolVal(v.Native),
+		Proxy:          proxy,
+		SidecarService: sidecar,
 	}
 }
 

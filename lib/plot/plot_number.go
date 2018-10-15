@@ -1,14 +1,13 @@
 package plot
 
 import (
-	"fmt"
 	"sort"
-	"time"
 
 	"github.com/uol/gobol"
 
-	"github.com/uol/mycenae/lib/structs"
 	"strconv"
+
+	"github.com/uol/mycenae/lib/structs"
 )
 
 const (
@@ -23,7 +22,7 @@ func (plot *Plot) GetTimeSeries(
 	opers structs.DataOperations,
 	ms,
 	keepEmpties bool,
-) (serie TS, gerr gobol.Error) {
+) (TS, gobol.Error) {
 
 	var keyspace string
 	var ok bool
@@ -31,196 +30,108 @@ func (plot *Plot) GetTimeSeries(
 		return TS{}, errNotFound("invalid ttl found: " + strconv.Itoa(int(ttl)))
 	}
 
-	w := start
-
-	index := 0
-
-	buckets := []string{}
-
-	for {
-		t := time.Unix(0, w*1e+6)
-
-		year, week := t.ISOWeek()
-
-		buckets = append(buckets, fmt.Sprintf("%v%v", year, week))
-
-		if w > end {
-			break
-		}
-
-		w += milliWeek
-
-		index++
-	}
-
-	tsChan := make(chan TS, len(keys))
-
-	for _, key := range keys {
-		plot.concTimeseries <- struct{}{}
-		go plot.getTimeSerie(
-			keyspace,
-			key,
-			buckets,
-			start,
-			end,
-			ms,
-			keepEmpties,
-			opers,
-			tsChan,
-		)
-	}
-
-	j := 0
-
-	for range keys {
-
-		t := <-tsChan
-		if t.gerr != nil {
-			gerr = t.gerr
-		}
-		if t.Count > 0 {
-			j++
-		}
-		serie.Data = append(serie.Data, t.Data...)
-
-		serie.Total += t.Total
-	}
+	tsMap, gerr := plot.getTimeSerie(keyspace, keys, start, end, ms, keepEmpties, opers)
 
 	if gerr != nil {
 		return TS{}, gerr
+	}
+
+	resultTSs := TS{}
+	numNonEmptyTS := 0
+
+	for _, ts := range tsMap {
+
+		if ts.Count > 0 {
+			numNonEmptyTS++
+			resultTSs.Data = append(resultTSs.Data, ts.Data...)
+			resultTSs.Total += ts.Total
+		}
 	}
 
 	exec := false
 	for _, oper := range opers.Order {
 		switch oper {
 		case "downsample":
-			if serie.Total > 0 && opers.Downsample.Enabled && exec {
-				serie.Data = downsample(opers.Downsample.Options, keepEmpties, start, end, serie.Data)
+			if resultTSs.Total > 0 && opers.Downsample.Enabled && exec {
+				resultTSs.Data = downsample(opers.Downsample.Options, keepEmpties, start, end, resultTSs.Data)
 			}
 		case "aggregation":
 			exec = true
-			if j > 1 {
-				sort.Sort(serie.Data)
-				serie.Data = merge(opers.Merge, keepEmpties, serie.Data)
+			if numNonEmptyTS > 1 {
+				sort.Sort(resultTSs.Data)
+				resultTSs.Data = merge(opers.Merge, keepEmpties, resultTSs.Data)
 			}
 		case "rate":
 			if opers.Rate.Enabled && exec {
-				serie.Data = rate(opers.Rate.Options, serie.Data)
+				resultTSs.Data = rate(opers.Rate.Options, resultTSs.Data)
 			}
 		case "filterValue":
 			if opers.FilterValue.Enabled && exec {
-				serie.Data = filterValues(opers.FilterValue, serie.Data)
+				resultTSs.Data = filterValues(opers.FilterValue, resultTSs.Data)
 			}
 		}
 	}
 
-	if opers.Downsample.PointLimit && len(serie.Data) > opers.Downsample.TotalPoints {
-		serie.Data = basic(opers.Downsample.TotalPoints, serie.Data)
+	if opers.Downsample.PointLimit && len(resultTSs.Data) > opers.Downsample.TotalPoints {
+		resultTSs.Data = basic(opers.Downsample.TotalPoints, resultTSs.Data)
 	}
-	serie.Count = len(serie.Data)
 
-	return serie, nil
+	resultTSs.Count = len(resultTSs.Data)
+
+	return resultTSs, nil
 }
 
 func (plot *Plot) getTimeSerie(
-	keyspace,
-	key string,
-	buckets []string,
+	keyspace string,
+	keys []string,
 	start,
 	end int64,
 	ms,
 	keepEmpties bool,
 	opers structs.DataOperations,
-	tsChan chan TS,
-) {
+) (map[string]TS, gobol.Error) {
 
-	serie := TS{}
+	resultMap, gerr := plot.persist.GetTS(keyspace, keys, start, end, ms)
 
-	chanSize := len(buckets)
-	if chanSize == 0 {
-		chanSize = 1
+	if gerr != nil {
+		return map[string]TS{}, gerr
 	}
 
-	bucketChan := make(chan TS, chanSize)
+	transformedMap := map[string]TS{}
 
-	if len(buckets) > 0 {
-		for i, bucket := range buckets {
-			buckID := fmt.Sprintf("%v%v", bucket, key)
-			plot.concReads <- struct{}{}
-			go plot.getTimeSerieBucket(i, keyspace, buckID, start, end, ms, bucketChan)
+	for tsid, points := range resultMap {
+		ts := TS{
+			Total: len(points),
+			Data:  points,
 		}
-	} else {
-		plot.concReads <- struct{}{}
-		go plot.getTimeSerieBucket(0, keyspace, key, start, end, ms, bucketChan)
-	}
-
-	bucketList := make([]TS, chanSize)
-
-	for i := 0; i < chanSize; i++ {
-		buck := <-bucketChan
-		bucketList[buck.index] = buck
-	}
-
-	for _, bl := range bucketList {
-		if bl.gerr != nil {
-			serie.gerr = bl.gerr
-			tsChan <- serie
-			<-plot.concTimeseries
-			return
-		}
-
-		serie.Data = append(serie.Data, bl.Data...)
-
-		serie.Total += bl.Total
-
-	}
-
-	for _, oper := range opers.Order {
-		switch oper {
-		case "downsample":
-			if serie.Total > 0 && opers.Downsample.Enabled {
-				serie.Data = downsample(opers.Downsample.Options, keepEmpties, start, end, serie.Data)
+		for _, oper := range opers.Order {
+			exit := false
+			switch oper {
+			case "downsample":
+				if ts.Total > 0 && opers.Downsample.Enabled {
+					ts.Data = downsample(opers.Downsample.Options, keepEmpties, start, end, ts.Data)
+				}
+			case "aggregation":
+				exit = true
+				break
+			case "rate":
+				if opers.Rate.Enabled {
+					ts.Data = rate(opers.Rate.Options, ts.Data)
+				}
+			case "filterValue":
+				if opers.FilterValue.Enabled {
+					ts.Data = filterValues(opers.FilterValue, ts.Data)
+				}
 			}
-		case "aggregation":
-			serie.Count = len(serie.Data)
-			tsChan <- serie
-			<-plot.concTimeseries
-			return
-		case "rate":
-			if opers.Rate.Enabled {
-				serie.Data = rate(opers.Rate.Options, serie.Data)
-			}
-		case "filterValue":
-			if opers.FilterValue.Enabled {
-				serie.Data = filterValues(opers.FilterValue, serie.Data)
 
+			if exit {
+				break
 			}
 		}
+
+		ts.Count = len(ts.Data)
+		transformedMap[tsid] = ts
 	}
 
-	serie.Count = len(serie.Data)
-
-	tsChan <- serie
-	<-plot.concTimeseries
-}
-
-func (plot *Plot) getTimeSerieBucket(
-	index int,
-	keyspace,
-	key string,
-	start,
-	end int64,
-	ms bool,
-	bucketChan chan TS,
-) {
-
-	resultSet, count, gerr := plot.persist.GetTS(keyspace, key, start, end, ms)
-
-	bucketChan <- TS{
-		index: index,
-		Total: count,
-		Data:  resultSet,
-		gerr:  gerr,
-	}
-	<-plot.concReads
+	return transformedMap, nil
 }

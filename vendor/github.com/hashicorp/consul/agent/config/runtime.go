@@ -16,6 +16,13 @@ import (
 	"golang.org/x/time/rate"
 )
 
+type RuntimeSOAConfig struct {
+	Refresh uint32 // 3600 by default
+	Retry   uint32 // 600
+	Expire  uint32 // 86400
+	Minttl  uint32 // 0,
+}
+
 // RuntimeConfig specifies the configuration the consul agent actually
 // uses. Is is derived from one or more Config structures which can come
 // from files, flags and/or environment variables.
@@ -462,6 +469,16 @@ type RuntimeConfig struct {
 	// port is specified.
 	ConnectProxyBindMaxPort int
 
+	// ConnectSidecarMinPort is the inclusive start of the range of ports
+	// allocated to the agent for asigning to sidecar services where no port is
+	// specified.
+	ConnectSidecarMinPort int
+
+	// ConnectSidecarMaxPort is the inclusive end of the range of ports
+	// allocated to the agent for asigning to sidecar services where no port is
+	// specified
+	ConnectSidecarMaxPort int
+
 	// ConnectProxyAllowManagedRoot is true if Consul can execute managed
 	// proxies when running as root (EUID == 0).
 	ConnectProxyAllowManagedRoot bool
@@ -524,6 +541,10 @@ type RuntimeConfig struct {
 	// hcl: ports { dns = int }
 	// flags: -dns-port int
 	DNSPort int
+
+	// DNSSOA is the settings applied for DNS SOA
+	// hcl: soa {}
+	DNSSOA RuntimeSOAConfig
 
 	// DataDir is the path to the directory where the local state is stored.
 	//
@@ -614,13 +635,21 @@ type RuntimeConfig struct {
 	// hcl: enable_debug = (true|false)
 	EnableDebug bool
 
-	// EnableScriptChecks controls whether health checks which execute
-	// scripts are enabled. This includes regular script checks and Docker
+	// EnableLocalScriptChecks controls whether health checks declared from the local
+	// config file which execute scripts are enabled. This includes regular script
+	// checks and Docker checks.
+	//
+	// hcl: (enable_script_checks|enable_local_script_checks) = (true|false)
+	// flag: -enable-script-checks, -enable-local-script-checks
+	EnableLocalScriptChecks bool
+
+	// EnableRemoeScriptChecks controls whether health checks declared from the http API
+	// which execute scripts are enabled. This includes regular script checks and Docker
 	// checks.
 	//
 	// hcl: enable_script_checks = (true|false)
 	// flag: -enable-script-checks
-	EnableScriptChecks bool
+	EnableRemoteScriptChecks bool
 
 	// EnableSyslog is used to also tee all the logs over to syslog. Only supported
 	// on linux and OSX. Other platforms will generate an error.
@@ -653,6 +682,28 @@ type RuntimeConfig struct {
 	//
 	// hcl: encrypt_verify_outgoing = (true|false)
 	EncryptVerifyOutgoing bool
+
+	// GRPCPort is the port the gRPC server listens on. Currently this only
+	// exposes the xDS and ext_authz APIs for Envoy and it is disabled by default.
+	//
+	// hcl: ports { grpc = int }
+	// flags: -grpc-port int
+	GRPCPort int
+
+	// GRPCAddrs contains the list of TCP addresses and UNIX sockets the gRPC
+	// server will bind to. If the gRPC endpoint is disabled (ports.grpc <= 0)
+	// the list is empty.
+	//
+	// The addresses are taken from 'addresses.grpc' which should contain a
+	// space separated list of ip addresses, UNIX socket paths and/or
+	// go-sockaddr templates. UNIX socket paths must be written as
+	// 'unix://<full path>', e.g. 'unix:///var/run/consul-grpc.sock'.
+	//
+	// If 'addresses.grpc' was not provided the 'client_addr' addresses are
+	// used.
+	//
+	// hcl: client_addr = string addresses { grpc = string } ports { grpc = int }
+	GRPCAddrs []net.Addr
 
 	// HTTPAddrs contains the list of TCP addresses and UNIX sockets the HTTP
 	// server will bind to. If the HTTP endpoint is disabled (ports.http <= 0)
@@ -719,6 +770,24 @@ type RuntimeConfig struct {
 	//
 	// hcl: log_level = string
 	LogLevel string
+
+	// LogFile is the path to the file where the logs get written to. Defaults to empty string.
+	//
+	// hcl: log_file = string
+	// flags: -log-file string
+	LogFile string
+
+	// LogRotateDuration is the time configured to rotate logs based on time
+	//
+	// hcl: log_rotate_duration = string
+	// flags: -log-rotate-duration string
+	LogRotateDuration time.Duration
+
+	// LogRotateBytes is the time configured to rotate logs based on bytes written
+	//
+	// hcl: log_rotate_bytes = int
+	// flags: -log-rotate-bytes int
+	LogRotateBytes int
 
 	// Node ID is a unique ID for this node across space and time. Defaults
 	// to a randomly-generated ID that persists in the data-dir.
@@ -1457,7 +1526,6 @@ func (c *RuntimeConfig) APIConfig(includeClientCerts bool) (*api.Config, error) 
 		cfg.Scheme = "https"
 		cfg.TLSConfig.CAFile = c.CAFile
 		cfg.TLSConfig.CAPath = c.CAPath
-		cfg.TLSConfig.Address = httpsAddr
 		if includeClientCerts {
 			cfg.TLSConfig.CertFile = c.CertFile
 			cfg.TLSConfig.KeyFile = c.KeyFile

@@ -567,6 +567,146 @@ func TestParseSource(t *testing.T) {
 	}
 }
 
+func TestParseCacheControl(t *testing.T) {
+
+	tests := []struct {
+		name      string
+		headerVal string
+		want      structs.QueryOptions
+		wantErr   bool
+	}{
+		{
+			name:      "empty header",
+			headerVal: "",
+			want:      structs.QueryOptions{},
+			wantErr:   false,
+		},
+		{
+			name:      "simple max-age",
+			headerVal: "max-age=30",
+			want: structs.QueryOptions{
+				MaxAge: 30 * time.Second,
+			},
+			wantErr: false,
+		},
+		{
+			name:      "zero max-age",
+			headerVal: "max-age=0",
+			want: structs.QueryOptions{
+				MustRevalidate: true,
+			},
+			wantErr: false,
+		},
+		{
+			name:      "must-revalidate",
+			headerVal: "must-revalidate",
+			want: structs.QueryOptions{
+				MustRevalidate: true,
+			},
+			wantErr: false,
+		},
+		{
+			name:      "mixes age, must-revalidate",
+			headerVal: "max-age=123, must-revalidate",
+			want: structs.QueryOptions{
+				MaxAge:         123 * time.Second,
+				MustRevalidate: true,
+			},
+			wantErr: false,
+		},
+		{
+			name:      "quoted max-age",
+			headerVal: "max-age=\"30\"",
+			want:      structs.QueryOptions{},
+			wantErr:   true,
+		},
+		{
+			name:      "mixed case max-age",
+			headerVal: "Max-Age=30",
+			want: structs.QueryOptions{
+				MaxAge: 30 * time.Second,
+			},
+			wantErr: false,
+		},
+		{
+			name:      "simple stale-if-error",
+			headerVal: "stale-if-error=300",
+			want: structs.QueryOptions{
+				StaleIfError: 300 * time.Second,
+			},
+			wantErr: false,
+		},
+		{
+			name:      "combined with space",
+			headerVal: "max-age=30, stale-if-error=300",
+			want: structs.QueryOptions{
+				MaxAge:       30 * time.Second,
+				StaleIfError: 300 * time.Second,
+			},
+			wantErr: false,
+		},
+		{
+			name:      "combined no space",
+			headerVal: "stale-IF-error=300,max-age=30",
+			want: structs.QueryOptions{
+				MaxAge:       30 * time.Second,
+				StaleIfError: 300 * time.Second,
+			},
+			wantErr: false,
+		},
+		{
+			name:      "unsupported directive",
+			headerVal: "no-cache",
+			want:      structs.QueryOptions{},
+			wantErr:   false,
+		},
+		{
+			name:      "mixed unsupported directive",
+			headerVal: "no-cache, max-age=120",
+			want: structs.QueryOptions{
+				MaxAge: 120 * time.Second,
+			},
+			wantErr: false,
+		},
+		{
+			name:      "garbage value",
+			headerVal: "max-age=\"I'm not, an int\"",
+			want:      structs.QueryOptions{},
+			wantErr:   true,
+		},
+		{
+			name:      "garbage value with quotes",
+			headerVal: "max-age=\"I'm \\\"not an int\"",
+			want:      structs.QueryOptions{},
+			wantErr:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require := require.New(t)
+
+			r, _ := http.NewRequest("GET", "/foo/bar", nil)
+			if tt.headerVal != "" {
+				r.Header.Set("Cache-Control", tt.headerVal)
+			}
+
+			rr := httptest.NewRecorder()
+			var got structs.QueryOptions
+
+			failed := parseCacheControl(rr, r, &got)
+			if tt.wantErr {
+				require.True(failed)
+				require.Equal(http.StatusBadRequest, rr.Code)
+			} else {
+				require.False(failed)
+			}
+
+			require.Equal(tt.want, got)
+		})
+	}
+}
+
 func TestParseWait(t *testing.T) {
 	t.Parallel()
 	resp := httptest.NewRecorder()
@@ -736,6 +876,40 @@ func TestACLResolution(t *testing.T) {
 	reqBothTokens, _ := http.NewRequest("GET", "/v1/catalog/nodes?token=baz", nil)
 	reqBothTokens.Header.Add("X-Consul-Token", "zap")
 
+	// Request with Authorization Bearer token
+	reqAuthBearerToken, _ := http.NewRequest("GET", "/v1/catalog/nodes", nil)
+	reqAuthBearerToken.Header.Add("Authorization", "Bearer bearer-token")
+
+	// Request with invalid Authorization scheme
+	reqAuthBearerInvalidScheme, _ := http.NewRequest("GET", "/v1/catalog/nodes", nil)
+	reqAuthBearerInvalidScheme.Header.Add("Authorization", "Beer")
+
+	// Request with empty Authorization Bearer token
+	reqAuthBearerTokenEmpty, _ := http.NewRequest("GET", "/v1/catalog/nodes", nil)
+	reqAuthBearerTokenEmpty.Header.Add("Authorization", "Bearer")
+
+	// Request with empty Authorization Bearer token
+	reqAuthBearerTokenInvalid, _ := http.NewRequest("GET", "/v1/catalog/nodes", nil)
+	reqAuthBearerTokenInvalid.Header.Add("Authorization", "Bearertoken")
+
+	// Request with more than one space between Bearer and token
+	reqAuthBearerTokenMultiSpaces, _ := http.NewRequest("GET", "/v1/catalog/nodes", nil)
+	reqAuthBearerTokenMultiSpaces.Header.Add("Authorization", "Bearer     bearer-token")
+
+	// Request with Authorization Bearer token containing spaces
+	reqAuthBearerTokenSpaces, _ := http.NewRequest("GET", "/v1/catalog/nodes", nil)
+	reqAuthBearerTokenSpaces.Header.Add("Authorization", "Bearer bearer-token "+
+		" the rest is discarded   ")
+
+	// Request with Authorization Bearer and querystring token
+	reqAuthBearerAndQsToken, _ := http.NewRequest("GET", "/v1/catalog/nodes?token=qstoken", nil)
+	reqAuthBearerAndQsToken.Header.Add("Authorization", "Bearer bearer-token")
+
+	// Request with Authorization Bearer and X-Consul-Token header token
+	reqAuthBearerAndXToken, _ := http.NewRequest("GET", "/v1/catalog/nodes", nil)
+	reqAuthBearerAndXToken.Header.Add("X-Consul-Token", "xtoken")
+	reqAuthBearerAndXToken.Header.Add("Authorization", "Bearer bearer-token")
+
 	a := NewTestAgent(t.Name(), "")
 	defer a.Shutdown()
 
@@ -768,6 +942,58 @@ func TestACLResolution(t *testing.T) {
 	// Querystring token has precedence over header and agent tokens
 	a.srv.parseToken(reqBothTokens, &token)
 	if token != "baz" {
+		t.Fatalf("bad: %s", token)
+	}
+
+	//
+	// Authorization Bearer token tests
+	//
+
+	// Check if Authorization bearer token header is parsed correctly
+	a.srv.parseToken(reqAuthBearerToken, &token)
+	if token != "bearer-token" {
+		t.Fatalf("bad: %s", token)
+	}
+
+	// Check Authorization Bearer scheme invalid
+	a.srv.parseToken(reqAuthBearerInvalidScheme, &token)
+	if token != "agent" {
+		t.Fatalf("bad: %s", token)
+	}
+
+	// Check if Authorization Bearer token is empty
+	a.srv.parseToken(reqAuthBearerTokenEmpty, &token)
+	if token != "agent" {
+		t.Fatalf("bad: %s", token)
+	}
+
+	// Check if the Authorization Bearer token is invalid
+	a.srv.parseToken(reqAuthBearerTokenInvalid, &token)
+	if token != "agent" {
+		t.Fatalf("bad: %s", token)
+	}
+
+	// Check multi spaces between Authorization Bearer and token value
+	a.srv.parseToken(reqAuthBearerTokenMultiSpaces, &token)
+	if token != "bearer-token" {
+		t.Fatalf("bad: %s", token)
+	}
+
+	// Check if Authorization Bearer token with spaces is parsed correctly
+	a.srv.parseToken(reqAuthBearerTokenSpaces, &token)
+	if token != "bearer-token" {
+		t.Fatalf("bad: %s", token)
+	}
+
+	// Check if explicit token has precedence over Authorization bearer token
+	a.srv.parseToken(reqAuthBearerAndQsToken, &token)
+	if token != "qstoken" {
+		t.Fatalf("bad: %s", token)
+	}
+
+	// Check if X-Consul-Token has precedence over Authorization bearer token
+	a.srv.parseToken(reqAuthBearerAndXToken, &token)
+	if token != "xtoken" {
 		t.Fatalf("bad: %s", token)
 	}
 }
