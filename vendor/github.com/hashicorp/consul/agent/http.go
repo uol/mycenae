@@ -468,11 +468,17 @@ func setMeta(resp http.ResponseWriter, m *structs.QueryMeta) {
 
 // setCacheMeta sets http response headers to indicate cache status.
 func setCacheMeta(resp http.ResponseWriter, m *cache.ResultMeta) {
+	if m == nil {
+		return
+	}
 	str := "MISS"
-	if m != nil && m.Hit {
+	if m.Hit {
 		str = "HIT"
 	}
 	resp.Header().Set("X-Cache", str)
+	if m.Hit {
+		resp.Header().Set("Age", fmt.Sprintf("%.0f", m.Age.Seconds()))
+	}
 }
 
 // setHeaders is used to set canonical response header fields
@@ -507,6 +513,64 @@ func parseWait(resp http.ResponseWriter, req *http.Request, b *structs.QueryOpti
 	return false
 }
 
+// parseCacheControl parses the CacheControl HTTP header value. So far we only
+// support maxage directive.
+func parseCacheControl(resp http.ResponseWriter, req *http.Request, b *structs.QueryOptions) bool {
+	raw := strings.ToLower(req.Header.Get("Cache-Control"))
+
+	if raw == "" {
+		return false
+	}
+
+	// Didn't want to import a full parser for this. While quoted strings are
+	// allowed in some directives, max-age does not allow them per
+	// https://tools.ietf.org/html/rfc7234#section-5.2.2.8 so we assume all
+	// well-behaved clients use the exact token form of max-age=<delta-seconds>
+	// where delta-seconds is a non-negative decimal integer.
+	directives := strings.Split(raw, ",")
+
+	parseDurationOrFail := func(raw string) (time.Duration, bool) {
+		i, err := strconv.Atoi(raw)
+		if err != nil {
+			resp.WriteHeader(http.StatusBadRequest)
+			fmt.Fprint(resp, "Invalid Cache-Control header.")
+			return 0, true
+		}
+		return time.Duration(i) * time.Second, false
+	}
+
+	for _, d := range directives {
+		d = strings.ToLower(strings.TrimSpace(d))
+
+		if d == "must-revalidate" {
+			b.MustRevalidate = true
+		}
+
+		if strings.HasPrefix(d, "max-age=") {
+			d, failed := parseDurationOrFail(d[8:])
+			if failed {
+				return true
+			}
+			b.MaxAge = d
+			if d == 0 {
+				// max-age=0 specifically means that we need to consider the cache stale
+				// immediately however MaxAge = 0 is indistinguishable from the default
+				// where MaxAge is unset.
+				b.MustRevalidate = true
+			}
+		}
+		if strings.HasPrefix(d, "stale-if-error=") {
+			d, failed := parseDurationOrFail(d[15:])
+			if failed {
+				return true
+			}
+			b.StaleIfError = d
+		}
+	}
+
+	return false
+}
+
 // parseConsistency is used to parse the ?stale and ?consistent query params.
 // Returns true on error
 func (s *HTTPServer) parseConsistency(resp http.ResponseWriter, req *http.Request, b *structs.QueryOptions) bool {
@@ -521,6 +585,10 @@ func (s *HTTPServer) parseConsistency(resp http.ResponseWriter, req *http.Reques
 		defaults = false
 	}
 	if _, ok := query["leader"]; ok {
+		defaults = false
+	}
+	if _, ok := query["cached"]; ok {
+		b.UseCache = true
 		defaults = false
 	}
 	if maxStale := query.Get("max_stale"); maxStale != "" {
@@ -551,6 +619,11 @@ func (s *HTTPServer) parseConsistency(resp http.ResponseWriter, req *http.Reques
 		fmt.Fprint(resp, "Cannot specify ?stale with ?consistent, conflicting semantics.")
 		return true
 	}
+	if b.UseCache && b.RequireConsistent {
+		resp.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(resp, "Cannot specify ?cached with ?consistent, conflicting semantics.")
+		return true
+	}
 	return false
 }
 
@@ -563,15 +636,36 @@ func (s *HTTPServer) parseDC(req *http.Request, dc *string) {
 	}
 }
 
-// parseTokenInternal is used to parse the ?token query param or the X-Consul-Token header and
-// optionally resolve proxy tokens to real ACL tokens. If no token is specified it will populate
+// parseTokenInternal is used to parse the ?token query param or the X-Consul-Token header or
+// Authorization Bearer token (RFC6750) and
+// optionally resolve proxy tokens to real ACL tokens. If the token is invalid or not specified it will populate
 // the token with the agents UserToken (acl_token in the consul configuration)
+// Parsing has the following priority: ?token, X-Consul-Token and last "Authorization: Bearer "
 func (s *HTTPServer) parseTokenInternal(req *http.Request, token *string, resolveProxyToken bool) {
 	tok := ""
 	if other := req.URL.Query().Get("token"); other != "" {
 		tok = other
 	} else if other := req.Header.Get("X-Consul-Token"); other != "" {
 		tok = other
+	} else if other := req.Header.Get("Authorization"); other != "" {
+		// HTTP Authorization headers are in the format: <Scheme>[SPACE]<Value>
+		// Ref. https://tools.ietf.org/html/rfc7236#section-3
+		parts := strings.Split(other, " ")
+
+		// Authorization Header is invalid if containing 1 or 0 parts, e.g.:
+		// "" || "<Scheme><Value>" || "<Scheme>" || "<Value>"
+		if len(parts) > 1 {
+			scheme := parts[0]
+			// Everything after "<Scheme>" is "<Value>", trimmed
+			value := strings.TrimSpace(strings.Join(parts[1:], " "))
+
+			// <Scheme> must be "Bearer"
+			if scheme == "Bearer" {
+				// Since Bearer tokens shouldnt contain spaces (rfc6750#section-2.1)
+				// "value" is tokenized, only the first item is used
+				tok = strings.TrimSpace(strings.Split(value, " ")[0])
+			}
+		}
 	}
 
 	if tok != "" {
@@ -589,13 +683,14 @@ func (s *HTTPServer) parseTokenInternal(req *http.Request, token *string, resolv
 	*token = s.agent.tokens.UserToken()
 }
 
-// parseToken is used to parse the ?token query param or the X-Consul-Token header and
-// resolve proxy tokens to real ACL tokens
+// parseToken is used to parse the ?token query param or the X-Consul-Token header or
+// Authorization Bearer token header (RFC6750) and resolve proxy tokens to real ACL tokens
 func (s *HTTPServer) parseToken(req *http.Request, token *string) {
 	s.parseTokenInternal(req, token, true)
 }
 
 // parseTokenWithoutResolvingProxyToken is used to parse the ?token query param or the X-Consul-Token header
+// or Authorization Bearer header token (RFC6750) and
 func (s *HTTPServer) parseTokenWithoutResolvingProxyToken(req *http.Request, token *string) {
 	s.parseTokenInternal(req, token, false)
 }
@@ -658,6 +753,9 @@ func (s *HTTPServer) parseInternal(resp http.ResponseWriter, req *http.Request, 
 	s.parseDC(req, dc)
 	s.parseTokenInternal(req, &b.Token, resolveProxyToken)
 	if s.parseConsistency(resp, req, b) {
+		return true
+	}
+	if parseCacheControl(resp, req, b) {
 		return true
 	}
 	return parseWait(resp, req, b)

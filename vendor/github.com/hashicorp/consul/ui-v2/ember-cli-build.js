@@ -2,9 +2,27 @@
 
 const EmberApp = require('ember-cli/lib/broccoli/ember-app');
 module.exports = function(defaults) {
-  let app = new EmberApp(defaults, {
+  const env = EmberApp.env();
+  const prodlike = ['production', 'staging'];
+  const isProd = env === 'production';
+  const isProdLike = prodlike.indexOf(env) > -1;
+  const sourcemaps = !isProd;
+  let app = new EmberApp(
+    Object.assign(
+      {},
+      defaults,
+      {
+        productionEnvironments: prodlike
+      }
+    ), {
     'ember-cli-babel': {
       includePolyfill: true
+    },
+    'ember-cli-string-helpers': {
+      only: ['capitalize', 'lowercase']
+    },
+    'ember-cli-math-helpers': {
+      only: ['div']
     },
     'babel': {
       plugins: [
@@ -22,7 +40,12 @@ module.exports = function(defaults) {
         },
       },
     },
+    'sassOptions': {
+      implementation: require('dart-sass'),
+      sourceMapEmbed: sourcemaps,
+    },
     'autoprefixer': {
+      sourcemap: sourcemaps,
       grid: true,
       browsers: [
         "defaults",
@@ -42,6 +65,8 @@ module.exports = function(defaults) {
   // modules that you would like to import into your application
   // please specify an object with the list of modules as keys
   // along with the exports of each module as its value.
+  app.import('node_modules/text-encoding/lib/encoding-indexes.js', {outputFile: 'assets/encoding-indexes.js'})
+  app.import('node_modules/text-encoding/lib/encoding.js', {outputFile: 'assets/encoding.js'})
   let tree = app.toTree();
   return tree;
 };

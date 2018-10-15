@@ -1,14 +1,12 @@
-hash: 25b9b4917c601e554d4eaf6fcbe726084e799b2eb94cb51cb9b368856c688f0a
-updated: 2018-08-16T20:31:11.252832593-03:00
+hash: 8fee97ace7df4359745a09bcba6ab7605715cd6b88267bbeed7d1b4e6521311c
+updated: 2018-10-15T16:23:16.034765857-03:00
 imports:
 - name: github.com/armon/go-metrics
-  version: 3c58d8115a78a6879e5df75ae900846768d36895
-- name: github.com/asaskevich/govalidator
-  version: ccb8e960c48f04d6935e72476ae4a51028f9e22f
+  version: f0300d1749da6fa982027e449ec0c7a145510c3c
 - name: github.com/BurntSushi/toml
-  version: b26d9c308763d68093482582cea63d69be07a0f0
+  version: 3012a1dbe2e4bd1391d42b32f0577cb7bbc7f005
 - name: github.com/gocql/gocql
-  version: 045d8d6abc70b5bd02bb18b8fdb05ee54d8c87aa
+  version: 44e29ed5b8a4b4fff39d7ebaa19976c6f852075b
   subpackages:
   - internal/lru
   - internal/murmur
@@ -26,21 +24,21 @@ imports:
 - name: github.com/hailocab/go-hostpool
   version: e80d13ce29ede4452c43dea11e79b9bc8a15b478
 - name: github.com/hashicorp/consul
-  version: e716d1b5f8be252b3e53906c6d5632e0228f30fa
+  version: e8757838a49feeb682c7e6ad6b78694a78b2096b
   subpackages:
   - api
 - name: github.com/hashicorp/go-cleanhttp
-  version: d5fe4b57a186c716b0e00b8c301cbd9b4182694d
+  version: e8ab9daed8d1ddd2d3c4efba338fe2eeae2e4f18
 - name: github.com/hashicorp/go-immutable-radix
-  version: 7f3cd4390caab3250a57f30efdb2a65dd7649ecf
+  version: 27df80928bb34bb1b0d6d0e01b9e679902e7a6b5
 - name: github.com/hashicorp/go-rootcerts
   version: 6bb64b370b90e7ef1fa532be9e591a81c3493e00
 - name: github.com/hashicorp/golang-lru
-  version: 0fb14efe8c47ae851c0034ed7a448854d3d34cf3
+  version: 20f1fb78b0740ba8c3cb143a61e86ba5c8669768
   subpackages:
   - simplelru
 - name: github.com/hashicorp/serf
-  version: 19bbd39e421bdf3559d5025fb2c760f5ffa56233
+  version: 48d57945817366b5484d99353f1f33e990bd142d
   subpackages:
   - coordinate
 - name: github.com/json-iterator/go
@@ -48,11 +46,11 @@ imports:
 - name: github.com/julienschmidt/httprouter
   version: 8c199fb6259ffc1af525cc3ad52ee60ba8359669
 - name: github.com/mitchellh/go-homedir
-  version: 58046073cbffe2f25d425fe1331102f55cf719de
+  version: ae18d6b8b3205b561c79e8e5f69bff09736185f4
 - name: github.com/mitchellh/hashstructure
-  version: 2bca23e0e452137f789efbc8610126fd8b94f73b
+  version: a38c50148365edc8df43c1580c48fb2b3a1e9cd7
 - name: github.com/mitchellh/mapstructure
-  version: f15292f7a699fcc1a38a80977f80a046874ba8ac
+  version: 3536a929edddb9a5b34bd6861dc4a9647cb459fe
 - name: github.com/modern-go/concurrent
   version: bacd9c7ef1dd9b15be4a9909b8ac7a4e313eec94
 - name: github.com/modern-go/reflect2
@@ -64,7 +62,7 @@ imports:
 - name: github.com/robfig/cron
   version: b41be1df696709bb6395fe435af20370037c0b4c
 - name: github.com/rs/cors
-  version: 3fb1b69b103a84de38a19c3c6ec073dd6caa4d3f
+  version: 9a47f48565a795472d43519dd49aac781f3034fb
 - name: github.com/uol/go-solr
   version: fd7937c280d3a64876bda1a6086a0ef0b6f9e459
   subpackages:
@@ -91,7 +89,7 @@ imports:
   - internal/exit
   - zapcore
 - name: golang.org/x/net
-  version: aaf60122140d3fcf75376d319f0554393160eb50
+  version: 49bb7cea24b1df9410e1712aa6433dae904ff66a
   subpackages:
   - context
   - http/httpguts
@@ -101,14 +99,14 @@ imports:
   - internal/timeseries
   - trace
 - name: golang.org/x/text
-  version: 6e3c4e7365ddcc329f090f96e4348398f6310088
+  version: 4d1c5fb19474adfe9562c9847ba425e7da817e81
   subpackages:
   - secure/bidirule
   - transform
   - unicode/bidi
   - unicode/norm
 - name: google.golang.org/genproto
-  version: d0a8f471bba2dbb160885b0000d814ee5d559bad
+  version: af9cb2a35e7f169ec875002c1829c9b315cddc04
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc
@@ -144,7 +142,7 @@ imports:
   version: 5420a8b6744d3b0345ab293f6fcba19c978f1183
 testImports:
 - name: github.com/davecgh/go-spew
-  version: 8991bc29aa16c548c550c7ff78260e27b9ab7c73
+  version: d8f796af33cc11cb798c1aaeb27a4ebc5099927d
   subpackages:
   - spew
 - name: github.com/pmezard/go-difflib

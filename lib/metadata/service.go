@@ -652,9 +652,11 @@ func (sb *SolrBackend) FilterTagKeysByMetric(collection, tsType, metric, prefix 
 // filterTagsByMetric - returns all tag keys or values related to the specified metric
 func (sb *SolrBackend) filterTagsByMetric(collection, tsType, metric, childrenQuery, prefix, action, field, functionName string, maxResults int) ([]string, int, gobol.Error) {
 
-	query := "{!parent which=\"parent_doc:true AND type:" + tsType +
-		" AND metric:" + metric +
-		" \"}" + childrenQuery
+	query := "{!parent which=\"parent_doc:true\"}" + childrenQuery
+	filterQueries := []string{
+		"type:" + tsType,
+		"metric:" + metric,
+	}
 
 	start := time.Now()
 	cacheKey := query + prefix
@@ -670,7 +672,7 @@ func (sb *SolrBackend) filterTagsByMetric(collection, tsType, metric, childrenQu
 		return cropped, len(facets), nil
 	}
 
-	r, err := sb.solrService.Facets(collection, query, "", 0, 0, nil, nil, []string{field}, true, maxResults, 0)
+	r, err := sb.solrService.Facets(collection, query, "", 0, 0, filterQueries, nil, []string{field}, true, maxResults, 0)
 	if err != nil {
 		sb.statsCollectionError(collection, action, "solr.collection.search.error")
 		return nil, 0, errInternalServer(functionName, err)

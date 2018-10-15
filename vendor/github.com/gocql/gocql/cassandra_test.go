@@ -485,6 +485,58 @@ func TestCAS(t *testing.T) {
 	}
 }
 
+func TestDurationType(t *testing.T) {
+	session := createSession(t)
+	defer session.Close()
+
+	if session.cfg.ProtoVersion < 5 {
+		t.Skip("Duration type is not supported. Please use protocol version >= 4 and cassandra version >= 3.11")
+	}
+
+	if err := createTable(session, `CREATE TABLE gocql_test.duration_table (
+		k int primary key, v duration
+	)`); err != nil {
+		t.Fatal("create:", err)
+	}
+
+	durations := []Duration{
+		Duration{
+			Months:      250,
+			Days:        500,
+			Nanoseconds: 300010001,
+		},
+		Duration{
+			Months:      -250,
+			Days:        -500,
+			Nanoseconds: -300010001,
+		},
+		Duration{
+			Months:      0,
+			Days:        128,
+			Nanoseconds: 127,
+		},
+		Duration{
+			Months:      0x7FFFFFFF,
+			Days:        0x7FFFFFFF,
+			Nanoseconds: 0x7FFFFFFFFFFFFFFF,
+		},
+	}
+	for _, durationSend := range durations {
+		if err := session.Query(`INSERT INTO gocql_test.duration_table (k, v) VALUES (1, ?)`, durationSend).Exec(); err != nil {
+			t.Fatal(err)
+		}
+
+		var id int
+		var duration Duration
+		if err := session.Query(`SELECT k, v FROM gocql_test.duration_table`).Scan(&id, &duration); err != nil {
+			t.Fatal(err)
+		}
+		if duration.Months != durationSend.Months || duration.Days != durationSend.Days || duration.Nanoseconds != durationSend.Nanoseconds {
+			t.Fatalf("Unexpeted value returned, expected=%v, received=%v", durationSend, duration)
+		}
+	}
+}
+
 func TestMapScanCAS(t *testing.T) {
 	session := createSession(t)
 	defer session.Close()
@@ -539,7 +591,7 @@ func TestBatch(t *testing.T) {
 		t.Fatal("create table:", err)
 	}
 
-	batch := NewBatch(LoggedBatch)
+	batch := session.NewBatch(LoggedBatch)
 	for i := 0; i < 100; i++ {
 		batch.Query(`INSERT INTO batch_table (id) VALUES (?)`, i)
 	}
@@ -571,9 +623,9 @@ func TestUnpreparedBatch(t *testing.T) {
 
 	var batch *Batch
 	if session.cfg.ProtoVersion == 2 {
-		batch = NewBatch(CounterBatch)
+		batch = session.NewBatch(CounterBatch)
 	} else {
-		batch = NewBatch(UnloggedBatch)
+		batch = session.NewBatch(UnloggedBatch)
 	}
 
 	for i := 0; i < 100; i++ {
@@ -612,7 +664,7 @@ func TestBatchLimit(t *testing.T) {
 		t.Fatal("create table:", err)
 	}
 
-	batch := NewBatch(LoggedBatch)
+	batch := session.NewBatch(LoggedBatch)
 	for i := 0; i < 65537; i++ {
 		batch.Query(`INSERT INTO batch_table2 (id) VALUES (?)`, i)
 	}
@@ -1512,6 +1564,48 @@ func TestPrepare_PreparedCacheEviction(t *testing.T) {
 	}
 }
 
+func TestWriteFailure(t *testing.T) {
+	if flagCassVersion.Major == 0 || flagCassVersion.Before(3, 11, 0) {
+		t.Skipf("write failure can only be tested against Cassandra 3.11 or higher version=%v", flagCassVersion)
+ 	}
+	cluster := createCluster()
+	createKeyspace(t, cluster, "test")
+	cluster.Keyspace = "test"
+	session, err := cluster.CreateSession()
+	if err != nil {
+		t.Fatal("create session:", err)
+	}
+	defer session.Close()
+
+	if err := createTable(session, "CREATE TABLE test.test (id int,value int,PRIMARY KEY (id))"); err != nil {
+		t.Fatalf("failed to create table with error '%v'", err)
+	}
+	if err := session.Query(`INSERT INTO test.test (id, value) VALUES (1, 1)`).Exec(); err != nil {
+		errWrite, ok := err.(*RequestErrWriteFailure)
+		if ok {
+			if session.cfg.ProtoVersion >= 5 {
+				// ErrorMap should be filled with some hosts that should've errored
+				if len(errWrite.ErrorMap)  == 0 {
+					t.Fatal("errWrite.ErrorMap should have some failed hosts but it didn't have any")
+				}
+			} else {
+				// Map doesn't get filled for V4
+				if len(errWrite.ErrorMap) != 0 {
+					t.Fatal("errWrite.ErrorMap should have length 0, it's: ", len(errWrite.ErrorMap))
+				}
+			}
+		} else {
+			t.Fatal("error should be RequestErrWriteFailure, it's: ", errWrite)
+		}
+	} else {
+		t.Fatal("a write fail error should have happened when querying test keyspace")
+	}
+
+	if err = session.Query("DROP KEYSPACE test").Exec(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestPrepare_PreparedCacheKey(t *testing.T) {
 	session := createSession(t)
 	defer session.Close()
@@ -1817,7 +1911,7 @@ func TestBatchObserve(t *testing.T) {
 
 	var observedBatch *observation
 
-	batch := NewBatch(LoggedBatch)
+	batch := session.NewBatch(LoggedBatch)
 	batch.Observer(funcBatchObserver(func(ctx context.Context, o ObservedBatch) {
 		if observedBatch != nil {
 			t.Fatal("batch observe called more than once")
@@ -2370,6 +2464,64 @@ func TestTokenAwareConnPool(t *testing.T) {
 	// TODO add verification that the query went to the correct host
 }
 
+func TestCustomPayloadMessages(t *testing.T) {
+	cluster := createCluster()
+	session := createSessionFromCluster(cluster, t)
+	defer session.Close()
+
+	if err := createTable(session, "CREATE TABLE gocql_test.testCustomPayloadMessages (id int, value int, PRIMARY KEY (id))"); err != nil {
+		t.Fatal(err)
+	}
+
+	// QueryMessage
+	var customPayload = map[string][]byte{"a": []byte{10, 20}, "b": []byte{20, 30}}
+	query := session.Query("SELECT id FROM testCustomPayloadMessages where id = ?", 42).Consistency(One).CustomPayload(customPayload)
+	iter := query.Iter()
+	rCustomPayload := iter.GetCustomPayload()
+	if !reflect.DeepEqual(customPayload, rCustomPayload) {
+		t.Fatal("The received custom payload should match the sent")
+	}
+	iter.Close()
+
+	// Insert query
+	query = session.Query("INSERT INTO testCustomPayloadMessages(id,value) VALUES(1, 1)").Consistency(One).CustomPayload(customPayload)
+	iter = query.Iter()
+	rCustomPayload = iter.GetCustomPayload()
+	if !reflect.DeepEqual(customPayload, rCustomPayload) {
+		t.Fatal("The received custom payload should match the sent")
+	}
+	iter.Close()
+
+	// Batch Message
+	b := session.NewBatch(LoggedBatch)
+	b.CustomPayload = customPayload
+	b.Query("INSERT INTO testCustomPayloadMessages(id,value) VALUES(1, 1)")
+	if err := session.ExecuteBatch(b); err != nil {
+		t.Fatalf("query failed. %v", err)
+	}
+}
+
+func TestCustomPayloadValues(t *testing.T) {
+	cluster := createCluster()
+	session := createSessionFromCluster(cluster, t)
+	defer session.Close()
+
+	if err := createTable(session, "CREATE TABLE gocql_test.testCustomPayloadValues (id int, value int, PRIMARY KEY (id))"); err != nil {
+		t.Fatal(err)
+	}
+
+	values := []map[string][]byte{map[string][]byte{"a": []byte{10, 20}, "b": []byte{20, 30}}, nil, map[string][]byte{"a": []byte{10, 20}, "b": nil}}
+
+	for _, customPayload := range values {
+		query := session.Query("SELECT id FROM testCustomPayloadValues where id = ?", 42).Consistency(One).CustomPayload(customPayload)
+		iter := query.Iter()
+		rCustomPayload := iter.GetCustomPayload()
+		if !reflect.DeepEqual(customPayload, rCustomPayload) {
+			t.Fatal("The received custom payload should match the sent")
+		}
+	}
+}
+
 func TestNegativeStream(t *testing.T) {
 	session := createSession(t)
 	defer session.Close()
@@ -2724,7 +2876,7 @@ func TestUnmarshallNestedTypes(t *testing.T) {
 }
 
 func TestSchemaReset(t *testing.T) {
-	if flagCassVersion.Major == 0 || (flagCassVersion.Before(2, 1, 3)) {
+	if flagCassVersion.Major == 0 || flagCassVersion.Before(2, 1, 3) {
 		t.Skipf("skipping TestSchemaReset due to CASSANDRA-7910 in Cassandra <2.1.3 version=%v", flagCassVersion)
 	}
 

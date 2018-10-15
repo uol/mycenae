@@ -55,7 +55,6 @@ type RestErrors struct {
 type Point struct {
 	Message   TSDBpoint
 	ID        string
-	Bucket    string
 	Keyset    string
 	Timestamp int64
 	Number    bool

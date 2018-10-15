@@ -380,12 +380,14 @@ func TestTagKeysByMetricAllTags(t *testing.T) {
 	path := fmt.Sprintf("metric/tag/keys?metric=%s", p.Metric)
 	resp := getResponse(path, expectedSize, expectedSize, t)
 
-	tagMap := map[string]bool{}
-	for i := 0; i < expectedSize; i++ {
-		tagMap[resp.Payload[i]] = true
+	tagMap := map[string]bool{
+		"TestTagKeysByMetricAllTags-tag-0": true,
+		"TestTagKeysByMetricAllTags-tag-1": true,
+		"TestTagKeysByMetricAllTags-tag-2": true,
+		"ttl": true,
 	}
 
-	for _, v := range p.Tags {
+	for _, v := range resp.Payload {
 		assert.True(t, tagMap[v])
 	}
 }
@@ -401,11 +403,11 @@ func TestTagKeysByMetricRegex(t *testing.T) {
 	resp := getResponse(path, expectedSize, expectedSize, t)
 
 	tagMap := map[string]bool{
-		"tag0": true,
-		"tag2": true,
-		"tag4": true,
-		"tag6": true,
-		"tag8": true,
+		"TestTagKeysByMetricRegex-tag-0": true,
+		"TestTagKeysByMetricRegex-tag-2": true,
+		"TestTagKeysByMetricRegex-tag-4": true,
+		"TestTagKeysByMetricRegex-tag-6": true,
+		"TestTagKeysByMetricRegex-tag-8": true,
 	}
 
 	for i := 0; i < expectedSize; i++ {
@@ -421,7 +423,7 @@ func TestTagKeysByMetricMaxResults(t *testing.T) {
 	expectedCropped := 6
 	p := populateTagByMetric("TestTagKeysByMetricMaxResults", size, t)
 
-	path := fmt.Sprintf("metric/tag/keys?metric=%s&size=%d", p.Metric, expectedSize)
+	path := fmt.Sprintf("metric/tag/keys?metric=%s&size=%d", p.Metric, expectedCropped)
 	getResponse(path, expectedSize, expectedCropped, t)
 }
 

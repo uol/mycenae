@@ -79,6 +79,9 @@
               <li<%= sidebar_current("docs-commands-connect-proxy") %>>
                 <a href="/docs/commands/connect/proxy.html">proxy</a>
               </li>
+              <li<%= sidebar_current("docs-commands-connect-envoy") %>>
+                <a href="/docs/commands/connect/envoy.html">envoy</a>
+              </li>
             </ul>
           </li>
           <li<%= sidebar_current("docs-commands-event") %>>
@@ -185,6 +188,18 @@
             <a href="/docs/commands/rtt.html">rtt</a>
           </li>
 
+          <li<%= sidebar_current("docs-commands-services") %>>
+            <a href="/docs/commands/services.html">services</a>
+            <ul class="nav">
+              <li<%= sidebar_current("docs-commands-services-register") %>>
+                <a href="/docs/commands/services/register.html">register</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-services-deregister") %>>
+                <a href="/docs/commands/services/deregister.html">deregister</a>
+              </li>
+            </ul>
+          </li>
+
           <li<%= sidebar_current("docs-commands-snapshot") %>>
             <a href="/docs/commands/snapshot.html">snapshot</a>
             <ul class="nav">
@@ -257,6 +272,13 @@
           <li<%= sidebar_current("docs-connect-proxies") %>>
             <a href="/docs/connect/proxies.html">Proxies</a>
             <ul class="nav">
+              <li<%= sidebar_current("docs-connect-proxies-sidecar-service") %>>
+                <a href="/docs/connect/proxies/sidecar-service.html">Sidecar Service Registration</a>
+              </li>
+              <li<%= sidebar_current("docs-connect-proxies-envoy") %>>
+                <a href="/docs/connect/proxies/envoy.html">Envoy</a>
+              </li>
+              </li>
               <li<%= sidebar_current("docs-connect-proxies-integrate") %>>
                 <a href="/docs/connect/proxies/integrate.html">Proxy Integration</a>
               </li>
@@ -290,8 +312,35 @@
           <li<%= sidebar_current("docs-connect-platform-nomad") %>>
             <a href="/docs/connect/platform/nomad.html">Nomad</a>
           </li>
+          <li<%= sidebar_current("docs-connect-platform-k8s") %>>
+            <a href="/docs/platform/k8s/connect.html">Kubernetes</a>
+          </li>
           <li<%= sidebar_current("docs-connect-security") %>>
             <a href="/docs/connect/security.html">Security</a>
+          </li>
+        </ul>
+      </li>
+
+      <li<%= sidebar_current("docs-platform-k8s") %>>
+        <a href="/docs/platform/k8s/index.html">Kubernetes</a>
+        <ul class="nav">
+          <li<%= sidebar_current("docs-platform-k8s-run") %>>
+            <a href="/docs/platform/k8s/run.html">Running Consul</a>
+          </li>
+          <li<%= sidebar_current("docs-platform-k8s-helm") %>>
+            <a href="/docs/platform/k8s/helm.html">Helm Chart</a>
+          </li>
+          <li<%= sidebar_current("docs-platform-k8s-ooc-nodes") %>>
+            <a href="/docs/platform/k8s/out-of-cluster-nodes.html">Out-of-Cluster Nodes</a>
+          </li>
+          <li<%= sidebar_current("docs-platform-k8s-dns") %>>
+            <a href="/docs/platform/k8s/dns.html">Consul DNS</a>
+          </li>
+          <li<%= sidebar_current("docs-platform-k8s-service-sync") %>>
+            <a href="/docs/platform/k8s/service-sync.html">Service Sync</a>
+          </li>
+          <li<%= sidebar_current("docs-platform-k8s-connect") %>>
+            <a href="/docs/platform/k8s/connect.html">Connect Sidecar</a>
           </li>
         </ul>
       </li>
@@ -316,12 +365,17 @@
           <li<%= sidebar_current("docs-guides-connect-production") %>>
             <a href="/docs/guides/connect-production.html">Connect in Production</a>
           </li>
+          <li<%= sidebar_current("docs-guides-connect-envoy") %>>
+            <a href="/docs/guides/connect-envoy.html">Connect with Envoy</a>
+          </li>
           <li<%= sidebar_current("docs-guides-consul-containers") %>>
             <a href="/docs/guides/consul-containers.html">Consul with Containers</a>
           </li>
           <li<%= sidebar_current("docs-guides-creating-certificates") %>>
-            <a href="/docs/guides/creating-certificates.html">Creating
-Certificates</a>
+            <a href="/docs/guides/creating-certificates.html">Creating Certificates</a>
+          </li>
+          <li<%= sidebar_current("docs-guides-deployment-guide") %>>
+            <a href="/docs/guides/deployment-guide.html">Deployment Guide</a>
           </li>
           <li<%= sidebar_current("docs-guides-dns-cache") %>>
             <a href="/docs/guides/dns-cache.html">DNS Caching</a>
@@ -350,14 +404,17 @@ Certificates</a>
           <li<%= sidebar_current("docs-guides-segments") %>>
             <a href="/docs/guides/segments.html">Network Segments</a>
           </li>
-          <li<%= sidebar_current("docs-guides-sentinel") %>>
-            <a href="/docs/guides/sentinel.html">Sentinel</a>
-          </li>
           <li<%= sidebar_current("docs-guides-outage") %>>
             <a href="/docs/guides/outage.html">Outage Recovery</a>
           </li>
+          <li<%= sidebar_current("docs-guides-reference-architecture") %>>
+            <a href="/docs/guides/deployment.html">Reference Architecture</a>
+          </li>
           <li<%= sidebar_current("docs-guides-semaphore") %>>
             <a href="/docs/guides/semaphore.html">Semaphore</a>
+          </li>
+          <li<%= sidebar_current("docs-guides-sentinel") %>>
+            <a href="/docs/guides/sentinel.html">Sentinel</a>
           </li>
           <li<%= sidebar_current("docs-guides-performance") %>>
             <a href="/docs/guides/performance.html">Server Performance</a>

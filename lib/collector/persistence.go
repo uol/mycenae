@@ -28,7 +28,7 @@ func (persist *persistence) InsertPoint(ksid, tsid string, timestamp int64, valu
 		tsid,
 		timestamp,
 		value,
-	).RoutingKey([]byte(tsid)).Exec(); err != nil {
+	).Exec(); err != nil {
 		statsInsertQerror(ksid, "ts_number_stamp")
 		lf := []zapcore.Field{
 			zap.String("package", "collector/persistence"),
@@ -50,7 +50,7 @@ func (persist *persistence) InsertText(ksid, tsid string, timestamp int64, text 
 		tsid,
 		timestamp,
 		text,
-	).RoutingKey([]byte(tsid)).Exec(); err != nil {
+	).Exec(); err != nil {
 		statsInsertQerror(ksid, "ts_text_stamp")
 		lf := []zapcore.Field{
 			zap.String("package", "collector/persistence"),

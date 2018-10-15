@@ -26,7 +26,7 @@ func getKeyspace() tools.Keyspace {
 		Name:              tools.GenerateRandomName(),
 		Datacenter:        datacenter,
 		ReplicationFactor: 1,
-		Contact:           fmt.Sprintf("test-%d@domain.com", time.Now().Unix()),
+		Contact:           fmt.Sprintf("t%d@domain.com", time.Now().Unix()),
 		TTL:               1,
 	}
 
@@ -164,14 +164,12 @@ func checkKeyspacePropertiesAndIndex(data tools.Keyspace, t *testing.T) {
 		assert.Exactly(t, "", tableProperties.Comment)
 		assert.Exactly(t, compaction, tableProperties.Compaction)
 		assert.Exactly(t, compression, tableProperties.Compression)
-		assert.Exactly(t, 0.0, tableProperties.Dclocal_read_repair_chance)
+		assert.Exactly(t, 0.05, tableProperties.Dclocal_read_repair_chance)
 		assert.Exactly(t, 86400, tableProperties.Default_time_to_live)
-		assert.Exactly(t, 0, tableProperties.Gc_grace_seconds)
 		assert.Exactly(t, 2048, tableProperties.Max_index_interval)
-		assert.Exactly(t, 0, tableProperties.Memtable_flush_period_in_ms)
 		assert.Exactly(t, 128, tableProperties.Min_index_interval)
-		assert.Exactly(t, 0.0, tableProperties.Read_repair_chance)
-		assert.Exactly(t, "99.0PERCENTILE", tableProperties.Speculative_retry)
+		assert.Exactly(t, 0.01, tableProperties.Read_repair_chance)
+		assert.Exactly(t, "70.0PERCENTILE", tableProperties.Speculative_retry)
 	}
 
 	keyspaceCassandraTables := mycenaeTools.Cassandra.Timeseries.KeyspaceTables(data.Name)

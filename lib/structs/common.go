@@ -31,29 +31,27 @@ type SettingsUDP struct {
 }
 
 type Settings struct {
-	MaxTimeseries           int
-	MaxConcurrentTimeseries int
-	MaxConcurrentReads      int
-	LogQueryTSthreshold     int
-	MaxConcurrentPoints     int
-	MaxConcurrentBulks      int
-	MaxMetaBulkSize         int
-	MetaBufferSize          int
-	DefaultPaginationSize   int
-	MetaSaveInterval        string
-	HostNameCleanerRegex    string
-	HTTPserver              SettingsHTTP
-	UDPserver               SettingsUDP
-	DefaultTTL              uint8
-	MaxAllowedTTL           int
-	DefaultKeysets          []string
-	BlacklistedKeysets      []string
-	DefaultKeyspaceData     keyspace.Config
-	DefaultKeyspaces        map[string]uint8
-	Cassandra               cassandra.Settings
-	Memcached               memcached.Configuration
-	AllowCORS               bool
-	Logs                    struct {
+	MaxTimeseries         int
+	LogQueryTSthreshold   int
+	MaxConcurrentPoints   int
+	MaxConcurrentBulks    int
+	MaxMetaBulkSize       int
+	MetaBufferSize        int
+	DefaultPaginationSize int
+	MetaSaveInterval      string
+	HostNameCleanerRegex  string
+	HTTPserver            SettingsHTTP
+	UDPserver             SettingsUDP
+	DefaultTTL            uint8
+	MaxAllowedTTL         int
+	DefaultKeysets        []string
+	BlacklistedKeysets    []string
+	DefaultKeyspaceData   keyspace.Config
+	DefaultKeyspaces      map[string]uint8
+	Cassandra             cassandra.Settings
+	Memcached             memcached.Configuration
+	AllowCORS             bool
+	Logs                  struct {
 		Environment string
 		General     LogSetting
 		Stats       LogSetting
