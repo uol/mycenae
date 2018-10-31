@@ -17,20 +17,21 @@ import (
 
 // SolrBackend - struct
 type SolrBackend struct {
-	solrService          *solar.SolrService
-	numShards            int
-	replicationFactor    int
-	regexPattern         *regexp.Regexp
-	stats                *tsstats.StatsTS
-	logger               *zap.Logger
-	memcached            *memcached.Memcached
-	idCacheTTL           int32
-	queryCacheTTL        int32
-	keysetCacheTTL       int32
-	fieldListQuery       string
-	zookeeperConfig      string
-	maxReturnedMetadata  int
-	blacklistedKeysetMap map[string]bool
+	solrService           *solar.SolrService
+	numShards             int
+	replicationFactor     int
+	regexPattern          *regexp.Regexp
+	stats                 *tsstats.StatsTS
+	logger                *zap.Logger
+	memcached             *memcached.Memcached
+	idCacheTTL            int32
+	queryCacheTTL         int32
+	keysetCacheTTL        int32
+	fieldListQuery        string
+	zookeeperConfig       string
+	maxReturnedMetadata   int
+	blacklistedKeysetMap  map[string]bool
+	solrSpecialCharRegexp *regexp.Regexp
 }
 
 // NewSolrBackend - creates a new instance
@@ -50,20 +51,21 @@ func NewSolrBackend(settings *Settings, stats *tsstats.StatsTS, logger *zap.Logg
 	}
 
 	return &SolrBackend{
-		solrService:          ss,
-		stats:                stats,
-		logger:               logger,
-		replicationFactor:    settings.ReplicationFactor,
-		numShards:            settings.NumShards,
-		regexPattern:         rp,
-		memcached:            memcached,
-		idCacheTTL:           settings.IDCacheTTL,
-		queryCacheTTL:        settings.QueryCacheTTL,
-		keysetCacheTTL:       settings.KeysetCacheTTL,
-		fieldListQuery:       fmt.Sprintf("*,[child parentFilter=parent_doc:true limit=%d]", settings.MaxReturnedMetadata),
-		zookeeperConfig:      settings.ZookeeperConfig,
-		maxReturnedMetadata:  settings.MaxReturnedMetadata,
-		blacklistedKeysetMap: blacklistedKeysetMap,
+		solrService:           ss,
+		stats:                 stats,
+		logger:                logger,
+		replicationFactor:     settings.ReplicationFactor,
+		numShards:             settings.NumShards,
+		regexPattern:          rp,
+		memcached:             memcached,
+		idCacheTTL:            settings.IDCacheTTL,
+		queryCacheTTL:         settings.QueryCacheTTL,
+		keysetCacheTTL:        settings.KeysetCacheTTL,
+		fieldListQuery:        fmt.Sprintf("*,[child parentFilter=parent_doc:true limit=%d]", settings.MaxReturnedMetadata),
+		zookeeperConfig:       settings.ZookeeperConfig,
+		maxReturnedMetadata:   settings.MaxReturnedMetadata,
+		blacklistedKeysetMap:  blacklistedKeysetMap,
+		solrSpecialCharRegexp: regexp.MustCompile(`(\+|\-|\&|\||\!|\(|\)|\{|\}|\[|\]|\^|"|\~|\*|\?|\:|\\|/)`),
 	}, nil
 }
 
@@ -293,6 +295,8 @@ func (sb *SolrBackend) buildValuesGroup(field string, values []string, regexp bo
 
 		if regexp {
 			values[0] = sb.SetRegexValue(values[0])
+		} else {
+			values[0] = sb.escapeSolrSpecialChars(values[0])
 		}
 
 		return qp + field + ":" + values[0]
@@ -304,6 +308,8 @@ func (sb *SolrBackend) buildValuesGroup(field string, values []string, regexp bo
 
 		if regexp {
 			value = sb.SetRegexValue(value)
+		} else {
+			value = sb.escapeSolrSpecialChars(value)
 		}
 
 		qp += value
@@ -318,6 +324,14 @@ func (sb *SolrBackend) buildValuesGroup(field string, values []string, regexp bo
 	return qp
 }
 
+// escapeSolrSpecialChars - replaces all Solr special characters
+func (sb *SolrBackend) escapeSolrSpecialChars(value string) string {
+	if value == "" || value == "*" {
+		return value
+	}
+	return sb.solrSpecialCharRegexp.ReplaceAllString(value, "\\$1")
+}
+
 // buildMetadataQuery - builds the metadata query
 func (sb *SolrBackend) buildMetadataQuery(query *Query, parentQueryOnly bool) (string, []string) {
 
@@ -330,6 +344,8 @@ func (sb *SolrBackend) buildMetadataQuery(query *Query, parentQueryOnly bool) (s
 	if !sb.leaveEmpty(query.Metric) {
 		if query.Regexp {
 			query.Metric = sb.SetRegexValue(query.Metric)
+		} else {
+			query.Metric = sb.escapeSolrSpecialChars(query.Metric)
 		}
 		parentQuery += " AND metric:" + query.Metric
 	}
@@ -352,7 +368,7 @@ func (sb *SolrBackend) buildMetadataQuery(query *Query, parentQueryOnly bool) (s
 				parentQuery += "(tag_value:("
 
 				for j := 0; j < numValues; j++ {
-					parentQuery += query.Tags[i].Values[j]
+					parentQuery += sb.escapeSolrSpecialChars(query.Tags[i].Values[j])
 					if j < numValues-1 {
 						parentQuery += " OR "
 					}
@@ -364,6 +380,8 @@ func (sb *SolrBackend) buildMetadataQuery(query *Query, parentQueryOnly bool) (s
 			if query.Tags[i].Key != "" {
 				if query.Tags[i].Regexp {
 					query.Tags[i].Key = sb.SetRegexValue(query.Tags[i].Key)
+				} else {
+					query.Tags[i].Key = sb.escapeSolrSpecialChars(query.Tags[i].Key)
 				}
 				if numValues > 0 {
 					parentQuery += " AND "
@@ -388,6 +406,8 @@ func (sb *SolrBackend) buildMetadataQuery(query *Query, parentQueryOnly bool) (s
 		if !sb.leaveEmpty(query.Tags[i].Key) {
 			if query.Tags[i].Regexp {
 				query.Tags[i].Key = sb.SetRegexValue(query.Tags[i].Key)
+			} else {
+				query.Tags[i].Key = sb.escapeSolrSpecialChars(query.Tags[i].Key)
 			}
 			filterQueries = append(filterQueries, fmt.Sprintf("{!parent which=\"parent_doc:true\"}tag_key:%s", query.Tags[i].Key))
 		}
@@ -399,6 +419,8 @@ func (sb *SolrBackend) buildMetadataQuery(query *Query, parentQueryOnly bool) (s
 				}
 				if query.Tags[i].Regexp {
 					query.Tags[i].Values[j] = sb.SetRegexValue(query.Tags[i].Values[j])
+				} else {
+					query.Tags[i].Values[j] = sb.escapeSolrSpecialChars(query.Tags[i].Values[j])
 				}
 				filterQueries = append(filterQueries, fmt.Sprintf("-({!parent which=\"parent_doc:true\"}tag_value:%s)", query.Tags[i].Values[j]))
 			}
@@ -643,7 +665,7 @@ func (sb *SolrBackend) FilterTagKeysByMetric(collection, tsType, metric, prefix 
 	if sb.HasRegexPattern(prefix) {
 		childrenQuery += sb.SetRegexValue(prefix)
 	} else {
-		childrenQuery += prefix
+		childrenQuery += sb.escapeSolrSpecialChars(prefix)
 	}
 
 	return sb.filterTagsByMetric(collection, tsType, metric, childrenQuery, prefix, "filter_tag_values_by_metric", "tag_key", "FilterTagKeysByMetric", maxResults)
