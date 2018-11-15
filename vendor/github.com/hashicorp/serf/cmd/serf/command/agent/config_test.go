@@ -412,7 +412,6 @@ func TestMergeConfig(t *testing.T) {
 		QueryResponseSizeLimit: 123,
 		QuerySizeLimit:         456,
 		BroadcastTimeout:       20 * time.Second,
-		EnableCompression:      true,
 	}
 
 	c := MergeConfig(a, b)
@@ -516,10 +515,6 @@ func TestMergeConfig(t *testing.T) {
 	}
 
 	if c.BroadcastTimeout != 20*time.Second {
-		t.Fatalf("bad: %#v", c)
-	}
-
-	if !c.EnableCompression {
 		t.Fatalf("bad: %#v", c)
 	}
 }

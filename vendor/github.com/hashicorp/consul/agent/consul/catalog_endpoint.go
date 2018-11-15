@@ -2,6 +2,7 @@ package consul
 
 import (
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -40,7 +41,7 @@ func (c *Catalog) Register(args *structs.RegisterRequest, reply *struct{}) error
 	}
 
 	// Fetch the ACL token, if any.
-	rule, err := c.srv.resolveToken(args.Token)
+	rule, err := c.srv.ResolveToken(args.Token)
 	if err != nil {
 		return err
 	}
@@ -138,7 +139,7 @@ func (c *Catalog) Deregister(args *structs.DeregisterRequest, reply *struct{}) e
 	}
 
 	// Fetch the ACL token, if any.
-	rule, err := c.srv.resolveToken(args.Token)
+	rule, err := c.srv.ResolveToken(args.Token)
 	if err != nil {
 		return err
 	}
@@ -273,7 +274,15 @@ func (c *Catalog) ServiceNodes(args *structs.ServiceSpecificRequest, reply *stru
 			}
 
 			if args.TagFilter {
-				return s.ServiceTagNodes(ws, args.ServiceName, args.ServiceTags)
+				tags := args.ServiceTags
+
+				// Agents < v1.3.0 and DNS service lookups populate the ServiceTag field. In this case,
+				// use ServiceTag instead of the ServiceTags field.
+				if args.ServiceTag != "" {
+					tags = []string{args.ServiceTag}
+				}
+
+				return s.ServiceTagNodes(ws, args.ServiceName, tags)
 			}
 
 			return s.ServiceNodes(ws, args.ServiceName)
@@ -284,7 +293,7 @@ func (c *Catalog) ServiceNodes(args *structs.ServiceSpecificRequest, reply *stru
 	// we're trying to find proxies for, so check that.
 	if args.Connect {
 		// Fetch the ACL token, if any.
-		rule, err := c.srv.resolveToken(args.Token)
+		rule, err := c.srv.ResolveToken(args.Token)
 		if err != nil {
 			return err
 		}
@@ -335,6 +344,10 @@ func (c *Catalog) ServiceNodes(args *structs.ServiceSpecificRequest, reply *stru
 				[]metrics.Label{{Name: "service", Value: args.ServiceName}, {Name: "tag", Value: args.ServiceTag}})
 		}
 		if len(args.ServiceTags) > 0 {
+			// Sort tags so that the metric is the same even if the request
+			// tags are in a different order
+			sort.Strings(args.ServiceTags)
+
 			// Build metric labels
 			labels := []metrics.Label{{Name: "service", Value: args.ServiceName}}
 			for _, tag := range args.ServiceTags {

@@ -2,6 +2,7 @@ package consul
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/agent/consul/state"
@@ -126,7 +127,7 @@ func (h *Health) ServiceNodes(args *structs.ServiceSpecificRequest, reply *struc
 	// we're trying to find proxies for, so check that.
 	if args.Connect {
 		// Fetch the ACL token, if any.
-		rule, err := h.srv.resolveToken(args.Token)
+		rule, err := h.srv.ResolveToken(args.Token)
 		if err != nil {
 			return err
 		}
@@ -171,6 +172,10 @@ func (h *Health) ServiceNodes(args *structs.ServiceSpecificRequest, reply *struc
 				[]metrics.Label{{Name: "service", Value: args.ServiceName}, {Name: "tag", Value: args.ServiceTag}})
 		}
 		if len(args.ServiceTags) > 0 {
+			// Sort tags so that the metric is the same even if the request
+			// tags are in a different order
+			sort.Strings(args.ServiceTags)
+
 			labels := []metrics.Label{{Name: "service", Value: args.ServiceName}}
 			for _, tag := range args.ServiceTags {
 				labels = append(labels, metrics.Label{Name: "tag", Value: tag})
@@ -193,7 +198,7 @@ func (h *Health) serviceNodesConnect(ws memdb.WatchSet, s *state.Store, args *st
 }
 
 func (h *Health) serviceNodesTagFilter(ws memdb.WatchSet, s *state.Store, args *structs.ServiceSpecificRequest) (uint64, structs.CheckServiceNodes, error) {
-	// DNS service lookups populate the ServiceTag field. In this case,
+	// Agents < v1.3.0 and DNS service lookups populate the ServiceTag field. In this case,
 	// use ServiceTag instead of the ServiceTags field.
 	if args.ServiceTag != "" {
 		return s.CheckServiceTagNodes(ws, args.ServiceName, []string{args.ServiceTag})

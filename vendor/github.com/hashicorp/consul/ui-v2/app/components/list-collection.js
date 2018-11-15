@@ -3,7 +3,7 @@ import Component from 'ember-collection/components/ember-collection';
 import PercentageColumns from 'ember-collection/layouts/percentage-columns';
 import style from 'ember-computed-style';
 import WithResizing from 'consul-ui/mixins/with-resizing';
-import qsaFactory from 'consul-ui/utils/qsa-factory';
+import qsaFactory from 'consul-ui/utils/dom/qsa-factory';
 const $$ = qsaFactory();
 export default Component.extend(WithResizing, {
   tagName: 'div',
@@ -17,6 +17,7 @@ export default Component.extend(WithResizing, {
     this.columns = [25, 25, 25, 25];
   },
   didReceiveAttrs: function() {
+    this._super(...arguments);
     this._cellLayout = this['cell-layout'] = new PercentageColumns(
       get(this, 'items.length'),
       get(this, 'columns'),

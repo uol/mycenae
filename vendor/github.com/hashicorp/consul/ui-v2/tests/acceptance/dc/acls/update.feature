@@ -2,6 +2,7 @@
 Feature: dc / acls / update: ACL Update
   Background:
     Given 1 datacenter model with the value "datacenter"
+    And I'm using a legacy token
     And 1 acl model from yaml
     ---
       ID: key
@@ -43,7 +44,4 @@ Feature: dc / acls / update: ACL Update
     And "[data-notification]" has the "error" class
 # @ignore
   # Scenario: Rules can be edited/updated
-  #   Then ok
-# @ignore
-  # Scenario: The feedback dialog says success or failure
   #   Then ok

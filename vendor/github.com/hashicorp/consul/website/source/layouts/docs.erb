@@ -53,6 +53,26 @@
       <li<%= sidebar_current("docs-commands") %>>
         <a href="/docs/commands/index.html">Commands (CLI)</a>
         <ul class="nav">
+          <li<%= sidebar_current("docs-commands-acl") %>>
+            <a href="/docs/commands/acl.html">acl</a>
+            <ul class="nav">
+              <li<%= sidebar_current("docs-commands-acl-bootstrap") %>>
+                <a href="/docs/commands/acl/acl-bootstrap.html">bootstrap</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-acl-policy") %>>
+                <a href="/docs/commands/acl/acl-policy.html">policy</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-acl-set-agent-token") %>>
+                <a href="/docs/commands/acl/acl-set-agent-token.html">set-agent-token</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-acl-token") %>>
+                <a href="/docs/commands/acl/acl-token.html">token</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-acl-translate-rules") %>>
+                <a href="/docs/commands/acl/acl-translate-rules.html">translate-rules</a>
+              </li>
+            </ul>
+          </li>
           <li<%= sidebar_current("docs-commands-agent") %>>
             <a href="/docs/commands/agent.html">agent</a>
           </li>
@@ -83,6 +103,9 @@
                 <a href="/docs/commands/connect/envoy.html">envoy</a>
               </li>
             </ul>
+          </li>
+          <li<%= sidebar_current("docs-commands-debug") %>>
+            <a href="/docs/commands/debug.html">debug</a>
           </li>
           <li<%= sidebar_current("docs-commands-event") %>>
             <a href="/docs/commands/event.html">event</a>
@@ -264,7 +287,7 @@
       </li>
 
       <li<%= sidebar_current("docs-connect") %>>
-        <a href="/docs/connect/index.html">Connect (Beta)</a>
+        <a href="/docs/connect/index.html">Connect</a>
         <ul class="nav">
           <li<%= sidebar_current("docs-connect-config") %>>
             <a href="/docs/connect/configuration.html">Configuration</a>
@@ -352,6 +375,14 @@
         <ul class="nav">
           <li<%= sidebar_current("docs-guides-acl") %>>
             <a href="/docs/guides/acl.html">ACLs</a>
+            <ul class="nav">
+              <li<%= sidebar_current("docs-guides-acl-legacy") %>>
+                <a href="/docs/guides/acl-legacy.html">Legacy</a>
+              </li>
+              <li<%= sidebar_current("docs-guides-acl-migrate-tokens") %>>
+                <a href="/docs/guides/acl-migrate-tokens.html">Token Migration</a>
+              </li>
+            </ul>
           </li>
           <li<%= sidebar_current("docs-guides-servers") %>>
             <a href="/docs/guides/servers.html">Adding/Removing Servers</a>
@@ -448,6 +479,9 @@
           </li>
           <li<%= sidebar_current("docs-enterprise-federation") %>>
             <a href="/docs/enterprise/federation/index.html">Advanced Federation</a>
+          </li>
+          <li<%= sidebar_current("docs-enterprise-connect-multi-datacenter") %>>
+            <a href="/docs/enterprise/connect-multi-datacenter/index.html">Connect Multi-Datacenter</a>
           </li>
           <li<%= sidebar_current("docs-enterprise-network-segments") %>>
             <a href="/docs/enterprise/network-segments/index.html">Network Segments</a>
