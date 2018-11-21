@@ -493,12 +493,37 @@ func (sb *SolrBackend) toDocuments(metadatas []Metadata, collection string) (doc
 // getTagKeysAndValues - extracts the array from the document
 func (sb *SolrBackend) getTagKeysAndValues(document *solr.Document) ([]string, []string) {
 
-	rawArray := document.Get("_childDocuments_").([]interface{})
+	childDocs := document.Get("_childDocuments_")
+	if childDocs == nil {
+
+		lf := []zapcore.Field{
+			zap.String("package", "metadata"),
+			zap.String("func", "getTagKeysAndValues"),
+		}
+
+		sb.logger.Error(fmt.Sprintf("no \"_childDocuments_\": %v", document), lf...)
+
+		return []string{}, []string{}
+	}
+
+	rawArray := childDocs.([]interface{})
 	size := len(rawArray)
 	keys := make([]string, size)
 	values := make([]string, size)
 
 	for i := 0; i < len(rawArray); i++ {
+		rawTags := rawArray[i]
+		if rawTags == nil {
+
+			lf := []zapcore.Field{
+				zap.String("package", "metadata"),
+				zap.String("func", "getTagKeysAndValues"),
+			}
+
+			sb.logger.Error(fmt.Sprintf("no \"raw tags\": %v", document), lf...)
+
+			continue
+		}
 		tagDoc := rawArray[i].(map[string]interface{})
 		keys[i] = tagDoc["tag_key"].(string)
 		values[i] = tagDoc["tag_value"].(string)

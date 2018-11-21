@@ -1,22 +1,24 @@
-hash: f0be07cd305e0492acc7ada1435be835040290dc680c420b6ffd7f0406660e2e
-updated: 2018-05-17T19:45:19.102556315-03:00
+hash: d1fe12d81bde37c18caf4b45cb772146aced65a79fca7bcbf40e0b756716b6a0
+updated: 2018-11-15T13:06:55.240779833-02:00
 imports:
 - name: github.com/armon/go-metrics
-  version: 783273d703149aaeb9897cf58613d5af48861c25
+  version: 3c58d8115a78a6879e5df75ae900846768d36895
 - name: github.com/BurntSushi/toml
-  version: b26d9c308763d68093482582cea63d69be07a0f0
+  version: 3012a1dbe2e4bd1391d42b32f0577cb7bbc7f005
 - name: github.com/gocql/gocql
-  version: 31b0c9c712d21a8d5e1b3098c12a2fd41086ff30
+  version: 44e29ed5b8a4b4fff39d7ebaa19976c6f852075b
   subpackages:
   - internal/lru
   - internal/murmur
   - internal/streams
 - name: github.com/golang/snappy
-  version: 427fb6fc07997f43afa32f35e850833760e489a7
+  version: 2e65f85255dbc3072edf28d6b5b8efc472979f5a
+- name: github.com/google/uuid
+  version: d460ce9f8df2e77fb1ba55ca87fafed96c607494
 - name: github.com/hailocab/go-hostpool
   version: e80d13ce29ede4452c43dea11e79b9bc8a15b478
 - name: github.com/hashicorp/consul
-  version: 5174058f0d2bda63fa5198ab96c33d9a909c58ed
+  version: 0bddfa23a2ebe3c0773d917fc104f53d74f7a5ec
   subpackages:
   - api
 - name: github.com/hashicorp/go-cleanhttp
@@ -30,19 +32,23 @@ imports:
   subpackages:
   - simplelru
 - name: github.com/hashicorp/serf
-  version: 3b250ce4404edb266330f53fcfc8ad0d0dacfae7
+  version: 19bbd39e421bdf3559d5025fb2c760f5ffa56233
   subpackages:
   - coordinate
 - name: github.com/julienschmidt/httprouter
-  version: 8c199fb6259ffc1af525cc3ad52ee60ba8359669
+  version: 348b672cd90d8190f8240323e372ecd1e66b59dc
 - name: github.com/mitchellh/go-homedir
-  version: b8bc1bf767474819792c23f32d8286a45736f1c6
+  version: 58046073cbffe2f25d425fe1331102f55cf719de
+- name: github.com/mitchellh/mapstructure
+  version: f15292f7a699fcc1a38a80977f80a046874ba8ac
 - name: github.com/pborman/uuid
-  version: e790cca94e6cc75c7064b1332e63811d4aae1a53
+  version: adf5a7427709b9deb95d29d3fa8a2bf9cfd388f1
 - name: github.com/robfig/cron
   version: b41be1df696709bb6395fe435af20370037c0b4c
+- name: github.com/rs/cors
+  version: 15587285ef6b6e7a3f657e2e00f9f271883bcf22
 - name: github.com/uol/go-solr
-  version: fd7937c280d3a64876bda1a6086a0ef0b6f9e459
+  version: 2b20b79d603c54b3bfb42db257ed8322b3489f52
   subpackages:
   - solr
 - name: go.uber.org/atomic
@@ -50,7 +56,7 @@ imports:
 - name: go.uber.org/multierr
   version: 3c4937480c32f4c13a875a1829af76c98ca3d40a
 - name: go.uber.org/zap
-  version: eeedf312bc6c57391d84767a4cd413f02a917974
+  version: ff33455a0e382e8a81d14dd7c922020b6b5e7982
   subpackages:
   - buffer
   - internal/bufferpool
@@ -58,12 +64,12 @@ imports:
   - internal/exit
   - zapcore
 - name: gopkg.in/inf.v0
-  version: 3887ee99ecf07df5b447e9b00d9c0b2adaa9f3e4
+  version: d2d2541c53f18d2a059457998ce2876cc8e67cbf
 - name: gopkg.in/yaml.v2
   version: 5420a8b6744d3b0345ab293f6fcba19c978f1183
 testImports:
 - name: github.com/davecgh/go-spew
-  version: 8991bc29aa16c548c550c7ff78260e27b9ab7c73
+  version: d8f796af33cc11cb798c1aaeb27a4ebc5099927d
   subpackages:
   - spew
 - name: github.com/pmezard/go-difflib
@@ -71,6 +77,6 @@ testImports:
   subpackages:
   - difflib
 - name: github.com/stretchr/testify
-  version: 12b6f73e6084dad08a7c6e575284b177ecafbc71
+  version: f35b8ab0b5a2cef36673838d662e249dd9c94686
   subpackages:
   - assert

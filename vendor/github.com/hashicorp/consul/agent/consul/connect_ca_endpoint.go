@@ -36,7 +36,7 @@ func (s *ConnectCA) ConfigurationGet(
 	}
 
 	// This action requires operator read access.
-	rule, err := s.srv.resolveToken(args.Token)
+	rule, err := s.srv.ResolveToken(args.Token)
 	if err != nil {
 		return err
 	}
@@ -68,7 +68,7 @@ func (s *ConnectCA) ConfigurationSet(
 	}
 
 	// This action requires operator write access.
-	rule, err := s.srv.resolveToken(args.Token)
+	rule, err := s.srv.ResolveToken(args.Token)
 	if err != nil {
 		return err
 	}
@@ -78,10 +78,12 @@ func (s *ConnectCA) ConfigurationSet(
 
 	// Exit early if it's a no-op change
 	state := s.srv.fsm.State()
-	_, config, err := state.CAConfig()
+	confIdx, config, err := state.CAConfig()
 	if err != nil {
 		return err
 	}
+
+	// Don't allow users to change the ClusterID.
 	args.Config.ClusterID = config.ClusterID
 	if args.Config.Provider == config.Provider && reflect.DeepEqual(args.Config.Config, config.Config) {
 		return nil
@@ -107,7 +109,7 @@ func (s *ConnectCA) ConfigurationSet(
 		return err
 	}
 
-	newActiveRoot, err := parseCARoot(newRootPEM, args.Config.Provider)
+	newActiveRoot, err := parseCARoot(newRootPEM, args.Config.Provider, args.Config.ClusterID)
 	if err != nil {
 		return err
 	}
@@ -120,7 +122,10 @@ func (s *ConnectCA) ConfigurationSet(
 		return err
 	}
 
-	if root != nil && root.ID == newActiveRoot.ID {
+	// If the root didn't change or if this is a secondary DC, just update the
+	// config and return.
+	if (s.srv.config.Datacenter != s.srv.config.PrimaryDatacenter) ||
+		root != nil && root.ID == newActiveRoot.ID {
 		args.Op = structs.CAOpSetConfig
 		resp, err := s.srv.raftApply(structs.ConnectCARequestType, args)
 		if err != nil {
@@ -192,6 +197,7 @@ func (s *ConnectCA) ConfigurationSet(
 
 	args.Op = structs.CAOpSetRootsAndConfig
 	args.Index = idx
+	args.Config.ModifyIndex = confIdx
 	args.Roots = newRoots
 	resp, err := s.srv.raftApply(structs.ConnectCARequestType, args)
 	if err != nil {
@@ -199,6 +205,9 @@ func (s *ConnectCA) ConfigurationSet(
 	}
 	if respErr, ok := resp.(error); ok {
 		return respErr
+	}
+	if respOk, ok := resp.(bool); ok && !respOk {
+		return fmt.Errorf("could not atomically update roots and config")
 	}
 
 	// If the config has been committed, update the local provider instance
@@ -276,16 +285,17 @@ func (s *ConnectCA) Roots(
 				// directly to the structure in the memdb store.
 
 				reply.Roots[i] = &structs.CARoot{
-					ID:                r.ID,
-					Name:              r.Name,
-					SerialNumber:      r.SerialNumber,
-					SigningKeyID:      r.SigningKeyID,
-					NotBefore:         r.NotBefore,
-					NotAfter:          r.NotAfter,
-					RootCert:          r.RootCert,
-					IntermediateCerts: r.IntermediateCerts,
-					RaftIndex:         r.RaftIndex,
-					Active:            r.Active,
+					ID:                  r.ID,
+					Name:                r.Name,
+					SerialNumber:        r.SerialNumber,
+					SigningKeyID:        r.SigningKeyID,
+					ExternalTrustDomain: r.ExternalTrustDomain,
+					NotBefore:           r.NotBefore,
+					NotAfter:            r.NotAfter,
+					RootCert:            r.RootCert,
+					IntermediateCerts:   r.IntermediateCerts,
+					RaftIndex:           r.RaftIndex,
+					Active:              r.Active,
 				}
 
 				if r.Active {
@@ -345,7 +355,7 @@ func (s *ConnectCA) Sign(
 	}
 
 	// Verify that the ACL token provided has permission to act as this service
-	rule, err := s.srv.resolveToken(args.Token)
+	rule, err := s.srv.ResolveToken(args.Token)
 	if err != nil {
 		return err
 	}
@@ -369,6 +379,20 @@ func (s *ConnectCA) Sign(
 	// Append any intermediates needed by this root.
 	for _, p := range caRoot.IntermediateCerts {
 		pem = strings.TrimSpace(pem) + "\n" + p
+	}
+
+	// Append our local CA's intermediate if there is one.
+	inter, err := provider.ActiveIntermediate()
+	if err != nil {
+		return err
+	}
+	root, err := provider.ActiveRoot()
+	if err != nil {
+		return err
+	}
+
+	if inter != root {
+		pem = strings.TrimSpace(pem) + "\n" + inter
 	}
 
 	// TODO(banks): when we implement IssuedCerts table we can use the insert to

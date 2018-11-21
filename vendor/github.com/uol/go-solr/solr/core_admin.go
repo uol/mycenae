@@ -23,6 +23,7 @@ func NewCoreAdmin(solrUrl string) (*CoreAdmin, error) {
 	return &CoreAdmin{url: u}, nil
 }
 
+
 // Set basic auth in case solr require login
 func (ca *CoreAdmin) SetBasicAuth(username, password string) {
 	ca.username = username
@@ -48,9 +49,6 @@ func (ca *CoreAdmin) Get(path string, params *url.Values) (*SolrResponse, error)
 // Call to admin/cores endpoint, additional params neccessary for this action can specified in params.
 // No check is done for those params so check https://wiki.apache.org/solr/CoreAdmin for detail
 func (ca *CoreAdmin) Action(action string, params *url.Values) (*SolrResponse, error) {
-	if params == nil {
-		params = &url.Values{}
-	}
 	switch strings.ToUpper(action) {
 	case "STATUS":
 		params.Set("action", "STATUS")

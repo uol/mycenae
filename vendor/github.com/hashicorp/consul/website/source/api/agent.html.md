@@ -246,6 +246,11 @@ In order to enable [Prometheus](https://prometheus.io/) support, you need to use
 configuration directive
 [`prometheus_retention_time`](/docs/agent/options.html#telemetry-prometheus_retention_time).
 
+Note: If your metric includes labels that use the same key name multiple times 
+(i.e. tag=tag2 and tag=tag1), only the sorted last value (tag=tag2) will be visible on 
+this endpoint due to a display issue. The complete label set is correctly applied and 
+passed to external metrics providers even though it is not visible through this endpoint.
+
 | Method | Path                               | Produces                                   |
 | ------ | ---------------------------------- | ------------------------------------------ |
 | `GET`  | `/agent/metrics`                   | `application/json`                         |
@@ -483,7 +488,7 @@ state allows its old entries to be removed.
 
 | Method | Path                         | Produces                   |
 | ------ | ---------------------------- | -------------------------- |
-| `PUT`  | `/agent/force-leave`         | `application/json`         |
+| `PUT`  | `/agent/force-leave/:node`   | `application/json`         |
 
 The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries),
@@ -495,12 +500,16 @@ The table below shows this endpoint's support for
 | ---------------- | ----------------- | ------------- | ------------- |
 | `NO`             | `none`            | `none`        | `agent:write` |
 
+### Parameters
+
+- `node` `(string: <required>)` - Specifies the name of the node to be forced into `left` state. This is specified as part of the URL.
+
 ### Sample Request
 
 ```text
 $ curl \
     --request PUT \
-    http://127.0.0.1:8500/v1/agent/force-leave
+    http://127.0.0.1:8500/v1/agent/force-leave/agent-one
 ```
 
 ## Update ACL Tokens

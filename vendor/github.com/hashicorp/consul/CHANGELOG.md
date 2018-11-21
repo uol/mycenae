@@ -1,3 +1,52 @@
+## 1.4.0 (UNRELEASED)
+
+FEATURES:
+
+* **New ACL System:** The ACL system has been redesigned while allowing for
+  in-place upgrades that will automatically migrate to the new system while
+  retaining compatibility for existing ACL tokens for clusters where ACLs are
+  enabled. This new system introduces a number of improvements to tokens
+  including accessor IDs and a new policy model. It also includes a new CLI for
+  ACL interactions and a completely redesigned UI experience to manage ACLs and
+  policies. WAN federated clusters will need to add the additional replication
+  token configuration in order to ensure WAN ACL replication in the new system.
+  [[GH-4791](https://github.com/hashicorp/consul/pull/4791)]
+    * ACL CLI.
+    * New ACL HTTP APIs.
+    * Splitting ACL Tokens into Tokens and Policies with rules being defined on policies and tokens being linked to policies.
+    * ACL Tokens have a public accessor ID now in addition to the secret ID that they used to have.
+    * Setting a replication token is now required but it only needs "read" permissions on ACLs.
+    * Update to the rules language to allow for exact-matching rules in addition to prefix matching rules
+    * Added DC local tokens.
+    * Auto-Transitioning from legacy mode to normal mode as the cluster's servers get upgraded.
+    * ACL UI updates to support new functionality.
+
+* **Multi-datacenter Connect:** (Consul Enterprise) Consul Connect now supports multi-datacenter connections and
+replicates intentions. This allows WAN federated DCs to provide connections
+from source and destination proxies in any DC.
+
+* New command `consul debug` which gathers information about the cluster to help
+  resolve incidents and debug issues faster. [[GH-4754](https://github.com/hashicorp/consul/issues/4754)]
+
+IMPROVEMENTS:
+
+* dns: Implement prefix lookups for DNS TTL. [[GH-4605](https://github.com/hashicorp/consul/issues/4605)]
+* ui: Add JSON and YAML linting to the KV code editor. [[GH-4814](https://github.com/hashicorp/consul/pull/4814)]
+* connect: Fix comment DYNAMIC_DNS to LOGICAL_DNS. [[GH-4799](https://github.com/hashicorp/consul/pull/4799)]
+* terraform: fix formatting of consul.tf. [[GH-4580](https://github.com/hashicorp/consul/pull/4580)]
+
+BUG FIXES:
+
+* snapshot: Fixed a bug where node ID and datacenter weren't being included in or restored from the snapshots. [[GH-4872](https://github.com/hashicorp/consul/issues/4872)]
+* api: Fixed migration issue where changes to allow multiple tags in 1.3.0 would cause broken results during a migration from earlier versions [[GH-4944](https://github.com/hashicorp/consul/pull/4944)]
+
+## 1.3.1 (November 13, 2018)
+
+BUG FIXES:
+ * api: Fix issue introduced in 1.3.0 where catalog queries with tag filters
+   change behaviour during upgrades from 1.2.x or earlier. (Back-ported from
+   1.4.0 release candidate.) [[GH-4944](https://github.com/hashicorp/consul/issues/4944)].
+
 ## 1.3.0 (October 11, 2018)
 
 FEATURES:
@@ -21,7 +70,7 @@ FEATURES:
 * New command `consul services register` and `consul services deregister` for
   registering and deregistering services from the command line. [[GH-4732](https://github.com/hashicorp/consul/issues/4732)]
 * api: Service discovery endpoints now support [caching results in the local agent](https://www.consul.io/api/index.html#agent-caching). [[GH-4541](https://github.com/hashicorp/consul/pull/4541)]
-* dns: Added SOA configuration for DNS settings [[GH-4713](https://github.com/hashicorp/consul/issues/4713)]
+* dns: Added SOA configuration for DNS settings. [[GH-4713](https://github.com/hashicorp/consul/issues/4713)]
 
 IMPROVEMENTS:
 
