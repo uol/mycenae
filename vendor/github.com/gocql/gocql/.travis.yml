@@ -1,6 +1,7 @@
 language: go
 
-sudo: false
+sudo: required
+dist: trusty
 
 cache:
   directories:
@@ -10,31 +11,31 @@ cache:
 matrix:
   fast_finish: true
 
+branches:
+  only:
+  - master
+
 env:
   global:
     - GOMAXPROCS=2
   matrix:
-    - CASS=2.0.17
-      AUTH=false
-    - CASS=2.1.12
-      AUTH=false
-    - CASS=2.2.4
+    - CASS=2.2.13
       AUTH=true
-    - CASS=2.2.5
+    - CASS=2.2.13
+      AUTH=false
+    - CASS=3.0.17
+      AUTH=false
+    - CASS=3.11.3
       AUTH=false
 
 go:
-  - 1.5.3
-  - 1.6
+  - "1.10"
+  - "1.11"
 
 install:
-  - pip install --user cql PyYAML six
-  - go get golang.org/x/tools/cmd/vet
-  - go get golang.org/x/tools/cmd/cover
-  - git clone https://github.com/pcmanus/ccm.git
-  - pushd ccm
-  - ./setup.py install --user
-  - popd
+  - ./install_test_deps.sh $TRAVIS_REPO_SLUG
+  - cd ../..
+  - cd gocql/gocql
   - go get .
 
 script:

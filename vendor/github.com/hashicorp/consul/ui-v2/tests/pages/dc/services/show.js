@@ -1,10 +1,20 @@
-import { create, visitable, collection, attribute } from 'ember-cli-page-object';
-import filter from 'consul-ui/tests/pages/components/catalog-filter';
-
-export default create({
-  visit: visitable('/:dc/services/:service'),
-  nodes: collection('[data-test-node]', {
-    name: attribute('data-test-node'),
-  }),
-  filter: filter,
-});
+export default function(visitable, attribute, collection, text, filter) {
+  return {
+    visit: visitable('/:dc/services/:service'),
+    externalSource: attribute('data-test-external-source', 'h1 span'),
+    nodes: collection('[data-test-node]', {
+      name: attribute('data-test-node'),
+    }),
+    healthy: collection('[data-test-healthy] [data-test-node]', {
+      name: attribute('data-test-node'),
+      address: text('header strong'),
+      id: text('header em'),
+    }),
+    unhealthy: collection('[data-test-unhealthy] [data-test-node]', {
+      name: attribute('data-test-node'),
+      address: text('header strong'),
+      id: text('header em'),
+    }),
+    filter: filter,
+  };
+}

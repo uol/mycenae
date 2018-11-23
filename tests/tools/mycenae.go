@@ -464,7 +464,6 @@ func GetTSUIDFromPayload(payload *Payload, number bool) string {
 
 	if number {
 		return GetHashFromMetricAndTags(payload.Metric, payload.Tags)
-	} else {
-		return GetTextHashFromMetricAndTags(payload.Metric, payload.Tags)
 	}
+	return GetTextHashFromMetricAndTags(payload.Metric, payload.Tags)
 }

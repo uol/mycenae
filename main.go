@@ -196,8 +196,6 @@ func main() {
 		cass,
 		metaStorage,
 		settings.MaxTimeseries,
-		settings.MaxConcurrentTimeseries,
-		settings.MaxConcurrentReads,
 		settings.LogQueryTSthreshold,
 		keyspaceTTLMap,
 		settings.DefaultTTL,

@@ -2,9 +2,10 @@ package tserr
 
 import (
 	"github.com/uol/gobol"
+	"go.uber.org/zap/zapcore"
 )
 
-func New(e error, msg string, httpCode int, lf map[string]interface{}) gobol.Error {
+func New(e error, msg string, httpCode int, lf []zapcore.Field) gobol.Error {
 	return customError{
 		e,
 		msg,
@@ -17,7 +18,7 @@ type customError struct {
 	error
 	msg      string
 	httpCode int
-	lf       map[string]interface{}
+	lf       []zapcore.Field
 }
 
 func (e customError) Message() string {
@@ -28,6 +29,6 @@ func (e customError) StatusCode() int {
 	return e.httpCode
 }
 
-func (e customError) LogFields() map[string]interface{} {
+func (e customError) LogFields() []zapcore.Field {
 	return e.lf
 }

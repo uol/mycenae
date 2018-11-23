@@ -2,7 +2,7 @@
 
 <config>
   
-  <luceneMatchVersion>7.3.1</luceneMatchVersion>
+  <luceneMatchVersion>7.4.0</luceneMatchVersion>
 
   <lib dir="${solr.install.dir:../../../..}/contrib/extraction/lib" regex=".*\.jar" />
   <lib dir="${solr.install.dir:../../../..}/dist/" regex="solr-cell-\d.*\.jar" />

@@ -7,10 +7,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"sync/atomic"
 	"testing"
+
+	"github.com/hashicorp/consul/testrpc"
 
 	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/types"
+	"github.com/stretchr/testify/require"
 )
 
 // MockPreparedQuery is a fake endpoint that we inject into the Consul server
@@ -607,6 +611,63 @@ func TestPreparedQuery_Execute(t *testing.T) {
 	})
 }
 
+func TestPreparedQuery_ExecuteCached(t *testing.T) {
+	t.Parallel()
+
+	a := NewTestAgent(t.Name(), "")
+	defer a.Shutdown()
+
+	failovers := int32(99)
+
+	m := MockPreparedQuery{
+		executeFn: func(args *structs.PreparedQueryExecuteRequest, reply *structs.PreparedQueryExecuteResponse) error {
+			// Just set something so we can tell this is returned.
+			reply.Failovers = int(atomic.LoadInt32(&failovers))
+			return nil
+		},
+	}
+	if err := a.registerEndpoint("PreparedQuery", &m); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	doRequest := func(expectFailovers int, expectCache string, revalidate bool) {
+		body := bytes.NewBuffer(nil)
+		req, _ := http.NewRequest("GET", "/v1/query/my-id/execute?cached", body)
+
+		if revalidate {
+			req.Header.Set("Cache-Control", "must-revalidate")
+		}
+
+		resp := httptest.NewRecorder()
+		obj, err := a.srv.PreparedQuerySpecific(resp, req)
+
+		require := require.New(t)
+		require.NoError(err)
+		require.Equal(200, resp.Code)
+
+		r, ok := obj.(structs.PreparedQueryExecuteResponse)
+		require.True(ok)
+		require.Equal(expectFailovers, r.Failovers)
+
+		require.Equal(expectCache, resp.Header().Get("X-Cache"))
+	}
+
+	// Should be a miss at first
+	doRequest(99, "MISS", false)
+
+	// Change the actual response
+	atomic.StoreInt32(&failovers, 66)
+
+	// Request again, should be a cache hit and have the cached (not current)
+	// value.
+	doRequest(99, "HIT", false)
+
+	// Request with max age that should invalidate cache. note that this will be
+	// sent as max-age=0 as that uses seconds but that should cause immediate
+	// invalidation rather than being ignored as an unset value.
+	doRequest(66, "MISS", true)
+}
+
 func TestPreparedQuery_Explain(t *testing.T) {
 	t.Parallel()
 	t.Run("", func(t *testing.T) {
@@ -677,6 +738,28 @@ func TestPreparedQuery_Explain(t *testing.T) {
 		if resp.Code != 404 {
 			t.Fatalf("bad code: %d", resp.Code)
 		}
+	})
+
+	// Ensure that Connect is passed through
+	t.Run("", func(t *testing.T) {
+		a := NewTestAgent(t.Name(), "")
+		defer a.Shutdown()
+		require := require.New(t)
+
+		m := MockPreparedQuery{
+			executeFn: func(args *structs.PreparedQueryExecuteRequest, reply *structs.PreparedQueryExecuteResponse) error {
+				require.True(args.Connect)
+				return nil
+			},
+		}
+		require.NoError(a.registerEndpoint("PreparedQuery", &m))
+
+		body := bytes.NewBuffer(nil)
+		req, _ := http.NewRequest("GET", "/v1/query/my-id/execute?connect=true", body)
+		resp := httptest.NewRecorder()
+		_, err := a.srv.PreparedQuerySpecific(resp, req)
+		require.NoError(err)
+		require.Equal(200, resp.Code)
 	})
 }
 
@@ -905,6 +988,7 @@ func TestPreparedQuery_Integration(t *testing.T) {
 	t.Parallel()
 	a := NewTestAgent(t.Name(), "")
 	defer a.Shutdown()
+	testrpc.WaitForTestAgent(t, a.RPC, "dc1")
 
 	// Register a node and a service.
 	{

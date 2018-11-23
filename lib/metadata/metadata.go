@@ -47,6 +47,12 @@ type Backend interface {
 
 	// DeleteDocumentByID - delete a document by ID and its child documents
 	DeleteDocumentByID(collection, tsType, id string) gobol.Error
+
+	// FilterTagKeysByMetric - filter tag values from a collection given its metric
+	FilterTagKeysByMetric(collection, tsType, metric, prefix string, maxResults int) ([]string, int, gobol.Error)
+
+	// FilterTagValuesByMetricAndTag - filter tag values from a collection given its metric and tag
+	FilterTagValuesByMetricAndTag(collection, tsType, metric, tag, prefix string, maxResults int) ([]string, int, gobol.Error)
 }
 
 // Storage is a storage for metadata
@@ -59,14 +65,15 @@ type Storage struct {
 
 // Settings for the metadata package
 type Settings struct {
-	NumShards         int
-	ReplicationFactor int
-	URL               string
-	IDCacheTTL        int32
-	QueryCacheTTL     int32
-	KeysetCacheTTL    int32
-	MaxReturnedTags   int
-	ZookeeperConfig   string
+	NumShards           int
+	ReplicationFactor   int
+	URL                 string
+	IDCacheTTL          int32
+	QueryCacheTTL       int32
+	KeysetCacheTTL      int32
+	MaxReturnedMetadata int
+	ZookeeperConfig     string
+	BlacklistedKeysets  []string
 }
 
 // Metadata document
@@ -76,6 +83,7 @@ type Metadata struct {
 	TagKey   []string `json:"tagKey"`
 	TagValue []string `json:"tagValue"`
 	MetaType string   `json:"type"`
+	Keyset   string   `json:"keyset"`
 }
 
 // Query - query

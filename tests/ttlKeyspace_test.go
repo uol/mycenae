@@ -35,7 +35,7 @@ type node struct {
 	payloads    []tools.Payload
 }
 
-type getCount func(t *testing.T, ttl uint8, id string) int
+type getCount func(t *testing.T, ttl uint8, id string, date time.Time) int
 
 func mapPoints(ttl uint8, idMap map[uint8]node, payloads []tools.Payload, ids []string) {
 
@@ -106,7 +106,8 @@ func sendRandomPoints(num int, ttl uint8, metric string, isNumber bool, lastSent
 		}
 
 		ps = append(ps, p)
-		tsuids = append(tsuids, tools.GetTSUIDFromPayload(&p, isNumber))
+		tsid := tools.GetTSUIDFromPayload(&p, isNumber)
+		tsuids = append(tsuids, tsid)
 	}
 
 	var api string
@@ -132,20 +133,12 @@ func sendRandomPoints(num int, ttl uint8, metric string, isNumber bool, lastSent
 	return ps, tsuids, lastSentPoint
 }
 
-func getTSUID(year, week int, id string) string {
-	return fmt.Sprintf("%v%v%v", year, week, id)
-}
-
 func runTest(t *testing.T, f getCount, m map[uint8]node, pointType string) {
 
-	year, week := time.Now().ISOWeek()
-
 	for ttl, node := range m {
-
 		count := 0
-		for _, id := range node.ids {
-			tsuid := getTSUID(year, week, id)
-			count += f(t, ttl, tsuid)
+		for _, tsuid := range node.ids {
+			count += f(t, ttl, tsuid, startTime)
 			assert.True(t, count > 0, "no %s points found for ttl %d and id %s", pointType, ttl, tsuid)
 		}
 
@@ -153,12 +146,12 @@ func runTest(t *testing.T, f getCount, m map[uint8]node, pointType string) {
 	}
 }
 
-func getCountFromScylla(t *testing.T, ttl uint8, id string) int {
-	return mycenaeTools.Cassandra.Timeseries.CountValueFromIDSTAMP(int(ttl), id)
+func getCountFromScylla(t *testing.T, ttl uint8, id string, date time.Time) int {
+	return mycenaeTools.Cassandra.Timeseries.CountValuesPriorDate(int(ttl), id, date.Unix())
 }
 
-func getTextCountFromScylla(t *testing.T, ttl uint8, id string) int {
-	return mycenaeTools.Cassandra.Timeseries.CountTextFromIDSTAMP(int(ttl), id)
+func getTextCountFromScylla(t *testing.T, ttl uint8, id string, date time.Time) int {
+	return mycenaeTools.Cassandra.Timeseries.CountTextPriorDate(int(ttl), id, date.Unix())
 }
 
 func TestTTLKeyspaceCheckPointsInScylla(t *testing.T) {
@@ -169,16 +162,7 @@ func TestTTLKeyspaceCheckPointsInScylla(t *testing.T) {
 	runTest(t, getTextCountFromScylla, ttlTSUIDTextMap, "text")
 }
 
-func queryByTTL(t *testing.T, ttl uint8, id string, isNumber bool) int {
-
-	runes := []rune(id)
-
-	runeIndex := 5
-	if _, w := startTime.ISOWeek(); w >= 10 {
-		runeIndex = 6
-	}
-
-	tsid := string(runes[runeIndex:])
+func queryByTTL(t *testing.T, ttl uint8, tsid string, isNumber bool, date time.Time) int {
 
 	tpl := `{
 		"%s": [{
@@ -200,8 +184,8 @@ func queryByTTL(t *testing.T, ttl uint8, id string, isNumber bool) int {
 		qType,
 		tsid,
 		int(ttl),
-		startTime.Unix()*1000,
-		endTime.Unix()*1000)
+		date.Unix()*1000,
+		date.Add(time.Hour*time.Duration(1)).Unix()*1000)
 
 	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ttlKeyspaceKeySet+"/points", []byte(payload))
 	if err != nil {
@@ -221,19 +205,19 @@ func queryByTTL(t *testing.T, ttl uint8, id string, isNumber bool) int {
 			t.SkipNow()
 		}
 		return count
-	} else {
-		t.Error("no 'count' attribute was found on response: ", string(response))
-		t.SkipNow()
-		return 0
 	}
+
+	t.Error("no 'count' attribute was found on response: ", string(response))
+	t.SkipNow()
+	return 0
 }
 
-func getCountUsingAPI(t *testing.T, ttl uint8, id string) int {
-	return queryByTTL(t, ttl, id, true)
+func getCountUsingAPI(t *testing.T, ttl uint8, id string, date time.Time) int {
+	return queryByTTL(t, ttl, id, true, date)
 }
 
-func getCountTextUsingAPI(t *testing.T, ttl uint8, id string) int {
-	return queryByTTL(t, ttl, id, false)
+func getCountTextUsingAPI(t *testing.T, ttl uint8, id string, date time.Time) int {
+	return queryByTTL(t, ttl, id, false, date)
 }
 
 func TestTTLKeyspaceCheckPointsUsingV2Query(t *testing.T) {
@@ -260,7 +244,7 @@ func checkMetadata(t *testing.T, uri string) {
 	assert.True(t, len(payloads) == len(tools.TTLKeyspaceMap), "wrong number of ttl keyspace metas found: expected %d, found %d", len(tools.TTLKeyspaceMap), len(payloads))
 
 	ttlTagMap := map[uint8]bool{}
-	for ttl, _ := range tools.TTLKeyspaceMap {
+	for ttl := range tools.TTLKeyspaceMap {
 		ttlTagMap[ttl] = true
 	}
 

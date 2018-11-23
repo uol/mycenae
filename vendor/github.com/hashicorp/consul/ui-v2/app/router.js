@@ -19,6 +19,11 @@ Router.map(function() {
       // Show an individual node
       this.route('show', { path: '/:name' });
     });
+    // Intentions represent a consul intention
+    this.route('intentions', { path: '/intentions' }, function() {
+      this.route('edit', { path: '/:id' });
+      this.route('create', { path: '/create' });
+    });
     // Key/Value
     this.route('kv', { path: '/kv' }, function() {
       this.route('folder', { path: '/*key' });
@@ -30,6 +35,14 @@ Router.map(function() {
     this.route('acls', { path: '/acls' }, function() {
       this.route('edit', { path: '/:id' });
       this.route('create', { path: '/create' });
+      this.route('policies', { path: '/policies' }, function() {
+        this.route('edit', { path: '/:id' });
+        this.route('create', { path: '/create' });
+      });
+      this.route('tokens', { path: '/tokens' }, function() {
+        this.route('edit', { path: '/:id' });
+        this.route('create', { path: '/create' });
+      });
     });
   });
 
@@ -38,7 +51,7 @@ Router.map(function() {
   this.route('index', { path: '/' });
 
   // The settings page is global.
-  this.route('settings', { path: '/settings' });
+  // this.route('settings', { path: '/settings' });
   this.route('notfound', { path: '/*path' });
 });
 

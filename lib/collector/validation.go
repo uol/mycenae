@@ -2,7 +2,6 @@ package collector
 
 import (
 	"fmt"
-	"time"
 
 	"strconv"
 
@@ -167,8 +166,6 @@ func (collector *Collector) makePacket(packet *Point, rcvMsg TSDBpoint, number b
 	if !number {
 		packet.ID = fmt.Sprintf("T%v", packet.ID)
 	}
-	year, week := time.Unix(0, packet.Timestamp*1e+6).ISOWeek()
-	packet.Bucket = fmt.Sprintf("%v%v", year, week)
 
 	return nil
 }

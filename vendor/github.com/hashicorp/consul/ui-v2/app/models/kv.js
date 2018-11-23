@@ -13,9 +13,13 @@ export default Model.extend({
   [SLUG_KEY]: attr('string'),
   LockIndex: attr('number'),
   Flags: attr('number'),
-  Value: attr('string'),
-  CreateIndex: attr('string'),
-  ModifyIndex: attr('string'),
+  // TODO: Consider defaulting all strings to '' because `typeof null !== 'string'`
+  // look into what other transformers do with `null` also
+  // preferably removeNull would be done in this layer also as if a property is `null`
+  // default Values don't kick in, which also explains `Tags` elsewhere
+  Value: attr('string'), //, {defaultValue: function() {return '';}}
+  CreateIndex: attr('number'),
+  ModifyIndex: attr('number'),
   Session: attr('string'),
   Datacenter: attr('string'),
 

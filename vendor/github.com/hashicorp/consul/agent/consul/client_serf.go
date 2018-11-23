@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/consul/agent/metadata"
+	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/serf/serf"
 )
@@ -23,6 +24,14 @@ func (c *Client) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 	conf.Tags["vsn_min"] = fmt.Sprintf("%d", ProtocolVersionMin)
 	conf.Tags["vsn_max"] = fmt.Sprintf("%d", ProtocolVersionMax)
 	conf.Tags["build"] = c.config.Build
+	if c.acls.ACLsEnabled() {
+		// we start in legacy mode and then transition to normal
+		// mode once we know the cluster can handle it.
+		conf.Tags["acls"] = string(structs.ACLModeLegacy)
+	} else {
+		conf.Tags["acls"] = string(structs.ACLModeDisabled)
+	}
+
 	if c.logger == nil {
 		conf.MemberlistConfig.LogOutput = c.config.LogOutput
 		conf.LogOutput = c.config.LogOutput
@@ -135,6 +144,8 @@ func (c *Client) localEvent(event serf.UserEvent) {
 			c.config.UserEventHandler(event)
 		}
 	default:
-		c.logger.Printf("[WARN] consul: Unhandled local event: %v", event)
+		if !c.handleEnterpriseUserEvents(event) {
+			c.logger.Printf("[WARN] consul: Unhandled local event: %v", event)
+		}
 	}
 }

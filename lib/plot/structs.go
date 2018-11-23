@@ -188,28 +188,26 @@ type Response struct {
 }
 
 type TS struct {
-	index int
 	Count int
 	Total int
 	Data  Pnts
-	gerr  gobol.Error
 }
 
 type TST struct {
-	index int
 	Count int
 	Total int
 	Data  TextPnts
-	gerr  gobol.Error
 }
 
 type Pnt struct {
+	TSID  string
 	Date  int64
 	Value float64
 	Empty bool
 }
 
 type TextPnt struct {
+	TSID  string
 	Date  int64  `json:"x"`
 	Value string `json:"title"`
 }

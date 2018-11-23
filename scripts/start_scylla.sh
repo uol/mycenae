@@ -1,11 +1,12 @@
 #!/bin/bash
 
-image="jenkins.macs.intranet:5000/mycenae/scylladb:v1"
+image="jenkins.macs.intranet:5000/mycenae/scylladb:v2.3.2"
 pod_name="scylla$1"
 
 pod_arguments=(
     '-d'
     '--name' "${pod_name}"
+	'--hostname' "${pod_name}"
 )
 
 if [ $1 -gt 1 ]; then

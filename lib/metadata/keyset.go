@@ -79,29 +79,36 @@ func (sb *SolrBackend) ListKeySets() ([]string, gobol.Error) {
 	}
 
 	if keySetMap != nil && len(keySetMap) > 0 {
-		indexes := make([]string, 0, len(keySetMap))
+		keysets := make([]string, 0, len(keySetMap))
 		for k := range keySetMap {
-			indexes = append(indexes, k)
+			keysets = append(keysets, k)
 		}
 
 		sb.statsCollectionAction("all", "list_cached", "solr.collection.list", time.Since(start))
-		return indexes, nil
+		return keysets, nil
 	}
 
-	indexes, e := sb.solrService.ListCollections()
+	keysets, e := sb.solrService.ListCollections()
 	if e != nil {
 		sb.statsCollectionError("all", "list", "solr.collection.list.error")
 		return nil, errInternalServer("ListKeySets", e)
 	}
 
-	_, err = sb.cacheKeySetMap(indexes)
+	filteredKeysets := []string{}
+	for i := 0; i < len(keysets); i++ {
+		if _, ok := sb.blacklistedKeysetMap[keysets[i]]; !ok {
+			filteredKeysets = append(filteredKeysets, keysets[i])
+		}
+	}
+
+	_, err = sb.cacheKeySetMap(filteredKeysets)
 	if err != nil {
 		sb.statsCollectionError("all", "list_cached", "memcached.collection.list.error")
 		return nil, errInternalServer("ListKeySets", e)
 	}
 
 	sb.statsCollectionAction("all", "list", "solr.collection.list", time.Since(start))
-	return indexes, nil
+	return filteredKeysets, nil
 }
 
 // CheckKeySet - verifies if an index exists
@@ -119,13 +126,20 @@ func (sb *SolrBackend) CheckKeySet(keyset string) (bool, gobol.Error) {
 		return keySetMap[keyset], nil
 	}
 
-	indexes, e := sb.solrService.ListCollections()
+	keysets, e := sb.solrService.ListCollections()
 	if e != nil {
 		sb.statsCollectionError("all", "list", "solr.collection.list.error")
 		return false, errInternalServer("CheckKeySet", e)
 	}
 
-	keySetMap, err = sb.cacheKeySetMap(indexes)
+	filteredKeysets := []string{}
+	for i := 0; i < len(keysets); i++ {
+		if _, ok := sb.blacklistedKeysetMap[keysets[i]]; !ok {
+			filteredKeysets = append(filteredKeysets, keysets[i])
+		}
+	}
+
+	keySetMap, err = sb.cacheKeySetMap(filteredKeysets)
 	if err != nil {
 		sb.statsCollectionError("all", "list_cached", "memcached.collection.list.error")
 		return false, errInternalServer("CheckKeySet", e)

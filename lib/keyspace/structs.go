@@ -1,9 +1,12 @@
 package keyspace
 
 import (
-	"github.com/asaskevich/govalidator"
+	"regexp"
+
 	"github.com/uol/gobol"
 )
+
+var emailRegex = regexp.MustCompile("^[_A-Za-z0-9-\\+]+(\\.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(\\.[A-Za-z0-9]+)*(\\.[A-Za-z]{2,})$")
 
 // Config is the json format for the keyspace configuration
 type Config struct {
@@ -12,7 +15,7 @@ type Config struct {
 	Datacenter        string `json:"datacenter"`
 	ReplicationFactor int    `json:"replicationFactor"`
 	Contact           string `json:"contact"`
-	TTL               int  	 `json:"ttl"`
+	TTL               int    `json:"ttl"`
 }
 
 // Validate checks if config is valid
@@ -29,7 +32,7 @@ func (c *Config) Validate() gobol.Error {
 		)
 	}
 
-	if !govalidator.IsEmail(c.Contact) {
+	if !emailRegex.MatchString(c.Contact) {
 		return errValidationS("CreateKeyspace", "Contact field should be a valid email address")
 	}
 
@@ -43,7 +46,7 @@ func (c *Config) Validate() gobol.Error {
 // Validate checks if the update to the keyspace will be valid
 func (c *ConfigUpdate) Validate() gobol.Error {
 
-	if !govalidator.IsEmail(c.Contact) {
+	if !emailRegex.MatchString(c.Contact) {
 		return errValidationS("CreateKeyspace", "Contact field should be a valid email address")
 	}
 

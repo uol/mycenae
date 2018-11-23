@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"net/url"
+	"strconv"
 	"testing"
 	"time"
 
@@ -123,30 +125,6 @@ func TestListMetricV2Size(t *testing.T) {
 	assert.Equal(t, resp.Payload[1], resp2.Payload[1])
 }
 
-// Does not make sense in the new version
-// func TestListMetricV2From(t *testing.T) {
-// 	t.Parallel()
-
-// 	payload := [5]tools.Payload{}
-
-// 	for i := range payload {
-// 		p := mycenaeTools.Mycenae.GetPayload(ksMycenae)
-// 		p.Metric = fmt.Sprint(p.Metric, "f")
-// 		payload[i] = *p
-// 	}
-
-// 	postPoints(payload, false, t)
-
-// 	path := fmt.Sprintf("metrics?metric=%s%s", tools.MetricForm, ".*f{1}")
-// 	resp := getResponse(path, 5, 5, t)
-
-// 	path = fmt.Sprintf("metrics?metric=%s%s&from=3", tools.MetricForm, ".*f{1}")
-// 	resp2 := getResponse(path, 5, 2, t)
-
-// 	assert.Equal(t, resp.Payload[3], resp2.Payload[0])
-// 	assert.Equal(t, resp.Payload[4], resp2.Payload[1])
-// }
-
 // METRIC TEXT
 
 func TestListMetricV2TextRegex(t *testing.T) {
@@ -213,30 +191,6 @@ func TestListMetricV2TextSize(t *testing.T) {
 	assert.Equal(t, resp.Payload[0], resp2.Payload[0])
 	assert.Equal(t, resp.Payload[1], resp2.Payload[1])
 }
-
-// Does not makes sense in the new version
-// func TestListMetricV2TextFrom(t *testing.T) {
-// 	t.Parallel()
-
-// 	payload := [5]tools.Payload{}
-
-// 	for i := range payload {
-// 		p := mycenaeTools.Mycenae.GetTextPayload(ksMycenae)
-// 		p.Metric = fmt.Sprint(p.Metric, "f")
-// 		payload[i] = *p
-// 	}
-
-// 	postPoints(payload, true, t)
-
-// 	path := fmt.Sprintf("text/metrics?metric=%s%s", tools.MetricForm, ".*f{1}")
-// 	resp := getResponse(path, 5, 5, t)
-
-// 	path = fmt.Sprintf("text/metrics?metric=%s%s&from=3", tools.MetricForm, ".*f{1}")
-// 	resp2 := getResponse(path, 5, 2, t)
-
-// 	assert.Equal(t, resp.Payload[3], resp2.Payload[0])
-// 	assert.Equal(t, resp.Payload[4], resp2.Payload[1])
-// }
 
 // TAGS
 
@@ -323,31 +277,6 @@ func TestListTagsV2Size(t *testing.T) {
 	assert.Equal(t, resp.Payload[1], resp2.Payload[1])
 }
 
-// Does not make sense in the new version
-// func TestListTagsV2From(t *testing.T) {
-// 	t.Parallel()
-
-// 	payload := [5]tools.Payload{}
-
-// 	for i := range payload {
-// 		p := mycenaeTools.Mycenae.GetPayload(ksMycenae)
-// 		tagkey := fmt.Sprint(p.TagKey, "f")
-// 		p.Tags[tagkey] = p.TagValue
-// 		payload[i] = *p
-// 	}
-
-// 	postPoints(payload, false, t)
-
-// 	path := fmt.Sprintf("tags?tag=%s%s", tools.TagKeyForm, ".*f{1}")
-// 	resp := getResponse(path, 5, 5, t)
-
-// 	path = fmt.Sprintf("tags?tag=%s%s&from=3", tools.TagKeyForm, ".*f{1}")
-// 	resp2 := getResponse(path, 5, 2, t)
-
-// 	assert.Equal(t, resp.Payload[3], resp2.Payload[0])
-// 	assert.Equal(t, resp.Payload[4], resp2.Payload[1])
-// }
-
 // TAGS TEXT
 
 func TestListTagsV2TextRegex(t *testing.T) {
@@ -418,27 +347,157 @@ func TestListTagsV2TextSize(t *testing.T) {
 	assert.Equal(t, resp.Payload[1], resp2.Payload[1])
 }
 
-// Does not makes sense in the new version
-// func TestListTagsV2TextFrom(t *testing.T) {
-// 	t.Parallel()
+func populateTagByMetric(metric string, size int, t *testing.T) *tools.Payload {
 
-// 	payload := [5]tools.Payload{}
+	var value float32 = 1.1
 
-// 	for i := range payload {
-// 		p := mycenaeTools.Mycenae.GetTextPayload(ksMycenae)
-// 		tagkey := fmt.Sprint(p.TagKey, "f")
-// 		p.Tags[tagkey] = p.TagValue
-// 		payload[i] = *p
-// 	}
+	p := &tools.Payload{
+		Value:  &value,
+		Metric: metric,
+		Tags: map[string]string{
+			"ttl":  "1",
+			"ksid": ksMycenae,
+		},
+	}
 
-// 	postPoints(payload, true, t)
+	for i := 0; i < size; i++ {
+		p.Tags[metric+"-tag-"+strconv.Itoa(i)] = metric + "-key-" + strconv.Itoa(i)
+	}
 
-// 	path := fmt.Sprintf("text/tags?tag=%s%s", tools.TagKeyForm, ".*f{1}")
-// 	resp := getResponse(path, 5, 5, t)
+	payload := []tools.Payload{*p}
+	postPoints(payload, false, t)
 
-// 	path = fmt.Sprintf("text/tags?tag=%s%s&from=3", tools.TagKeyForm, ".*f{1}")
-// 	resp2 := getResponse(path, 5, 2, t)
+	return p
+}
 
-// 	assert.Equal(t, resp.Payload[3], resp2.Payload[0])
-// 	assert.Equal(t, resp.Payload[4], resp2.Payload[1])
-// }
+func TestTagKeysByMetricAllTags(t *testing.T) {
+	t.Parallel()
+
+	size := 3
+	expectedSize := 4 //plus TTL
+	p := populateTagByMetric("TestTagKeysByMetricAllTags", size, t)
+
+	path := fmt.Sprintf("metric/tag/keys?metric=%s", p.Metric)
+	resp := getResponse(path, expectedSize, expectedSize, t)
+
+	tagMap := map[string]bool{
+		"TestTagKeysByMetricAllTags-tag-0": true,
+		"TestTagKeysByMetricAllTags-tag-1": true,
+		"TestTagKeysByMetricAllTags-tag-2": true,
+		"ttl": true,
+	}
+
+	for _, v := range resp.Payload {
+		assert.True(t, tagMap[v])
+	}
+}
+
+func TestTagKeysByMetricRegex(t *testing.T) {
+	t.Parallel()
+
+	size := 10
+	expectedSize := 5
+	p := populateTagByMetric("TestTagKeysByMetricRegex", size, t)
+
+	path := fmt.Sprintf("metric/tag/keys?metric=%s&tag=%s", p.Metric, url.QueryEscape("TestTagKeysByMetricRegex\\-tag\\-[02468]+"))
+	resp := getResponse(path, expectedSize, expectedSize, t)
+
+	tagMap := map[string]bool{
+		"TestTagKeysByMetricRegex-tag-0": true,
+		"TestTagKeysByMetricRegex-tag-2": true,
+		"TestTagKeysByMetricRegex-tag-4": true,
+		"TestTagKeysByMetricRegex-tag-6": true,
+		"TestTagKeysByMetricRegex-tag-8": true,
+	}
+
+	for i := 0; i < expectedSize; i++ {
+		assert.True(t, tagMap[resp.Payload[i]])
+	}
+}
+
+func TestTagKeysByMetricMaxResults(t *testing.T) {
+	t.Parallel()
+
+	size := 10
+	expectedSize := 11
+	expectedCropped := 6
+	p := populateTagByMetric("TestTagKeysByMetricMaxResults", size, t)
+
+	path := fmt.Sprintf("metric/tag/keys?metric=%s&size=%d", p.Metric, expectedCropped)
+	getResponse(path, expectedSize, expectedCropped, t)
+}
+
+func populateTagsWithDifferentValues(t *testing.T, metric string, tagValue ...string) []tools.Payload {
+
+	payload := []tools.Payload{}
+
+	var value float32 = 1.2
+
+	for i := 0; i < len(tagValue); i++ {
+
+		p := &tools.Payload{
+			Value:  &value,
+			Metric: metric,
+			Tags: map[string]string{
+				"ttl":  "1",
+				"ksid": ksMycenae,
+				"tag":  tagValue[i],
+			},
+		}
+
+		payload = append(payload, *p)
+	}
+
+	postPoints(payload, false, t)
+
+	return payload
+}
+
+func TestTagValuesByMetricAllTags(t *testing.T) {
+	t.Parallel()
+
+	expectedSize := 3
+	payload := populateTagsWithDifferentValues(t, "TestTagValuesByMetricAllTags", "tag1", "tag2", "tag3")
+
+	path := fmt.Sprintf("metric/tag/values?metric=%s&tag=%s", "TestTagValuesByMetricAllTags", "tag")
+	resp := getResponse(path, expectedSize, expectedSize, t)
+
+	tagMap := map[string]bool{}
+	for i := 0; i < expectedSize; i++ {
+		tagMap[resp.Payload[i]] = true
+	}
+
+	for i := 0; i < expectedSize; i++ {
+		assert.True(t, tagMap[payload[i].Tags["tag"]])
+	}
+}
+
+func TestTagValuesByMetricRegex(t *testing.T) {
+	t.Parallel()
+
+	size := 2
+	populateTagsWithDifferentValues(t, "TestTagValuesByMetricRegex", "tag1", "lalala", "tag3")
+
+	path := fmt.Sprintf("metric/tag/values?metric=%s&tag=tag&value=%s", "TestTagValuesByMetricRegex", url.QueryEscape("tag[0-9]+"))
+	resp := getResponse(path, size, size, t)
+
+	tagMap := map[string]bool{
+		"tag1": true,
+		"tag3": true,
+	}
+
+	for i := 0; i < size; i++ {
+		assert.True(t, tagMap[resp.Payload[i]])
+	}
+}
+
+func TestTagValuesByMetricMaxResults(t *testing.T) {
+	t.Parallel()
+
+	size := 3
+	expectedSize := 1
+	populateTagsWithDifferentValues(t, "TestTagValuesByMetricMaxResults", "tag1", "tag2", "tag3")
+
+	path := fmt.Sprintf("metric/tag/values?metric=%s&tag=tag&size=%d", "TestTagValuesByMetricMaxResults", expectedSize)
+	getResponse(path, size, expectedSize, t)
+}

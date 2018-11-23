@@ -12,19 +12,17 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/armon/go-metrics"
-	"github.com/armon/go-metrics/circonus"
-	"github.com/armon/go-metrics/datadog"
-	"github.com/armon/go-metrics/prometheus"
 	"github.com/hashicorp/consul/agent"
 	"github.com/hashicorp/consul/agent/config"
 	"github.com/hashicorp/consul/command/flags"
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/consul/logger"
+	"github.com/hashicorp/consul/service_os"
 	"github.com/hashicorp/go-checkpoint"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/logutils"
 	"github.com/mitchellh/cli"
+	"google.golang.org/grpc/grpclog"
 )
 
 func New(ui cli.Ui, revision, version, versionPre, versionHuman string, shutdownCh <-chan struct{}) *cmd {
@@ -61,7 +59,6 @@ type cmd struct {
 	versionPrerelease string
 	versionHuman      string
 	shutdownCh        <-chan struct{}
-	args              []string
 	flagArgs          config.Flags
 	logFilter         *logutils.LevelFilter
 	logOutput         io.Writer
@@ -85,14 +82,6 @@ func (c *cmd) Run(args []string) int {
 // readConfig is responsible for setup of our configuration using
 // the command line and any file configs
 func (c *cmd) readConfig() *config.RuntimeConfig {
-	if err := c.flags.Parse(c.args); err != nil {
-		if !strings.Contains(err.Error(), "help requested") {
-			c.UI.Error(fmt.Sprintf("error parsing flags: %v", err))
-		}
-		return nil
-	}
-	c.flagArgs.Args = c.flags.Args()
-
 	b, err := config.NewBuilder(c.flagArgs)
 	if err != nil {
 		c.UI.Error(err.Error())
@@ -183,139 +172,15 @@ func (c *cmd) startupJoinWan(agent *agent.Agent, cfg *config.RuntimeConfig) erro
 	return nil
 }
 
-func statsiteSink(config *config.RuntimeConfig, hostname string) (metrics.MetricSink, error) {
-	if config.TelemetryStatsiteAddr == "" {
-		return nil, nil
-	}
-	return metrics.NewStatsiteSink(config.TelemetryStatsiteAddr)
-}
-
-func statsdSink(config *config.RuntimeConfig, hostname string) (metrics.MetricSink, error) {
-	if config.TelemetryStatsdAddr == "" {
-		return nil, nil
-	}
-	return metrics.NewStatsdSink(config.TelemetryStatsdAddr)
-}
-
-func dogstatdSink(config *config.RuntimeConfig, hostname string) (metrics.MetricSink, error) {
-	if config.TelemetryDogstatsdAddr == "" {
-		return nil, nil
-	}
-	sink, err := datadog.NewDogStatsdSink(config.TelemetryDogstatsdAddr, hostname)
-	if err != nil {
-		return nil, err
-	}
-	sink.SetTags(config.TelemetryDogstatsdTags)
-	return sink, nil
-}
-
-func prometheusSink(config *config.RuntimeConfig, hostname string) (metrics.MetricSink, error) {
-	if config.TelemetryPrometheusRetentionTime.Nanoseconds() < 1 {
-		return nil, nil
-	}
-	prometheusOpts := prometheus.PrometheusOpts{
-		Expiration: config.TelemetryPrometheusRetentionTime,
-	}
-	sink, err := prometheus.NewPrometheusSinkFrom(prometheusOpts)
-	if err != nil {
-		return nil, err
-	}
-	return sink, nil
-}
-
-func circonusSink(config *config.RuntimeConfig, hostname string) (metrics.MetricSink, error) {
-	if config.TelemetryCirconusAPIToken == "" && config.TelemetryCirconusSubmissionURL == "" {
-		return nil, nil
-	}
-
-	cfg := &circonus.Config{}
-	cfg.Interval = config.TelemetryCirconusSubmissionInterval
-	cfg.CheckManager.API.TokenKey = config.TelemetryCirconusAPIToken
-	cfg.CheckManager.API.TokenApp = config.TelemetryCirconusAPIApp
-	cfg.CheckManager.API.URL = config.TelemetryCirconusAPIURL
-	cfg.CheckManager.Check.SubmissionURL = config.TelemetryCirconusSubmissionURL
-	cfg.CheckManager.Check.ID = config.TelemetryCirconusCheckID
-	cfg.CheckManager.Check.ForceMetricActivation = config.TelemetryCirconusCheckForceMetricActivation
-	cfg.CheckManager.Check.InstanceID = config.TelemetryCirconusCheckInstanceID
-	cfg.CheckManager.Check.SearchTag = config.TelemetryCirconusCheckSearchTag
-	cfg.CheckManager.Check.DisplayName = config.TelemetryCirconusCheckDisplayName
-	cfg.CheckManager.Check.Tags = config.TelemetryCirconusCheckTags
-	cfg.CheckManager.Broker.ID = config.TelemetryCirconusBrokerID
-	cfg.CheckManager.Broker.SelectTag = config.TelemetryCirconusBrokerSelectTag
-
-	if cfg.CheckManager.Check.DisplayName == "" {
-		cfg.CheckManager.Check.DisplayName = "Consul"
-	}
-
-	if cfg.CheckManager.API.TokenApp == "" {
-		cfg.CheckManager.API.TokenApp = "consul"
-	}
-
-	if cfg.CheckManager.Check.SearchTag == "" {
-		cfg.CheckManager.Check.SearchTag = "service:consul"
-	}
-
-	sink, err := circonus.NewCirconusSink(cfg)
-	if err != nil {
-		return nil, err
-	}
-	sink.Start()
-	return sink, nil
-}
-
-func startupTelemetry(conf *config.RuntimeConfig) (*metrics.InmemSink, error) {
-	// Setup telemetry
-	// Aggregate on 10 second intervals for 1 minute. Expose the
-	// metrics over stderr when there is a SIGUSR1 received.
-	memSink := metrics.NewInmemSink(10*time.Second, time.Minute)
-	metrics.DefaultInmemSignal(memSink)
-	metricsConf := metrics.DefaultConfig(conf.TelemetryMetricsPrefix)
-	metricsConf.EnableHostname = !conf.TelemetryDisableHostname
-	metricsConf.FilterDefault = conf.TelemetryFilterDefault
-	metricsConf.AllowedPrefixes = conf.TelemetryAllowedPrefixes
-	metricsConf.BlockedPrefixes = conf.TelemetryBlockedPrefixes
-
-	var sinks metrics.FanoutSink
-	addSink := func(name string, fn func(*config.RuntimeConfig, string) (metrics.MetricSink, error)) error {
-		s, err := fn(conf, metricsConf.HostName)
-		if err != nil {
-			return err
-		}
-		if s != nil {
-			sinks = append(sinks, s)
-		}
-		return nil
-	}
-
-	if err := addSink("statsite", statsiteSink); err != nil {
-		return nil, err
-	}
-	if err := addSink("statsd", statsdSink); err != nil {
-		return nil, err
-	}
-	if err := addSink("dogstatd", dogstatdSink); err != nil {
-		return nil, err
-	}
-	if err := addSink("circonus", circonusSink); err != nil {
-		return nil, err
-	}
-	if err := addSink("prometheus", prometheusSink); err != nil {
-		return nil, err
-	}
-
-	if len(sinks) > 0 {
-		sinks = append(sinks, memSink)
-		metrics.NewGlobal(metricsConf, sinks)
-	} else {
-		metricsConf.EnableHostname = false
-		metrics.NewGlobal(metricsConf, memSink)
-	}
-	return memSink, nil
-}
-
 func (c *cmd) run(args []string) int {
 	// Parse our configs
-	c.args = args
+	if err := c.flags.Parse(args); err != nil {
+		if !strings.Contains(err.Error(), "help requested") {
+			c.UI.Error(fmt.Sprintf("error parsing flags: %v", err))
+		}
+		return 1
+	}
+	c.flagArgs.Args = c.flags.Args()
 	config := c.readConfig()
 	if config == nil {
 		return 1
@@ -323,9 +188,12 @@ func (c *cmd) run(args []string) int {
 
 	// Setup the log outputs
 	logConfig := &logger.Config{
-		LogLevel:       config.LogLevel,
-		EnableSyslog:   config.EnableSyslog,
-		SyslogFacility: config.SyslogFacility,
+		LogLevel:          config.LogLevel,
+		EnableSyslog:      config.EnableSyslog,
+		SyslogFacility:    config.SyslogFacility,
+		LogFilePath:       config.LogFile,
+		LogRotateDuration: config.LogRotateDuration,
+		LogRotateBytes:    config.LogRotateBytes,
 	}
 	logFilter, logGate, logWriter, logOutput, ok := logger.Setup(logConfig, c.UI)
 	if !ok {
@@ -335,7 +203,10 @@ func (c *cmd) run(args []string) int {
 	c.logOutput = logOutput
 	c.logger = log.New(logOutput, "", log.LstdFlags)
 
-	memSink, err := startupTelemetry(config)
+	// Setup gRPC logger to use the same output/filtering
+	grpclog.SetLoggerV2(logger.NewGRPCLogger(logConfig, c.logger))
+
+	memSink, err := lib.InitTelemetry(config.Telemetry)
 	if err != nil {
 		c.UI.Error(err.Error())
 		return 1
@@ -389,8 +260,8 @@ func (c *cmd) run(args []string) int {
 	c.UI.Info(fmt.Sprintf("     Node name: '%s'", config.NodeName))
 	c.UI.Info(fmt.Sprintf("    Datacenter: '%s' (Segment: '%s')", config.Datacenter, segment))
 	c.UI.Info(fmt.Sprintf("        Server: %v (Bootstrap: %v)", config.ServerMode, config.Bootstrap))
-	c.UI.Info(fmt.Sprintf("   Client Addr: %v (HTTP: %d, HTTPS: %d, DNS: %d)", config.ClientAddrs,
-		config.HTTPPort, config.HTTPSPort, config.DNSPort))
+	c.UI.Info(fmt.Sprintf("   Client Addr: %v (HTTP: %d, HTTPS: %d, gRPC: %d, DNS: %d)", config.ClientAddrs,
+		config.HTTPPort, config.HTTPSPort, config.GRPCPort, config.DNSPort))
 	c.UI.Info(fmt.Sprintf("  Cluster Addr: %v (LAN: %d, WAN: %d)", config.AdvertiseAddrLAN,
 		config.SerfPortLAN, config.SerfPortWAN))
 	c.UI.Info(fmt.Sprintf("       Encrypt: Gossip: %v, TLS-Outgoing: %v, TLS-Incoming: %v",
@@ -414,6 +285,8 @@ func (c *cmd) run(args []string) int {
 		case ch := <-agent.ReloadCh():
 			sig = syscall.SIGHUP
 			reloadErrCh = ch
+		case <-service_os.Shutdown_Channel():
+			sig = os.Interrupt
 		case <-c.shutdownCh:
 			sig = os.Interrupt
 		case err := <-agent.RetryJoinCh():
@@ -506,7 +379,7 @@ func (c *cmd) handleReload(agent *agent.Agent, cfg *config.RuntimeConfig) (*conf
 			"Failed to reload configs: %v", err))
 	}
 
-	return cfg, errs
+	return newCfg, errs
 }
 
 func (c *cmd) Synopsis() string {

@@ -5,6 +5,8 @@ import (
 	"net/http"
 
 	"github.com/uol/gobol"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/uol/mycenae/lib/tserr"
 )
@@ -14,9 +16,9 @@ func errInit(s string) gobol.Error {
 		errors.New(s),
 		s,
 		http.StatusInternalServerError,
-		map[string]interface{}{
-			"package":  "plot",
-			"function": "New",
+		[]zapcore.Field{
+			zap.String("package", "plot"),
+			zap.String("func", "New"),
 		},
 	)
 }
@@ -27,9 +29,9 @@ func errBasic(f, s string, code int, e error) gobol.Error {
 			e,
 			s,
 			code,
-			map[string]interface{}{
-				"package": "plot",
-				"func":    f,
+			[]zapcore.Field{
+				zap.String("package", "plot"),
+				zap.String("func", f),
 			},
 		)
 	}
@@ -70,4 +72,8 @@ func errValidationE(f string, e error) gobol.Error {
 
 func errEmptyExpression(f string) gobol.Error {
 	return errBasic(f, "no expression found", http.StatusBadRequest, errors.New("no expression found"))
+}
+
+func errMandatoryParam(function string, parameter string) gobol.Error {
+	return errBasic(function, "query string parameter \""+parameter+"\" is mandatory", http.StatusBadRequest, errors.New(""))
 }

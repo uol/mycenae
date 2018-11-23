@@ -13,11 +13,15 @@ export default Model.extend({
       return [];
     },
   }),
+  Kind: attr('string'),
+  ExternalSources: attr(),
+  Meta: attr(),
   Address: attr('string'),
   Port: attr('number'),
   EnableTagOverride: attr('boolean'),
   CreateIndex: attr('number'),
   ModifyIndex: attr('number'),
+  // TODO: These should be typed
   ChecksPassing: attr(),
   ChecksCritical: attr(),
   ChecksWarning: attr(),

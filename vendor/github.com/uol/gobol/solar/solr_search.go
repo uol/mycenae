@@ -1,6 +1,8 @@
 package solar
 
 import (
+	"strconv"
+
 	"github.com/uol/go-solr/solr"
 )
 
@@ -96,7 +98,7 @@ func (ss *SolrService) addChildrenFacets(q *solr.Query, facetFields []string) {
 }
 
 // Facets - get facets from solr
-func (ss *SolrService) Facets(collection, query, fields string, start, rows int, filterQueries []string, facetFields, childrenFacetFields []string, blockJoin bool) (*solr.SolrResult, error) {
+func (ss *SolrService) Facets(collection, query, fields string, start, rows int, filterQueries []string, facetFields, childrenFacetFields []string, blockJoin bool, facetLimit, minCount int) (*solr.SolrResult, error) {
 
 	si, err := ss.getSolrInterface(collection)
 	if err != nil {
@@ -106,6 +108,8 @@ func (ss *SolrService) Facets(collection, query, fields string, start, rows int,
 	q := ss.buildFilteredQuery(collection, query, fields, start, rows, filterQueries)
 	ss.addFacets(q, facetFields)
 	ss.addChildrenFacets(q, childrenFacetFields)
+	q.SetFacetMinCount(minCount)
+	q.SetParam("facet.limit", strconv.Itoa(facetLimit))
 
 	s := si.Search(q)
 

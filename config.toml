@@ -10,13 +10,6 @@
 # The idea is to change the cassandra gobol package to accept
 # multiple consistencies and abstract that to the applications
 
-# MaxConcurrentTimeseries CANNOT BE BIGGER THAN MaxConcurrentReads
-# Max number of concurrent timeseries being processed
-MaxConcurrentTimeseries = 50
-
-# Max number of concurrent read queries on cassandra
-MaxConcurrentReads = 100
-
 # Max number of timeseries allowed to be queried
 MaxTimeseries = 5000
 
@@ -66,12 +59,12 @@ AllowCORS = true
 [DefaultKeyspaceData]
   Datacenter = "dc_gt_a1"
   ReplicationFactor = 2
-  Contact = "l-pd-plat-servicos@uolinc.com"
+  Contact = "l-pd-engenharia@uolinc.com"
 
 [cassandra]
   keyspace = "mycenae"
   consistency = "one"
-  nodes = ["172.17.0.2","172.17.0.3","172.17.0.4"]
+  nodes = ["172.17.0.5","172.17.0.6","172.17.0.7"]
   username = "cassandra"
   password = "cassandra"
   connections = 3
@@ -118,12 +111,13 @@ AllowCORS = true
 [metadataSettings]
   numShards = 1
   replicationFactor = 1
-  url = "http://172.17.0.6:8983/solr"
-  IDCacheTTL = 0
-  QueryCacheTTL = 0
-  KeysetCacheTTL = 0
-  MaxReturnedTags = 20
+  url = "http://172.17.0.3:8983/solr"
+  IDCacheTTL = -1
+  QueryCacheTTL = -1
+  KeysetCacheTTL = -1
+  MaxReturnedMetadata = 10000
   ZookeeperConfig = "mycenae"
+  BlacklistedKeysets = ["chimera", "blacklist"]
 
 [memcached]
   pool = ["172.17.0.9:11211","172.17.0.10:11211","172.17.0.11:11211"]

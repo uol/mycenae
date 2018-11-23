@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -47,6 +48,13 @@ const (
 type Client struct {
 	config *Config
 
+	// acls is used to resolve tokens to effective policies
+	acls *ACLResolver
+
+	// DEPRECATED (ACL-Legacy-Compat) - Only needed while we support both
+	// useNewACLs is a flag to indicate whether we are using the new ACL system
+	useNewACLs int32
+
 	// Connection pool to consul servers
 	connPool *pool.ConnPool
 
@@ -56,7 +64,7 @@ type Client struct {
 
 	// rpcLimiter is used to rate limit the total number of RPCs initiated
 	// from an agent.
-	rpcLimiter *rate.Limiter
+	rpcLimiter atomic.Value
 
 	// eventCh is used to receive events from the
 	// serf cluster in the datacenter
@@ -72,6 +80,9 @@ type Client struct {
 	shutdown     bool
 	shutdownCh   chan struct{}
 	shutdownLock sync.Mutex
+
+	// embedded struct to hold all the enterprise specific data
+	EnterpriseClient
 }
 
 // NewClient is used to construct a new Consul client from the
@@ -125,10 +136,30 @@ func NewClientLogger(config *Config, logger *log.Logger) (*Client, error) {
 	c := &Client{
 		config:     config,
 		connPool:   connPool,
-		rpcLimiter: rate.NewLimiter(config.RPCRate, config.RPCMaxBurst),
 		eventCh:    make(chan serf.Event, serfEventBacklog),
 		logger:     logger,
 		shutdownCh: make(chan struct{}),
+	}
+
+	c.rpcLimiter.Store(rate.NewLimiter(config.RPCRate, config.RPCMaxBurst))
+
+	if err := c.initEnterprise(); err != nil {
+		c.Shutdown()
+		return nil, err
+	}
+
+	c.useNewACLs = 0
+	aclConfig := ACLResolverConfig{
+		Config:      config,
+		Delegate:    c,
+		Logger:      logger,
+		AutoDisable: true,
+		CacheConfig: clientACLCacheConfig,
+		Sentinel:    nil,
+	}
+	if c.acls, err = NewACLResolver(&aclConfig); err != nil {
+		c.Shutdown()
+		return nil, fmt.Errorf("Failed to create ACL resolver: %v", err)
 	}
 
 	// Initialize the LAN Serf
@@ -139,6 +170,10 @@ func NewClientLogger(config *Config, logger *log.Logger) (*Client, error) {
 		return nil, fmt.Errorf("Failed to start lan serf: %v", err)
 	}
 
+	if c.acls.ACLsEnabled() {
+		go c.monitorACLMode()
+	}
+
 	// Start maintenance task for servers
 	c.routers = router.New(c.logger, c.shutdownCh, c.serf, c.connPool)
 	go c.routers.Start()
@@ -146,6 +181,11 @@ func NewClientLogger(config *Config, logger *log.Logger) (*Client, error) {
 	// Start LAN event handlers after the router is complete since the event
 	// handlers depend on the router and the router depends on Serf.
 	go c.lanEventHandler()
+
+	if err := c.startEnterprise(); err != nil {
+		c.Shutdown()
+		return nil, err
+	}
 
 	return c, nil
 }
@@ -250,7 +290,7 @@ TRY:
 
 	// Enforce the RPC limit.
 	metrics.IncrCounter([]string{"client", "rpc"}, 1)
-	if !c.rpcLimiter.Allow() {
+	if !c.rpcLimiter.Load().(*rate.Limiter).Allow() {
 		metrics.IncrCounter([]string{"client", "rpc", "exceeded"}, 1)
 		return structs.ErrRPCRateExceeded
 	}
@@ -263,6 +303,7 @@ TRY:
 
 	// Move off to another server, and see if we can retry.
 	c.logger.Printf("[ERR] consul: %q RPC failed to server %s: %v", method, server.Addr, rpcErr)
+	metrics.IncrCounterWithLabels([]string{"client", "rpc", "failed"}, 1, []metrics.Label{{Name: "server", Value: server.Name}})
 	c.routers.NotifyFailedServer(server)
 	if retry := canRetry(args, rpcErr); !retry {
 		return rpcErr
@@ -292,7 +333,7 @@ func (c *Client) SnapshotRPC(args *structs.SnapshotRequest, in io.Reader, out io
 
 	// Enforce the RPC limit.
 	metrics.IncrCounter([]string{"client", "rpc"}, 1)
-	if !c.rpcLimiter.Allow() {
+	if !c.rpcLimiter.Load().(*rate.Limiter).Allow() {
 		metrics.IncrCounter([]string{"client", "rpc", "exceeded"}, 1)
 		return structs.ErrRPCRateExceeded
 	}
@@ -342,6 +383,27 @@ func (c *Client) Stats() map[string]map[string]string {
 		"serf_lan": c.serf.Stats(),
 		"runtime":  runtimeStats(),
 	}
+
+	if c.ACLsEnabled() {
+		if c.UseLegacyACLs() {
+			stats["consul"]["acl"] = "legacy"
+		} else {
+			stats["consul"]["acl"] = "enabled"
+		}
+	} else {
+		stats["consul"]["acl"] = "disabled"
+	}
+
+	for outerKey, outerValue := range c.enterpriseStats() {
+		if _, ok := stats[outerKey]; ok {
+			for innerKey, innerValue := range outerValue {
+				stats[outerKey][innerKey] = innerValue
+			}
+		} else {
+			stats[outerKey] = outerValue
+		}
+	}
+
 	return stats
 }
 
@@ -355,4 +417,11 @@ func (c *Client) GetLANCoordinate() (lib.CoordinateSet, error) {
 
 	cs := lib.CoordinateSet{c.config.Segment: lan}
 	return cs, nil
+}
+
+// ReloadConfig is used to have the Client do an online reload of
+// relevant configuration information
+func (c *Client) ReloadConfig(config *Config) error {
+	c.rpcLimiter.Store(rate.NewLimiter(config.RPCRate, config.RPCMaxBurst))
+	return nil
 }

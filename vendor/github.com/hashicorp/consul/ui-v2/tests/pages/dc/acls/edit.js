@@ -1,7 +1,11 @@
-import { create, visitable, fillable, clickable } from 'ember-cli-page-object';
-
-export default create({
-  visit: visitable('/:dc/acls/:acl'),
-  fillIn: fillable('input, textarea, [contenteditable]'),
-  submit: clickable('[type=submit]'),
-});
+export default function(visitable, submitable, deletable, cancelable, clickable) {
+  return submitable(
+    cancelable(
+      deletable({
+        visit: visitable(['/:dc/acls/:acl', '/:dc/acls/create']),
+        use: clickable('[data-test-use]'),
+        confirmUse: clickable('button.type-delete'),
+      })
+    )
+  );
+}

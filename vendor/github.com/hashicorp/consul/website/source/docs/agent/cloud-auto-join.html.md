@@ -67,7 +67,7 @@ $ consul agent -retry-join "provider=aws tag_key=... tag_value=..."
 - `access_key_id` (optional) - the AWS access key for authentication (see below for more information about authenticating).
 - `secret_access_key` (optional) - the AWS secret access key for authentication (see below for more information about authenticating).
 
-#### Authentication &amp; Precedence
+#### Authentication & Precedence
 
 - Static credentials `access_key_id=... secret_access_key=...`
 - Environment variables (`AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`)
@@ -134,7 +134,7 @@ $ consul agent -retry-join "provider=gce project_name=... tag_value=..."
 - `zone_pattern` (optional) - the list of zones can be restricted through an RE2 compatible regular expression. If omitted, servers in all zones are returned.
 - `credentials_file` (optional) - the credentials file for authentication. See below for more information.
 
-#### Authentication &amp; Precedence
+#### Authentication & Precedence
 
 - Use credentials from `credentials_file`, if provided.
 - Use JSON file from `GOOGLE_APPLICATION_CREDENTIALS` environment variable.
@@ -164,7 +164,7 @@ $ consul agent -retry-join "provider=softlayer datacenter=... tag_value=... user
 ```
 
 - `provider` (required) - the name of the provider ("softlayer" in this case).
-- <a name="sl_datacenter"></a><a href="#sl_datacenter"><code>datacenter</code></a></a> (required) - the name of the datacenter to auto-join in.
+- <a name="sl_datacenter"></a><a href="#sl_datacenter"><code>datacenter</code></a> (required) - the name of the datacenter to auto-join in.
 - `tag_value` (required) - the value of the tag to auto-join on.
 - `username` (required) - the username to use for auth.
 - `api_key` (required) - the api key to use for auth.
@@ -244,7 +244,7 @@ The configuration can also be provided by environment variables.
 ### Scaleway
 
 This returns the first private IP address of all servers for the given
-`region` with the given `tag_key` and `tag_value`.
+`region` with the given `tag_name`.
 
 ```sh
 $ consul agent -retry-join "provider=scaleway organization=my-org tag_name=consul-server token=... region=..."
@@ -259,13 +259,12 @@ $ consul agent -retry-join "provider=scaleway organization=my-org tag_name=consu
 - `provider` (required) - the name of the provider ("scaleway" in this case).
 - `region` (required) - the name of the region.
 - `tag_name` (required) - the name of the tag to auto-join on.
-- `organization` (optional) - the organization access key to use for auth.
-- `token` (optional) - the token to use for auth.
+- `organization` (required) - the organization access key to use for auth (equal to access key).
+- `token` (required) - the token to use for auth.
 
 ### Joyent Triton
 
-This returns the first PrimaryIP addresses for all servers with the given 
-`tag_key` and `tag_value`.
+This returns the first PrimaryIP addresses for all servers with the given `tag_key` and `tag_value`.
 
 ```sh
 $ consul agent -retry-join "provider=triton account=testaccount url=https://us-sw-1.api.joyentcloud.com key_id=... tag_key=consul-role tag_value=server"
@@ -283,3 +282,84 @@ $ consul agent -retry-join "provider=triton account=testaccount url=https://us-s
 - `key_id` (required) - the key id to use.
 - `tag_key` (optional) - the instance tag key to use.
 - `tag_value` (optional) - the tag value to use.
+
+
+### vSphere
+
+This returns the first private IP address of all servers for the given region with the given `tag_name` and `category_name`.
+
+```sh
+$ consul agent -retry-join "provider=vsphere category_name=consul-role tag_name=consul-server host=... user=... password=... insecure_ssl=[true|false]"
+```
+
+```json
+{
+        "retry-join": ["provider=vsphere category_name=consul-role tag_name=consul-server host=... user=... password=... insecure_ssl=[true|false]"]
+}
+```
+
+- `provider` (required) -   the name of the provider ("vsphere" is the provider here)
+- `tag_name` (required) -    The name of the tag to look up.
+- `category_name` (required) - The category of the tag to look up.
+- `host` (required) -        The host of the vSphere server to connect to.
+- `user` (required) -         The username to connect as.
+- `password` (required) -     The password of the user to connect to vSphere as.
+- `insecure_ssl` (optional) -  Whether or not to skip SSL certificate validation.
+- `timeout` (optional) -     Discovery context timeout (default: 10m)
+
+### Packet
+
+This returns the first private IP address (or the IP addresso of `address type`) of all servers with the given `project` and `auth_token`.
+
+```sh
+$ consul agent -retry-join "provider=packet auth_token=token project=uuid url=... address_type=..."
+```
+
+```json
+{
+        "retry-join": ["provider=packet auth_token=token project=uuid url=... address_type=..."]
+}
+```
+
+- `provider` (required)	-	the name of the provider ("packet" is the provider here)
+- `project` (required) 	- 	the UUID of packet project
+- `auth_token` (required) -  the authentication token for packet
+- `url` (optional) - 		 a REST URL for packet
+- `address_type` (optional) - the type of address to check for in this provider  ("private_v4", "public_v4" or "public_v6".                                   Defaults to "private_v4")
+
+
+### Kubernetes (k8s)
+
+The Kubernetes provider finds the IP addresses of pods with the matching
+[label or field selector](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/).
+This is useful for non-Kubernetes agents that are joining a server cluster
+running within Kubernetes.
+
+The pod IP is used by default, which requires that the agent connecting can
+network to the pod IP. The `host_network` boolean can be set to true to use
+the host IP instead, but this requires the agent ports (Gossip, RPC, etc.)
+to be exported to the host as well.
+
+By default, no port is specified. This causes Consul to use the default
+gossip port (default behavior with all join requests). The pod may specify
+the `consul.hashicorp.com/auto-join-port` annotation to set the port. The value
+may be an integer or a named port.
+
+```sh
+$ consul agent -retry-join "provider=k8s label_selector=\"app=consul,component=server\""
+```
+
+```json
+{
+        "retry-join": ["provider=k8s label_selector=..."]
+}
+```
+
+- `provider` (required)	-	the name of the provider ("k8s" is the provider here)
+- `kubeconfig` (optional) 	- 	path to the kubeconfig file. If this isn't
+  set, then in-cluster auth will be attempted. If that fails, the default
+  kubeconfig paths are tried (`$HOME/.kube/config`).
+- `namespace` (optional) -  the namespace to search for pods. If this isn't
+  set, it defaults to all namespaces.
+- `label_selector` (optional) - the label selector for matching pods.
+- `field_selector` (optional) - the field selector for matching pods.

@@ -14,9 +14,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/consul/agent/connect/ca"
 	"github.com/hashicorp/consul/agent/consul"
 	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/ipaddr"
+	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/consul/tlsutil"
 	"github.com/hashicorp/consul/types"
 	multierror "github.com/hashicorp/go-multierror"
@@ -299,6 +301,22 @@ func (b *Builder) Build() (rt RuntimeConfig, err error) {
 		dnsServiceTTL[k] = b.durationVal(fmt.Sprintf("dns_config.service_ttl[%q]", k), &v)
 	}
 
+	soa := RuntimeSOAConfig{Refresh: 3600, Retry: 600, Expire: 86400, Minttl: 0}
+	if c.DNS.SOA != nil {
+		if c.DNS.SOA.Expire != nil {
+			soa.Expire = *c.DNS.SOA.Expire
+		}
+		if c.DNS.SOA.Minttl != nil {
+			soa.Minttl = *c.DNS.SOA.Minttl
+		}
+		if c.DNS.SOA.Refresh != nil {
+			soa.Refresh = *c.DNS.SOA.Refresh
+		}
+		if c.DNS.SOA.Retry != nil {
+			soa.Retry = *c.DNS.SOA.Retry
+		}
+	}
+
 	leaveOnTerm := !b.boolVal(c.ServerMode)
 	if c.LeaveOnTerm != nil {
 		leaveOnTerm = b.boolVal(c.LeaveOnTerm)
@@ -338,8 +356,21 @@ func (b *Builder) Build() (rt RuntimeConfig, err error) {
 	httpPort := b.portVal("ports.http", c.Ports.HTTP)
 	httpsPort := b.portVal("ports.https", c.Ports.HTTPS)
 	serverPort := b.portVal("ports.server", c.Ports.Server)
+	grpcPort := b.portVal("ports.grpc", c.Ports.GRPC)
 	serfPortLAN := b.portVal("ports.serf_lan", c.Ports.SerfLAN)
 	serfPortWAN := b.portVal("ports.serf_wan", c.Ports.SerfWAN)
+	proxyMinPort := b.portVal("ports.proxy_min_port", c.Ports.ProxyMinPort)
+	proxyMaxPort := b.portVal("ports.proxy_max_port", c.Ports.ProxyMaxPort)
+	sidecarMinPort := b.portVal("ports.sidecar_min_port", c.Ports.SidecarMinPort)
+	sidecarMaxPort := b.portVal("ports.sidecar_max_port", c.Ports.SidecarMaxPort)
+	if proxyMaxPort < proxyMinPort {
+		return RuntimeConfig{}, fmt.Errorf(
+			"proxy_min_port must be less than proxy_max_port. To disable, set both to zero.")
+	}
+	if sidecarMaxPort < sidecarMinPort {
+		return RuntimeConfig{}, fmt.Errorf(
+			"sidecar_min_port must be less than sidecar_max_port. To disable, set both to zero.")
+	}
 
 	// determine the default bind and advertise address
 	//
@@ -431,6 +462,7 @@ func (b *Builder) Build() (rt RuntimeConfig, err error) {
 	dnsAddrs := b.makeAddrs(b.expandAddrs("addresses.dns", c.Addresses.DNS), clientAddrs, dnsPort)
 	httpAddrs := b.makeAddrs(b.expandAddrs("addresses.http", c.Addresses.HTTP), clientAddrs, httpPort)
 	httpsAddrs := b.makeAddrs(b.expandAddrs("addresses.https", c.Addresses.HTTPS), clientAddrs, httpsPort)
+	grpcAddrs := b.makeAddrs(b.expandAddrs("addresses.grpc", c.Addresses.GRPC), clientAddrs, grpcPort)
 
 	for _, a := range dnsAddrs {
 		if x, ok := a.(*net.TCPAddr); ok {
@@ -520,12 +552,73 @@ func (b *Builder) Build() (rt RuntimeConfig, err error) {
 	consulRaftHeartbeatTimeout := b.durationVal("consul.raft.heartbeat_timeout", c.Consul.Raft.HeartbeatTimeout) * time.Duration(performanceRaftMultiplier)
 	consulRaftLeaderLeaseTimeout := b.durationVal("consul.raft.leader_lease_timeout", c.Consul.Raft.LeaderLeaseTimeout) * time.Duration(performanceRaftMultiplier)
 
+	// Connect proxy defaults.
+	connectEnabled := b.boolVal(c.Connect.Enabled)
+	connectCAProvider := b.stringVal(c.Connect.CAProvider)
+	connectCAConfig := c.Connect.CAConfig
+	if connectCAConfig != nil {
+		TranslateKeys(connectCAConfig, map[string]string{
+			// Consul CA config
+			"private_key":     "PrivateKey",
+			"root_cert":       "RootCert",
+			"rotation_period": "RotationPeriod",
+
+			// Vault CA config
+			"address":               "Address",
+			"token":                 "Token",
+			"root_pki_path":         "RootPKIPath",
+			"intermediate_pki_path": "IntermediatePKIPath",
+
+			// Common CA config
+			"leaf_cert_ttl": "LeafCertTTL",
+		})
+	}
+
+	datacenter := strings.ToLower(b.stringVal(c.Datacenter))
+
+	aclsEnabled := false
+	primaryDatacenter := strings.ToLower(b.stringVal(c.PrimaryDatacenter))
+	if c.ACLDatacenter != nil {
+		b.warn("The 'acl_datacenter' field is deprecated. Use the 'primary_datacenter' field instead.")
+
+		if primaryDatacenter == "" {
+			primaryDatacenter = strings.ToLower(b.stringVal(c.ACLDatacenter))
+		}
+
+		// when the acl_datacenter config is used it implicitly enables acls
+		aclsEnabled = true
+	}
+
+	if c.ACL.Enabled != nil {
+		aclsEnabled = b.boolVal(c.ACL.Enabled)
+	}
+
+	aclDC := primaryDatacenter
+	if aclsEnabled && aclDC == "" {
+		aclDC = datacenter
+	}
+
+	enableTokenReplication := false
+	if c.ACLReplicationToken != nil {
+		enableTokenReplication = true
+	}
+
+	b.boolValWithDefault(c.ACL.TokenReplication, b.boolValWithDefault(c.EnableACLReplication, enableTokenReplication))
+
+	proxyDefaultExecMode := b.stringVal(c.Connect.ProxyDefaults.ExecMode)
+	proxyDefaultDaemonCommand := c.Connect.ProxyDefaults.DaemonCommand
+	proxyDefaultScriptCommand := c.Connect.ProxyDefaults.ScriptCommand
+	proxyDefaultConfig := c.Connect.ProxyDefaults.Config
+
+	enableRemoteScriptChecks := b.boolVal(c.EnableScriptChecks)
+	enableLocalScriptChecks := b.boolValWithDefault(c.EnableLocalScriptChecks, enableRemoteScriptChecks)
+
 	// ----------------------------------------------------------------
 	// build runtime config
 	//
 	rt = RuntimeConfig{
 		// non-user configurable values
-		ACLDisabledTTL:             b.durationVal("acl_disabled_ttl", c.ACLDisabledTTL),
+		ACLDisabledTTL:             b.durationVal("acl.disabled_ttl", c.ACL.DisabledTTL),
 		AEInterval:                 b.durationVal("ae_interval", c.AEInterval),
 		CheckDeregisterIntervalMin: b.durationVal("check_deregister_interval_min", c.CheckDeregisterIntervalMin),
 		CheckReapInterval:          b.durationVal("check_reap_interval", c.CheckReapInterval),
@@ -544,29 +637,37 @@ func (b *Builder) Build() (rt RuntimeConfig, err error) {
 		ConsulRaftElectionTimeout:        consulRaftElectionTimeout,
 		ConsulRaftHeartbeatTimeout:       consulRaftHeartbeatTimeout,
 		ConsulRaftLeaderLeaseTimeout:     consulRaftLeaderLeaseTimeout,
-		ConsulSerfLANGossipInterval:      b.durationVal("consul.serf_lan.gossip_interval", c.Consul.SerfLAN.Memberlist.GossipInterval),
-		ConsulSerfLANProbeInterval:       b.durationVal("consul.serf_lan.probe_interval", c.Consul.SerfLAN.Memberlist.ProbeInterval),
-		ConsulSerfLANProbeTimeout:        b.durationVal("consul.serf_lan.probe_timeout", c.Consul.SerfLAN.Memberlist.ProbeTimeout),
-		ConsulSerfLANSuspicionMult:       b.intVal(c.Consul.SerfLAN.Memberlist.SuspicionMult),
-		ConsulSerfWANGossipInterval:      b.durationVal("consul.serf_wan.gossip_interval", c.Consul.SerfWAN.Memberlist.GossipInterval),
-		ConsulSerfWANProbeInterval:       b.durationVal("consul.serf_wan.probe_interval", c.Consul.SerfWAN.Memberlist.ProbeInterval),
-		ConsulSerfWANProbeTimeout:        b.durationVal("consul.serf_wan.probe_timeout", c.Consul.SerfWAN.Memberlist.ProbeTimeout),
-		ConsulSerfWANSuspicionMult:       b.intVal(c.Consul.SerfWAN.Memberlist.SuspicionMult),
 		ConsulServerHealthInterval:       b.durationVal("consul.server.health_interval", c.Consul.Server.HealthInterval),
 
+		// gossip configuration
+		GossipLANGossipInterval: b.durationVal("gossip_lan..gossip_interval", c.GossipLAN.GossipInterval),
+		GossipLANGossipNodes:    b.intVal(c.GossipLAN.GossipNodes),
+		GossipLANProbeInterval:  b.durationVal("gossip_lan..probe_interval", c.GossipLAN.ProbeInterval),
+		GossipLANProbeTimeout:   b.durationVal("gossip_lan..probe_timeout", c.GossipLAN.ProbeTimeout),
+		GossipLANSuspicionMult:  b.intVal(c.GossipLAN.SuspicionMult),
+		GossipLANRetransmitMult: b.intVal(c.GossipLAN.RetransmitMult),
+		GossipWANGossipInterval: b.durationVal("gossip_wan..gossip_interval", c.GossipWAN.GossipInterval),
+		GossipWANGossipNodes:    b.intVal(c.GossipWAN.GossipNodes),
+		GossipWANProbeInterval:  b.durationVal("gossip_wan..probe_interval", c.GossipWAN.ProbeInterval),
+		GossipWANProbeTimeout:   b.durationVal("gossip_wan..probe_timeout", c.GossipWAN.ProbeTimeout),
+		GossipWANSuspicionMult:  b.intVal(c.GossipWAN.SuspicionMult),
+		GossipWANRetransmitMult: b.intVal(c.GossipWAN.RetransmitMult),
+
 		// ACL
-		ACLAgentMasterToken:    b.stringVal(c.ACLAgentMasterToken),
-		ACLAgentToken:          b.stringVal(c.ACLAgentToken),
-		ACLDatacenter:          strings.ToLower(b.stringVal(c.ACLDatacenter)),
-		ACLDefaultPolicy:       b.stringVal(c.ACLDefaultPolicy),
-		ACLDownPolicy:          b.stringVal(c.ACLDownPolicy),
-		ACLEnforceVersion8:     b.boolVal(c.ACLEnforceVersion8),
-		ACLEnableKeyListPolicy: b.boolVal(c.ACLEnableKeyListPolicy),
-		ACLMasterToken:         b.stringVal(c.ACLMasterToken),
-		ACLReplicationToken:    b.stringVal(c.ACLReplicationToken),
-		ACLTTL:                 b.durationVal("acl_ttl", c.ACLTTL),
-		ACLToken:               b.stringVal(c.ACLToken),
-		EnableACLReplication:   b.boolVal(c.EnableACLReplication),
+		ACLEnforceVersion8:     b.boolValWithDefault(c.ACLEnforceVersion8, true),
+		ACLsEnabled:            aclsEnabled,
+		ACLAgentMasterToken:    b.stringValWithDefault(c.ACL.Tokens.AgentMaster, b.stringVal(c.ACLAgentMasterToken)),
+		ACLAgentToken:          b.stringValWithDefault(c.ACL.Tokens.Agent, b.stringVal(c.ACLAgentToken)),
+		ACLDatacenter:          aclDC,
+		ACLDefaultPolicy:       b.stringValWithDefault(c.ACL.DefaultPolicy, b.stringVal(c.ACLDefaultPolicy)),
+		ACLDownPolicy:          b.stringValWithDefault(c.ACL.DownPolicy, b.stringVal(c.ACLDownPolicy)),
+		ACLEnableKeyListPolicy: b.boolValWithDefault(c.ACL.EnableKeyListPolicy, b.boolVal(c.ACLEnableKeyListPolicy)),
+		ACLMasterToken:         b.stringValWithDefault(c.ACL.Tokens.Master, b.stringVal(c.ACLMasterToken)),
+		ACLReplicationToken:    b.stringValWithDefault(c.ACL.Tokens.Replication, b.stringVal(c.ACLReplicationToken)),
+		ACLTokenTTL:            b.durationValWithDefault("acl.token_ttl", c.ACL.TokenTTL, b.durationVal("acl_ttl", c.ACLTTL)),
+		ACLPolicyTTL:           b.durationVal("acl.policy_ttl", c.ACL.PolicyTTL),
+		ACLToken:               b.stringValWithDefault(c.ACL.Tokens.Default, b.stringVal(c.ACLToken)),
+		ACLTokenReplication:    b.boolValWithDefault(c.ACL.TokenReplication, b.boolValWithDefault(c.EnableACLReplication, enableTokenReplication)),
 
 		// Autopilot
 		AutopilotCleanupDeadServers:      b.boolVal(c.Autopilot.CleanupDeadServers),
@@ -591,7 +692,9 @@ func (b *Builder) Build() (rt RuntimeConfig, err error) {
 		DNSRecursorTimeout:    b.durationVal("recursor_timeout", c.DNS.RecursorTimeout),
 		DNSRecursors:          dnsRecursors,
 		DNSServiceTTL:         dnsServiceTTL,
+		DNSSOA:                soa,
 		DNSUDPAnswerLimit:     b.intVal(c.DNS.UDPAnswerLimit),
+		DNSNodeMetaTXT:        b.boolValWithDefault(c.DNS.NodeMetaTXT, true),
 
 		// HTTP
 		HTTPPort:            httpPort,
@@ -602,130 +705,150 @@ func (b *Builder) Build() (rt RuntimeConfig, err error) {
 		HTTPResponseHeaders: c.HTTPConfig.ResponseHeaders,
 
 		// Telemetry
-		TelemetryCirconusAPIApp:                     b.stringVal(c.Telemetry.CirconusAPIApp),
-		TelemetryCirconusAPIToken:                   b.stringVal(c.Telemetry.CirconusAPIToken),
-		TelemetryCirconusAPIURL:                     b.stringVal(c.Telemetry.CirconusAPIURL),
-		TelemetryCirconusBrokerID:                   b.stringVal(c.Telemetry.CirconusBrokerID),
-		TelemetryCirconusBrokerSelectTag:            b.stringVal(c.Telemetry.CirconusBrokerSelectTag),
-		TelemetryCirconusCheckDisplayName:           b.stringVal(c.Telemetry.CirconusCheckDisplayName),
-		TelemetryCirconusCheckForceMetricActivation: b.stringVal(c.Telemetry.CirconusCheckForceMetricActivation),
-		TelemetryCirconusCheckID:                    b.stringVal(c.Telemetry.CirconusCheckID),
-		TelemetryCirconusCheckInstanceID:            b.stringVal(c.Telemetry.CirconusCheckInstanceID),
-		TelemetryCirconusCheckSearchTag:             b.stringVal(c.Telemetry.CirconusCheckSearchTag),
-		TelemetryCirconusCheckTags:                  b.stringVal(c.Telemetry.CirconusCheckTags),
-		TelemetryCirconusSubmissionInterval:         b.stringVal(c.Telemetry.CirconusSubmissionInterval),
-		TelemetryCirconusSubmissionURL:              b.stringVal(c.Telemetry.CirconusSubmissionURL),
-		TelemetryDisableHostname:                    b.boolVal(c.Telemetry.DisableHostname),
-		TelemetryDogstatsdAddr:                      b.stringVal(c.Telemetry.DogstatsdAddr),
-		TelemetryDogstatsdTags:                      c.Telemetry.DogstatsdTags,
-		TelemetryPrometheusRetentionTime:            b.durationVal("prometheus_retention_time", c.Telemetry.PrometheusRetentionTime),
-		TelemetryFilterDefault:                      b.boolVal(c.Telemetry.FilterDefault),
-		TelemetryAllowedPrefixes:                    telemetryAllowedPrefixes,
-		TelemetryBlockedPrefixes:                    telemetryBlockedPrefixes,
-		TelemetryMetricsPrefix:                      b.stringVal(c.Telemetry.MetricsPrefix),
-		TelemetryStatsdAddr:                         b.stringVal(c.Telemetry.StatsdAddr),
-		TelemetryStatsiteAddr:                       b.stringVal(c.Telemetry.StatsiteAddr),
+		Telemetry: lib.TelemetryConfig{
+			CirconusAPIApp:                     b.stringVal(c.Telemetry.CirconusAPIApp),
+			CirconusAPIToken:                   b.stringVal(c.Telemetry.CirconusAPIToken),
+			CirconusAPIURL:                     b.stringVal(c.Telemetry.CirconusAPIURL),
+			CirconusBrokerID:                   b.stringVal(c.Telemetry.CirconusBrokerID),
+			CirconusBrokerSelectTag:            b.stringVal(c.Telemetry.CirconusBrokerSelectTag),
+			CirconusCheckDisplayName:           b.stringVal(c.Telemetry.CirconusCheckDisplayName),
+			CirconusCheckForceMetricActivation: b.stringVal(c.Telemetry.CirconusCheckForceMetricActivation),
+			CirconusCheckID:                    b.stringVal(c.Telemetry.CirconusCheckID),
+			CirconusCheckInstanceID:            b.stringVal(c.Telemetry.CirconusCheckInstanceID),
+			CirconusCheckSearchTag:             b.stringVal(c.Telemetry.CirconusCheckSearchTag),
+			CirconusCheckTags:                  b.stringVal(c.Telemetry.CirconusCheckTags),
+			CirconusSubmissionInterval:         b.stringVal(c.Telemetry.CirconusSubmissionInterval),
+			CirconusSubmissionURL:              b.stringVal(c.Telemetry.CirconusSubmissionURL),
+			DisableHostname:                    b.boolVal(c.Telemetry.DisableHostname),
+			DogstatsdAddr:                      b.stringVal(c.Telemetry.DogstatsdAddr),
+			DogstatsdTags:                      c.Telemetry.DogstatsdTags,
+			PrometheusRetentionTime:            b.durationVal("prometheus_retention_time", c.Telemetry.PrometheusRetentionTime),
+			FilterDefault:                      b.boolVal(c.Telemetry.FilterDefault),
+			AllowedPrefixes:                    telemetryAllowedPrefixes,
+			BlockedPrefixes:                    telemetryBlockedPrefixes,
+			MetricsPrefix:                      b.stringVal(c.Telemetry.MetricsPrefix),
+			StatsdAddr:                         b.stringVal(c.Telemetry.StatsdAddr),
+			StatsiteAddr:                       b.stringVal(c.Telemetry.StatsiteAddr),
+		},
 
 		// Agent
-		AdvertiseAddrLAN:            advertiseAddrLAN,
-		AdvertiseAddrWAN:            advertiseAddrWAN,
-		BindAddr:                    bindAddr,
-		Bootstrap:                   b.boolVal(c.Bootstrap),
-		BootstrapExpect:             b.intVal(c.BootstrapExpect),
-		CAFile:                      b.stringVal(c.CAFile),
-		CAPath:                      b.stringVal(c.CAPath),
-		CertFile:                    b.stringVal(c.CertFile),
-		CheckUpdateInterval:         b.durationVal("check_update_interval", c.CheckUpdateInterval),
-		Checks:                      checks,
-		ClientAddrs:                 clientAddrs,
-		DataDir:                     b.stringVal(c.DataDir),
-		Datacenter:                  strings.ToLower(b.stringVal(c.Datacenter)),
-		DevMode:                     b.boolVal(b.Flags.DevMode),
-		DisableAnonymousSignature:   b.boolVal(c.DisableAnonymousSignature),
-		DisableCoordinates:          b.boolVal(c.DisableCoordinates),
-		DisableHostNodeID:           b.boolVal(c.DisableHostNodeID),
-		DisableKeyringFile:          b.boolVal(c.DisableKeyringFile),
-		DisableRemoteExec:           b.boolVal(c.DisableRemoteExec),
-		DisableUpdateCheck:          b.boolVal(c.DisableUpdateCheck),
-		DiscardCheckOutput:          b.boolVal(c.DiscardCheckOutput),
-		DiscoveryMaxStale:           b.durationVal("discovery_max_stale", c.DiscoveryMaxStale),
-		EnableAgentTLSForChecks:     b.boolVal(c.EnableAgentTLSForChecks),
-		EnableDebug:                 b.boolVal(c.EnableDebug),
-		EnableScriptChecks:          b.boolVal(c.EnableScriptChecks),
-		EnableSyslog:                b.boolVal(c.EnableSyslog),
-		EnableUI:                    b.boolVal(c.UI),
-		EncryptKey:                  b.stringVal(c.EncryptKey),
-		EncryptVerifyIncoming:       b.boolVal(c.EncryptVerifyIncoming),
-		EncryptVerifyOutgoing:       b.boolVal(c.EncryptVerifyOutgoing),
-		KeyFile:                     b.stringVal(c.KeyFile),
-		LeaveDrainTime:              b.durationVal("performance.leave_drain_time", c.Performance.LeaveDrainTime),
-		LeaveOnTerm:                 leaveOnTerm,
-		LogLevel:                    b.stringVal(c.LogLevel),
-		NodeID:                      types.NodeID(b.stringVal(c.NodeID)),
-		NodeMeta:                    c.NodeMeta,
-		NodeName:                    b.nodeName(c.NodeName),
-		NonVotingServer:             b.boolVal(c.NonVotingServer),
-		PidFile:                     b.stringVal(c.PidFile),
-		RPCAdvertiseAddr:            rpcAdvertiseAddr,
-		RPCBindAddr:                 rpcBindAddr,
-		RPCHoldTimeout:              b.durationVal("performance.rpc_hold_timeout", c.Performance.RPCHoldTimeout),
-		RPCMaxBurst:                 b.intVal(c.Limits.RPCMaxBurst),
-		RPCProtocol:                 b.intVal(c.RPCProtocol),
-		RPCRateLimit:                rate.Limit(b.float64Val(c.Limits.RPCRate)),
-		RaftProtocol:                b.intVal(c.RaftProtocol),
-		RaftSnapshotThreshold:       b.intVal(c.RaftSnapshotThreshold),
-		RaftSnapshotInterval:        b.durationVal("raft_snapshot_interval", c.RaftSnapshotInterval),
-		ReconnectTimeoutLAN:         b.durationVal("reconnect_timeout", c.ReconnectTimeoutLAN),
-		ReconnectTimeoutWAN:         b.durationVal("reconnect_timeout_wan", c.ReconnectTimeoutWAN),
-		RejoinAfterLeave:            b.boolVal(c.RejoinAfterLeave),
-		RetryJoinIntervalLAN:        b.durationVal("retry_interval", c.RetryJoinIntervalLAN),
-		RetryJoinIntervalWAN:        b.durationVal("retry_interval_wan", c.RetryJoinIntervalWAN),
-		RetryJoinLAN:                b.expandAllOptionalAddrs("retry_join", c.RetryJoinLAN),
-		RetryJoinMaxAttemptsLAN:     b.intVal(c.RetryJoinMaxAttemptsLAN),
-		RetryJoinMaxAttemptsWAN:     b.intVal(c.RetryJoinMaxAttemptsWAN),
-		RetryJoinWAN:                b.expandAllOptionalAddrs("retry_join_wan", c.RetryJoinWAN),
-		SegmentName:                 b.stringVal(c.SegmentName),
-		Segments:                    segments,
-		SerfAdvertiseAddrLAN:        serfAdvertiseAddrLAN,
-		SerfAdvertiseAddrWAN:        serfAdvertiseAddrWAN,
-		SerfBindAddrLAN:             serfBindAddrLAN,
-		SerfBindAddrWAN:             serfBindAddrWAN,
-		SerfPortLAN:                 serfPortLAN,
-		SerfPortWAN:                 serfPortWAN,
-		ServerMode:                  b.boolVal(c.ServerMode),
-		ServerName:                  b.stringVal(c.ServerName),
-		ServerPort:                  serverPort,
-		Services:                    services,
-		SessionTTLMin:               b.durationVal("session_ttl_min", c.SessionTTLMin),
-		SkipLeaveOnInt:              skipLeaveOnInt,
-		StartJoinAddrsLAN:           b.expandAllOptionalAddrs("start_join", c.StartJoinAddrsLAN),
-		StartJoinAddrsWAN:           b.expandAllOptionalAddrs("start_join_wan", c.StartJoinAddrsWAN),
-		SyslogFacility:              b.stringVal(c.SyslogFacility),
-		TLSCipherSuites:             b.tlsCipherSuites("tls_cipher_suites", c.TLSCipherSuites),
-		TLSMinVersion:               b.stringVal(c.TLSMinVersion),
-		TLSPreferServerCipherSuites: b.boolVal(c.TLSPreferServerCipherSuites),
-		TaggedAddresses:             c.TaggedAddresses,
-		TranslateWANAddrs:           b.boolVal(c.TranslateWANAddrs),
-		UIDir:                       b.stringVal(c.UIDir),
-		UnixSocketGroup:             b.stringVal(c.UnixSocket.Group),
-		UnixSocketMode:              b.stringVal(c.UnixSocket.Mode),
-		UnixSocketUser:              b.stringVal(c.UnixSocket.User),
-		VerifyIncoming:              b.boolVal(c.VerifyIncoming),
-		VerifyIncomingHTTPS:         b.boolVal(c.VerifyIncomingHTTPS),
-		VerifyIncomingRPC:           b.boolVal(c.VerifyIncomingRPC),
-		VerifyOutgoing:              b.boolVal(c.VerifyOutgoing),
-		VerifyServerHostname:        b.boolVal(c.VerifyServerHostname),
-		Watches:                     c.Watches,
+		AdvertiseAddrLAN:                        advertiseAddrLAN,
+		AdvertiseAddrWAN:                        advertiseAddrWAN,
+		BindAddr:                                bindAddr,
+		Bootstrap:                               b.boolVal(c.Bootstrap),
+		BootstrapExpect:                         b.intVal(c.BootstrapExpect),
+		CAFile:                                  b.stringVal(c.CAFile),
+		CAPath:                                  b.stringVal(c.CAPath),
+		CertFile:                                b.stringVal(c.CertFile),
+		CheckUpdateInterval:                     b.durationVal("check_update_interval", c.CheckUpdateInterval),
+		Checks:                                  checks,
+		ClientAddrs:                             clientAddrs,
+		ConnectEnabled:                          connectEnabled,
+		ConnectCAProvider:                       connectCAProvider,
+		ConnectCAConfig:                         connectCAConfig,
+		ConnectProxyAllowManagedRoot:            b.boolVal(c.Connect.Proxy.AllowManagedRoot),
+		ConnectProxyAllowManagedAPIRegistration: b.boolVal(c.Connect.Proxy.AllowManagedAPIRegistration),
+		ConnectProxyBindMinPort:                 proxyMinPort,
+		ConnectProxyBindMaxPort:                 proxyMaxPort,
+		ConnectSidecarMinPort:                   sidecarMinPort,
+		ConnectSidecarMaxPort:                   sidecarMaxPort,
+		ConnectProxyDefaultExecMode:             proxyDefaultExecMode,
+		ConnectProxyDefaultDaemonCommand:        proxyDefaultDaemonCommand,
+		ConnectProxyDefaultScriptCommand:        proxyDefaultScriptCommand,
+		ConnectProxyDefaultConfig:               proxyDefaultConfig,
+		ConnectReplicationToken:                 b.stringVal(c.ACL.Tokens.Replication),
+		DataDir:                                 b.stringVal(c.DataDir),
+		Datacenter:                              datacenter,
+		DevMode:                                 b.boolVal(b.Flags.DevMode),
+		DisableAnonymousSignature:               b.boolVal(c.DisableAnonymousSignature),
+		DisableCoordinates:                      b.boolVal(c.DisableCoordinates),
+		DisableHostNodeID:                       b.boolVal(c.DisableHostNodeID),
+		DisableHTTPUnprintableCharFilter:        b.boolVal(c.DisableHTTPUnprintableCharFilter),
+		DisableKeyringFile:                      b.boolVal(c.DisableKeyringFile),
+		DisableRemoteExec:                       b.boolVal(c.DisableRemoteExec),
+		DisableUpdateCheck:                      b.boolVal(c.DisableUpdateCheck),
+		DiscardCheckOutput:                      b.boolVal(c.DiscardCheckOutput),
+		DiscoveryMaxStale:                       b.durationVal("discovery_max_stale", c.DiscoveryMaxStale),
+		EnableAgentTLSForChecks:                 b.boolVal(c.EnableAgentTLSForChecks),
+		EnableDebug:                             b.boolVal(c.EnableDebug),
+		EnableRemoteScriptChecks:                enableRemoteScriptChecks,
+		EnableLocalScriptChecks:                 enableLocalScriptChecks,
+		EnableSyslog:                            b.boolVal(c.EnableSyslog),
+		EnableUI:                                b.boolVal(c.UI),
+		EncryptKey:                              b.stringVal(c.EncryptKey),
+		EncryptVerifyIncoming:                   b.boolVal(c.EncryptVerifyIncoming),
+		EncryptVerifyOutgoing:                   b.boolVal(c.EncryptVerifyOutgoing),
+		GRPCPort:                                grpcPort,
+		GRPCAddrs:                               grpcAddrs,
+		KeyFile:                                 b.stringVal(c.KeyFile),
+		LeaveDrainTime:                          b.durationVal("performance.leave_drain_time", c.Performance.LeaveDrainTime),
+		LeaveOnTerm:                             leaveOnTerm,
+		LogLevel:                                b.stringVal(c.LogLevel),
+		LogFile:                                 b.stringVal(c.LogFile),
+		LogRotateBytes:                          b.intVal(c.LogRotateBytes),
+		LogRotateDuration:                       b.durationVal("log_rotate_duration", c.LogRotateDuration),
+		NodeID:                                  types.NodeID(b.stringVal(c.NodeID)),
+		NodeMeta:                                c.NodeMeta,
+		NodeName:                                b.nodeName(c.NodeName),
+		NonVotingServer:                         b.boolVal(c.NonVotingServer),
+		PidFile:                                 b.stringVal(c.PidFile),
+		PrimaryDatacenter:                       primaryDatacenter,
+		RPCAdvertiseAddr:                        rpcAdvertiseAddr,
+		RPCBindAddr:                             rpcBindAddr,
+		RPCHoldTimeout:                          b.durationVal("performance.rpc_hold_timeout", c.Performance.RPCHoldTimeout),
+		RPCMaxBurst:                             b.intVal(c.Limits.RPCMaxBurst),
+		RPCProtocol:                             b.intVal(c.RPCProtocol),
+		RPCRateLimit:                            rate.Limit(b.float64Val(c.Limits.RPCRate)),
+		RaftProtocol:                            b.intVal(c.RaftProtocol),
+		RaftSnapshotThreshold:                   b.intVal(c.RaftSnapshotThreshold),
+		RaftSnapshotInterval:                    b.durationVal("raft_snapshot_interval", c.RaftSnapshotInterval),
+		ReconnectTimeoutLAN:                     b.durationVal("reconnect_timeout", c.ReconnectTimeoutLAN),
+		ReconnectTimeoutWAN:                     b.durationVal("reconnect_timeout_wan", c.ReconnectTimeoutWAN),
+		RejoinAfterLeave:                        b.boolVal(c.RejoinAfterLeave),
+		RetryJoinIntervalLAN:                    b.durationVal("retry_interval", c.RetryJoinIntervalLAN),
+		RetryJoinIntervalWAN:                    b.durationVal("retry_interval_wan", c.RetryJoinIntervalWAN),
+		RetryJoinLAN:                            b.expandAllOptionalAddrs("retry_join", c.RetryJoinLAN),
+		RetryJoinMaxAttemptsLAN:                 b.intVal(c.RetryJoinMaxAttemptsLAN),
+		RetryJoinMaxAttemptsWAN:                 b.intVal(c.RetryJoinMaxAttemptsWAN),
+		RetryJoinWAN:                            b.expandAllOptionalAddrs("retry_join_wan", c.RetryJoinWAN),
+		SegmentName:                             b.stringVal(c.SegmentName),
+		Segments:                                segments,
+		SerfAdvertiseAddrLAN:                    serfAdvertiseAddrLAN,
+		SerfAdvertiseAddrWAN:                    serfAdvertiseAddrWAN,
+		SerfBindAddrLAN:                         serfBindAddrLAN,
+		SerfBindAddrWAN:                         serfBindAddrWAN,
+		SerfPortLAN:                             serfPortLAN,
+		SerfPortWAN:                             serfPortWAN,
+		ServerMode:                              b.boolVal(c.ServerMode),
+		ServerName:                              b.stringVal(c.ServerName),
+		ServerPort:                              serverPort,
+		Services:                                services,
+		SessionTTLMin:                           b.durationVal("session_ttl_min", c.SessionTTLMin),
+		SkipLeaveOnInt:                          skipLeaveOnInt,
+		StartJoinAddrsLAN:                       b.expandAllOptionalAddrs("start_join", c.StartJoinAddrsLAN),
+		StartJoinAddrsWAN:                       b.expandAllOptionalAddrs("start_join_wan", c.StartJoinAddrsWAN),
+		SyslogFacility:                          b.stringVal(c.SyslogFacility),
+		TLSCipherSuites:                         b.tlsCipherSuites("tls_cipher_suites", c.TLSCipherSuites),
+		TLSMinVersion:                           b.stringVal(c.TLSMinVersion),
+		TLSPreferServerCipherSuites:             b.boolVal(c.TLSPreferServerCipherSuites),
+		TaggedAddresses:                         c.TaggedAddresses,
+		TranslateWANAddrs:                       b.boolVal(c.TranslateWANAddrs),
+		UIDir:                                   b.stringVal(c.UIDir),
+		UnixSocketGroup:                         b.stringVal(c.UnixSocket.Group),
+		UnixSocketMode:                          b.stringVal(c.UnixSocket.Mode),
+		UnixSocketUser:                          b.stringVal(c.UnixSocket.User),
+		VerifyIncoming:                          b.boolVal(c.VerifyIncoming),
+		VerifyIncomingHTTPS:                     b.boolVal(c.VerifyIncomingHTTPS),
+		VerifyIncomingRPC:                       b.boolVal(c.VerifyIncomingRPC),
+		VerifyOutgoing:                          b.boolVal(c.VerifyOutgoing),
+		VerifyServerHostname:                    b.boolVal(c.VerifyServerHostname),
+		Watches:                                 c.Watches,
 	}
 
 	if rt.BootstrapExpect == 1 {
 		rt.Bootstrap = true
 		rt.BootstrapExpect = 0
 		b.warn(`BootstrapExpect is set to 1; this is the same as Bootstrap mode.`)
-	}
-
-	if rt.ACLReplicationToken != "" {
-		rt.EnableACLReplication = true
 	}
 
 	return rt, nil
@@ -881,6 +1004,34 @@ func (b *Builder) Validate(rt RuntimeConfig) error {
 		return b.err
 	}
 
+	// Check for errors in the service definitions
+	for _, s := range rt.Services {
+		if err := s.Validate(); err != nil {
+			return fmt.Errorf("service %q: %s", s.Name, err)
+		}
+	}
+
+	// Validate the given Connect CA provider config
+	validCAProviders := map[string]bool{
+		"":                       true,
+		structs.ConsulCAProvider: true,
+		structs.VaultCAProvider:  true,
+	}
+	if _, ok := validCAProviders[rt.ConnectCAProvider]; !ok {
+		return fmt.Errorf("%s is not a valid CA provider", rt.ConnectCAProvider)
+	} else {
+		switch rt.ConnectCAProvider {
+		case structs.ConsulCAProvider:
+			if _, err := ca.ParseConsulCAConfig(rt.ConnectCAConfig); err != nil {
+				return err
+			}
+		case structs.VaultCAProvider:
+			if _, err := ca.ParseVaultCAConfig(rt.ConnectCAConfig); err != nil {
+				return err
+			}
+		}
+	}
+
 	// ----------------------------------------------------------------
 	// warnings
 	//
@@ -955,25 +1106,27 @@ func (b *Builder) checkVal(v *CheckDefinition) *structs.CheckDefinition {
 	id := types.CheckID(b.stringVal(v.ID))
 
 	return &structs.CheckDefinition{
-		ID:                id,
-		Name:              b.stringVal(v.Name),
-		Notes:             b.stringVal(v.Notes),
-		ServiceID:         b.stringVal(v.ServiceID),
-		Token:             b.stringVal(v.Token),
-		Status:            b.stringVal(v.Status),
-		ScriptArgs:        v.ScriptArgs,
-		HTTP:              b.stringVal(v.HTTP),
-		Header:            v.Header,
-		Method:            b.stringVal(v.Method),
-		TCP:               b.stringVal(v.TCP),
-		Interval:          b.durationVal(fmt.Sprintf("check[%s].interval", id), v.Interval),
-		DockerContainerID: b.stringVal(v.DockerContainerID),
-		Shell:             b.stringVal(v.Shell),
-		GRPC:              b.stringVal(v.GRPC),
-		GRPCUseTLS:        b.boolVal(v.GRPCUseTLS),
-		TLSSkipVerify:     b.boolVal(v.TLSSkipVerify),
-		Timeout:           b.durationVal(fmt.Sprintf("check[%s].timeout", id), v.Timeout),
-		TTL:               b.durationVal(fmt.Sprintf("check[%s].ttl", id), v.TTL),
+		ID:                             id,
+		Name:                           b.stringVal(v.Name),
+		Notes:                          b.stringVal(v.Notes),
+		ServiceID:                      b.stringVal(v.ServiceID),
+		Token:                          b.stringVal(v.Token),
+		Status:                         b.stringVal(v.Status),
+		ScriptArgs:                     v.ScriptArgs,
+		HTTP:                           b.stringVal(v.HTTP),
+		Header:                         v.Header,
+		Method:                         b.stringVal(v.Method),
+		TCP:                            b.stringVal(v.TCP),
+		Interval:                       b.durationVal(fmt.Sprintf("check[%s].interval", id), v.Interval),
+		DockerContainerID:              b.stringVal(v.DockerContainerID),
+		Shell:                          b.stringVal(v.Shell),
+		GRPC:                           b.stringVal(v.GRPC),
+		GRPCUseTLS:                     b.boolVal(v.GRPCUseTLS),
+		TLSSkipVerify:                  b.boolVal(v.TLSSkipVerify),
+		AliasNode:                      b.stringVal(v.AliasNode),
+		AliasService:                   b.stringVal(v.AliasService),
+		Timeout:                        b.durationVal(fmt.Sprintf("check[%s].timeout", id), v.Timeout),
+		TTL:                            b.durationVal(fmt.Sprintf("check[%s].ttl", id), v.TTL),
 		DeregisterCriticalServiceAfter: b.durationVal(fmt.Sprintf("check[%s].deregister_critical_service_after", id), v.DeregisterCriticalServiceAfter),
 	}
 }
@@ -997,7 +1150,21 @@ func (b *Builder) serviceVal(v *ServiceDefinition) *structs.ServiceDefinition {
 	} else {
 		meta = v.Meta
 	}
+	serviceWeights := &structs.Weights{Passing: 1, Warning: 1}
+	if v.Weights != nil {
+		if v.Weights.Passing != nil {
+			serviceWeights.Passing = *v.Weights.Passing
+		}
+		if v.Weights.Warning != nil {
+			serviceWeights.Warning = *v.Weights.Warning
+		}
+	}
+
+	if err := structs.ValidateWeights(serviceWeights); err != nil {
+		b.err = multierror.Append(fmt.Errorf("Invalid weight definition for service %s: %s", b.stringVal(v.Name), err))
+	}
 	return &structs.ServiceDefinition{
+		Kind:              b.serviceKindVal(v.Kind),
 		ID:                b.stringVal(v.ID),
 		Name:              b.stringVal(v.Name),
 		Tags:              v.Tags,
@@ -1006,26 +1173,132 @@ func (b *Builder) serviceVal(v *ServiceDefinition) *structs.ServiceDefinition {
 		Port:              b.intVal(v.Port),
 		Token:             b.stringVal(v.Token),
 		EnableTagOverride: b.boolVal(v.EnableTagOverride),
+		Weights:           serviceWeights,
 		Checks:            checks,
+		// DEPRECATED (ProxyDestination) - don't populate deprecated field, just use
+		// it as a default below on read. Remove that when remofing ProxyDestination
+		Proxy:   b.serviceProxyVal(v.Proxy, v.ProxyDestination),
+		Connect: b.serviceConnectVal(v.Connect),
 	}
 }
 
-func (b *Builder) boolVal(v *bool) bool {
+func (b *Builder) serviceKindVal(v *string) structs.ServiceKind {
 	if v == nil {
-		return false
+		return structs.ServiceKindTypical
 	}
+	switch *v {
+	case string(structs.ServiceKindConnectProxy):
+		return structs.ServiceKindConnectProxy
+	default:
+		return structs.ServiceKindTypical
+	}
+}
+
+func (b *Builder) serviceProxyVal(v *ServiceProxy, deprecatedDest *string) *structs.ConnectProxyConfig {
+	if v == nil {
+		if deprecatedDest != nil {
+			return &structs.ConnectProxyConfig{
+				DestinationServiceName: b.stringVal(deprecatedDest),
+			}
+		}
+		return nil
+	}
+
+	return &structs.ConnectProxyConfig{
+		DestinationServiceName: b.stringVal(v.DestinationServiceName),
+		DestinationServiceID:   b.stringVal(v.DestinationServiceID),
+		LocalServiceAddress:    b.stringVal(v.LocalServiceAddress),
+		LocalServicePort:       b.intVal(v.LocalServicePort),
+		Config:                 v.Config,
+		Upstreams:              b.upstreamsVal(v.Upstreams),
+	}
+}
+
+func (b *Builder) upstreamsVal(v []Upstream) structs.Upstreams {
+	ups := make(structs.Upstreams, len(v))
+	for i, u := range v {
+		ups[i] = structs.Upstream{
+			DestinationType:      b.stringVal(u.DestinationType),
+			DestinationNamespace: b.stringVal(u.DestinationNamespace),
+			DestinationName:      b.stringVal(u.DestinationName),
+			Datacenter:           b.stringVal(u.Datacenter),
+			LocalBindAddress:     b.stringVal(u.LocalBindAddress),
+			LocalBindPort:        b.intVal(u.LocalBindPort),
+			Config:               u.Config,
+		}
+		if ups[i].DestinationType == "" {
+			ups[i].DestinationType = structs.UpstreamDestTypeService
+		}
+	}
+	return ups
+}
+
+func (b *Builder) serviceConnectVal(v *ServiceConnect) *structs.ServiceConnect {
+	if v == nil {
+		return nil
+	}
+
+	var proxy *structs.ServiceDefinitionConnectProxy
+	if v.Proxy != nil {
+		proxy = &structs.ServiceDefinitionConnectProxy{
+			ExecMode:  b.stringVal(v.Proxy.ExecMode),
+			Command:   v.Proxy.Command,
+			Config:    v.Proxy.Config,
+			Upstreams: b.upstreamsVal(v.Proxy.Upstreams),
+		}
+	}
+
+	sidecar := b.serviceVal(v.SidecarService)
+	if sidecar != nil {
+		// Sanity checks
+		if sidecar.ID != "" {
+			b.err = multierror.Append(b.err, fmt.Errorf("sidecar_service can't specify an ID"))
+			sidecar.ID = ""
+		}
+		if sidecar.Connect != nil {
+			if sidecar.Connect.SidecarService != nil {
+				b.err = multierror.Append(b.err, fmt.Errorf("sidecar_service can't have a nested sidecar_service"))
+				sidecar.Connect.SidecarService = nil
+			}
+			if sidecar.Connect.Proxy != nil {
+				b.err = multierror.Append(b.err, fmt.Errorf("sidecar_service can't have a managed proxy"))
+				sidecar.Connect.Proxy = nil
+			}
+		}
+	}
+
+	return &structs.ServiceConnect{
+		Native:         b.boolVal(v.Native),
+		Proxy:          proxy,
+		SidecarService: sidecar,
+	}
+}
+
+func (b *Builder) boolValWithDefault(v *bool, defaultVal bool) bool {
+	if v == nil {
+		return defaultVal
+	}
+
 	return *v
 }
 
-func (b *Builder) durationVal(name string, v *string) (d time.Duration) {
+func (b *Builder) boolVal(v *bool) bool {
+	return b.boolValWithDefault(v, false)
+}
+
+func (b *Builder) durationValWithDefault(name string, v *string, defaultVal time.Duration) (d time.Duration) {
 	if v == nil {
-		return 0
+		return defaultVal
 	}
 	d, err := time.ParseDuration(*v)
 	if err != nil {
 		b.err = multierror.Append(fmt.Errorf("%s: invalid duration: %q: %s", name, *v, err))
 	}
 	return d
+}
+
+func (b *Builder) durationVal(name string, v *string) (d time.Duration) {
+	return b.durationValWithDefault(name, v, 0)
 }
 
 func (b *Builder) intVal(v *int) int {
@@ -1045,11 +1318,15 @@ func (b *Builder) portVal(name string, v *int) int {
 	return *v
 }
 
-func (b *Builder) stringVal(v *string) string {
+func (b *Builder) stringValWithDefault(v *string, defaultVal string) string {
 	if v == nil {
-		return ""
+		return defaultVal
 	}
 	return *v
+}
+
+func (b *Builder) stringVal(v *string) string {
+	return b.stringValWithDefault(v, "")
 }
 
 func (b *Builder) float64Val(v *float64) float64 {
@@ -1099,7 +1376,7 @@ func (b *Builder) expandAddrs(name string, s *string) []net.Addr {
 
 	x, err := template.Parse(*s)
 	if err != nil {
-		b.err = multierror.Append(b.err, fmt.Errorf("%s: error parsing %q: %s", name, s, err))
+		b.err = multierror.Append(b.err, fmt.Errorf("%s: error parsing %q: %s", name, *s, err))
 		return nil
 	}
 
@@ -1138,7 +1415,7 @@ func (b *Builder) expandOptionalAddrs(name string, s *string) []string {
 
 	x, err := template.Parse(*s)
 	if err != nil {
-		b.err = multierror.Append(b.err, fmt.Errorf("%s: error parsing %q: %s", name, s, err))
+		b.err = multierror.Append(b.err, fmt.Errorf("%s: error parsing %q: %s", name, *s, err))
 		return nil
 	}
 

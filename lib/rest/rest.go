@@ -114,10 +114,15 @@ func (trest *REST) asyncStart() {
 	router.GET(path+"keysets/:keyset/tags", trest.reader.ListTagsNumber)
 	router.GET(path+"keysets/:keyset/metrics", trest.reader.ListMetricsNumber)
 	router.POST(path+"keysets/:keyset/meta", trest.reader.ListMetaNumber)
+	router.GET(path+"keysets/:keyset/values", trest.reader.ListMetaNumber)
+	router.GET(path+"keysets/:keyset/metric/tag/keys", trest.reader.ListNumberTagKeysByMetric)
+	router.GET(path+"keysets/:keyset/metric/tag/values", trest.reader.ListNumberTagValuesByMetric)
 	//TEXT
 	router.GET(path+"keysets/:keyset/text/tags", trest.reader.ListTagsText)
 	router.GET(path+"keysets/:keyset/text/metrics", trest.reader.ListMetricsText)
 	router.POST(path+"keysets/:keyset/text/meta", trest.reader.ListMetaText)
+	router.GET(path+"keysets/:keyset/text/tag/keys", trest.reader.ListTextTagKeysByMetric)
+	router.GET(path+"keysets/:keyset/text/tag/values", trest.reader.ListTextTagValuesByMetric)
 	//KEYSPACE
 	router.GET(path+"datacenters", trest.kspace.ListDC)
 	router.HEAD(path+"keyspaces/:keyspace", trest.kspace.Check)
@@ -141,7 +146,7 @@ func (trest *REST) asyncStart() {
 	router.POST("/keysets/:keyset", trest.keyset.CreateKeySet)
 	router.HEAD("/keysets/:keyset", trest.keyset.Check)
 	router.GET("/keysets", trest.keyset.GetKeySets)
-	//META
+	//DELETE
 	router.POST(path+"keysets/:keyset/delete/meta", trest.reader.DeleteNumberTS)
 	router.POST(path+"keysets/:keyset/delete/text/meta", trest.reader.DeleteTextTS)
 

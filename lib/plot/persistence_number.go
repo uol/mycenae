@@ -10,90 +10,61 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-func (persist *persistence) GetTS(keyspace, key string, start, end int64, ms bool) (Pnts, int, gobol.Error) {
+func (persist *persistence) GetTS(keyspace string, keys []string, start, end int64, ms bool) (map[string][]Pnt, gobol.Error) {
 
-	return persist.getTStamp(keyspace, key, start, end, ms)
-}
-
-func (persist *persistence) getTStamp(keyspace, key string, start, end int64, ms bool) ([]Pnt, int, gobol.Error) {
 	track := time.Now()
 	start--
 	end++
 
+	var tsid string
 	var date int64
 	var value float64
 	var err error
 
 	iter := persist.cassandra.Query(
 		fmt.Sprintf(
-			`SELECT date, value FROM %v.ts_number_stamp WHERE id= ? AND date > ? AND date < ? ALLOW FILTERING`,
+			`SELECT id, date, value FROM %v.ts_number_stamp WHERE id in (%s) AND date > ? AND date < ? ALLOW FILTERING`,
 			keyspace,
+			persist.buildInGroup(keys),
 		),
-		key,
 		start,
 		end,
-	).RoutingKey([]byte(key)).Iter()
+	).Iter()
 
-	points := []Pnt{}
-	var count int
+	tsMap := map[string][]Pnt{}
 
-	for iter.Scan(&date, &value) {
-		count++
+	for iter.Scan(&tsid, &date, &value) {
+
 		if !ms {
 			date = (date / 1000) * 1000
 		}
+
 		point := Pnt{
+			TSID:  tsid,
 			Date:  date,
 			Value: value,
 		}
-		points = append(points, point)
+
+		tsMap[tsid] = append(tsMap[tsid], point)
 	}
 
 	if err = iter.Close(); err != nil {
 		fields := []zapcore.Field{
 			zap.String("package", "plot/persistence"),
-			zap.String("func", "getTStamp"),
+			zap.String("func", "getTS"),
 		}
 		gblog.Error(err.Error(), fields...)
 
 		if err == gocql.ErrNotFound {
 			statsSelect(keyspace, "ts_number_stamp", time.Since(track))
-			return []Pnt{}, 0, errNoContent("getTStamp")
+			return map[string][]Pnt{}, errNoContent("getTS")
 		}
 
 		statsSelectQerror(keyspace, "ts_number_stamp")
-		return []Pnt{}, 0, errPersist("getTStamp", err)
+		return map[string][]Pnt{}, errPersist("getTS", err)
 	}
+
 	statsSelect(keyspace, "ts_number_stamp", time.Since(track))
-	return points, count, nil
-}
 
-func (persist *persistence) fuseNumber(countF, countS int, first, second []Pnt) []Pnt {
-
-	fused := make(Pnts, countF+countS)
-	var i, j, k int
-
-	for i < countF && j < countS {
-		if first[i].Date <= second[j].Date {
-			fused[k] = first[i]
-			i++
-		} else {
-			fused[k] = second[j]
-			j++
-		}
-		k++
-	}
-	if i < countF {
-		for p := i; p < countF; p++ {
-			fused[k] = first[p]
-			k++
-		}
-	} else {
-		for p := j; p < countS; p++ {
-			fused[k] = second[p]
-			k++
-		}
-	}
-
-	return fused
+	return tsMap, nil
 }

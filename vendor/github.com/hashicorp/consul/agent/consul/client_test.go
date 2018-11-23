@@ -15,6 +15,8 @@ import (
 	"github.com/hashicorp/consul/testutil/retry"
 	"github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/serf/serf"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/time/rate"
 )
 
 func testClientConfig(t *testing.T) (string, *Config) {
@@ -448,6 +450,7 @@ func TestClient_SnapshotRPC(t *testing.T) {
 
 	// Try to join.
 	joinLAN(t, c1, s1)
+	testrpc.WaitForLeader(t, c1.RPC, "dc1")
 
 	// Wait until we've got a healthy server.
 	retry.Run(t, func(r *retry.R) {
@@ -664,4 +667,26 @@ func TestClient_Encrypted(t *testing.T) {
 	if !c2.Encrypted() {
 		t.Fatalf("should be encrypted")
 	}
+}
+
+func TestClient_Reload(t *testing.T) {
+	t.Parallel()
+	dir1, c := testClientWithConfig(t, func(c *Config) {
+		c.RPCRate = 500
+		c.RPCMaxBurst = 5000
+	})
+	defer os.RemoveAll(dir1)
+	defer c.Shutdown()
+
+	limiter := c.rpcLimiter.Load().(*rate.Limiter)
+	require.Equal(t, rate.Limit(500), limiter.Limit())
+	require.Equal(t, 5000, limiter.Burst())
+
+	c.config.RPCRate = 1000
+	c.config.RPCMaxBurst = 10000
+
+	require.NoError(t, c.ReloadConfig(c.config))
+	limiter = c.rpcLimiter.Load().(*rate.Limiter)
+	require.Equal(t, rate.Limit(1000), limiter.Limit())
+	require.Equal(t, 10000, limiter.Burst())
 }

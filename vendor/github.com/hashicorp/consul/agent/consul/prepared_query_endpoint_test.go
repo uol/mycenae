@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/consul/types"
 	"github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/serf/coordinate"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPreparedQuery_Apply(t *testing.T) {
@@ -187,6 +188,7 @@ func TestPreparedQuery_Apply_ACLDeny(t *testing.T) {
 	t.Parallel()
 	dir1, s1 := testServerWithConfig(t, func(c *Config) {
 		c.ACLDatacenter = "dc1"
+		c.ACLsEnabled = true
 		c.ACLMasterToken = "root"
 		c.ACLDefaultPolicy = "deny"
 	})
@@ -211,7 +213,7 @@ func TestPreparedQuery_Apply_ACLDeny(t *testing.T) {
 			Op:         structs.ACLSet,
 			ACL: structs.ACL{
 				Name:  "User token",
-				Type:  structs.ACLTypeClient,
+				Type:  structs.ACLTokenTypeClient,
 				Rules: rules,
 			},
 			WriteRequest: structs.WriteRequest{Token: "root"},
@@ -626,6 +628,7 @@ func TestPreparedQuery_ACLDeny_Catchall_Template(t *testing.T) {
 	t.Parallel()
 	dir1, s1 := testServerWithConfig(t, func(c *Config) {
 		c.ACLDatacenter = "dc1"
+		c.ACLsEnabled = true
 		c.ACLMasterToken = "root"
 		c.ACLDefaultPolicy = "deny"
 	})
@@ -650,7 +653,7 @@ func TestPreparedQuery_ACLDeny_Catchall_Template(t *testing.T) {
 			Op:         structs.ACLSet,
 			ACL: structs.ACL{
 				Name:  "User token",
-				Type:  structs.ACLTypeClient,
+				Type:  structs.ACLTokenTypeClient,
 				Rules: rules,
 			},
 			WriteRequest: structs.WriteRequest{Token: "root"},
@@ -840,6 +843,7 @@ func TestPreparedQuery_Get(t *testing.T) {
 	t.Parallel()
 	dir1, s1 := testServerWithConfig(t, func(c *Config) {
 		c.ACLDatacenter = "dc1"
+		c.ACLsEnabled = true
 		c.ACLMasterToken = "root"
 		c.ACLDefaultPolicy = "deny"
 	})
@@ -864,7 +868,7 @@ func TestPreparedQuery_Get(t *testing.T) {
 			Op:         structs.ACLSet,
 			ACL: structs.ACL{
 				Name:  "User token",
-				Type:  structs.ACLTypeClient,
+				Type:  structs.ACLTokenTypeClient,
 				Rules: rules,
 			},
 			WriteRequest: structs.WriteRequest{Token: "root"},
@@ -1092,6 +1096,7 @@ func TestPreparedQuery_List(t *testing.T) {
 	t.Parallel()
 	dir1, s1 := testServerWithConfig(t, func(c *Config) {
 		c.ACLDatacenter = "dc1"
+		c.ACLsEnabled = true
 		c.ACLMasterToken = "root"
 		c.ACLDefaultPolicy = "deny"
 	})
@@ -1116,7 +1121,7 @@ func TestPreparedQuery_List(t *testing.T) {
 			Op:         structs.ACLSet,
 			ACL: structs.ACL{
 				Name:  "User token",
-				Type:  structs.ACLTypeClient,
+				Type:  structs.ACLTokenTypeClient,
 				Rules: rules,
 			},
 			WriteRequest: structs.WriteRequest{Token: "root"},
@@ -1299,6 +1304,7 @@ func TestPreparedQuery_Explain(t *testing.T) {
 	t.Parallel()
 	dir1, s1 := testServerWithConfig(t, func(c *Config) {
 		c.ACLDatacenter = "dc1"
+		c.ACLsEnabled = true
 		c.ACLMasterToken = "root"
 		c.ACLDefaultPolicy = "deny"
 	})
@@ -1323,7 +1329,7 @@ func TestPreparedQuery_Explain(t *testing.T) {
 			Op:         structs.ACLSet,
 			ACL: structs.ACL{
 				Name:  "User token",
-				Type:  structs.ACLTypeClient,
+				Type:  structs.ACLTokenTypeClient,
 				Rules: rules,
 			},
 			WriteRequest: structs.WriteRequest{Token: "root"},
@@ -1435,6 +1441,7 @@ func TestPreparedQuery_Execute(t *testing.T) {
 	t.Parallel()
 	dir1, s1 := testServerWithConfig(t, func(c *Config) {
 		c.ACLDatacenter = "dc1"
+		c.ACLsEnabled = true
 		c.ACLMasterToken = "root"
 		c.ACLDefaultPolicy = "deny"
 		c.ACLEnforceVersion8 = false
@@ -1447,6 +1454,7 @@ func TestPreparedQuery_Execute(t *testing.T) {
 	dir2, s2 := testServerWithConfig(t, func(c *Config) {
 		c.Datacenter = "dc2"
 		c.ACLDatacenter = "dc1"
+		c.ACLsEnabled = true
 	})
 	defer os.RemoveAll(dir2)
 	defer s2.Shutdown()
@@ -1478,7 +1486,7 @@ func TestPreparedQuery_Execute(t *testing.T) {
 			Op:         structs.ACLSet,
 			ACL: structs.ACL{
 				Name:  "User token",
-				Type:  structs.ACLTypeClient,
+				Type:  structs.ACLTokenTypeClient,
 				Rules: rules,
 			},
 			WriteRequest: structs.WriteRequest{Token: "root"},
@@ -2162,7 +2170,7 @@ func TestPreparedQuery_Execute(t *testing.T) {
 			Op:         structs.ACLSet,
 			ACL: structs.ACL{
 				Name:  "User token",
-				Type:  structs.ACLTypeClient,
+				Type:  structs.ACLTokenTypeClient,
 				Rules: rules,
 			},
 			WriteRequest: structs.WriteRequest{Token: "root"},
@@ -2617,6 +2625,159 @@ func TestPreparedQuery_Execute_ForwardLeader(t *testing.T) {
 	}
 }
 
+func TestPreparedQuery_Execute_ConnectExact(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+	dir1, s1 := testServer(t)
+	defer os.RemoveAll(dir1)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	defer codec.Close()
+
+	// Setup 3 services on 3 nodes: one is non-Connect, one is Connect native,
+	// and one is a proxy to the non-Connect one.
+	for i := 0; i < 3; i++ {
+		req := structs.RegisterRequest{
+			Datacenter: "dc1",
+			Node:       fmt.Sprintf("node%d", i+1),
+			Address:    fmt.Sprintf("127.0.0.%d", i+1),
+			Service: &structs.NodeService{
+				Service: "foo",
+				Port:    8000,
+			},
+		}
+
+		switch i {
+		case 0:
+			// Default do nothing
+
+		case 1:
+			// Connect native
+			req.Service.Connect.Native = true
+
+		case 2:
+			// Connect proxy
+			req.Service.Kind = structs.ServiceKindConnectProxy
+			req.Service.Proxy.DestinationServiceName = req.Service.Service
+			req.Service.Service = "proxy"
+		}
+
+		var reply struct{}
+		require.NoError(msgpackrpc.CallWithCodec(codec, "Catalog.Register", &req, &reply))
+	}
+
+	// The query, start with connect disabled
+	query := structs.PreparedQueryRequest{
+		Datacenter: "dc1",
+		Op:         structs.PreparedQueryCreate,
+		Query: &structs.PreparedQuery{
+			Name: "test",
+			Service: structs.ServiceQuery{
+				Service: "foo",
+			},
+			DNS: structs.QueryDNSOptions{
+				TTL: "10s",
+			},
+		},
+	}
+	require.NoError(msgpackrpc.CallWithCodec(
+		codec, "PreparedQuery.Apply", &query, &query.Query.ID))
+
+	// In the future we'll run updates
+	query.Op = structs.PreparedQueryUpdate
+
+	// Run the registered query.
+	{
+		req := structs.PreparedQueryExecuteRequest{
+			Datacenter:    "dc1",
+			QueryIDOrName: query.Query.ID,
+		}
+
+		var reply structs.PreparedQueryExecuteResponse
+		require.NoError(msgpackrpc.CallWithCodec(
+			codec, "PreparedQuery.Execute", &req, &reply))
+
+		// Result should have two because it omits the proxy whose name
+		// doesn't match the query.
+		require.Len(reply.Nodes, 2)
+		require.Equal(query.Query.Service.Service, reply.Service)
+		require.Equal(query.Query.DNS, reply.DNS)
+		require.True(reply.QueryMeta.KnownLeader, "queried leader")
+	}
+
+	// Run with the Connect setting specified on the request
+	{
+		req := structs.PreparedQueryExecuteRequest{
+			Datacenter:    "dc1",
+			QueryIDOrName: query.Query.ID,
+			Connect:       true,
+		}
+
+		var reply structs.PreparedQueryExecuteResponse
+		require.NoError(msgpackrpc.CallWithCodec(
+			codec, "PreparedQuery.Execute", &req, &reply))
+
+		// Result should have two because we should get the native AND
+		// the proxy (since the destination matches our service name).
+		require.Len(reply.Nodes, 2)
+		require.Equal(query.Query.Service.Service, reply.Service)
+		require.Equal(query.Query.DNS, reply.DNS)
+		require.True(reply.QueryMeta.KnownLeader, "queried leader")
+
+		// Make sure the native is the first one
+		if !reply.Nodes[0].Service.Connect.Native {
+			reply.Nodes[0], reply.Nodes[1] = reply.Nodes[1], reply.Nodes[0]
+		}
+
+		require.True(reply.Nodes[0].Service.Connect.Native, "native")
+		require.Equal(reply.Service, reply.Nodes[0].Service.Service)
+
+		require.Equal(structs.ServiceKindConnectProxy, reply.Nodes[1].Service.Kind)
+		require.Equal(reply.Service, reply.Nodes[1].Service.Proxy.DestinationServiceName)
+	}
+
+	// Update the query
+	query.Query.Service.Connect = true
+	require.NoError(msgpackrpc.CallWithCodec(
+		codec, "PreparedQuery.Apply", &query, &query.Query.ID))
+
+	// Run the registered query.
+	{
+		req := structs.PreparedQueryExecuteRequest{
+			Datacenter:    "dc1",
+			QueryIDOrName: query.Query.ID,
+		}
+
+		var reply structs.PreparedQueryExecuteResponse
+		require.NoError(msgpackrpc.CallWithCodec(
+			codec, "PreparedQuery.Execute", &req, &reply))
+
+		// Result should have two because we should get the native AND
+		// the proxy (since the destination matches our service name).
+		require.Len(reply.Nodes, 2)
+		require.Equal(query.Query.Service.Service, reply.Service)
+		require.Equal(query.Query.DNS, reply.DNS)
+		require.True(reply.QueryMeta.KnownLeader, "queried leader")
+
+		// Make sure the native is the first one
+		if !reply.Nodes[0].Service.Connect.Native {
+			reply.Nodes[0], reply.Nodes[1] = reply.Nodes[1], reply.Nodes[0]
+		}
+
+		require.True(reply.Nodes[0].Service.Connect.Native, "native")
+		require.Equal(reply.Service, reply.Nodes[0].Service.Service)
+
+		require.Equal(structs.ServiceKindConnectProxy, reply.Nodes[1].Service.Kind)
+		require.Equal(reply.Service, reply.Nodes[1].Service.Proxy.DestinationServiceName)
+	}
+
+	// Unset the query
+	query.Query.Service.Connect = false
+	require.NoError(msgpackrpc.CallWithCodec(
+		codec, "PreparedQuery.Apply", &query, &query.Query.ID))
+}
+
 func TestPreparedQuery_tagFilter(t *testing.T) {
 	t.Parallel()
 	testNodes := func() structs.CheckServiceNodes {
@@ -2713,6 +2874,7 @@ func TestPreparedQuery_Wrapper(t *testing.T) {
 	t.Parallel()
 	dir1, s1 := testServerWithConfig(t, func(c *Config) {
 		c.ACLDatacenter = "dc1"
+		c.ACLsEnabled = true
 		c.ACLMasterToken = "root"
 		c.ACLDefaultPolicy = "deny"
 	})
@@ -2722,6 +2884,7 @@ func TestPreparedQuery_Wrapper(t *testing.T) {
 	dir2, s2 := testServerWithConfig(t, func(c *Config) {
 		c.Datacenter = "dc2"
 		c.ACLDatacenter = "dc1"
+		c.ACLsEnabled = true
 		c.ACLMasterToken = "root"
 		c.ACLDefaultPolicy = "deny"
 	})
@@ -2739,16 +2902,18 @@ func TestPreparedQuery_Wrapper(t *testing.T) {
 	wrapper.GetLogger().Printf("[DEBUG] Test")
 
 	ret, err := wrapper.GetOtherDatacentersByDistance()
+	wrapper.GetLogger().Println("Returned value: ", ret)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if len(ret) != 1 || ret[0] != "dc2" {
 		t.Fatalf("bad: %v", ret)
 	}
-
-	if err := wrapper.ForwardDC("Status.Ping", "dc2", &struct{}{}, &struct{}{}); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	// Since we have no idea when the joinWAN operation completes
+	// we keep on querying until the the join operation completes.
+	retry.Run(t, func(r *retry.R) {
+		r.Check(s1.forwardDC("Status.Ping", "dc2", &struct{}{}, &struct{}{}))
+	})
 }
 
 type mockQueryServer struct {
@@ -2820,7 +2985,7 @@ func TestPreparedQuery_queryFailover(t *testing.T) {
 		}
 
 		var reply structs.PreparedQueryExecuteResponse
-		if err := queryFailover(mock, query, 0, structs.QueryOptions{}, &reply); err != nil {
+		if err := queryFailover(mock, query, &structs.PreparedQueryExecuteRequest{}, &reply); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 		if len(reply.Nodes) != 0 || reply.Datacenter != "" || reply.Failovers != 0 {
@@ -2836,7 +3001,7 @@ func TestPreparedQuery_queryFailover(t *testing.T) {
 		}
 
 		var reply structs.PreparedQueryExecuteResponse
-		err := queryFailover(mock, query, 0, structs.QueryOptions{}, &reply)
+		err := queryFailover(mock, query, &structs.PreparedQueryExecuteRequest{}, &reply)
 		if err == nil || !strings.Contains(err.Error(), "XXX") {
 			t.Fatalf("bad: %v", err)
 		}
@@ -2853,7 +3018,7 @@ func TestPreparedQuery_queryFailover(t *testing.T) {
 		}
 
 		var reply structs.PreparedQueryExecuteResponse
-		if err := queryFailover(mock, query, 0, structs.QueryOptions{}, &reply); err != nil {
+		if err := queryFailover(mock, query, &structs.PreparedQueryExecuteRequest{}, &reply); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 		if len(reply.Nodes) != 0 || reply.Datacenter != "" || reply.Failovers != 0 {
@@ -2876,7 +3041,7 @@ func TestPreparedQuery_queryFailover(t *testing.T) {
 		}
 
 		var reply structs.PreparedQueryExecuteResponse
-		if err := queryFailover(mock, query, 0, structs.QueryOptions{}, &reply); err != nil {
+		if err := queryFailover(mock, query, &structs.PreparedQueryExecuteRequest{}, &reply); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 		if len(reply.Nodes) != 3 ||
@@ -2904,7 +3069,7 @@ func TestPreparedQuery_queryFailover(t *testing.T) {
 		}
 
 		var reply structs.PreparedQueryExecuteResponse
-		if err := queryFailover(mock, query, 0, structs.QueryOptions{}, &reply); err != nil {
+		if err := queryFailover(mock, query, &structs.PreparedQueryExecuteRequest{}, &reply); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 		if len(reply.Nodes) != 3 ||
@@ -2925,7 +3090,7 @@ func TestPreparedQuery_queryFailover(t *testing.T) {
 		}
 
 		var reply structs.PreparedQueryExecuteResponse
-		if err := queryFailover(mock, query, 0, structs.QueryOptions{}, &reply); err != nil {
+		if err := queryFailover(mock, query, &structs.PreparedQueryExecuteRequest{}, &reply); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 		if len(reply.Nodes) != 0 ||
@@ -2954,7 +3119,7 @@ func TestPreparedQuery_queryFailover(t *testing.T) {
 		}
 
 		var reply structs.PreparedQueryExecuteResponse
-		if err := queryFailover(mock, query, 0, structs.QueryOptions{}, &reply); err != nil {
+		if err := queryFailover(mock, query, &structs.PreparedQueryExecuteRequest{}, &reply); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 		if len(reply.Nodes) != 3 ||
@@ -2983,7 +3148,7 @@ func TestPreparedQuery_queryFailover(t *testing.T) {
 		}
 
 		var reply structs.PreparedQueryExecuteResponse
-		if err := queryFailover(mock, query, 0, structs.QueryOptions{}, &reply); err != nil {
+		if err := queryFailover(mock, query, &structs.PreparedQueryExecuteRequest{}, &reply); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 		if len(reply.Nodes) != 3 ||
@@ -3012,7 +3177,7 @@ func TestPreparedQuery_queryFailover(t *testing.T) {
 		}
 
 		var reply structs.PreparedQueryExecuteResponse
-		if err := queryFailover(mock, query, 0, structs.QueryOptions{}, &reply); err != nil {
+		if err := queryFailover(mock, query, &structs.PreparedQueryExecuteRequest{}, &reply); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 		if len(reply.Nodes) != 3 ||
@@ -3047,7 +3212,7 @@ func TestPreparedQuery_queryFailover(t *testing.T) {
 		}
 
 		var reply structs.PreparedQueryExecuteResponse
-		if err := queryFailover(mock, query, 0, structs.QueryOptions{}, &reply); err != nil {
+		if err := queryFailover(mock, query, &structs.PreparedQueryExecuteRequest{}, &reply); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 		if len(reply.Nodes) != 3 ||
@@ -3079,7 +3244,7 @@ func TestPreparedQuery_queryFailover(t *testing.T) {
 		}
 
 		var reply structs.PreparedQueryExecuteResponse
-		if err := queryFailover(mock, query, 0, structs.QueryOptions{}, &reply); err != nil {
+		if err := queryFailover(mock, query, &structs.PreparedQueryExecuteRequest{}, &reply); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 		if len(reply.Nodes) != 3 ||
@@ -3115,7 +3280,10 @@ func TestPreparedQuery_queryFailover(t *testing.T) {
 		}
 
 		var reply structs.PreparedQueryExecuteResponse
-		if err := queryFailover(mock, query, 5, structs.QueryOptions{RequireConsistent: true}, &reply); err != nil {
+		if err := queryFailover(mock, query, &structs.PreparedQueryExecuteRequest{
+			Limit:        5,
+			QueryOptions: structs.QueryOptions{RequireConsistent: true},
+		}, &reply); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 		if len(reply.Nodes) != 3 ||

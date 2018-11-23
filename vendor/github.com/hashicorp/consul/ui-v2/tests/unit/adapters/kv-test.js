@@ -44,9 +44,10 @@ module('Unit | Adapter | kv', function(hooks) {
     });
     it("returns the original payload plus the uid if it's not a Boolean", function() {
       const uid = {
+        Datacenter: dc,
         uid: JSON.stringify([dc, expected]),
       };
-      const actual = adapter.handleResponse(200, {}, uid, { url: url });
+      const actual = adapter.handleResponse(200, {}, [uid], { url: url });
       assert.deepEqual(actual, uid);
     });
   });
