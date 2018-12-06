@@ -281,11 +281,11 @@ func (plot *Plot) getTimeseries(
 				tagMap[filter.Tagk] = append(tagMap[filter.Tagk], filter.Filter)
 			} else {
 				if filter.Tagk == "ttl" {
-					v, err := strconv.ParseUint(filter.Filter, 10, 8)
+					v, err := strconv.Atoi(filter.Filter)
 					if err != nil {
 						return resps, errValidationE("getTimeseries", err)
 					}
-					ttl = uint8(v)
+					ttl = v
 					ttlIndex = i
 				}
 				tagMap[filter.Tagk] = []string{filter.Filter}

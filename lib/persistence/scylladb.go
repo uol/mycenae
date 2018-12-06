@@ -11,14 +11,13 @@ import (
 )
 
 type scylladb struct {
-	session *gocql.Session
-	logger  *zap.Logger
-	stats   *tsstats.StatsTS
-
+	session       *gocql.Session
+	logger        *zap.Logger
+	stats         *tsstats.StatsTS
 	ksMngr        string
 	grantUsername string
 	devMode       bool
-	defaultTTL    uint8
+	defaultTTL    int
 }
 
 func newScyllaPersistence(
@@ -28,13 +27,12 @@ func newScyllaPersistence(
 	logger *zap.Logger,
 	stats *tsstats.StatsTS,
 	devMode bool,
-	defaultTTL uint8,
+	defaultTTL int,
 ) (Backend, error) {
 	return &scylladb{
-		session: session,
-		logger:  logger,
-		stats:   stats,
-
+		session:       session,
+		logger:        logger,
+		stats:         stats,
 		ksMngr:        ksAdmin,
 		grantUsername: grantUsername,
 		devMode:       devMode,
@@ -44,7 +42,7 @@ func newScyllaPersistence(
 
 func (backend *scylladb) CreateKeyspace(
 	name, datacenter, contact string,
-	replication int, ttl uint8,
+	replication int, ttl int,
 ) gobol.Error {
 	keyspace := Keyspace{
 		Name:        name,

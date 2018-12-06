@@ -58,7 +58,7 @@ type Point struct {
 	Keyset    string
 	Timestamp int64
 	Number    bool
-	TTL       uint8
+	TTL       int
 }
 
 type StructV2Error struct {

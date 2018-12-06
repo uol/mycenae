@@ -14,14 +14,14 @@ func New(
 	sts *tsstats.StatsTS,
 	storage *persistence.Storage,
 	devMode bool,
-	defaultTTL uint8,
+	defaultTTL int,
 	maxAllowedTTL int,
 ) *Keyspace {
 	return &Keyspace{
-		Storage: storage,
-		stats:   sts,
-		devMode: devMode,
-		defaultTTL: defaultTTL,
+		Storage:       storage,
+		stats:         sts,
+		devMode:       devMode,
+		defaultTTL:    defaultTTL,
 		maxAllowedTTL: maxAllowedTTL,
 	}
 }
@@ -29,8 +29,8 @@ func New(
 // Keyspace is a structure that represents the functionality of this module
 type Keyspace struct {
 	*persistence.Storage
-	stats   *tsstats.StatsTS
-	devMode bool
-	defaultTTL uint8
+	stats         *tsstats.StatsTS
+	devMode       bool
+	defaultTTL    int
 	maxAllowedTTL int
 }

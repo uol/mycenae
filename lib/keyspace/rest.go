@@ -3,10 +3,11 @@ package keyspace
 import (
 	"net/http"
 
+	"fmt"
+
 	"github.com/julienschmidt/httprouter"
 	"github.com/uol/gobol/rip"
 	storage "github.com/uol/mycenae/lib/persistence"
-	"fmt"
 )
 
 // Create is a rest endpoint to create a keyspace
@@ -70,7 +71,7 @@ func (kspace *Keyspace) Create(
 	}
 
 	ksc.Name = ks
-	err = kspace.CreateKeyspace(ksc.Name, ksc.Datacenter, ksc.Contact, ksc.ReplicationFactor, uint8(ksc.TTL))
+	err = kspace.CreateKeyspace(ksc.Name, ksc.Datacenter, ksc.Contact, ksc.ReplicationFactor, ksc.TTL)
 	if err != nil {
 		rip.Fail(w, err)
 		return

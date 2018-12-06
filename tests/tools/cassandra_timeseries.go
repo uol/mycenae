@@ -61,7 +61,7 @@ const (
 )
 
 var (
-	TTLKeyspaceMap = map[uint8]string{
+	TTLKeyspaceMap = map[int]string{
 		1:  "one_day",
 		3:  "three_days",
 		7:  "one_week",
@@ -92,7 +92,7 @@ var (
 //}
 
 func (ts *cassTs) getTTLKeyspace(ttl int) string {
-	if ks, ok := TTLKeyspaceMap[uint8(ttl)]; !ok {
+	if ks, ok := TTLKeyspaceMap[ttl]; !ok {
 		panic("no ttl keyspace with value " + strconv.FormatInt(int64(ttl), 10))
 	} else {
 		return ks
