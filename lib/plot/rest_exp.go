@@ -433,18 +433,15 @@ func (plot *Plot) expandStruct(
 
 	if needExpand {
 
-		tsobs, total, gerr := plot.MetaFilterOpenTSDB(keyset, tsdb.Metric, tsdb.Filters, 10000)
+		tsobs, total, gerr := plot.MetaFilterOpenTSDB(keyset, tsdb.Metric, tsdb.Filters, plot.MaxTimeseries)
 		if gerr != nil {
 			return groupQueries, gerr
 		}
-		if total > 10000 {
-			return groupQueries, errValidationS(
-				"expandStruct",
-				fmt.Sprintf(
-					"expand exedded the maximum allowed number of timeseries. max is 10000 and the query returned %d",
-					total,
-				),
-			)
+
+		logIfExceeded := fmt.Sprintf("TS THRESHOLD/MAX EXCEEDED: %+v", tsdb.Filters)
+		gerr = plot.checkTotalLimits(logIfExceeded, keyset, tsdb.Metric, total)
+		if gerr != nil {
+			return groupQueries, gerr
 		}
 
 		groups := plot.GetGroups(tsdb.Filters, tsobs)

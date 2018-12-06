@@ -4,17 +4,19 @@ import (
 	"time"
 )
 
-func statsQueryThreshold(ks string) {
-	go statsIncrement(
+func statsQueryTSThreshold(ksid, metric string, total int) {
+	go statsValueAdd(
 		"mycenae.query.threshold",
-		map[string]string{"keyspace": ks},
+		map[string]string{"keyset": ksid, "metric": metric},
+		float64(total),
 	)
 }
 
-func statsQueryLimit(ks string) {
-	go statsIncrement(
+func statsQueryTSLimit(ksid, metric string, total int) {
+	go statsValueAdd(
 		"mycenae.query.limit",
-		map[string]string{"keyspace": ks},
+		map[string]string{"keyset": ksid, "metric": metric},
+		float64(total),
 	)
 }
 
