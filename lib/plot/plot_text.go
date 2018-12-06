@@ -10,7 +10,7 @@ import (
 )
 
 func (plot *Plot) GetTextSeries(
-	ttl uint8,
+	ttl int,
 	keys []string,
 	start,
 	end int64,

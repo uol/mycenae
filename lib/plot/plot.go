@@ -26,8 +26,8 @@ func New(
 	metaStorage *metadata.Storage,
 	maxTimeseries int,
 	logQueryTSthreshold int,
-	keyspaceTTLMap map[uint8]string,
-	defaultTTL uint8,
+	keyspaceTTLMap map[int]string,
+	defaultTTL int,
 	defaultMaxResults int,
 
 ) (*Plot, gobol.Error) {
@@ -57,7 +57,7 @@ type Plot struct {
 	MaxTimeseries     int
 	LogQueryThreshold int
 	persist           persistence
-	keyspaceTTLMap    map[uint8]string
-	defaultTTL        uint8
+	keyspaceTTLMap    map[int]string
+	defaultTTL        int
 	defaultMaxResults int
 }

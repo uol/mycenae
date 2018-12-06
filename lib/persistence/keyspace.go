@@ -9,7 +9,7 @@ type Keyspace struct {
 	// DC is the datacenter where the keyspace should reside
 	DC string `json:"datacenter"`
 	// TTL is the time-to-live for the keyspace data
-	TTL uint8 `json:"ttl"`
+	TTL int `json:"ttl"`
 	// --- This will be removed ---
 	Replication int `json:"replicationFactor"`
 }

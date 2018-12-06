@@ -24,7 +24,7 @@ func (storage *Storage) DatacenterExists(dc string) (bool, gobol.Error) {
 // with the actual keyspace creation
 func (storage *Storage) CreateKeyspace(
 	name, datacenter, contact string,
-	replication int, ttl uint8,
+	replication int, ttl int,
 ) gobol.Error {
 	if exists, err := storage.DatacenterExists(datacenter); err != nil {
 		return err
