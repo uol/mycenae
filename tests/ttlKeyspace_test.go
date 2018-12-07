@@ -17,7 +17,7 @@ import (
 
 var (
 	ttlKeyspaceKeySet            string
-	ttlTSUIDMap, ttlTSUIDTextMap map[uint8]node
+	ttlTSUIDMap, ttlTSUIDTextMap map[int]node
 	startTime, endTime           time.Time
 	countRegex                   *regexp.Regexp
 )
@@ -35,9 +35,9 @@ type node struct {
 	payloads    []tools.Payload
 }
 
-type getCount func(t *testing.T, ttl uint8, id string, date time.Time) int
+type getCount func(t *testing.T, ttl int, id string, date time.Time) int
 
-func mapPoints(ttl uint8, idMap map[uint8]node, payloads []tools.Payload, ids []string) {
+func mapPoints(ttl int, idMap map[int]node, payloads []tools.Payload, ids []string) {
 
 	m := map[string]bool{}
 	uniqueIds := []string{}
@@ -61,8 +61,8 @@ func sendPointsToTTLKeyspace(keySet string) {
 
 	countRegex = regexp.MustCompile("\"count\":([0-9]+)")
 	ttlKeyspaceKeySet = keySet
-	ttlTSUIDMap = map[uint8]node{}
-	ttlTSUIDTextMap = map[uint8]node{}
+	ttlTSUIDMap = map[int]node{}
+	ttlTSUIDTextMap = map[int]node{}
 
 	startTime = time.Now()
 	currentTime := startTime
@@ -81,7 +81,7 @@ func sendPointsToTTLKeyspace(keySet string) {
 	endTime = currentTime
 }
 
-func sendRandomPoints(num int, ttl uint8, metric string, isNumber bool, lastSentPoint time.Time) ([]tools.Payload, []string, time.Time) {
+func sendRandomPoints(num int, ttl int, metric string, isNumber bool, lastSentPoint time.Time) ([]tools.Payload, []string, time.Time) {
 
 	ps := []tools.Payload{}
 	tsuids := []string{}
@@ -133,7 +133,7 @@ func sendRandomPoints(num int, ttl uint8, metric string, isNumber bool, lastSent
 	return ps, tsuids, lastSentPoint
 }
 
-func runTest(t *testing.T, f getCount, m map[uint8]node, pointType string) {
+func runTest(t *testing.T, f getCount, m map[int]node, pointType string) {
 
 	for ttl, node := range m {
 		count := 0
@@ -146,11 +146,11 @@ func runTest(t *testing.T, f getCount, m map[uint8]node, pointType string) {
 	}
 }
 
-func getCountFromScylla(t *testing.T, ttl uint8, id string, date time.Time) int {
+func getCountFromScylla(t *testing.T, ttl int, id string, date time.Time) int {
 	return mycenaeTools.Cassandra.Timeseries.CountValuesPriorDate(int(ttl), id, date.Unix())
 }
 
-func getTextCountFromScylla(t *testing.T, ttl uint8, id string, date time.Time) int {
+func getTextCountFromScylla(t *testing.T, ttl int, id string, date time.Time) int {
 	return mycenaeTools.Cassandra.Timeseries.CountTextPriorDate(int(ttl), id, date.Unix())
 }
 
@@ -162,7 +162,7 @@ func TestTTLKeyspaceCheckPointsInScylla(t *testing.T) {
 	runTest(t, getTextCountFromScylla, ttlTSUIDTextMap, "text")
 }
 
-func queryByTTL(t *testing.T, ttl uint8, tsid string, isNumber bool, date time.Time) int {
+func queryByTTL(t *testing.T, ttl int, tsid string, isNumber bool, date time.Time) int {
 
 	tpl := `{
 		"%s": [{
@@ -212,11 +212,11 @@ func queryByTTL(t *testing.T, ttl uint8, tsid string, isNumber bool, date time.T
 	return 0
 }
 
-func getCountUsingAPI(t *testing.T, ttl uint8, id string, date time.Time) int {
+func getCountUsingAPI(t *testing.T, ttl int, id string, date time.Time) int {
 	return queryByTTL(t, ttl, id, true, date)
 }
 
-func getCountTextUsingAPI(t *testing.T, ttl uint8, id string, date time.Time) int {
+func getCountTextUsingAPI(t *testing.T, ttl int, id string, date time.Time) int {
 	return queryByTTL(t, ttl, id, false, date)
 }
 
@@ -243,19 +243,19 @@ func checkMetadata(t *testing.T, uri string) {
 
 	assert.True(t, len(payloads) == len(tools.TTLKeyspaceMap), "wrong number of ttl keyspace metas found: expected %d, found %d", len(tools.TTLKeyspaceMap), len(payloads))
 
-	ttlTagMap := map[uint8]bool{}
+	ttlTagMap := map[int]bool{}
 	for ttl := range tools.TTLKeyspaceMap {
 		ttlTagMap[ttl] = true
 	}
 
 	for _, payload := range payloads {
-		ttlVal, err := strconv.ParseInt(payload.Tags["ttl"], 10, 8)
+		ttlVal, err := strconv.Atoi(payload.Tags["ttl"])
 		if err != nil {
 			t.Error(err)
 			t.SkipNow()
 			continue
 		}
-		ttl := uint8(ttlVal)
+		ttl := ttlVal
 		assert.True(t, ttlTagMap[ttl], "expected ttl %d was not found", ttl)
 		delete(ttlTagMap, ttl)
 

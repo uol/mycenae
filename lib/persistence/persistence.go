@@ -16,7 +16,7 @@ type Backend interface {
 	// CreateKeyspace should create a keyspace to store data
 	CreateKeyspace(
 		name, datacenter, contact string,
-		replication int, ttl uint8,
+		replication int, ttl int,
 	) gobol.Error
 	// DeleteKeyspace should delete a keyspace from the database
 	DeleteKeyspace(id string) gobol.Error
@@ -50,7 +50,7 @@ func NewStorage(
 	metadata *metadata.Storage,
 	stats *tsstats.StatsTS,
 	devMode bool,
-	defaultTTL uint8,
+	defaultTTL int,
 ) (*Storage, error) {
 	backend, err := newScyllaPersistence(
 		ksAdmin, grantUser, session, logger, stats, devMode, defaultTTL,
