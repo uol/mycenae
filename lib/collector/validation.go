@@ -172,8 +172,7 @@ func (collector *Collector) makePacket(packet *Point, rcvMsg TSDBpoint, number b
 func (collector *Collector) validateTelnetFormat(body string) (TSDBpoint, gobol.Error) {
 
 	point := TSDBpoint{}
-	sep := " "
-	bodyParts := strings.Split(body, sep)
+	bodyParts := strings.Split(body, " ")
 
 	if bodyParts[0] != "put" {
 		gerr := errValidationTelnet("First argument must be 'put'")
