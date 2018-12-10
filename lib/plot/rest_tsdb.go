@@ -246,8 +246,6 @@ func (plot *Plot) getTimeseries(
 
 		}
 
-		// m := fmt.Sprintf("%v", q.Metric)
-
 		for k, v := range q.Tags {
 
 			members := strings.Split(v, "|")
