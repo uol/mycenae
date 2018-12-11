@@ -251,8 +251,6 @@ func (plot *Plot) getTimeseries(
 
 		}
 
-		m := fmt.Sprintf("%v", q.Metric)
-
 		for k, v := range q.Tags {
 
 			members := strings.Split(v, "|")
@@ -286,11 +284,11 @@ func (plot *Plot) getTimeseries(
 				tagMap[filter.Tagk] = append(tagMap[filter.Tagk], filter.Filter)
 			} else {
 				if filter.Tagk == "ttl" {
-					v, err := strconv.ParseUint(filter.Filter, 10, 8)
+					v, err := strconv.Atoi(filter.Filter)
 					if err != nil {
 						return resps, errValidationE("getTimeseries", err)
 					}
-					ttl = uint8(v)
+					ttl = v
 					ttlIndex = i
 				}
 				tagMap[filter.Tagk] = []string{filter.Filter}
@@ -301,7 +299,7 @@ func (plot *Plot) getTimeseries(
 			q.Filters = append(q.Filters[:ttlIndex], q.Filters[ttlIndex+1:]...)
 		}
 
-		tsobs, total, gerr := plot.MetaFilterOpenTSDB(keyset, m, q.Filters, plot.MaxTimeseries)
+		tsobs, total, gerr := plot.MetaFilterOpenTSDB(keyset, q.Metric, q.Filters, plot.MaxTimeseries)
 		if gerr != nil {
 			return resps, gerr
 		}

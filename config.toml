@@ -111,7 +111,7 @@ AllowCORS = true
 [metadataSettings]
   numShards = 1
   replicationFactor = 1
-  url = "http://172.17.0.3:8983/solr"
+  url = "http://172.17.0.8:8983/solr"
   IDCacheTTL = -1
   QueryCacheTTL = -1
   KeysetCacheTTL = -1
@@ -120,6 +120,6 @@ AllowCORS = true
   BlacklistedKeysets = ["chimera", "blacklist"]
 
 [memcached]
-  pool = ["172.17.0.9:11211","172.17.0.10:11211","172.17.0.11:11211"]
+  pool = ["172.17.0.11:11211","172.17.0.12:11211","172.17.0.13:11211"]
   timeout = 10000
   maxIdleConns = 5

@@ -33,7 +33,7 @@ func New(
 	cass *gocql.Session,
 	metaStorage *metadata.Storage,
 	set *structs.Settings,
-	keyspaceTTLMap map[uint8]string,
+	keyspaceTTLMap map[int]string,
 	ks *keyset.KeySet,
 ) (*Collector, error) {
 
@@ -83,7 +83,7 @@ type Collector struct {
 	recvMutex              sync.Mutex
 	errMutex               sync.Mutex
 	jobChannel             chan workerData
-	keyspaceTTLMap         map[uint8]string
+	keyspaceTTLMap         map[int]string
 	keySet                 *keyset.KeySet
 }
 

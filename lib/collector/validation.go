@@ -2,8 +2,8 @@ package collector
 
 import (
 	"fmt"
-
 	"strconv"
+	"strings"
 
 	"github.com/uol/gobol"
 	"github.com/uol/mycenae/lib/utils"
@@ -105,19 +105,18 @@ func (collector *Collector) makePacket(packet *Point, rcvMsg TSDBpoint, number b
 		packet.TTL = collector.settings.DefaultTTL
 		lt++
 	} else {
-		ttl64, err := strconv.ParseUint(strTTL, 10, 8)
+		ttl, err := strconv.Atoi(strTTL)
 		if err != nil {
 			err := errValidation(`Wrong Format: Tag "ttl" must be a positive number. NO information will be saved`)
 			collector.logPointError(&rcvMsg, err, lf)
 			return err
 		}
-		ttl := uint8(ttl64)
 		if _, ok := collector.keyspaceTTLMap[ttl]; !ok {
 			ttl = collector.settings.DefaultTTL
 		}
 		packet.TTL = ttl
 	}
-	rcvMsg.Tags["ttl"] = strconv.Itoa(int(packet.TTL))
+	rcvMsg.Tags["ttl"] = strconv.Itoa(packet.TTL)
 
 	if lt == 2 {
 		err := errValidation(`Wrong Format: At least one tag other than "ksid" and "ttl" is required. NO information will be saved`)
@@ -168,4 +167,47 @@ func (collector *Collector) makePacket(packet *Point, rcvMsg TSDBpoint, number b
 	}
 
 	return nil
+}
+
+func (collector *Collector) validateTelnetFormat(body string) (TSDBpoint, gobol.Error) {
+
+	point := TSDBpoint{}
+	bodyParts := strings.Split(body, " ")
+
+	if bodyParts[0] != "put" {
+		gerr := errValidationTelnet("First argument must be 'put'")
+		return point, gerr
+	}
+
+	timestamp, err := strconv.ParseInt(bodyParts[2], 10, 64)
+	if err != nil {
+		gerr := errValidationTelnet("Third argument must be a timestamp")
+		return point, gerr
+	}
+
+	value, err := strconv.ParseFloat(bodyParts[3], 64)
+	if err != nil {
+		gerr := errValidationTelnet("Fourth argument must be a float value")
+		return point, gerr
+	}
+
+	tagsSlice := bodyParts[4:]
+	tags := map[string]string{}
+
+	for _, t := range tagsSlice {
+		tagKV := strings.Split(t, "=")
+		if len(tagKV) != 2 {
+			gerr := errValidationTelnet("Tags should be formed as follows tagk1=tagv1[ tagk2=tagv2 ...tagkN=tagvN]")
+			return point, gerr
+		}
+
+		tags[tagKV[0]] = tagKV[1]
+	}
+
+	point.Metric = bodyParts[1]
+	point.Tags = tags
+	point.Value = &value
+	point.Timestamp = timestamp
+
+	return point, nil
 }

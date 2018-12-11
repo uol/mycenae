@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"io/ioutil"
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
@@ -34,6 +35,38 @@ func (collect *Collector) handle(w http.ResponseWriter, r *http.Request, number 
 		rip.Success(w, http.StatusNoContent, nil)
 	}
 
+	return
+}
+
+func (collect *Collector) HandleNumberTelnetFormat(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+
+	defer r.Body.Close()
+	if r.Header.Get("Content-Type") != "text/plain" {
+		rip.Fail(w, errValidationTelnet("Content-Type must be text/plain"))
+		return
+	}
+
+	b, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		rip.Fail(w, errValidationTelnet(err.Error()))
+		return
+	}
+
+	body := string(b[:])
+
+	point, gerr := collect.validateTelnetFormat(body)
+	if gerr != nil {
+		rip.Fail(w, gerr)
+		return
+	}
+
+	gerr = collect.handleRESTpacket(point, true)
+	if gerr != nil {
+		rip.Fail(w, gerr)
+		return
+	}
+
+	rip.Success(w, http.StatusNoContent, nil)
 	return
 }
 

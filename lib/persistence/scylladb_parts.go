@@ -41,7 +41,7 @@ func (backend *scylladb) createKeyspace(ks Keyspace) gobol.Error {
 	return nil
 }
 
-func (backend *scylladb) createTable(keySet, valueColumnType, tableName, functionName string, ttl uint8) gobol.Error {
+func (backend *scylladb) createTable(keySet, valueColumnType, tableName, functionName string, ttl int) gobol.Error {
 
 	tableTTL := uint64(ttl) * 86400
 

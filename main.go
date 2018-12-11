@@ -147,7 +147,7 @@ func main() {
 
 	jsonStr, _ := json.Marshal(settings.DefaultKeyspaces)
 	tsLogger.General.Info(fmt.Sprintf("creating default keyspaces: %s", jsonStr), lf...)
-	keyspaceTTLMap := map[uint8]string{}
+	keyspaceTTLMap := map[int]string{}
 	for k, ttl := range settings.DefaultKeyspaces {
 		gerr := ks.Storage.CreateKeyspace(k,
 			settings.DefaultKeyspaceData.Datacenter,

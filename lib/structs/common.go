@@ -42,12 +42,12 @@ type Settings struct {
 	HostNameCleanerRegex  string
 	HTTPserver            SettingsHTTP
 	UDPserver             SettingsUDP
-	DefaultTTL            uint8
+	DefaultTTL            int
 	MaxAllowedTTL         int
 	DefaultKeysets        []string
 	BlacklistedKeysets    []string
 	DefaultKeyspaceData   keyspace.Config
-	DefaultKeyspaces      map[string]uint8
+	DefaultKeyspaces      map[string]int
 	Cassandra             cassandra.Settings
 	Memcached             memcached.Configuration
 	AllowCORS             bool
