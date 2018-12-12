@@ -57,10 +57,6 @@ func (collect *Collector) metaCoordinator(saveInterval time.Duration) {
 	}
 }
 
-func (collect *Collector) checkMetadata() {
-
-}
-
 func (collect *Collector) saveMeta(packet Point) {
 
 	found := false
@@ -109,11 +105,11 @@ func (collect *Collector) generateBulk(packet Point) gobol.Error {
 	}
 
 	if exists {
-		statsCountOldTimeseries(packet.Keyset, metaType, packet.TTL)
+		statsCountOldTimeseries(packet.Keyset, metaType, packet.Message.Metric, packet.TTL)
 		return nil
 	}
-	
-	statsCountNewTimeseries(packet.Keyset, metaType, packet.TTL)
+
+	statsCountNewTimeseries(packet.Keyset, metaType, packet.Message.Metric, packet.TTL)
 
 	if _, ok := collect.metadataMap[packet.Keyset]; !ok {
 		collect.metadataMap[packet.Keyset] = []metadata.Metadata{}
