@@ -11,8 +11,6 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/uol/gobol"
 	"github.com/uol/gobol/rip"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 
 	"github.com/uol/mycenae/lib/parser"
 	"github.com/uol/mycenae/lib/structs"
@@ -51,7 +49,14 @@ func (plot *Plot) Lookup(w http.ResponseWriter, r *http.Request, ps httprouter.P
 		tagMap[tag.Key] = append(tagMap[tag.Key], tag.Value)
 	}
 
-	tsds, total, gerr := plot.MetaOpenTSDB(keyset, metric, tagMap, 10000, 0)
+	tsds, total, gerr := plot.MetaOpenTSDB(keyset, metric, tagMap, plot.MaxTimeseries, 0)
+	if gerr != nil {
+		rip.Fail(w, gerr)
+		return
+	}
+
+	logIfExceeded := fmt.Sprintf("TS THRESHOLD/MAX EXCEEDED: %+v", m)
+	gerr = plot.checkTotalLimits(logIfExceeded, keyset, metric, total)
 	if gerr != nil {
 		rip.Fail(w, gerr)
 		return
@@ -299,25 +304,10 @@ func (plot *Plot) getTimeseries(
 			return resps, gerr
 		}
 
-		if total > plot.LogQueryThreshold {
-			statsQueryThreshold(keyset)
-			lf := []zapcore.Field{
-				zap.String("package", "plot/rest_tsdb"),
-				zap.String("func", "getTimeseries"),
-			}
-			gblog.Warn(fmt.Sprintf("TS THRESHOLD EXEECED: %+v", query), lf...)
-		}
-
-		if total > plot.MaxTimeseries {
-			statsQueryLimit(keyset)
-			return TSDBresponses{}, errValidationS(
-				"getTimeseries",
-				fmt.Sprintf(
-					"query exedded the maximum allowed number of timeseries. max is %d and the query returned %d",
-					plot.MaxTimeseries,
-					total,
-				),
-			)
+		logIfExceeded := fmt.Sprintf("TS THRESHOLD/MAX EXCEEDED for query: %+v", query)
+		gerr = plot.checkTotalLimits(logIfExceeded, keyset, q.Metric, total)
+		if gerr != nil {
+			return TSDBresponses{}, gerr
 		}
 
 		if len(tsobs) == 0 {

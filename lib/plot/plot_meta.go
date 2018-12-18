@@ -1,8 +1,13 @@
 package plot
 
 import (
+	"fmt"
+
 	"github.com/uol/gobol"
 	"github.com/uol/mycenae/lib/metadata"
+	
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 func (plot Plot) validateKeySet(keyset string) gobol.Error {
@@ -29,6 +34,43 @@ func (plot Plot) checkParams(from, size int) (int, int) {
 	}
 
 	return from, size
+}
+
+func (plot Plot) checkTotalLimits(log, keyset, metric string, total int) gobol.Error {
+
+	if total > plot.LogQueryTSThreshold {
+		statsQueryTSThreshold(keyset, metric, total)
+		lf := []zapcore.Field{
+			zap.String("package", "plot/plot_meta"),
+			zap.String("func", "checkTotalLimits"),
+			zap.String("keyset", keyset),
+			zap.String("total", fmt.Sprintf("%d", total)),
+			zap.String("config LogQueryTSthreshold", fmt.Sprintf("%d", plot.LogQueryTSThreshold)),
+		}
+		gblog.Warn(log, lf...)
+	}
+
+	if total > plot.MaxTimeseries {
+		statsQueryTSLimit(keyset, metric, total)
+		lf := []zapcore.Field{
+			zap.String("package", "plot/plot_meta"),
+			zap.String("func", "checkTotalLimits"),
+			zap.String("keyset", keyset),
+			zap.String("total", fmt.Sprintf("%d", total)),
+			zap.String("config MaxTimeseries", fmt.Sprintf("%d", plot.MaxTimeseries)),
+		}
+		gblog.Warn(log, lf...)
+
+		return errValidationS(
+			"checkTotalLimits",
+			fmt.Sprintf(
+				"query exceeded the maximum allowed number of timeseries. max is %d and the query returned %d",
+				plot.MaxTimeseries,
+				total,
+			),
+		)
+	}
+	return nil
 }
 
 func (plot Plot) FilterMetrics(keyset, metricName string, size int) ([]string, int, gobol.Error) {

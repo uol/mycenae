@@ -44,20 +44,20 @@ func New(
 	}
 
 	return &Plot{
-		MaxTimeseries:     maxTimeseries,
-		LogQueryThreshold: logQueryTSthreshold,
-		persist:           persistence{cassandra: cass, metaStorage: metaStorage},
-		keyspaceTTLMap:    keyspaceTTLMap,
-		defaultTTL:        defaultTTL,
-		defaultMaxResults: defaultMaxResults,
+		MaxTimeseries:       maxTimeseries,
+		LogQueryTSThreshold: logQueryTSthreshold,
+		persist:             persistence{cassandra: cass, metaStorage: metaStorage},
+		keyspaceTTLMap:      keyspaceTTLMap,
+		defaultTTL:          defaultTTL,
+		defaultMaxResults:   defaultMaxResults,
 	}, nil
 }
 
 type Plot struct {
-	MaxTimeseries     int
-	LogQueryThreshold int
-	persist           persistence
-	keyspaceTTLMap    map[int]string
-	defaultTTL        int
-	defaultMaxResults int
+	MaxTimeseries       int
+	LogQueryTSThreshold int
+	persist             persistence
+	keyspaceTTLMap      map[int]string
+	defaultTTL          int
+	defaultMaxResults   int
 }

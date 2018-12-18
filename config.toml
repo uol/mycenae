@@ -10,11 +10,11 @@
 # The idea is to change the cassandra gobol package to accept
 # multiple consistencies and abstract that to the applications
 
-# Max number of timeseries allowed to be queried
-MaxTimeseries = 5000
+# Max number of timeseries allowed to be queried (Solr pagination)
+MaxTimeseries = 50000
 
 # Warning number of timeseries
-LogQueryTSthreshold = 1000
+LogQueryTSthreshold = 5000
 
 # Max number of concurrent points being processed
 MaxConcurrentPoints = 1000
@@ -64,7 +64,7 @@ AllowCORS = true
 [cassandra]
   keyspace = "mycenae"
   consistency = "one"
-  nodes = ["172.17.0.5","172.17.0.6","172.17.0.7"]
+  nodes = ["172.17.0.6","172.17.0.7","172.17.0.8"]
   username = "cassandra"
   password = "cassandra"
   connections = 3
