@@ -32,6 +32,7 @@ func (persist *persistence) GetTS(keyspace string, keys []string, start, end int
 	).Iter()
 
 	tsMap := map[string][]Pnt{}
+	countRows := 0
 
 	for iter.Scan(&tsid, &date, &value) {
 
@@ -46,6 +47,8 @@ func (persist *persistence) GetTS(keyspace string, keys []string, start, end int
 		}
 
 		tsMap[tsid] = append(tsMap[tsid], point)
+
+		countRows++
 	}
 
 	if err = iter.Close(); err != nil {
@@ -56,7 +59,7 @@ func (persist *persistence) GetTS(keyspace string, keys []string, start, end int
 		gblog.Error(err.Error(), fields...)
 
 		if err == gocql.ErrNotFound {
-			statsSelect(keyspace, "ts_number_stamp", time.Since(track))
+			statsSelect(keyspace, "ts_number_stamp", time.Since(track), countRows)
 			return map[string][]Pnt{}, errNoContent("getTS")
 		}
 
@@ -64,7 +67,7 @@ func (persist *persistence) GetTS(keyspace string, keys []string, start, end int
 		return map[string][]Pnt{}, errPersist("getTS", err)
 	}
 
-	statsSelect(keyspace, "ts_number_stamp", time.Since(track))
+	statsSelect(keyspace, "ts_number_stamp", time.Since(track), countRows)
 
 	return tsMap, nil
 }

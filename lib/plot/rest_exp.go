@@ -439,7 +439,7 @@ func (plot *Plot) expandStruct(
 		}
 
 		logIfExceeded := fmt.Sprintf("TS THRESHOLD/MAX EXCEEDED: %+v", tsdb.Filters)
-		gerr = plot.checkTotalLimits(logIfExceeded, keyset, tsdb.Metric, total)
+		gerr = plot.checkTotalTSLimits(logIfExceeded, keyset, tsdb.Metric, total)
 		if gerr != nil {
 			return groupQueries, gerr
 		}

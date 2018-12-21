@@ -64,7 +64,7 @@ AllowCORS = true
 [cassandra]
   keyspace = "mycenae"
   consistency = "one"
-  nodes = ["172.17.0.6","172.17.0.7","172.17.0.8"]
+  nodes = ["172.17.0.2","172.17.0.3","172.17.0.4"]
   username = "cassandra"
   password = "cassandra"
   connections = 3
@@ -87,16 +87,18 @@ AllowCORS = true
 [logs]
   environment = "PROD"
   [logs.general]
-    level = "INFO"
+    level = "DEBUG"
     prefix = "general"
   [logs.stats]
     level = "DEBUG"
     prefix = "stats"
 
 [stats]
-  address = "0.0.0.0"
-  port = "4243"
-  protocol = "udp"
+  address = "http://0.0.0.0"
+  port = "8080"
+  protocol = "http"
+  httptimeout = "10s"
+  httppostinterval = "1m"
   ksid = "stats"
   interval = "@every 1m"
   runtime = true
@@ -111,7 +113,7 @@ AllowCORS = true
 [metadataSettings]
   numShards = 1
   replicationFactor = 1
-  url = "http://172.17.0.8:8983/solr"
+  url = "http://172.17.0.6:8983/solr"
   IDCacheTTL = -1
   QueryCacheTTL = -1
   KeysetCacheTTL = -1
@@ -120,6 +122,6 @@ AllowCORS = true
   BlacklistedKeysets = ["chimera", "blacklist"]
 
 [memcached]
-  pool = ["172.17.0.11:11211","172.17.0.12:11211","172.17.0.13:11211"]
+  pool = ["172.17.0.9:11211","172.17.0.10:11211","172.17.0.11:11211"]
   timeout = 10000
   maxIdleConns = 5
