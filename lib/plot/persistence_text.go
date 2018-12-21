@@ -33,6 +33,7 @@ func (persist *persistence) GetTST(keyspace string, keys []string, start, end in
 	).Iter()
 
 	tsMap := map[string][]TextPnt{}
+	countRows := 0
 
 	for iter.Scan(&tsid, &date, &value) {
 		add := true
@@ -47,6 +48,8 @@ func (persist *persistence) GetTST(keyspace string, keys []string, start, end in
 				Value: value,
 			}
 			tsMap[tsid] = append(tsMap[tsid], point)
+
+			countRows++
 		}
 	}
 
@@ -65,7 +68,7 @@ func (persist *persistence) GetTST(keyspace string, keys []string, start, end in
 		return map[string][]TextPnt{}, errPersist("getTST", err)
 	}
 
-	statsSelect(keyspace, "ts_text_stamp", time.Since(track))
+	statsSelect(keyspace, "ts_text_stamp", time.Since(track), countRows)
 
 	return tsMap, nil
 }

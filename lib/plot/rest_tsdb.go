@@ -14,6 +14,9 @@ import (
 
 	"github.com/uol/mycenae/lib/parser"
 	"github.com/uol/mycenae/lib/structs"
+
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 func (plot *Plot) Lookup(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
@@ -197,6 +200,9 @@ func (plot *Plot) getTimeseries(
 	}
 
 	oldDs := structs.Downsample{}
+
+	sumTotalPoints := 0
+	sumCountPoints := 0
 
 	for _, q := range query.Queries {
 
@@ -401,6 +407,19 @@ func (plot *Plot) getTimeseries(
 				return resps, gerr
 			}
 
+			sumTotalPoints += serie.Total
+			sumCountPoints += serie.Count
+
+			lf := []zapcore.Field{
+				zap.String("package", "plot/rest_tsdb"),
+				zap.String("func", "getTimeseries"),
+				zap.String("metric", q.Metric),
+				zap.String("keyset", keyset),
+				zap.String("count points", strconv.Itoa(serie.Count)),
+				zap.String("total points", strconv.Itoa(serie.Total)),
+			}
+			gblog.Debug("query executed", lf...)
+
 			for k, kv := range tagK {
 				if len(kv) > 1 {
 					aggTags = append(aggTags, k)
@@ -463,6 +482,8 @@ func (plot *Plot) getTimeseries(
 		}
 
 	}
+
+	statsPlotSummaryPoints(sumCountPoints, sumTotalPoints)
 
 	sort.Sort(resps)
 

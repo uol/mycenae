@@ -51,3 +51,15 @@ func (sts *StatsTS) ValueAdd(callerID string, metric string, tags map[string]str
 		sts.log.Error(err.Error(), lf...)
 	}
 }
+
+func (sts *StatsTS) ValueMax(callerID string, metric string, tags map[string]string, v float64) {
+	err := sts.stats.ValueAdd(metric, tags, "max", sts.interval, false, false, v)
+	if err != nil {
+		lf := []zapcore.Field{
+			zap.String("package", callerID),
+			zap.String("func", "statsValueMax"),
+			zap.String("metric", metric),
+		}
+		sts.log.Error(err.Error(), lf...)
+	}
+}
