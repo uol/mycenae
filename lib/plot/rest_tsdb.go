@@ -59,7 +59,7 @@ func (plot *Plot) Lookup(w http.ResponseWriter, r *http.Request, ps httprouter.P
 	}
 
 	logIfExceeded := fmt.Sprintf("TS THRESHOLD/MAX EXCEEDED: %+v", m)
-	gerr = plot.checkTotalLimits(logIfExceeded, keyset, metric, total)
+	gerr = plot.checkTotalTSLimits(logIfExceeded, keyset, metric, total)
 	if gerr != nil {
 		rip.Fail(w, gerr)
 		return
@@ -311,7 +311,7 @@ func (plot *Plot) getTimeseries(
 		}
 
 		logIfExceeded := fmt.Sprintf("TS THRESHOLD/MAX EXCEEDED for query: %+v", query)
-		gerr = plot.checkTotalLimits(logIfExceeded, keyset, q.Metric, total)
+		gerr = plot.checkTotalTSLimits(logIfExceeded, keyset, q.Metric, total)
 		if gerr != nil {
 			return TSDBresponses{}, gerr
 		}

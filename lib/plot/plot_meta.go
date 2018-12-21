@@ -5,7 +5,7 @@ import (
 
 	"github.com/uol/gobol"
 	"github.com/uol/mycenae/lib/metadata"
-	
+
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -36,7 +36,7 @@ func (plot Plot) checkParams(from, size int) (int, int) {
 	return from, size
 }
 
-func (plot Plot) checkTotalLimits(log, keyset, metric string, total int) gobol.Error {
+func (plot Plot) checkTotalTSLimits(log, keyset, metric string, total int) gobol.Error {
 
 	if total > plot.LogQueryTSThreshold {
 		statsQueryTSThreshold(keyset, metric, total)

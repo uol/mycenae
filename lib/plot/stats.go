@@ -5,7 +5,7 @@ import (
 )
 
 func statsQueryTSThreshold(ksid, metric string, total int) {
-	go statsValueAdd(
+	go statsValueMax(
 		"mycenae.query.threshold",
 		map[string]string{"keyset": ksid, "metric": metric},
 		float64(total),
@@ -13,7 +13,7 @@ func statsQueryTSThreshold(ksid, metric string, total int) {
 }
 
 func statsQueryTSLimit(ksid, metric string, total int) {
-	go statsValueAdd(
+	go statsValueMax(
 		"mycenae.query.limit",
 		map[string]string{"keyset": ksid, "metric": metric},
 		float64(total),
@@ -72,13 +72,13 @@ func statsPlotSummaryPoints(count, total int) {
 }
 
 func statsIncrement(metric string, tags map[string]string) {
-	stats.Increment("plot/persistence", metric, tags)
+	stats.Increment("plot", metric, tags)
 }
 
 func statsValueAdd(metric string, tags map[string]string, v float64) {
-	stats.ValueAdd("plot/persistence", metric, tags, v)
+	stats.ValueAdd("plot", metric, tags, v)
 }
 
 func statsValueMax(metric string, tags map[string]string, v float64) {
-	stats.ValueMax("plot/persistence", metric, tags, v)
+	stats.ValueMax("plot", metric, tags, v)
 }
