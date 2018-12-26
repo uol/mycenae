@@ -66,9 +66,9 @@ func statsSelect(ks, cf string, d time.Duration, countRows int) {
 	go statsValueMax("scylla.query.max.rows", tags, float64(countRows))
 }
 
-func statsPlotSummaryPoints(count, total int) {
-	go statsValueMax("plot.count.points", map[string]string{}, float64(count))
-	go statsValueMax("plot.total.points", map[string]string{}, float64(total))
+func statsPlotSummaryPoints(count, total int, keyset string) {
+	go statsValueMax("plot.count.points", map[string]string{"keyset": keyset}, float64(count))
+	go statsValueMax("plot.total.points", map[string]string{"keyset": keyset}, float64(total))
 }
 
 func statsIncrement(metric string, tags map[string]string) {

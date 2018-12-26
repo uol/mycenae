@@ -483,7 +483,7 @@ func (plot *Plot) getTimeseries(
 
 	}
 
-	statsPlotSummaryPoints(sumCountPoints, sumTotalPoints)
+	statsPlotSummaryPoints(sumCountPoints, sumTotalPoints, keyset)
 
 	sort.Sort(resps)
 
