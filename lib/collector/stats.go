@@ -65,11 +65,12 @@ func statsBulkPoints() {
 	go statsIncrement("solr.bulk.points", map[string]string{})
 }
 
-func statsInsert(ksid, cf string, d time.Duration) {
-	go statsIncrement("scylla.query", map[string]string{"target_ksid": ksid, "column_family": cf, "operation": "insert"})
+func statsInsert(ks, cf string, d time.Duration) {
+	tags := map[string]string{"keyspace": ks, "column_family": cf, "operation": "insert"}
+	go statsIncrement("scylla.query", tags)
 	go statsValueAdd(
 		"scylla.query.duration",
-		map[string]string{"target_ksid": ksid, "column_family": cf, "operation": "insert"},
+		tags,
 		float64(d.Nanoseconds())/float64(time.Millisecond),
 	)
 }
