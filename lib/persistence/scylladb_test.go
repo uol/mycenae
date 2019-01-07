@@ -43,7 +43,6 @@ func TestScylladbBackend(t *testing.T) {
 	gstats, err := snitch.New(logger, snitch.Settings{
 		Address:  "localhost",
 		Interval: "@every 1m",
-		KSID:     "macstest",
 		Port:     "4243",
 		Protocol: "udp",
 		Runtime:  true,

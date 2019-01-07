@@ -64,7 +64,7 @@ AllowCORS = true
 [cassandra]
   keyspace = "mycenae"
   consistency = "one"
-  nodes = ["172.17.0.2","172.17.0.3","172.17.0.4"]
+  nodes = ["172.17.0.5","172.17.0.6","172.17.0.7"]
   username = "cassandra"
   password = "cassandra"
   connections = 3
@@ -94,12 +94,11 @@ AllowCORS = true
     prefix = "stats"
 
 [stats]
-  address = "http://0.0.0.0"
+  address = "0.0.0.0"
   port = "8080"
   protocol = "http"
   httptimeout = "10s"
   httppostinterval = "1m"
-  ksid = "stats"
   interval = "@every 1m"
   runtime = true
   [stats.tags]
@@ -107,13 +106,26 @@ AllowCORS = true
     ttl = "7"
     ksid = "stats"
 
+[statsAnalytic]
+  address = "timeseries.email.intranet"
+  port = "80"
+  protocol = "http"
+  httptimeout = "10s"
+  httppostinterval = "10m"
+  interval = "@every 10m"
+  runtime = false
+  [statsAnalytic.tags]
+	service = "mycenae"
+	ttl = "365"
+	ksid = "pdeng_analytics"
+
 [probe]
   threshold = 0.5
 
 [metadataSettings]
   numShards = 1
   replicationFactor = 1
-  url = "http://172.17.0.6:8983/solr"
+  url = "http://172.17.0.3:8983/solr"
   IDCacheTTL = -1
   QueryCacheTTL = -1
   KeysetCacheTTL = -1
