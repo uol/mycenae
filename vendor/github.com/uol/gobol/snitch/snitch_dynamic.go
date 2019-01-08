@@ -79,18 +79,14 @@ func (st *Stats) getPoint(
 		},
 		post: func(p *CustomPoint) {
 
-			st.logger.Info(
+			st.logger.Debug(
 				"collected",
 				zap.String("metric", p.metric),
 				zap.String("interval", p.interval),
 				zap.Float64("value", p.GetValue()),
 				zap.Bool("null", p.IsValueNull()),
 			)
-			if p.aggregation != "" {
-				p.SetValue(0)
-				p.SetCount(0)
-				p.SetValueNull()
-			} else if !p.keepValue {
+			if p.aggregation != "" || !p.keepValue {
 				p.SetValue(0)
 				p.SetCount(0)
 				p.SetValueNull()

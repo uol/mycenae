@@ -1,9 +1,8 @@
 package agent
 
 import (
-	"sync"
-
 	"github.com/hashicorp/serf/serf"
+	"sync"
 )
 
 // MockEventHandler is an EventHandler implementation that can be used

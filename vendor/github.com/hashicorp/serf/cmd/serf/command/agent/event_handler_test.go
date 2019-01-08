@@ -2,12 +2,11 @@ package agent
 
 import (
 	"fmt"
+	"github.com/hashicorp/serf/serf"
 	"io/ioutil"
 	"net"
 	"os"
 	"testing"
-
-	"github.com/hashicorp/serf/serf"
 )
 
 const eventScript = `#!/bin/sh

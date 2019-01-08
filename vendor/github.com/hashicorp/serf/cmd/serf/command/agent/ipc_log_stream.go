@@ -1,9 +1,8 @@
 package agent
 
 import (
-	"log"
-
 	"github.com/hashicorp/logutils"
+	"log"
 )
 
 // logStream is used to stream logs to a client over IPC

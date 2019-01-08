@@ -62,12 +62,12 @@ func (s *IDGenerator) GetStream() (int, bool) {
 
 		for j := 0; j < bucketBits; j++ {
 			mask := uint64(1 << streamOffset(j))
-			for bucket&mask == 0 {
+			if bucket&mask == 0 {
 				if atomic.CompareAndSwapUint64(&s.streams[pos], bucket, bucket|mask) {
 					atomic.AddInt32(&s.inuseStreams, 1)
 					return streamFromBucket(int(pos), j), true
 				}
-				bucket = atomic.LoadUint64(&s.streams[pos])
+				bucket = atomic.LoadUint64(&s.streams[offset])
 			}
 		}
 	}
@@ -105,7 +105,7 @@ func (s *IDGenerator) String() string {
 		buf = append(buf, bitfmt(bits)...)
 		buf = append(buf, ' ')
 	}
-	return string(buf[: size-1 : size-1])
+	return string(buf[:size-1 : size-1])
 }
 
 func (s *IDGenerator) Clear(stream int) (inuse bool) {

@@ -1,12 +1,11 @@
 package agent
 
 import (
+	"github.com/hashicorp/logutils"
 	"log"
 	"os"
 	"testing"
 	"time"
-
-	"github.com/hashicorp/logutils"
 )
 
 func TestIPCLogStream(t *testing.T) {

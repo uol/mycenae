@@ -1,12 +1,15 @@
 package command
 
 import (
-	"strings"
-	"testing"
-
 	"github.com/hashicorp/serf/client"
 	"github.com/mitchellh/cli"
+	"strings"
+	"testing"
 )
+
+func TestTagsCommand_implements(t *testing.T) {
+	var _ cli.Command = &TagsCommand{}
+}
 
 func TestTagsCommandRun(t *testing.T) {
 	a1 := testAgent(t)

@@ -3,9 +3,8 @@ package command
 import (
 	"flag"
 	"fmt"
-	"strings"
-
 	"github.com/mitchellh/cli"
+	"strings"
 )
 
 // JoinCommand is a Command implementation that tells a running Serf
@@ -13,8 +12,6 @@ import (
 type JoinCommand struct {
 	Ui cli.Ui
 }
-
-var _ cli.Command = &JoinCommand{}
 
 func (c *JoinCommand) Help() string {
 	helpText := `

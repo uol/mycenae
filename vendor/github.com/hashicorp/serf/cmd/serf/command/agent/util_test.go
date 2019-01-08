@@ -2,14 +2,13 @@ package agent
 
 import (
 	"fmt"
+	"github.com/hashicorp/serf/serf"
+	"github.com/hashicorp/serf/testutil"
 	"io"
 	"math/rand"
 	"net"
 	"os"
 	"time"
-
-	"github.com/hashicorp/serf/serf"
-	"github.com/hashicorp/serf/testutil"
 )
 
 func init() {

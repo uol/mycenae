@@ -3,11 +3,10 @@ package command
 import (
 	"flag"
 	"fmt"
-	"strings"
-	"sync"
-
 	"github.com/hashicorp/logutils"
 	"github.com/mitchellh/cli"
+	"strings"
+	"sync"
 )
 
 // MonitorCommand is a Command implementation that queries a running

@@ -3,9 +3,8 @@ package command
 import (
 	"flag"
 	"fmt"
-	"strings"
-
 	"github.com/mitchellh/cli"
+	"strings"
 )
 
 // LeaveCommand is a Command implementation that instructs
@@ -13,8 +12,6 @@ import (
 type LeaveCommand struct {
 	Ui cli.Ui
 }
-
-var _ cli.Command = &LeaveCommand{}
 
 func (c *LeaveCommand) Help() string {
 	helpText := `

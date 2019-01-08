@@ -3,9 +3,8 @@ package command
 import (
 	"flag"
 	"fmt"
-	"strings"
-
 	"github.com/mitchellh/cli"
+	"strings"
 )
 
 // ForceLeaveCommand is a Command implementation that tells a running Serf
@@ -13,8 +12,6 @@ import (
 type ForceLeaveCommand struct {
 	Ui cli.Ui
 }
-
-var _ cli.Command = &ForceLeaveCommand{}
 
 func (c *ForceLeaveCommand) Run(args []string) int {
 	cmdFlags := flag.NewFlagSet("join", flag.ContinueOnError)
