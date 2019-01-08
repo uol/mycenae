@@ -1,29 +1,38 @@
 package: github.com/uol/gobol
 import:
 - package: github.com/BurntSushi/toml
-  version: ^0.3.0
+  version: ~0.3.1
 - package: github.com/gocql/gocql
 - package: github.com/hailocab/go-hostpool
 - package: github.com/hashicorp/consul
-  version: ^1.0.6
+  version: ~1.4.0
   subpackages:
   - api
 - package: github.com/julienschmidt/httprouter
-  version: ^1.1.0
+  version: ~1.2.0
 - package: github.com/pborman/uuid
-  version: ^1.1.0
+  version: ~1.2.0
 - package: github.com/robfig/cron
-  version: ^1.0.0
+  version: ~1.1.0
+- package: github.com/rs/cors
+  version: ~1.6.0
+- package: github.com/samuel/go-zookeeper
+  subpackages:
+  - zk
+- package: github.com/uol/go-solr
+  version: ~0.9.0
+  subpackages:
+  - solr
 - package: go.uber.org/zap
-  version: ^1.7.1
+  version: ~1.9.1
   subpackages:
   - zapcore
 - package: gopkg.in/yaml.v2
-  version: ^2.2.1
-- package: github.com/uol/go-solr
-  version: ^0.9.0
+  version: ~2.2.2
+- package: github.com/jinzhu/gorm
+  version: ~1.9.2
 testImport:
 - package: github.com/stretchr/testify
-  version: ^1.2.1
+  version: ~1.2.2
   subpackages:
   - assert

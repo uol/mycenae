@@ -1,12 +1,12 @@
-hash: bb6425e57dc7a69937f367b229299dffc1d27ced896166da4e1ab870818f56f6
-updated: 2018-11-15T13:18:27.897621235-02:00
+hash: 8b04bd6dd74c1c39cf3cac3cd127ae31c5493eed3b1f789a43e95e701053a024
+updated: 2019-01-07T15:28:42.958820581-02:00
 imports:
 - name: github.com/armon/go-metrics
-  version: 3c58d8115a78a6879e5df75ae900846768d36895
+  version: f0300d1749da6fa982027e449ec0c7a145510c3c
 - name: github.com/BurntSushi/toml
   version: 3012a1dbe2e4bd1391d42b32f0577cb7bbc7f005
 - name: github.com/gocql/gocql
-  version: 44e29ed5b8a4b4fff39d7ebaa19976c6f852075b
+  version: 70385f88b28b43805bd83d212169ab2d38810b15
   subpackages:
   - internal/lru
   - internal/murmur
@@ -21,6 +21,8 @@ imports:
   - ptypes/timestamp
 - name: github.com/golang/snappy
   version: 2e65f85255dbc3072edf28d6b5b8efc472979f5a
+- name: github.com/google/uuid
+  version: d460ce9f8df2e77fb1ba55ca87fafed96c607494
 - name: github.com/hailocab/go-hostpool
   version: e80d13ce29ede4452c43dea11e79b9bc8a15b478
 - name: github.com/hashicorp/consul
@@ -28,37 +30,41 @@ imports:
   subpackages:
   - api
 - name: github.com/hashicorp/go-cleanhttp
-  version: d5fe4b57a186c716b0e00b8c301cbd9b4182694d
+  version: e8ab9daed8d1ddd2d3c4efba338fe2eeae2e4f18
 - name: github.com/hashicorp/go-immutable-radix
-  version: 7f3cd4390caab3250a57f30efdb2a65dd7649ecf
+  version: 27df80928bb34bb1b0d6d0e01b9e679902e7a6b5
 - name: github.com/hashicorp/go-rootcerts
   version: 6bb64b370b90e7ef1fa532be9e591a81c3493e00
 - name: github.com/hashicorp/golang-lru
-  version: 0fb14efe8c47ae851c0034ed7a448854d3d34cf3
+  version: 20f1fb78b0740ba8c3cb143a61e86ba5c8669768
   subpackages:
   - simplelru
 - name: github.com/hashicorp/serf
-  version: 19bbd39e421bdf3559d5025fb2c760f5ffa56233
+  version: 4a3a10ccd1b09be9af798006fc9c85827b5f2ba6
   subpackages:
   - coordinate
 - name: github.com/json-iterator/go
   version: 1624edc4454b8682399def8740d46db5e4362ba4
 - name: github.com/julienschmidt/httprouter
-  version: 8c199fb6259ffc1af525cc3ad52ee60ba8359669
+  version: 348b672cd90d8190f8240323e372ecd1e66b59dc
 - name: github.com/mitchellh/go-homedir
-  version: 58046073cbffe2f25d425fe1331102f55cf719de
+  version: ae18d6b8b3205b561c79e8e5f69bff09736185f4
 - name: github.com/mitchellh/hashstructure
   version: a38c50148365edc8df43c1580c48fb2b3a1e9cd7
 - name: github.com/mitchellh/mapstructure
-  version: f15292f7a699fcc1a38a80977f80a046874ba8ac
+  version: 3536a929edddb9a5b34bd6861dc4a9647cb459fe
 - name: github.com/modern-go/concurrent
   version: bacd9c7ef1dd9b15be4a9909b8ac7a4e313eec94
 - name: github.com/modern-go/reflect2
   version: 4b7aa43c6742a2c18fdef89dd197aaae7dac7ccd
 - name: github.com/pborman/uuid
-  version: e790cca94e6cc75c7064b1332e63811d4aae1a53
+  version: adf5a7427709b9deb95d29d3fa8a2bf9cfd388f1
 - name: github.com/rainycape/memcache
   version: 1031fa0ce2f20c1c0e1e1b51951d8ea02c84fa05
+- name: github.com/reiver/go-oi
+  version: 431c83978379297f04f85f6eb94f129f25ab741d
+- name: github.com/reiver/go-telnet
+  version: 9ff0b2ab096ebe42bf8e2ffd1366e7ed2223b04c
 - name: github.com/robfig/cron
   version: b41be1df696709bb6395fe435af20370037c0b4c
 - name: github.com/rs/cors
@@ -68,7 +74,7 @@ imports:
   subpackages:
   - solr
 - name: github.com/uol/gobol
-  version: 4af87cb9c4e82b8157907ac0972e66e3a5670ffb
+  version: e2bcb0c76dbc73e60e54197ab50f3d6f7ccdfaab
   subpackages:
   - cassandra
   - loader
@@ -81,7 +87,7 @@ imports:
 - name: go.uber.org/multierr
   version: 3c4937480c32f4c13a875a1829af76c98ca3d40a
 - name: go.uber.org/zap
-  version: 35aad584952c3e7020db7b839f6b102de6271f89
+  version: ff33455a0e382e8a81d14dd7c922020b6b5e7982
   subpackages:
   - buffer
   - internal/bufferpool
@@ -89,7 +95,7 @@ imports:
   - internal/exit
   - zapcore
 - name: golang.org/x/net
-  version: 49bb7cea24b1df9410e1712aa6433dae904ff66a
+  version: 1a61f4433d8505ec66450dd581f6abb8e83cb4d9
   subpackages:
   - context
   - http/httpguts
@@ -99,14 +105,14 @@ imports:
   - internal/timeseries
   - trace
 - name: golang.org/x/text
-  version: 6f44c5a2ea40ee3593d98cdcc905cc1fdaa660e2
+  version: e6919f6577db79269a6443b9dc46d18f2238fb5d
   subpackages:
   - secure/bidirule
   - transform
   - unicode/bidi
   - unicode/norm
 - name: google.golang.org/genproto
-  version: b5d43981345bdb2c233eb4bf3277847b48c6fdc6
+  version: bd9b4fb69e2ffd37621a6caa54dcbead29b546f2
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc
@@ -139,7 +145,7 @@ imports:
 - name: gopkg.in/robfig/cron.v2
   version: b024fc5ea0e34bc3f83d9941c8d60b0622bfaca4
 - name: gopkg.in/yaml.v2
-  version: 5420a8b6744d3b0345ab293f6fcba19c978f1183
+  version: 51d6538a90f86fe93ac480b35f37b2be17fef232
 testImports:
 - name: github.com/davecgh/go-spew
   version: d8f796af33cc11cb798c1aaeb27a4ebc5099927d

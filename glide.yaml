@@ -6,9 +6,7 @@ import:
   subpackages:
   - proto
 - package: github.com/julienschmidt/httprouter
-  version: ~1.1.0
 - package: github.com/pborman/uuid
-  version: ~1.1.0
 - package: github.com/uol/gobol
   version: ^1.12.0
   subpackages:
@@ -19,7 +17,6 @@ import:
   - snitch
   - solar
 - package: go.uber.org/zap
-  version: ~1.7.1
   subpackages:
   - zapcore
 - package: golang.org/x/net
@@ -48,3 +45,5 @@ testImport:
   version: ~1.2.1
   subpackages:
   - assert
+- package: github.com/reiver/go-telnet
+- package: github.com/reiver/go-oi
