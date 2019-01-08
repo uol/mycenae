@@ -220,7 +220,7 @@ func main() {
 	)
 	tsRest.Start()
 
-	telnetServer := telnetsrv.New("0.0.0.0:9090", 10, 1024, tsLogger.General)
+	telnetServer := telnetsrv.New(fmt.Sprintf("%s:%d", settings.TELNETserver.Host, settings.TELNETserver.Port), settings.TELNETserver.OnErrorTimeout, settings.TELNETserver.MaxBufferSize, coll, tssts, tsLogger.General)
 	err = telnetServer.Listen()
 	if err != nil {
 		tsLogger.General.Fatal(err.Error(), lf...)

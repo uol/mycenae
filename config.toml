@@ -84,6 +84,12 @@ AllowCORS = true
   port = "8080"
   bind = "0.0.0.0"
 
+[TELNETserver]
+  port = 9090
+  bind = "0.0.0.0"
+  onErrorTimeout = 5 
+  maxBufferSize = 1048576
+
 [logs]
   environment = "PROD"
   [logs.general]

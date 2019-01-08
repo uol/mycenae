@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/uol/mycenae/lib/collector"
+	"github.com/uol/mycenae/lib/tsstats"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -21,10 +22,11 @@ type Server struct {
 	logger         *zap.Logger
 	formatRegexp   *regexp.Regexp
 	tagsRegexp     *regexp.Regexp
+	stats          *tsstats.StatsTS
 }
 
 // New - creates a new telnet server
-func New(listenAddress string, onErrorTimeout, maxBufferSize int, collector *collector.Collector, logger *zap.Logger) *Server {
+func New(listenAddress string, onErrorTimeout, maxBufferSize int, collector *collector.Collector, stats *tsstats.StatsTS, logger *zap.Logger) *Server {
 
 	return &Server{
 		listenAddress:  listenAddress,
@@ -34,6 +36,7 @@ func New(listenAddress string, onErrorTimeout, maxBufferSize int, collector *col
 		logger:         logger,
 		formatRegexp:   regexp.MustCompile(`^put ([0-9A-Za-z-\._\%\&\#\;\/]+) ([0-9]+) ([0-9E\.]+) ([0-9A-Za-z-\._\%\&\#\;\/ =]+)$`),
 		tagsRegexp:     regexp.MustCompile(`([0-9A-Za-z-\._\%\&\#\;\/]+)=([0-9A-Za-z-\._\%\&\#\;\/]+)`),
+		stats:          stats,
 	}
 }
 
@@ -104,6 +107,8 @@ func (server *Server) handleConnection(conn net.Conn) {
 	data := string(buffer[0:numRead])
 
 	server.logger.Debug("received: "+data, lf...)
+
+	server.handlePoints(&data)
 
 	conn.Write([]byte("OK"))
 }

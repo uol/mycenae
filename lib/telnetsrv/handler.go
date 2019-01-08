@@ -4,16 +4,14 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/uol/gobol"
 	"github.com/uol/mycenae/lib/collector"
 )
 
 // handlePoints - extracts the points received by telnet
-func (server *Server) handlePoints(data *string) ([]*collector.TSDBpoint, gobol.Error) {
+func (server *Server) handlePoints(data *string) {
 
-	lines := strings.Split(*data, "\r\n")
+	lines := strings.Split(*data, "\n")
 	numLines := len(lines)
-	points := []*collector.TSDBpoint{}
 
 	for i := 0; i < numLines; i++ {
 
@@ -27,18 +25,18 @@ func (server *Server) handlePoints(data *string) ([]*collector.TSDBpoint, gobol.
 			continue
 		}
 
-		tagMatches := server.tagsRegexp.FindAllStringSubmatch(matches[4])
+		tagMatches := server.tagsRegexp.FindAllStringSubmatch(matches[4], -1)
 		if len(tagMatches) == 0 {
 			server.logger.Warn("no parseable tags found in line: " + lines[i])
 			continue
 		}
 
 		var err error
-		point := &collector.TSDBpoint{}
+		point := collector.TSDBpoint{}
 		point.Tags = map[string]string{}
 
 		for i := 0; i < len(tagMatches); i++ {
-			point.Tags[tagMatches[i][0]] = tagMatches[i][1]
+			point.Tags[tagMatches[i][1]] = tagMatches[i][2]
 		}
 
 		point.Metric = matches[1]
@@ -57,9 +55,14 @@ func (server *Server) handlePoints(data *string) ([]*collector.TSDBpoint, gobol.
 
 		point.Value = &value
 
-		collector.
-			points = append(points, point)
-	}
+		validatedPoint := &collector.Point{}
 
-	return points, nil
+		err = server.collector.MakePacket(validatedPoint, point, true)
+		if err != nil {
+			server.logger.Warn("point validation failure in line: " + lines[i])
+			continue
+		}
+
+		server.collector.HandlePacket(point, validatedPoint, true, "telnet", nil)
+	}
 }
