@@ -41,7 +41,7 @@ MaxAllowedTTL = 90
 DefaultPaginationSize = 1000
 
 # Mandatory keysets to create on app startup
-DefaultKeysets = ["stats", "collectd"]
+DefaultKeysets = ["pdeng_stats", "pdeng_collectd", "pdeng_analytics"]
 
 # Allow Cross Origin Resource Sharing
 AllowCORS = true
@@ -103,12 +103,12 @@ AllowCORS = true
   runtime = true
   [stats.tags]
     service = "mycenae"
-    ttl = "7"
-    ksid = "stats"
+    ttl = "1"
+    ksid = "pdeng_stats"
 
 [statsAnalytic]
-  address = "timeseries.email.intranet"
-  port = "80"
+  address = "0.0.0.0"
+  port = "8080"
   protocol = "http"
   httptimeout = "10s"
   httppostinterval = "10m"
@@ -116,7 +116,7 @@ AllowCORS = true
   runtime = false
   [statsAnalytic.tags]
 	service = "mycenae"
-	ttl = "365"
+	ttl = "1"
 	ksid = "pdeng_analytics"
 
 [probe]
