@@ -29,6 +29,7 @@ import (
 	"github.com/uol/mycenae/lib/plot"
 	"github.com/uol/mycenae/lib/rest"
 	"github.com/uol/mycenae/lib/structs"
+	"github.com/uol/mycenae/lib/telnetsrv"
 	"github.com/uol/mycenae/lib/tsstats"
 	"github.com/uol/mycenae/lib/udp"
 )
@@ -226,6 +227,13 @@ func main() {
 	)
 	tsRest.Start()
 
+	telnetServer := telnetsrv.New(fmt.Sprintf("%s:%d", settings.TELNETserver.Host, settings.TELNETserver.Port), settings.TELNETserver.OnErrorTimeout, settings.TELNETserver.MaxBufferSize, coll, tssts, tsLogger.General)
+	err = telnetServer.Listen()
+	if err != nil {
+		tsLogger.General.Fatal(err.Error(), lf...)
+		os.Exit(1)
+	}
+
 	signalChannel := make(chan os.Signal, 1)
 	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 
@@ -234,7 +242,7 @@ func main() {
 		sig := <-signalChannel
 		switch sig {
 		case os.Interrupt, syscall.SIGTERM:
-			stop(tsLogger, tsRest, coll)
+			stop(tsLogger, tsRest, coll, udpServer, telnetServer)
 			return
 		case syscall.SIGHUP:
 			//THIS IS A HACK DO NOT EXTEND IT. THE FEATURE IS NICE BUT NEEDS TO BE DONE CORRECTLY!!!!!
@@ -256,7 +264,7 @@ func main() {
 	}
 }
 
-func stop(logger *structs.TsLog, rest *rest.REST, collector *collector.Collector) {
+func stop(logger *structs.TsLog, rest *rest.REST, collector *collector.Collector, udpServer *udp.UDPserver, telnetServer *telnetsrv.Server) {
 
 	lf := []zapcore.Field{
 		zap.String("package", "main"),
@@ -268,6 +276,10 @@ func stop(logger *structs.TsLog, rest *rest.REST, collector *collector.Collector
 	logger.General.Info("REST stopped", lf...)
 
 	logger.General.Info("stopping UDP", lf...)
-	collector.Stop()
+	udpServer.Stop()
 	logger.General.Info("UDP stopped", lf...)
+
+	logger.General.Info("stopping TELNET", lf...)
+	telnetServer.Shutdown()
+	logger.General.Info("TELNET stopped", lf...)
 }

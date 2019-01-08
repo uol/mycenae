@@ -6,7 +6,9 @@ package gocql
 
 import (
 	"bytes"
+	"fmt"
 	"math/big"
+	"net"
 	"sort"
 	"strconv"
 	"testing"
@@ -101,6 +103,20 @@ func TestRandomPartitioner(t *testing.T) {
 	}
 }
 
+func TestRandomPartitionerMatchesReference(t *testing.T) {
+	// example taken from datastax python driver
+	//    >>> from cassandra.metadata import MD5Token
+	//    >>> MD5Token.hash_fn("test")
+	//    12707736894140473154801792860916528374L
+	var p randomPartitioner
+	expect := "12707736894140473154801792860916528374"
+	actual := p.Hash([]byte("test")).String()
+	if actual != expect {
+		t.Errorf("expected random partitioner to generate tokens in the same way as the reference"+
+			" python client. Expected %s, but got %s", expect, actual)
+	}
+}
+
 // Tests of the randomToken
 func TestRandomToken(t *testing.T) {
 	if ((*randomToken)(big.NewInt(42))).Less((*randomToken)(big.NewInt(42))) {
@@ -116,18 +132,13 @@ func TestRandomToken(t *testing.T) {
 
 type intToken int
 
-func (i intToken) String() string {
-	return strconv.Itoa(int(i))
-}
-
-func (i intToken) Less(token token) bool {
-	return i < token.(intToken)
-}
+func (i intToken) String() string        { return strconv.Itoa(int(i)) }
+func (i intToken) Less(token token) bool { return i < token.(intToken) }
 
 // Test of the token ring implementation based on example at the start of this
 // page of documentation:
 // http://www.datastax.com/docs/0.8/cluster_architecture/partitioning
-func TestIntTokenRing(t *testing.T) {
+func TestTokenRing_Int(t *testing.T) {
 	host0 := &HostInfo{}
 	host25 := &HostInfo{}
 	host50 := &HostInfo{}
@@ -135,17 +146,11 @@ func TestIntTokenRing(t *testing.T) {
 	ring := &tokenRing{
 		partitioner: nil,
 		// these tokens and hosts are out of order to test sorting
-		tokens: []token{
-			intToken(0),
-			intToken(50),
-			intToken(75),
-			intToken(25),
-		},
-		hosts: []*HostInfo{
-			host0,
-			host50,
-			host75,
-			host25,
+		tokens: []hostToken{
+			{intToken(0), host0},
+			{intToken(50), host50},
+			{intToken(75), host75},
+			{intToken(25), host25},
 		},
 	}
 
@@ -193,7 +198,7 @@ func TestIntTokenRing(t *testing.T) {
 }
 
 // Test for the behavior of a nil pointer to tokenRing
-func TestNilTokenRing(t *testing.T) {
+func TestTokenRing_Nil(t *testing.T) {
 	var ring *tokenRing = nil
 
 	if ring.GetHostForToken(nil) != nil {
@@ -205,34 +210,30 @@ func TestNilTokenRing(t *testing.T) {
 }
 
 // Test of the recognition of the partitioner class
-func TestUnknownTokenRing(t *testing.T) {
+func TestTokenRing_UnknownPartition(t *testing.T) {
 	_, err := newTokenRing("UnknownPartitioner", nil)
 	if err == nil {
 		t.Error("Expected error for unknown partitioner value, but was nil")
 	}
 }
 
-// Test of the tokenRing with the Murmur3Partitioner
-func TestMurmur3TokenRing(t *testing.T) {
-	// Note, strings are parsed directly to int64, they are not murmur3 hashed
-	hosts := []*HostInfo{
-		{
-			peer:   "0",
-			tokens: []string{"0"},
-		},
-		{
-			peer:   "1",
-			tokens: []string{"25"},
-		},
-		{
-			peer:   "2",
-			tokens: []string{"50"},
-		},
-		{
-			peer:   "3",
-			tokens: []string{"75"},
-		},
+func hostsForTests(n int) []*HostInfo {
+	hosts := make([]*HostInfo, n)
+	for i := 0; i < n; i++ {
+		host := &HostInfo{
+			connectAddress: net.IPv4(1, 1, 1, byte(n)),
+			tokens:         []string{fmt.Sprintf("%d", n)},
+		}
+
+		hosts[i] = host
 	}
+	return hosts
+}
+
+// Test of the tokenRing with the Murmur3Partitioner
+func TestTokenRing_Murmur3(t *testing.T) {
+	// Note, strings are parsed directly to int64, they are not murmur3 hashed
+	hosts := hostsForTests(4)
 	ring, err := newTokenRing("Murmur3Partitioner", hosts)
 	if err != nil {
 		t.Fatalf("Failed to create token ring due to error: %v", err)
@@ -240,68 +241,30 @@ func TestMurmur3TokenRing(t *testing.T) {
 
 	p := murmur3Partitioner{}
 
-	var actual *HostInfo
-	actual = ring.GetHostForToken(p.ParseString("0"))
-	if actual.Peer() != "0" {
-		t.Errorf("Expected peer 0 for token \"0\", but was %s", actual.Peer())
+	for _, host := range hosts {
+		actual := ring.GetHostForToken(p.ParseString(host.tokens[0]))
+		if !actual.ConnectAddress().Equal(host.ConnectAddress()) {
+			t.Errorf("Expected address %v for token %q, but was %v", host.ConnectAddress(),
+				host.tokens[0], actual.ConnectAddress())
+		}
 	}
 
-	actual = ring.GetHostForToken(p.ParseString("25"))
-	if actual.Peer() != "1" {
-		t.Errorf("Expected peer 1 for token \"25\", but was %s", actual.Peer())
-	}
-
-	actual = ring.GetHostForToken(p.ParseString("50"))
-	if actual.Peer() != "2" {
-		t.Errorf("Expected peer 2 for token \"50\", but was %s", actual.Peer())
-	}
-
-	actual = ring.GetHostForToken(p.ParseString("75"))
-	if actual.Peer() != "3" {
-		t.Errorf("Expected peer 3 for token \"01\", but was %s", actual.Peer())
-	}
-
-	actual = ring.GetHostForToken(p.ParseString("12"))
-	if actual.Peer() != "1" {
-		t.Errorf("Expected peer 1 for token \"12\", but was %s", actual.Peer())
+	actual := ring.GetHostForToken(p.ParseString("12"))
+	if !actual.ConnectAddress().Equal(hosts[1].ConnectAddress()) {
+		t.Errorf("Expected address 1 for token \"12\", but was %s", actual.ConnectAddress())
 	}
 
 	actual = ring.GetHostForToken(p.ParseString("24324545443332"))
-	if actual.Peer() != "0" {
-		t.Errorf("Expected peer 0 for token \"24324545443332\", but was %s", actual.Peer())
+	if !actual.ConnectAddress().Equal(hosts[0].ConnectAddress()) {
+		t.Errorf("Expected address 0 for token \"24324545443332\", but was %s", actual.ConnectAddress())
 	}
 }
 
 // Test of the tokenRing with the OrderedPartitioner
-func TestOrderedTokenRing(t *testing.T) {
+func TestTokenRing_Ordered(t *testing.T) {
 	// Tokens here more or less are similar layout to the int tokens above due
 	// to each numeric character translating to a consistently offset byte.
-	hosts := []*HostInfo{
-		{
-			peer: "0",
-			tokens: []string{
-				"00",
-			},
-		},
-		{
-			peer: "1",
-			tokens: []string{
-				"25",
-			},
-		},
-		{
-			peer: "2",
-			tokens: []string{
-				"50",
-			},
-		},
-		{
-			peer: "3",
-			tokens: []string{
-				"75",
-			},
-		},
-	}
+	hosts := hostsForTests(4)
 	ring, err := newTokenRing("OrderedPartitioner", hosts)
 	if err != nil {
 		t.Fatalf("Failed to create token ring due to error: %v", err)
@@ -310,66 +273,29 @@ func TestOrderedTokenRing(t *testing.T) {
 	p := orderedPartitioner{}
 
 	var actual *HostInfo
-	actual = ring.GetHostForToken(p.ParseString("0"))
-	if actual.Peer() != "0" {
-		t.Errorf("Expected peer 0 for token \"0\", but was %s", actual.Peer())
-	}
-
-	actual = ring.GetHostForToken(p.ParseString("25"))
-	if actual.Peer() != "1" {
-		t.Errorf("Expected peer 1 for token \"25\", but was %s", actual.Peer())
-	}
-
-	actual = ring.GetHostForToken(p.ParseString("50"))
-	if actual.Peer() != "2" {
-		t.Errorf("Expected peer 2 for token \"50\", but was %s", actual.Peer())
-	}
-
-	actual = ring.GetHostForToken(p.ParseString("75"))
-	if actual.Peer() != "3" {
-		t.Errorf("Expected peer 3 for token \"01\", but was %s", actual.Peer())
+	for _, host := range hosts {
+		actual = ring.GetHostForToken(p.ParseString(host.tokens[0]))
+		if !actual.ConnectAddress().Equal(host.ConnectAddress()) {
+			t.Errorf("Expected address %v for token %q, but was %v", host.ConnectAddress(),
+				host.tokens[0], actual.ConnectAddress())
+		}
 	}
 
 	actual = ring.GetHostForToken(p.ParseString("12"))
-	if actual.Peer() != "1" {
-		t.Errorf("Expected peer 1 for token \"12\", but was %s", actual.Peer())
+	if !actual.peer.Equal(hosts[1].peer) {
+		t.Errorf("Expected address 1 for token \"12\", but was %s", actual.ConnectAddress())
 	}
 
 	actual = ring.GetHostForToken(p.ParseString("24324545443332"))
-	if actual.Peer() != "1" {
-		t.Errorf("Expected peer 1 for token \"24324545443332\", but was %s", actual.Peer())
+	if !actual.ConnectAddress().Equal(hosts[1].ConnectAddress()) {
+		t.Errorf("Expected address 1 for token \"24324545443332\", but was %s", actual.ConnectAddress())
 	}
 }
 
 // Test of the tokenRing with the RandomPartitioner
-func TestRandomTokenRing(t *testing.T) {
+func TestTokenRing_Random(t *testing.T) {
 	// String tokens are parsed into big.Int in base 10
-	hosts := []*HostInfo{
-		{
-			peer: "0",
-			tokens: []string{
-				"00",
-			},
-		},
-		{
-			peer: "1",
-			tokens: []string{
-				"25",
-			},
-		},
-		{
-			peer: "2",
-			tokens: []string{
-				"50",
-			},
-		},
-		{
-			peer: "3",
-			tokens: []string{
-				"75",
-			},
-		},
-	}
+	hosts := hostsForTests(4)
 	ring, err := newTokenRing("RandomPartitioner", hosts)
 	if err != nil {
 		t.Fatalf("Failed to create token ring due to error: %v", err)
@@ -378,33 +304,21 @@ func TestRandomTokenRing(t *testing.T) {
 	p := randomPartitioner{}
 
 	var actual *HostInfo
-	actual = ring.GetHostForToken(p.ParseString("0"))
-	if actual.Peer() != "0" {
-		t.Errorf("Expected peer 0 for token \"0\", but was %s", actual.Peer())
-	}
-
-	actual = ring.GetHostForToken(p.ParseString("25"))
-	if actual.Peer() != "1" {
-		t.Errorf("Expected peer 1 for token \"25\", but was %s", actual.Peer())
-	}
-
-	actual = ring.GetHostForToken(p.ParseString("50"))
-	if actual.Peer() != "2" {
-		t.Errorf("Expected peer 2 for token \"50\", but was %s", actual.Peer())
-	}
-
-	actual = ring.GetHostForToken(p.ParseString("75"))
-	if actual.Peer() != "3" {
-		t.Errorf("Expected peer 3 for token \"01\", but was %s", actual.Peer())
+	for _, host := range hosts {
+		actual = ring.GetHostForToken(p.ParseString(host.tokens[0]))
+		if !actual.ConnectAddress().Equal(host.ConnectAddress()) {
+			t.Errorf("Expected address %v for token %q, but was %v", host.ConnectAddress(),
+				host.tokens[0], actual.ConnectAddress())
+		}
 	}
 
 	actual = ring.GetHostForToken(p.ParseString("12"))
-	if actual.Peer() != "1" {
-		t.Errorf("Expected peer 1 for token \"12\", but was %s", actual.Peer())
+	if !actual.peer.Equal(hosts[1].peer) {
+		t.Errorf("Expected address 1 for token \"12\", but was %s", actual.ConnectAddress())
 	}
 
 	actual = ring.GetHostForToken(p.ParseString("24324545443332"))
-	if actual.Peer() != "0" {
-		t.Errorf("Expected peer 0 for token \"24324545443332\", but was %s", actual.Peer())
+	if !actual.ConnectAddress().Equal(hosts[0].ConnectAddress()) {
+		t.Errorf("Expected address 1 for token \"24324545443332\", but was %s", actual.ConnectAddress())
 	}
 }

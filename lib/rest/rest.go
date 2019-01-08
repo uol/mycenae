@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"time"
 
 	"go.uber.org/zap/zapcore"
 
@@ -132,8 +133,6 @@ func (trest *REST) asyncStart() {
 	//WRITE
 	router.POST(path+"api/put", trest.writer.HandleNumber)
 	router.PUT(path+"api/put", trest.writer.HandleNumber)
-	router.POST(path+"api/netdata", trest.writer.HandleNumberTelnetFormat)
-	router.PUT(path+"api/netdata", trest.writer.HandleNumberTelnetFormat)
 	router.POST(path+"api/text/put", trest.writer.HandleText)
 	//OPENTSDB
 	router.POST("/keysets/:keyset/api/query", trest.reader.Query)
@@ -162,6 +161,10 @@ func (trest *REST) asyncStart() {
 			rip.NewGzipMiddleware(rip.BestSpeed, router),
 			true,
 		),
+		ReadTimeout:       60 * time.Second,
+		ReadHeaderTimeout: 60 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		MaxHeaderBytes:    10485760,
 	}
 
 	err := trest.server.ListenAndServe()

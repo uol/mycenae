@@ -25,6 +25,13 @@ type SettingsHTTP struct {
 	Bind string
 }
 
+type SettingsTelnet struct {
+	Port           int
+	Host           string
+	OnErrorTimeout int
+	MaxBufferSize  int
+}
+
 type SettingsUDP struct {
 	Port       string
 	ReadBuffer int
@@ -42,6 +49,7 @@ type Settings struct {
 	HostNameCleanerRegex  string
 	HTTPserver            SettingsHTTP
 	UDPserver             SettingsUDP
+	TELNETserver          SettingsTelnet
 	DefaultTTL            int
 	MaxAllowedTTL         int
 	DefaultKeysets        []string

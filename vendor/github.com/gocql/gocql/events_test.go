@@ -12,10 +12,11 @@ func TestEventDebounce(t *testing.T) {
 	wg.Add(1)
 
 	eventsSeen := 0
-	debouncer := newEventDeouncer("testDebouncer", func(events []frame) {
+	debouncer := newEventDebouncer("testDebouncer", func(events []frame) {
 		defer wg.Done()
 		eventsSeen += len(events)
 	})
+	defer debouncer.stop()
 
 	for i := 0; i < eventCount; i++ {
 		debouncer.debounce(&statusChangeEventFrame{

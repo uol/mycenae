@@ -165,7 +165,7 @@ func (collect *Collector) processPacket(rcvMsg TSDBpoint, point *Point, number b
 
 	if point == nil {
 		packet = Point{}
-		gerr := collect.makePacket(&packet, rcvMsg, number)
+		gerr := collect.MakePacket(&packet, rcvMsg, number)
 		if gerr != nil {
 			return gerr
 		}

@@ -1,12 +1,12 @@
-hash: 4cd1f1871cfd08c778acab0d956ccfd52c2c16cd8e8b42f49af2fb546602af60
-updated: 2019-01-07T20:18:30.276442116-02:00
+hash: 20c73729e4c49faa6247d33b8d7bc033083d4d949049540dda9b04c0dcb8657c
+updated: 2019-01-08T17:29:12.166009017-02:00
 imports:
 - name: github.com/armon/go-metrics
-  version: 783273d703149aaeb9897cf58613d5af48861c25
+  version: f0300d1749da6fa982027e449ec0c7a145510c3c
 - name: github.com/BurntSushi/toml
   version: 3012a1dbe2e4bd1391d42b32f0577cb7bbc7f005
 - name: github.com/gocql/gocql
-  version: 31b0c9c712d21a8d5e1b3098c12a2fd41086ff30
+  version: 70385f88b28b43805bd83d212169ab2d38810b15
   subpackages:
   - internal/lru
   - internal/murmur
@@ -20,9 +20,9 @@ imports:
   - ptypes/duration
   - ptypes/timestamp
 - name: github.com/golang/snappy
-  version: 427fb6fc07997f43afa32f35e850833760e489a7
+  version: 2e65f85255dbc3072edf28d6b5b8efc472979f5a
 - name: github.com/google/uuid
-  version: 9b3b1e0f5f99ae461456d768e7d301a7acdaa2d8
+  version: d460ce9f8df2e77fb1ba55ca87fafed96c607494
 - name: github.com/hailocab/go-hostpool
   version: e80d13ce29ede4452c43dea11e79b9bc8a15b478
 - name: github.com/hashicorp/consul
@@ -30,17 +30,17 @@ imports:
   subpackages:
   - api
 - name: github.com/hashicorp/go-cleanhttp
-  version: d5fe4b57a186c716b0e00b8c301cbd9b4182694d
+  version: e8ab9daed8d1ddd2d3c4efba338fe2eeae2e4f18
 - name: github.com/hashicorp/go-immutable-radix
-  version: 7f3cd4390caab3250a57f30efdb2a65dd7649ecf
+  version: 27df80928bb34bb1b0d6d0e01b9e679902e7a6b5
 - name: github.com/hashicorp/go-rootcerts
   version: 6bb64b370b90e7ef1fa532be9e591a81c3493e00
 - name: github.com/hashicorp/golang-lru
-  version: 0fb14efe8c47ae851c0034ed7a448854d3d34cf3
+  version: 20f1fb78b0740ba8c3cb143a61e86ba5c8669768
   subpackages:
   - simplelru
 - name: github.com/hashicorp/serf
-  version: 3b250ce4404edb266330f53fcfc8ad0d0dacfae7
+  version: 4a3a10ccd1b09be9af798006fc9c85827b5f2ba6
   subpackages:
   - coordinate
 - name: github.com/json-iterator/go
@@ -48,9 +48,9 @@ imports:
 - name: github.com/julienschmidt/httprouter
   version: 348b672cd90d8190f8240323e372ecd1e66b59dc
 - name: github.com/mitchellh/go-homedir
-  version: b8bc1bf767474819792c23f32d8286a45736f1c6
+  version: ae18d6b8b3205b561c79e8e5f69bff09736185f4
 - name: github.com/mitchellh/hashstructure
-  version: 2bca23e0e452137f789efbc8610126fd8b94f73b
+  version: a38c50148365edc8df43c1580c48fb2b3a1e9cd7
 - name: github.com/mitchellh/mapstructure
   version: 3536a929edddb9a5b34bd6861dc4a9647cb459fe
 - name: github.com/modern-go/concurrent
@@ -91,24 +91,24 @@ imports:
   - internal/exit
   - zapcore
 - name: golang.org/x/net
-  version: b68f30494add4df6bd8ef5e82803f308e7f7c59c
+  version: 395948e2f546cb82afa9e1f6d1a6e87849b9af1d
   subpackages:
   - context
+  - http/httpguts
   - http2
   - http2/hpack
   - idna
   - internal/timeseries
-  - lex/httplex
   - trace
 - name: golang.org/x/text
-  version: ece95c760240037f89ebcbdd7155ac8cb52e38fa
+  version: e6919f6577db79269a6443b9dc46d18f2238fb5d
   subpackages:
   - secure/bidirule
   - transform
   - unicode/bidi
   - unicode/norm
 - name: google.golang.org/genproto
-  version: ab0870e398d5dd054b868c0db1481ab029b9a9f2
+  version: ae2f86662275e140f395167f1dab7081a5bd5fa8
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc
@@ -137,20 +137,24 @@ imports:
   - tap
   - transport
 - name: gopkg.in/inf.v0
-  version: 3887ee99ecf07df5b447e9b00d9c0b2adaa9f3e4
+  version: d2d2541c53f18d2a059457998ce2876cc8e67cbf
 - name: gopkg.in/robfig/cron.v2
   version: b024fc5ea0e34bc3f83d9941c8d60b0622bfaca4
 - name: gopkg.in/yaml.v2
   version: 51d6538a90f86fe93ac480b35f37b2be17fef232
 testImports:
 - name: github.com/davecgh/go-spew
-  version: 8991bc29aa16c548c550c7ff78260e27b9ab7c73
+  version: d8f796af33cc11cb798c1aaeb27a4ebc5099927d
   subpackages:
   - spew
 - name: github.com/pmezard/go-difflib
   version: 792786c7400a136282c1664665ae0a8db921c6c2
   subpackages:
   - difflib
+- name: github.com/reiver/go-oi
+  version: 431c83978379297f04f85f6eb94f129f25ab741d
+- name: github.com/reiver/go-telnet
+  version: 9ff0b2ab096ebe42bf8e2ffd1366e7ed2223b04c
 - name: github.com/stretchr/testify
   version: f35b8ab0b5a2cef36673838d662e249dd9c94686
   subpackages:

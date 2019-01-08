@@ -45,3 +45,5 @@ testImport:
   version: ~1.2.1
   subpackages:
   - assert
+- package: github.com/reiver/go-telnet
+- package: github.com/reiver/go-oi
