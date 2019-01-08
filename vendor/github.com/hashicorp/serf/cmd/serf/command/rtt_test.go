@@ -2,10 +2,9 @@ package command
 
 import (
 	"fmt"
+	"github.com/mitchellh/cli"
 	"strings"
 	"testing"
-
-	"github.com/mitchellh/cli"
 )
 
 func TestRTTCommand_Implements(t *testing.T) {

@@ -18,8 +18,6 @@ type QueryCommand struct {
 	Ui         cli.Ui
 }
 
-var _ cli.Command = &QueryCommand{}
-
 func (c *QueryCommand) Help() string {
 	helpText := `
 Usage: serf query [options] name payload

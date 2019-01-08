@@ -1,11 +1,14 @@
 package command
 
 import (
+	"github.com/mitchellh/cli"
 	"strings"
 	"testing"
-
-	"github.com/mitchellh/cli"
 )
+
+func TestReachabilityCommand_implements(t *testing.T) {
+	var _ cli.Command = &ReachabilityCommand{}
+}
 
 func TestReachabilityCommand_Run(t *testing.T) {
 	a1 := testAgent(t)

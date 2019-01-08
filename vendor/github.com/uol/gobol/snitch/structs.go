@@ -8,7 +8,6 @@ type Settings struct {
 	HTTPTimeout      string
 	HTTPPostInterval string
 	Tags             map[string]string
-	KSID             string
 	Interval         string
 	Runtime          bool
 }

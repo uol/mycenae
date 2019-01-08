@@ -2,11 +2,10 @@ package serf
 
 import (
 	"bytes"
+	"github.com/hashicorp/go-msgpack/codec"
 	"net"
 	"reflect"
 	"testing"
-
-	"github.com/hashicorp/go-msgpack/codec"
 )
 
 func TestQueryFlags(t *testing.T) {

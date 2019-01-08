@@ -1,11 +1,14 @@
 package command
 
 import (
+	"github.com/mitchellh/cli"
 	"strings"
 	"testing"
-
-	"github.com/mitchellh/cli"
 )
+
+func TestInfoCommand_implements(t *testing.T) {
+	var _ cli.Command = &InfoCommand{}
+}
 
 func TestInfoCommandRun(t *testing.T) {
 	a1 := testAgent(t)

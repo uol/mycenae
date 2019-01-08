@@ -1,12 +1,12 @@
-hash: d1fe12d81bde37c18caf4b45cb772146aced65a79fca7bcbf40e0b756716b6a0
-updated: 2018-11-15T13:06:55.240779833-02:00
+hash: 97c65da54690153461b6e0d1849a37f0c748d1650d282aebc21f8b2008584a95
+updated: 2018-12-28T15:31:39.485357195-02:00
 imports:
 - name: github.com/armon/go-metrics
-  version: 3c58d8115a78a6879e5df75ae900846768d36895
+  version: f0300d1749da6fa982027e449ec0c7a145510c3c
 - name: github.com/BurntSushi/toml
   version: 3012a1dbe2e4bd1391d42b32f0577cb7bbc7f005
 - name: github.com/gocql/gocql
-  version: 44e29ed5b8a4b4fff39d7ebaa19976c6f852075b
+  version: 70385f88b28b43805bd83d212169ab2d38810b15
   subpackages:
   - internal/lru
   - internal/murmur
@@ -22,31 +22,46 @@ imports:
   subpackages:
   - api
 - name: github.com/hashicorp/go-cleanhttp
-  version: d5fe4b57a186c716b0e00b8c301cbd9b4182694d
+  version: e8ab9daed8d1ddd2d3c4efba338fe2eeae2e4f18
 - name: github.com/hashicorp/go-immutable-radix
-  version: 7f3cd4390caab3250a57f30efdb2a65dd7649ecf
+  version: 27df80928bb34bb1b0d6d0e01b9e679902e7a6b5
 - name: github.com/hashicorp/go-rootcerts
   version: 6bb64b370b90e7ef1fa532be9e591a81c3493e00
 - name: github.com/hashicorp/golang-lru
-  version: 0fb14efe8c47ae851c0034ed7a448854d3d34cf3
+  version: 20f1fb78b0740ba8c3cb143a61e86ba5c8669768
   subpackages:
   - simplelru
 - name: github.com/hashicorp/serf
-  version: 19bbd39e421bdf3559d5025fb2c760f5ffa56233
+  version: 4a3a10ccd1b09be9af798006fc9c85827b5f2ba6
   subpackages:
   - coordinate
+- name: github.com/jinzhu/gorm
+  version: 472c70caa40267cb89fd8facb07fe6454b578626
+  subpackages:
+  - dialects/postgres
+- name: github.com/jinzhu/inflection
+  version: 04140366298a54a039076d798123ffa108fff46c
 - name: github.com/julienschmidt/httprouter
   version: 348b672cd90d8190f8240323e372ecd1e66b59dc
+- name: github.com/lib/pq
+  version: 4ded0e9383f75c197b3a2aaa6d590ac52df6fd79
+  subpackages:
+  - hstore
+  - oid
 - name: github.com/mitchellh/go-homedir
-  version: 58046073cbffe2f25d425fe1331102f55cf719de
+  version: ae18d6b8b3205b561c79e8e5f69bff09736185f4
 - name: github.com/mitchellh/mapstructure
-  version: f15292f7a699fcc1a38a80977f80a046874ba8ac
+  version: 3536a929edddb9a5b34bd6861dc4a9647cb459fe
 - name: github.com/pborman/uuid
   version: adf5a7427709b9deb95d29d3fa8a2bf9cfd388f1
 - name: github.com/robfig/cron
   version: b41be1df696709bb6395fe435af20370037c0b4c
 - name: github.com/rs/cors
-  version: 15587285ef6b6e7a3f657e2e00f9f271883bcf22
+  version: 9a47f48565a795472d43519dd49aac781f3034fb
+- name: github.com/samuel/go-zookeeper
+  version: c4fab1ac1bec58281ad0667dc3f0907a9476ac47
+  subpackages:
+  - zk
 - name: github.com/uol/go-solr
   version: 2b20b79d603c54b3bfb42db257ed8322b3489f52
   subpackages:
@@ -66,7 +81,7 @@ imports:
 - name: gopkg.in/inf.v0
   version: d2d2541c53f18d2a059457998ce2876cc8e67cbf
 - name: gopkg.in/yaml.v2
-  version: 5420a8b6744d3b0345ab293f6fcba19c978f1183
+  version: 51d6538a90f86fe93ac480b35f37b2be17fef232
 testImports:
 - name: github.com/davecgh/go-spew
   version: d8f796af33cc11cb798c1aaeb27a4ebc5099927d

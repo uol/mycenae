@@ -5,7 +5,6 @@
 package main
 
 import (
-	"io"
 	"os"
 
 	"golang.org/x/text/message/pipeline"
@@ -40,9 +39,9 @@ using Printf to allow translators to reorder arguments.
 }
 
 func runRewrite(cmd *Command, _ *pipeline.Config, args []string) error {
-	var w io.Writer
-	if !*overwrite {
-		w = os.Stdout
+	w := os.Stdout
+	if *overwrite {
+		w = nil
 	}
 	pkg := "."
 	switch len(args) {

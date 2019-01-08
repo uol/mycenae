@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -eux
+set -e
 
 function run_tests() {
 	local clusterSize=3
@@ -47,26 +47,21 @@ function run_tests() {
 		proto=2
 	elif [[ $version == 2.1.* ]]; then
 		proto=3
-	elif [[ $version == 2.2.* || $version == 3.0.* ]]; then
+	elif [[ $version == 2.2.* ]]; then
 		proto=4
 		ccm updateconf 'enable_user_defined_functions: true'
-		export JVM_EXTRA_OPTS=" -Dcassandra.test.fail_writes_ks=test -Dcassandra.custom_query_handler_class=org.apache.cassandra.cql3.CustomPayloadMirroringQueryHandler"
-	elif [[ $version == 3.*.* ]]; then
-		proto=5
-		ccm updateconf 'enable_user_defined_functions: true'
-		export JVM_EXTRA_OPTS=" -Dcassandra.test.fail_writes_ks=test -Dcassandra.custom_query_handler_class=org.apache.cassandra.cql3.CustomPayloadMirroringQueryHandler"
 	fi
 
 	sleep 1s
 
 	ccm list
-	ccm start --wait-for-binary-proto
+	ccm start
 	ccm status
 	ccm node1 nodetool status
 
-	local args="-gocql.timeout=60s -runssl -proto=$proto -rf=3 -clusterSize=$clusterSize -autowait=2000ms -compressor=snappy -gocql.cversion=$version -cluster=$(ccm liveset) ./..."
+	local args="-v -gocql.timeout=60s -runssl -proto=$proto -rf=3 -clusterSize=$clusterSize -autowait=2000ms -compressor=snappy -gocql.cversion=$version -cluster=$(ccm liveset) ./..."
 
-	go test -v -tags unit -race
+	go test -v -tags unit
 
 	if [ "$auth" = true ]
 	then
@@ -74,13 +69,13 @@ function run_tests() {
 		go test -run=TestAuthentication -tags "integration gocql_debug" -timeout=15s -runauth $args
 	else
 		sleep 1s
-		go test -tags "integration gocql_debug" -timeout=5m -race $args
+		go test -tags "integration gocql_debug" -timeout=5m $args
 
 		ccm clear
 		ccm start
 		sleep 1s
 
-		go test -tags "ccm gocql_debug" -timeout=5m -race $args
+		go test -tags "ccm gocql_debug" -timeout=5m $args
 	fi
 
 	ccm remove

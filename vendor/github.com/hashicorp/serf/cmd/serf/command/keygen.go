@@ -4,9 +4,8 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-	"strings"
-
 	"github.com/mitchellh/cli"
+	"strings"
 )
 
 // KeygenCommand is a Command implementation that generates an encryption
@@ -14,8 +13,6 @@ import (
 type KeygenCommand struct {
 	Ui cli.Ui
 }
-
-var _ cli.Command = &KeygenCommand{}
 
 func (c *KeygenCommand) Run(_ []string) int {
 	key := make([]byte, 16)

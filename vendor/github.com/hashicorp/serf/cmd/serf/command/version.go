@@ -3,7 +3,6 @@ package command
 import (
 	"bytes"
 	"fmt"
-
 	"github.com/hashicorp/serf/serf"
 	"github.com/mitchellh/cli"
 )
@@ -15,8 +14,6 @@ type VersionCommand struct {
 	VersionPrerelease string
 	Ui                cli.Ui
 }
-
-var _ cli.Command = &VersionCommand{}
 
 func (c *VersionCommand) Help() string {
 	return ""

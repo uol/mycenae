@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"net"
 	"strings"
 	"sync"
 	"testing"
@@ -13,7 +12,7 @@ import (
 
 var (
 	flagCluster      = flag.String("cluster", "127.0.0.1", "a comma-separated list of host:port tuples")
-	flagProto        = flag.Int("proto", 0, "protcol version")
+	flagProto        = flag.Int("proto", 2, "protcol version")
 	flagCQL          = flag.String("cql", "3.0.0", "CQL version")
 	flagRF           = flag.Int("rf", 1, "replication factor for test keyspace")
 	clusterSize      = flag.Int("clusterSize", 1, "the expected size of the cluster")
@@ -70,7 +69,7 @@ func createTable(s *Session, table string) error {
 	return nil
 }
 
-func createCluster(opts ...func(*ClusterConfig)) *ClusterConfig {
+func createCluster() *ClusterConfig {
 	cluster := NewCluster(clusterHosts...)
 	cluster.ProtoVersion = *flagProto
 	cluster.CQLVersion = *flagCQL
@@ -90,16 +89,10 @@ func createCluster(opts ...func(*ClusterConfig)) *ClusterConfig {
 	}
 
 	cluster = addSslOptions(cluster)
-
-	for _, opt := range opts {
-		opt(cluster)
-	}
-
 	return cluster
 }
 
 func createKeyspace(tb testing.TB, cluster *ClusterConfig, keyspace string) {
-	// TODO: tb.Helper()
 	c := *cluster
 	c.Keyspace = "system"
 	c.Timeout = 30 * time.Second
@@ -108,6 +101,7 @@ func createKeyspace(tb testing.TB, cluster *ClusterConfig, keyspace string) {
 		panic(err)
 	}
 	defer session.Close()
+	defer log.Println("closing keyspace session")
 
 	err = createTable(session, `DROP KEYSPACE IF EXISTS `+keyspace)
 	if err != nil {
@@ -145,57 +139,7 @@ func createSessionFromCluster(cluster *ClusterConfig, tb testing.TB) *Session {
 	return session
 }
 
-func createSession(tb testing.TB, opts ...func(config *ClusterConfig)) *Session {
-	cluster := createCluster(opts...)
+func createSession(tb testing.TB) *Session {
+	cluster := createCluster()
 	return createSessionFromCluster(cluster, tb)
-}
-
-// createTestSession is hopefully moderately useful in actual unit tests
-func createTestSession() *Session {
-	config := NewCluster()
-	config.NumConns = 1
-	config.Timeout = 0
-	config.DisableInitialHostLookup = true
-	config.IgnorePeerAddr = true
-	config.PoolConfig.HostSelectionPolicy = RoundRobinHostPolicy()
-	session := &Session{
-		cfg: *config,
-		connCfg: &ConnConfig{
-			Timeout:   10 * time.Millisecond,
-			Keepalive: 0,
-		},
-		policy: config.PoolConfig.HostSelectionPolicy,
-	}
-	session.pool = config.PoolConfig.buildPool(session)
-	return session
-}
-
-func staticAddressTranslator(newAddr net.IP, newPort int) AddressTranslator {
-	return AddressTranslatorFunc(func(addr net.IP, port int) (net.IP, int) {
-		return newAddr, newPort
-	})
-}
-
-func assertTrue(t *testing.T, description string, value bool) {
-	if !value {
-		t.Errorf("expected %s to be true", description)
-	}
-}
-
-func assertEqual(t *testing.T, description string, expected, actual interface{}) {
-	if expected != actual {
-		t.Errorf("expected %s to be (%+v) but was (%+v) instead", description, expected, actual)
-	}
-}
-
-func assertNil(t *testing.T, description string, actual interface{}) {
-	if actual != nil {
-		t.Errorf("expected %s to be (nil) but was (%+v) instead", description, actual)
-	}
-}
-
-func assertNotNil(t *testing.T, description string, actual interface{}) {
-	if actual == nil {
-		t.Errorf("expected %s not to be (nil)", description)
-	}
 }

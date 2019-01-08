@@ -1,15 +1,10 @@
 package agent
 
-import (
-	"flag"
-	"strings"
-)
+import "strings"
 
 // AppendSliceValue implements the flag.Value interface and allows multiple
 // calls to the same variable to append a list.
 type AppendSliceValue []string
-
-var _ flag.Value = new(AppendSliceValue)
 
 func (s *AppendSliceValue) String() string {
 	return strings.Join(*s, ",")
