@@ -7,25 +7,25 @@ import (
 	"gopkg.in/robfig/cron.v2"
 )
 
-func New(gbl *zap.Logger, gbs *snitch.Stats, intvl, statsKeySet, statsTTL string) (*StatsTS, error) {
+func New(gbl *zap.Logger, gbs, gbsa *snitch.Stats, intvl, intvla string) (*StatsTS, error) {
 	if _, err := cron.Parse(intvl); err != nil {
 		return nil, err
 	}
 	return &StatsTS{
-		log:         gbl,
-		stats:       gbs,
-		interval:    intvl,
-		StatsKeySet: statsKeySet,
-		StatsTTL:    statsTTL,
+		log:              gbl,
+		stats:            gbs,
+		interval:         intvl,
+		analytic:         gbsa,
+		analyticInterval: intvla,
 	}, nil
 }
 
 type StatsTS struct {
-	stats       *snitch.Stats
-	log         *zap.Logger
-	interval    string
-	StatsKeySet string
-	StatsTTL    string
+	log              *zap.Logger
+	stats            *snitch.Stats
+	interval         string
+	analytic         *snitch.Stats
+	analyticInterval string
 }
 
 func (sts *StatsTS) Increment(callerID string, metric string, tags map[string]string) {
@@ -58,6 +58,18 @@ func (sts *StatsTS) ValueMax(callerID string, metric string, tags map[string]str
 		lf := []zapcore.Field{
 			zap.String("package", callerID),
 			zap.String("func", "statsValueMax"),
+			zap.String("metric", metric),
+		}
+		sts.log.Error(err.Error(), lf...)
+	}
+}
+
+func (sts *StatsTS) AnalyticIncrement(callerID string, metric string, tags map[string]string) {
+	err := sts.analytic.Increment(metric, tags, sts.analyticInterval, false, true)
+	if err != nil {
+		lf := []zapcore.Field{
+			zap.String("package", callerID),
+			zap.String("func", "statsAnalyticIncrement"),
 			zap.String("metric", metric),
 		}
 		sts.log.Error(err.Error(), lf...)

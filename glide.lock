@@ -1,5 +1,5 @@
-hash: 8b04bd6dd74c1c39cf3cac3cd127ae31c5493eed3b1f789a43e95e701053a024
-updated: 2019-01-07T15:28:42.958820581-02:00
+hash: 20c73729e4c49faa6247d33b8d7bc033083d4d949049540dda9b04c0dcb8657c
+updated: 2019-01-08T17:29:12.166009017-02:00
 imports:
 - name: github.com/armon/go-metrics
   version: f0300d1749da6fa982027e449ec0c7a145510c3c
@@ -61,10 +61,6 @@ imports:
   version: adf5a7427709b9deb95d29d3fa8a2bf9cfd388f1
 - name: github.com/rainycape/memcache
   version: 1031fa0ce2f20c1c0e1e1b51951d8ea02c84fa05
-- name: github.com/reiver/go-oi
-  version: 431c83978379297f04f85f6eb94f129f25ab741d
-- name: github.com/reiver/go-telnet
-  version: 9ff0b2ab096ebe42bf8e2ffd1366e7ed2223b04c
 - name: github.com/robfig/cron
   version: b41be1df696709bb6395fe435af20370037c0b4c
 - name: github.com/rs/cors
@@ -74,7 +70,7 @@ imports:
   subpackages:
   - solr
 - name: github.com/uol/gobol
-  version: e2bcb0c76dbc73e60e54197ab50f3d6f7ccdfaab
+  version: ffdb55c9933f3afe756e25ca11f75758bc293058
   subpackages:
   - cassandra
   - loader
@@ -95,7 +91,7 @@ imports:
   - internal/exit
   - zapcore
 - name: golang.org/x/net
-  version: 1a61f4433d8505ec66450dd581f6abb8e83cb4d9
+  version: 395948e2f546cb82afa9e1f6d1a6e87849b9af1d
   subpackages:
   - context
   - http/httpguts
@@ -112,7 +108,7 @@ imports:
   - unicode/bidi
   - unicode/norm
 - name: google.golang.org/genproto
-  version: bd9b4fb69e2ffd37621a6caa54dcbead29b546f2
+  version: ae2f86662275e140f395167f1dab7081a5bd5fa8
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc
@@ -155,6 +151,10 @@ testImports:
   version: 792786c7400a136282c1664665ae0a8db921c6c2
   subpackages:
   - difflib
+- name: github.com/reiver/go-oi
+  version: 431c83978379297f04f85f6eb94f129f25ab741d
+- name: github.com/reiver/go-telnet
+  version: 9ff0b2ab096ebe42bf8e2ffd1366e7ed2223b04c
 - name: github.com/stretchr/testify
   version: f35b8ab0b5a2cef36673838d662e249dd9c94686
   subpackages:

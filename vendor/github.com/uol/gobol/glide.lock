@@ -1,5 +1,5 @@
-hash: 5e1cb1ea2eaf0d9ae84671288f1f26e537a7e68abdab3edc00920e2046f52e92
-updated: 2018-12-28T15:15:12.447854892-02:00
+hash: 97c65da54690153461b6e0d1849a37f0c748d1650d282aebc21f8b2008584a95
+updated: 2018-12-28T15:31:39.485357195-02:00
 imports:
 - name: github.com/armon/go-metrics
   version: f0300d1749da6fa982027e449ec0c7a145510c3c
@@ -44,7 +44,7 @@ imports:
 - name: github.com/julienschmidt/httprouter
   version: 348b672cd90d8190f8240323e372ecd1e66b59dc
 - name: github.com/lib/pq
-  version: 9eb73efc1fcc404148b56765b0d3f61d9a5ef8ee
+  version: 4ded0e9383f75c197b3a2aaa6d590ac52df6fd79
   subpackages:
   - hstore
   - oid

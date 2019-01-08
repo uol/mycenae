@@ -66,15 +66,16 @@ func New(logger *zap.Logger, settings Settings) (*Stats, error) {
 		tags[k] = v
 	}
 
+	if tags["ksid"] == "" {
+		return nil, errors.New("tag ksid is mandatory")
+	}
+
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, err
 	}
 
 	tags["host"] = hostname
-	if settings.KSID != "" {
-		tags["ksid"] = settings.KSID
-	}
 
 	stats := &Stats{
 		cron:     cron.New(),
@@ -129,7 +130,7 @@ func (st *Stats) runtimeLoop() {
 }
 
 func (st *Stats) clientUDP() {
-	conn, err := net.Dial("udp", fmt.Sprintf("%v:%v", st.address, st.port))
+	conn, err := net.Dial("udp", fmt.Sprintf("%s:%s", st.address, st.port))
 	if err != nil {
 		st.logger.Error("connect", zap.Error(err))
 	} else {
@@ -150,7 +151,7 @@ func (st *Stats) clientUDP() {
 					st.logger.Error("write", zap.Error(err))
 				}
 			} else {
-				conn, err = net.Dial("udp", fmt.Sprintf("%v:%v", st.address, st.port))
+				conn, err = net.Dial("udp", fmt.Sprintf("%s:%s", st.address, st.port))
 				if err != nil {
 					st.logger.Error("connect", zap.Error(err))
 				} else {
@@ -166,7 +167,7 @@ func (st *Stats) clientHTTP() {
 		Timeout: st.timeout,
 	}
 
-	url := fmt.Sprintf("%v:%v/api/put", st.address, st.port)
+	url := fmt.Sprintf("%s://%s:%s/api/put", st.proto, st.address, st.port)
 	ticker := time.NewTicker(st.postInt)
 	for {
 		select {

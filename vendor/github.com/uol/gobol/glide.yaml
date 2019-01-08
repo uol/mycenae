@@ -31,6 +31,8 @@ import:
   version: ~2.2.2
 - package: github.com/jinzhu/gorm
   version: ~1.9.2
+- package: github.com/lib/pq
+  version: ~1.0.0
 testImport:
 - package: github.com/stretchr/testify
   version: ~1.2.2
