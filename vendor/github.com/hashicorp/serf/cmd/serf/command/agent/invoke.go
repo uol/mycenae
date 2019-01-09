@@ -2,6 +2,9 @@ package agent
 
 import (
 	"fmt"
+	"github.com/armon/circbuf"
+	"github.com/armon/go-metrics"
+	"github.com/hashicorp/serf/serf"
 	"io"
 	"log"
 	"os"
@@ -10,10 +13,6 @@ import (
 	"runtime"
 	"strings"
 	"time"
-
-	"github.com/armon/circbuf"
-	"github.com/armon/go-metrics"
-	"github.com/hashicorp/serf/serf"
 )
 
 const (

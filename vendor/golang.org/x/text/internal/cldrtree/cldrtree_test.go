@@ -74,7 +74,7 @@ func TestBuild(t *testing.T) {
 	tree1, _ := loadTestdata(t, "test1")
 	tree2, _ := loadTestdata(t, "test2")
 
-	// Constants for second test
+	// Constants for second test test
 	const (
 		calendar = iota
 		field

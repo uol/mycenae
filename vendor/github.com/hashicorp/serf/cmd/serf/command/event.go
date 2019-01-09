@@ -3,9 +3,8 @@ package command
 import (
 	"flag"
 	"fmt"
-	"strings"
-
 	"github.com/mitchellh/cli"
+	"strings"
 )
 
 // EventCommand is a Command implementation that queries a running
@@ -13,8 +12,6 @@ import (
 type EventCommand struct {
 	Ui cli.Ui
 }
-
-var _ cli.Command = &EventCommand{}
 
 func (c *EventCommand) Help() string {
 	helpText := `

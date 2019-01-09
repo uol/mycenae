@@ -3,12 +3,11 @@ package command
 import (
 	"flag"
 	"fmt"
-	"strings"
-	"time"
-
 	"github.com/hashicorp/serf/client"
 	"github.com/hashicorp/serf/serf"
 	"github.com/mitchellh/cli"
+	"strings"
+	"time"
 )
 
 const (
@@ -30,8 +29,6 @@ type ReachabilityCommand struct {
 	ShutdownCh <-chan struct{}
 	Ui         cli.Ui
 }
-
-var _ cli.Command = &ReachabilityCommand{}
 
 func (c *ReachabilityCommand) Help() string {
 	helpText := `

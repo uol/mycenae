@@ -10,9 +10,9 @@ func (backend *scylladb) statsQuery(
 	if column != "" {
 		tags["column_family"] = column
 	}
-	go backend.statsIncrement("cassandra.query", tags)
+	go backend.statsIncrement("scylla.query", tags)
 	go backend.statsValueAdd(
-		"cassandra.query.duration",
+		"scylla.query.duration",
 		tags,
 		float64(d.Nanoseconds())/float64(time.Millisecond),
 	)
@@ -26,7 +26,7 @@ func (backend *scylladb) statsQueryError(
 		tags["column_family"] = column
 	}
 	go backend.statsIncrement(
-		"cassandra.query.error",
+		"scylla.query.error",
 		tags,
 	)
 }

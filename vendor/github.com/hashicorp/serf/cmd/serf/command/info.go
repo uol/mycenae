@@ -4,10 +4,9 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"github.com/mitchellh/cli"
 	"sort"
 	"strings"
-
-	"github.com/mitchellh/cli"
 )
 
 // InfoCommand is a Command implementation that queries a running
@@ -15,8 +14,6 @@ import (
 type InfoCommand struct {
 	Ui cli.Ui
 }
-
-var _ cli.Command = &InfoCommand{}
 
 func (i *InfoCommand) Help() string {
 	helpText := `

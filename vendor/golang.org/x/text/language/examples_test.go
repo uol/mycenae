@@ -205,7 +205,7 @@ func ExampleParse_errors() {
 	// ac-u: ill-formed
 }
 
-func ExampleTag_Parent() {
+func ExampleParent() {
 	p := func(tag string) {
 		fmt.Printf("parent(%v): %v\n", tag, language.Make(tag).Parent())
 	}

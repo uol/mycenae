@@ -174,9 +174,6 @@ func TestSerf_eventsLeave(t *testing.T) {
 	eventCh := make(chan Event, 4)
 	s1Config := testConfig()
 	s1Config.EventCh = eventCh
-	// Make the reap interval longer in this test
-	// so that the leave does not also cause a reap
-	s1Config.ReapInterval = 30 * time.Second
 
 	s2Config := testConfig()
 
@@ -1318,12 +1315,9 @@ func TestSerf_Leave_SnapshotRecovery(t *testing.T) {
 	}
 	defer os.RemoveAll(td)
 
-	// Use a longer reap interval to allow the leave intent to propagate before the node is reaped
 	s1Config := testConfig()
-	s1Config.ReapInterval = 30 * time.Second
 	s2Config := testConfig()
 	s2Config.SnapshotPath = td + "snap"
-	s2Config.ReapInterval = 30 * time.Second
 
 	s1, err := Create(s1Config)
 	if err != nil {

@@ -57,6 +57,7 @@ type Settings struct {
 		Stats       LogSetting
 	}
 	Stats            snitch.Settings
+	StatsAnalytic    snitch.Settings
 	MetadataSettings metadata.Settings
 	Probe            struct {
 		Threshold float64

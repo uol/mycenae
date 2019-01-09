@@ -88,9 +88,16 @@ func main() {
 	sts, err := snitch.New(tsLogger.Stats, settings.Stats)
 	if err != nil {
 		tsLogger.General.Fatal(fmt.Sprintf("ERROR - Starting stats: %s", err.Error()), lf...)
+		os.Exit(1)
 	}
 
-	tssts, err := tsstats.New(tsLogger.General, sts, settings.Stats.Interval, settings.Stats.KSID, settings.Stats.Tags["ttl"])
+	analytic, err := snitch.New(tsLogger.Stats, settings.StatsAnalytic)
+	if err != nil {
+		tsLogger.General.Fatal(fmt.Sprintf("ERROR - Starting stats analytics: %s", err.Error()), lf...)
+		os.Exit(1)
+	}
+
+	tssts, err := tsstats.New(tsLogger.General, sts, analytic, settings.Stats.Interval, settings.StatsAnalytic.Interval)
 	if err != nil {
 		tsLogger.General.Error(err.Error(), lf...)
 		os.Exit(1)

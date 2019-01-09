@@ -481,6 +481,7 @@ func (plot *Plot) getTimeseries(
 
 		}
 
+		statsConferMetric(keyset, q.Metric)
 	}
 
 	statsPlotSummaryPoints(sumCountPoints, sumTotalPoints, keyset)

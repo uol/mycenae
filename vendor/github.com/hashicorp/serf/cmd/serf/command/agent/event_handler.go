@@ -2,12 +2,11 @@ package agent
 
 import (
 	"fmt"
+	"github.com/hashicorp/serf/serf"
 	"log"
 	"os"
 	"strings"
 	"sync"
-
-	"github.com/hashicorp/serf/serf"
 )
 
 // EventHandler is a handler that does things when events happen.

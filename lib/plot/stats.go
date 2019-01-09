@@ -71,6 +71,10 @@ func statsPlotSummaryPoints(count, total int, keyset string) {
 	go statsValueMax("plot.total.points", map[string]string{"keyset": keyset}, float64(total))
 }
 
+func statsConferMetric(keyset, metric string) {
+	go statsAnalyticIncrement("good.metric", map[string]string{"keyset": keyset, "metric": metric})
+}
+
 func statsIncrement(metric string, tags map[string]string) {
 	stats.Increment("plot", metric, tags)
 }
@@ -81,4 +85,8 @@ func statsValueAdd(metric string, tags map[string]string, v float64) {
 
 func statsValueMax(metric string, tags map[string]string, v float64) {
 	stats.ValueMax("plot", metric, tags, v)
+}
+
+func statsAnalyticIncrement(metric string, tags map[string]string) {
+	stats.AnalyticIncrement("plot", metric, tags)
 }
