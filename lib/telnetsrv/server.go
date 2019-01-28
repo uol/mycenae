@@ -34,7 +34,7 @@ func New(listenAddress string, onErrorTimeout, maxBufferSize int, collector *col
 		maxBufferSize:  maxBufferSize,
 		collector:      collector,
 		logger:         logger,
-		formatRegexp:   regexp.MustCompile(`^put ([0-9A-Za-z-\._\%\&\#\;\/]+) ([0-9]+) ([0-9E\.]+) ([0-9A-Za-z-\._\%\&\#\;\/ =]+)$`),
+		formatRegexp:   regexp.MustCompile(`^put ([0-9A-Za-z-\._\%\&\#\;\/]+) ([0-9]+) ([0-9E\.\-\,]+) ([0-9A-Za-z-\._\%\&\#\;\/ =]+)$`),
 		tagsRegexp:     regexp.MustCompile(`([0-9A-Za-z-\._\%\&\#\;\/]+)=([0-9A-Za-z-\._\%\&\#\;\/]+)`),
 		stats:          stats,
 	}
