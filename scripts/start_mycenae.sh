@@ -8,9 +8,9 @@ if ! make -C "${GOPATH}/src/github.com/uol/mycenae/" build ; then
     exit 1
 fi
 
-scyllaIPs=$(docker inspect --format "{{ .NetworkSettings.IPAddress }}" scylla1 scylla2 scylla3 | sed 's/^.*$/"&"/' | tr '\n' ',' | sed 's/.$//')
-memcachedIPs=$(docker inspect --format "{{ .NetworkSettings.IPAddress }}" memcached1 memcached2 memcached3 | sed 's/^.*$/"&:11211"/' | tr '\n' ',' | sed 's/.$//')
-solrIP=$(docker inspect --format "{{ .NetworkSettings.IPAddress }}" solr1)
+scyllaIPs=$(docker inspect --format "{{ .NetworkSettings.Networks.timeseriesNetwork.IPAddress }}" scylla1 scylla2 scylla3 | sed 's/^.*$/"&"/' | tr '\n' ',' | sed 's/.$//')
+memcachedIPs=$(docker inspect --format "{{ .NetworkSettings.Networks.timeseriesNetwork.IPAddress }}" memcached1 memcached2 memcached3 | sed 's/^.*$/"&:11211"/' | tr '\n' ',' | sed 's/.$//')
+solrIP=$(docker inspect --format "{{ .NetworkSettings.Networks.timeseriesNetwork.IPAddress }}" solr1)
 
 sed -i 's/nodes = \[[^]]*\]/nodes = \['$scyllaIPs'\]/' ../config.toml
 sed -i 's/pool = \[[^]]*\]/pool = \['$memcachedIPs'\]/' ../config.toml
@@ -28,7 +28,8 @@ pod_arguments=(
     '--volume' "${GOPATH}/src/github.com/uol/mycenae/config.toml:/config.toml"
     '--volume' "${LOGS}:/${LOGS}"
     '--entrypoint' '/tmp/mycenae'
-    '-p' '8080:8080'
+    "--net=timeseriesNetwork"
+    '-p' '8082:8082'
 )
 
 dockerCmd="docker run ${pod_arguments[@]} ubuntu:xenial"

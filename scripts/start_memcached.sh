@@ -6,6 +6,7 @@ docker rm -f "${POD_NAME}"
 arguments=(
 	'-d'
 	'--name' "${POD_NAME}"
+	"--net=timeseriesNetwork"
 )
 
 docker run "${arguments[@]}" 'jenkins.macs.intranet:5000/mycenae/memcached:v1'
