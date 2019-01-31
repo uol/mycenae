@@ -11,20 +11,21 @@ pod_arguments=(
     '--name' "${POD_NAME}"
     '--volume' "${GOPATH}/src/github.com/uol/mycenae/tests:/tests/:ro"
     '--volume' "${GOPATH}/:/go/:ro"
+    '--network=timeseriesNetwork'
 )
 
 docker run "${pod_arguments[@]}" jenkins.macs.intranet:5000/mycenae/test-mycenae:v1
 
-scylla1=$(docker inspect --format "{{ .NetworkSettings.IPAddress }}" scylla1)
-scylla2=$(docker inspect --format "{{ .NetworkSettings.IPAddress }}" scylla2)
-scylla3=$(docker inspect --format "{{ .NetworkSettings.IPAddress }}" scylla3)
-solr=$(docker inspect --format "{{ .NetworkSettings.IPAddress }}" solr1)
+scylla1=$(docker inspect --format "{{ .NetworkSettings.Networks.timeseriesNetwork.IPAddress }}" scylla1)
+scylla2=$(docker inspect --format "{{ .NetworkSettings.Networks.timeseriesNetwork.IPAddress }}" scylla2)
+scylla3=$(docker inspect --format "{{ .NetworkSettings.Networks.timeseriesNetwork.IPAddress }}" scylla3)
+solr=$(docker inspect --format "{{ .NetworkSettings.Networks.timeseriesNetwork.IPAddress }}" solr1)
 
 mycenaePodId=$(docker ps -f 'name=mycenae' -q)
 if [ -z "$mycenaePodId" ]; then
     mycenae=$(ifconfig docker0 | grep 'inet addr' | awk -F':' '{print $2}' | awk '{print $1}')
 else
-    mycenae=$(docker inspect --format "{{ .NetworkSettings.IPAddress }}" mycenae)
+    mycenae=$(docker inspect --format "{{ .NetworkSettings.Networks.timeseriesNetwork.IPAddress }}" mycenae)
 fi
 
 docker exec testMycenae /bin/sh -c "echo $scylla1 scylla1 >> /etc/hosts"
