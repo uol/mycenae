@@ -29,7 +29,7 @@ type SettingsTelnet struct {
 	Port           int
 	Host           string
 	OnErrorTimeout int
-	MaxBufferSize  int
+	MaxBufferSize  int64
 }
 
 type SettingsUDP struct {
@@ -50,6 +50,7 @@ type Settings struct {
 	HTTPserver            SettingsHTTP
 	UDPserver             SettingsUDP
 	TELNETserver          SettingsTelnet
+	NetdataServer         SettingsTelnet
 	DefaultTTL            int
 	MaxAllowedTTL         int
 	DefaultKeysets        []string

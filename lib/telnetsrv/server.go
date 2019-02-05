@@ -3,7 +3,6 @@ package telnetsrv
 import (
 	"fmt"
 	"net"
-	"regexp"
 	"time"
 
 	"github.com/uol/mycenae/lib/collector"
@@ -17,16 +16,15 @@ type Server struct {
 	listenAddress  string
 	listener       net.Listener
 	onErrorTimeout int
-	maxBufferSize  int
+	maxBufferSize  int64
 	collector      *collector.Collector
 	logger         *zap.Logger
-	formatRegexp   *regexp.Regexp
-	tagsRegexp     *regexp.Regexp
 	stats          *tsstats.StatsTS
+	telnetHandler  TelnetDataHandler
 }
 
 // New - creates a new telnet server
-func New(listenAddress string, onErrorTimeout, maxBufferSize int, collector *collector.Collector, stats *tsstats.StatsTS, logger *zap.Logger) *Server {
+func New(listenAddress string, onErrorTimeout int, maxBufferSize int64, collector *collector.Collector, stats *tsstats.StatsTS, logger *zap.Logger, telnetHandler TelnetDataHandler) *Server {
 
 	return &Server{
 		listenAddress:  listenAddress,
@@ -34,9 +32,8 @@ func New(listenAddress string, onErrorTimeout, maxBufferSize int, collector *col
 		maxBufferSize:  maxBufferSize,
 		collector:      collector,
 		logger:         logger,
-		formatRegexp:   regexp.MustCompile(`^put ([0-9A-Za-z-\._\%\&\#\;\/]+) ([0-9]+) ([0-9E\.\-\,]+) ([0-9A-Za-z-\._\%\&\#\;\/ =]+)$`),
-		tagsRegexp:     regexp.MustCompile(`([0-9A-Za-z-\._\%\&\#\;\/]+)=([0-9A-Za-z-\._\%\&\#\;\/]+)`),
 		stats:          stats,
+		telnetHandler:  telnetHandler,
 	}
 }
 
@@ -69,6 +66,8 @@ func (server *Server) Listen() error {
 				server.logger.Error(err.Error(), lf...)
 				time.Sleep(time.Duration(server.onErrorTimeout) * time.Millisecond)
 			}
+
+			conn.SetReadDeadline(time.Now().Add(time.Duration(server.onErrorTimeout) * time.Millisecond))
 
 			server.logger.Debug(fmt.Sprintf("received new connection from %q", conn.RemoteAddr()), lf...)
 
@@ -106,9 +105,7 @@ func (server *Server) handleConnection(conn net.Conn) {
 
 	data := string(buffer[0:numRead])
 
-	server.logger.Debug("received: "+data, lf...)
-
-	server.handlePoints(&data)
+	server.telnetHandler.Handle(&data, server.collector, server.logger)
 
 	conn.Write([]byte("OK"))
 }
