@@ -53,5 +53,5 @@ func (collector *Collector) fail(gerr gobol.Error, addr string) {
 	fields := gerr.LogFields()
 	fields = append(fields, zap.String("addr", addr))
 
-	gblog.Error(gerr.Error(), lf...)
+	gblog.Debug(gerr.Error(), lf...)
 }

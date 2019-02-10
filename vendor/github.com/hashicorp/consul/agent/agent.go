@@ -1084,15 +1084,12 @@ func (a *Agent) consulConfig() (*consul.Config, error) {
 
 		if a.config.ConnectCAProvider != "" {
 			base.CAConfig.Provider = a.config.ConnectCAProvider
+		}
 
-			// Merge with the default config if it's the consul provider.
-			if a.config.ConnectCAProvider == "consul" {
-				for k, v := range a.config.ConnectCAConfig {
-					base.CAConfig.Config[k] = v
-				}
-			} else {
-				base.CAConfig.Config = a.config.ConnectCAConfig
-			}
+		// Merge connect CA Config regardless of provider (since there are some
+		// common config options valid to all like leaf TTL).
+		for k, v := range a.config.ConnectCAConfig {
+			base.CAConfig.Config[k] = v
 		}
 	}
 
@@ -1880,6 +1877,12 @@ func (a *Agent) AddService(service *structs.NodeService, chkTypes []*structs.Che
 		}
 	}
 
+	// Set default weights if not specified. This is important as it ensures AE
+	// doesn't consider the service different since it has nil weights.
+	if service.Weights == nil {
+		service.Weights = &structs.Weights{Passing: 1, Warning: 1}
+	}
+
 	// Warn if the service name is incompatible with DNS
 	if InvalidDnsRe.MatchString(service.Service) {
 		a.logger.Printf("[WARN] agent: Service name %q will not be discoverable "+
@@ -1907,11 +1910,6 @@ func (a *Agent) AddService(service *structs.NodeService, chkTypes []*structs.Che
 	// Pause the service syncs during modification
 	a.PauseSync()
 	defer a.ResumeSync()
-
-	// Take a snapshot of the current state of checks (if any), and
-	// restore them before resuming anti-entropy.
-	snap := a.snapshotCheckState()
-	defer a.restoreCheckState(snap)
 
 	// Add the service
 	a.State.AddService(service, token)
@@ -2051,6 +2049,14 @@ func (a *Agent) AddCheck(check *structs.HealthCheck, chkType *structs.CheckType,
 
 	a.checkLock.Lock()
 	defer a.checkLock.Unlock()
+
+	// snapshot the current state of the health check to avoid potential flapping
+	existing := a.State.Check(check.CheckID)
+	defer func() {
+		if existing != nil {
+			a.State.UpdateCheck(check.CheckID, existing.Status, existing.Output)
+		}
+	}()
 
 	// Check if already registered
 	if chkType != nil {
@@ -3410,8 +3416,10 @@ func (a *Agent) registerCache() {
 	})
 
 	a.cache.RegisterType(cachetype.ConnectCALeafName, &cachetype.ConnectCALeaf{
-		RPC:   a,
-		Cache: a.cache,
+		RPC:                              a,
+		Cache:                            a.cache,
+		Datacenter:                       a.config.Datacenter,
+		TestOverrideCAChangeInitialDelay: a.config.ConnectTestCALeafRootChangeSpread,
 	}, &cache.RegisterOptions{
 		// Maintain a blocking query, retry dropped connections quickly
 		Refresh:        true,

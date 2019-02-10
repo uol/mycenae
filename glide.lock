@@ -1,5 +1,5 @@
-hash: 20c73729e4c49faa6247d33b8d7bc033083d4d949049540dda9b04c0dcb8657c
-updated: 2019-01-08T17:29:12.166009017-02:00
+hash: 707cf21ecf5193a686787e00cc5e9b44896247011eb64d1752f887e8a57cb69e
+updated: 2019-02-07T02:36:38.32327918-02:00
 imports:
 - name: github.com/armon/go-metrics
   version: f0300d1749da6fa982027e449ec0c7a145510c3c
@@ -26,7 +26,7 @@ imports:
 - name: github.com/hailocab/go-hostpool
   version: e80d13ce29ede4452c43dea11e79b9bc8a15b478
 - name: github.com/hashicorp/consul
-  version: 0bddfa23a2ebe3c0773d917fc104f53d74f7a5ec
+  version: c97c712e96e0e53308054d5e1180289fe02dce38
   subpackages:
   - api
 - name: github.com/hashicorp/go-cleanhttp
@@ -70,7 +70,7 @@ imports:
   subpackages:
   - solr
 - name: github.com/uol/gobol
-  version: ffdb55c9933f3afe756e25ca11f75758bc293058
+  version: 38d188120db6d124146791b0629e1bf113444fe7
   subpackages:
   - cassandra
   - loader
@@ -91,7 +91,7 @@ imports:
   - internal/exit
   - zapcore
 - name: golang.org/x/net
-  version: 395948e2f546cb82afa9e1f6d1a6e87849b9af1d
+  version: 65e2d4e15006aab9813ff8769e768bbf4bb667a0
   subpackages:
   - context
   - http/httpguts
@@ -108,7 +108,7 @@ imports:
   - unicode/bidi
   - unicode/norm
 - name: google.golang.org/genproto
-  version: ae2f86662275e140f395167f1dab7081a5bd5fa8
+  version: 4b09977fb92221987e99d190c8f88f2c92727a29
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc

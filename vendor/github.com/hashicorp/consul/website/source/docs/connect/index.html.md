@@ -26,10 +26,6 @@ such as Kubernetes or Nomad. Additionally, intention enforcement can be done
 regardless of the underlying network, so Connect works with physical networks,
 cloud networks, software-defined networks, cross-cloud, and more.
 
--> **Beta:** Connect was introduced in Consul 1.2 and should be considered
-beta quality. We're working hard to quickly address any reported bugs and
-we hope to be remove the beta tag before the end of 2018.
-
 ## How it Works
 
 The core of Connect is based on [mutual TLS](https://en.wikipedia.org/wiki/Mutual_authentication).
@@ -58,8 +54,8 @@ Otherwise, the connection is rejected.
 
 To generate and distribute certificates, Consul has a built-in CA that
 requires no other dependencies, and
-also ships with built-in support for [Vault](#). The PKI system is pluggable
-and can be [extended](#) to support any system.
+also ships with built-in support for [Vault](/docs/connect/ca/vault.html). The PKI system is designed to be pluggable
+and can be extended to support any system by adding additional CA providers.
 
 All APIs required for Connect typically respond in microseconds and impose
 minimal overhead to existing services. This is because the Connect-related
@@ -73,7 +69,7 @@ in microseconds.
 
 There are several ways to try Connect in different environments.
 
- * The [Connect introduction](https://learn.hashicorp.com/consul/getting-started/connect.html) in the
+ * The [Connect introduction](https://learn.hashicorp.com/consul/getting-started/connect) in the
    Getting Started guide provides a simple walk through of getting two services
    to communicate via Connect using only Consul directly on your local machine.
 

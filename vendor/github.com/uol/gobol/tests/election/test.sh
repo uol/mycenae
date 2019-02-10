@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# 
+# Tests the cluster election process.
+# author: rnojiri
+#
+
 function killAll {
     docker rm -f et1 et2 et3 zookeeper
 }
@@ -57,6 +62,17 @@ fi
 
 createSlave et2
 createSlave et3
+
+sleep 5
+
+grepResultMaster=$(docker logs et1 | grep 'cluster changed signal received' | wc -l)
+
+if [ "$grepResultMaster" != "2" ]; then
+    echo "FAIL: two 'cluster changed signal received' messages"
+    quit
+else
+    echo "OK: master detected two cluster configuration changes"
+fi
 
 echo "killing master node..."
 docker rm -f et1

@@ -29,12 +29,20 @@ type SettingsTelnet struct {
 	Port           int
 	Host           string
 	OnErrorTimeout int
-	MaxBufferSize  int
+	MaxBufferSize  int64
 }
 
 type SettingsUDP struct {
 	Port       string
 	ReadBuffer int
+}
+
+type NetdataMetricReplacement struct {
+	LookForPropertyName  string
+	LookForPropertyValue string
+	PropertyAsNewMetric  string
+	NewTagName           string
+	NewTagValue          string
 }
 
 type Settings struct {
@@ -50,6 +58,7 @@ type Settings struct {
 	HTTPserver            SettingsHTTP
 	UDPserver             SettingsUDP
 	TELNETserver          SettingsTelnet
+	NetdataServer         SettingsTelnet
 	DefaultTTL            int
 	MaxAllowedTTL         int
 	DefaultKeysets        []string
@@ -70,4 +79,5 @@ type Settings struct {
 	Probe            struct {
 		Threshold float64
 	}
+	NetdataHandlerReplacements []NetdataMetricReplacement
 }

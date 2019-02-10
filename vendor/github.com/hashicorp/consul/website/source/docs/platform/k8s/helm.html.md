@@ -22,6 +22,14 @@ properly installed and configured with your Kubernetes cluster.
 may still change significantly over time. Please always run Helm with
 `--dry-run` before any install or upgrade to verify changes.
 
+~> **Security Warning:** By default, the chart will install an insecure configuration
+of Consul. This provides a less complicated out-of-box experience for new users,
+but is not appropriate for a production setup. It is highly recommended to use
+a properly secured Kubernetes cluster or make sure that you understand and enable
+the [recommended security features](/docs/internals/security.html). Currently,
+some of these features are not supported in the Helm chart and require additional
+manual configuration.
+
 ## Using the Helm Chart
 
 To use the Helm chart, you must download or clone the
@@ -75,7 +83,7 @@ and consider if they're appropriate for your deployment.
 
   - <a name="v-global-domain" href="#v-global-domain">`domain`</a> (`string: "consul"`) -
   The domain Consul uses for DNS queries. This is used to configure agents both
-  for DNS listening but also to know what domain to join to join the cluster.
+  for DNS listening but also to know what domain to join the cluster.
   This should be consistent throughout the chart, but can be overridden
   per-component as well.
 
@@ -142,12 +150,21 @@ and consider if they're appropriate for your deployment.
   CA and set of certificates. Additional Connect settings can be configured
   by setting the `server.extraConfig` value.
 
-  - <a name="v-server-resources" href="#v-server-resources">`resources`</a> (`object: {}`) -
+  - <a name="v-server-resources" href="#v-server-resources">`resources`</a> (`string: null`) -
   The resource requests (CPU, memory, etc.) for each of the server agents.
-  This should be an object mapping directly to a Kubernetes
+  This should be a multi-line string mapping directly to a Kubernetes
   [ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#resourcerequirements-v1-core) object. If this isn't specified, then the pods
   won't request any specific amount of resources. **Setting this is highly
   recommended.**
+
+          ```yaml
+          # Resources are defined as a formatted multi-line string:
+          resources: |
+            requests:
+              memory: "10Gi"
+            limits:
+             memory: "10Gi"
+          ```
 
   - <a name="v-server-updatepartition" href="#v-server-updatepartition">`updatePartition`</a> (`integer: 0`) -
   This value is used to carefully control a rolling update of Consul server
@@ -204,6 +221,19 @@ and consider if they're appropriate for your deployment.
   If you need to run more pods per node (for example, testing on Minikube),
   set this value to `null`.
 
+          ```yaml
+          # Recommended default server affinity:
+          affinity: |
+            podAntiAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - labelSelector:
+                    matchLabels:
+                      app: {{ template "consul.name" . }}
+                      release: "{{ .Release.Name }}"
+                      component: server
+                  topologyKey: kubernetes.io/hostname
+          ```
+
 * <a name="v-client" href="#v-client">`client`</a> - Values that configure
   running a Consul client agent on Kubernetes nodes.
 
@@ -216,10 +246,33 @@ and consider if they're appropriate for your deployment.
   The name of the Docker image (including any tag) for the containers running
   Consul client agents.
 
+  - <a name="v-client-join" href="#v-client-join">`join`</a> (`array<string>: null`) -
+  A list of valid [`-retry-join` values](/docs/agent/options.html#retry-join).
+  If this is `null` (default),
+  then the clients will attempt to automatically join the server cluster
+  running within Kubernetes. This means that with `server.enabled` set to true,
+  clients will automatically join that cluster. If `server.enabled` is not
+  true, then a value must be specified so the clients can join a valid cluster.
+
   - <a name="v-client-grpc" href="#v-client-grpc">`grpc`</a> (`boolean: false`) -
   If true, agents will enable their GRPC listener on port 8502 and expose
   it to the host. This will use slightly more resources, but is required for
   [Connect](/docs/platform/k8s/connect.html).
+
+  - <a name="v-client-resources" href="#v-client-resources">`resources`</a> (`string: null`) -
+  The resource requests (CPU, memory, etc.) for each of the client agents.
+  This should be a multi-line string mapping directly to a Kubernetes
+  [ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#resourcerequirements-v1-core) object. If this isn't specified, then the pods
+  won't request any specific amount of resources.
+
+          ```yaml
+          # Resources are defined as a formatted multi-line string:
+          resources: |
+            requests:
+              memory: "10Gi"
+            limits:
+             memory: "10Gi"
+          ```
 
   - <a name="v-client-extraconfig" href="#v-client-extraconfig">`extraConfig`</a> (`string: "{}"`) -
   A raw string of extra JSON or HCL configuration for Consul clients. This
@@ -244,20 +297,6 @@ and consider if they're appropriate for your deployment.
       If true, then the agent will be configured to automatically load HCL/JSON
       configuration files from this volume with `-config-dir`. This defaults
       to false.
-
-  - <a name="v-client-join" href="#v-client-join">`join`</a> (`array<string>: null`) -
-  A list of valid [`-retry-join` values](/docs/agent/options.html#retry-join).
-  If this is `null` (default),
-  then the clients will attempt to automatically join the server cluster
-  running within Kubernetes. This means that with `server.enabled` set to true,
-  clients will automatically join that cluster. If `server.enabled` is not
-  true, then a value must be specified so the clients can join a valid cluster.
-
-  - <a name="v-client-resources" href="#v-client-resources">`resources`</a> (`object: {}`) -
-  The resource requests (CPU, memory, etc.) for each of the client agents.
-  This should be an object mapping directly to a Kubernetes
-  [ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#resourcerequirements-v1-core) object. If this isn't specified, then the pods
-  won't request any specific amount of resources.
 
 * <a name="v-dns" href="#v-dns">`dns`</a> - Values that configure the Consul DNS service.
 
@@ -285,11 +324,6 @@ and consider if they're appropriate for your deployment.
   the service must be [annotated](/docs/platform/k8s/service-sync.html#sync-enable-disable)
   properly to sync. In either case an annotation can override the default.
 
-  - <a name="v-synccatalog-k8sprefix" href="#v-synccatalog-k8sprefix">`k8sPrefix`</a> (`string: ""`) -
-  A prefix to prepend to all services registered in Kubernetes from Consul.
-  This defaults to `""` where no prefix is prepended; Consul services are
-  synced with the same name to Kubernetes.
-
   - <a name="v-synccatalog-toconsul" href="#v-synccatalog-toconsul">`toConsul`</a> (`boolean: true`) -
   If true, will sync Kubernetes services to Consul. This can be disabled to
   have a one-way sync.
@@ -297,6 +331,28 @@ and consider if they're appropriate for your deployment.
   - <a name="v-synccatalog-tok8s" href="#v-synccatalog-tok8s">`toK8S`</a> (`boolean: true`) -
   If true, will sync Consul services to Kubernetes. This can be disabled to
   have a one-way sync.
+
+  - <a name="v-synccatalog-k8sprefix" href="#v-synccatalog-k8sprefix">`k8sPrefix`</a> (`string: ""`) -
+  A prefix to prepend to all services registered in Kubernetes from Consul.
+  This defaults to `""` where no prefix is prepended; Consul services are
+  synced with the same name to Kubernetes. (Consul -> Kubernetes sync only)
+
+  - <a name="v-synccatalog-k8stag" href="#v-synccatalog-k8stag">`k8sTag`</a> (`string: null`) -
+  An optional tag that is applied to all of the Kubernetes services
+  that are synced into Consul. If nothing is set, this defaults to "k8s".
+  (Kubernetes -> Consul sync only)
+
+  - <a name="v-synccatalog-clusterip-sync" href="#v-synccatalog-clusterip-sync">`syncClusterIPServices`</a> (`boolean: true`) -
+  If true, will sync Kubernetes ClusterIP services to Consul. This can be disabled to
+  have the sync ignore ClusterIP-type services.
+
+  - <a name="v-synccatalog-nodeport-sync" href="#v-synccatalog-nodeport-sync">`nodePortSyncType`</a> (`string: ExternalFirst`) -
+  Configures the type of syncing that happens for NodePort services.
+  The only valid options are: `ExternalOnly`, `InternalOnly`, and `ExternalFirst`.
+  `ExternalOnly` will only use a node's ExternalIP address for the sync, otherwise the
+  service will not be synced. `InternalOnly` uses the node's InternalIP address.
+  `ExternalFirst` will preferentially use the node's ExternalIP address, but
+  if it doesn't exist, it will use the node's InternalIP address instead.
 
 * <a name="v-ui" href="#v-ui">`ui`</a> - Values that configure the Consul UI.
 
