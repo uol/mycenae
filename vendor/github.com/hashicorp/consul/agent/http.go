@@ -9,18 +9,22 @@ import (
 	"net/http/pprof"
 	"net/url"
 	"os"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/NYTimes/gziphandler"
-	"github.com/armon/go-metrics"
+	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/acl"
 	"github.com/hashicorp/consul/agent/cache"
+	"github.com/hashicorp/consul/agent/consul"
 	"github.com/hashicorp/consul/agent/structs"
-	"github.com/hashicorp/go-cleanhttp"
+	"github.com/hashicorp/consul/api"
+	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	"github.com/mitchellh/mapstructure"
+	"github.com/pkg/errors"
 )
 
 // MethodNotAllowedError should be returned by a handler when the HTTP method is not allowed.
@@ -40,6 +44,25 @@ type BadRequestError struct {
 
 func (e BadRequestError) Error() string {
 	return fmt.Sprintf("Bad request: %s", e.Reason)
+}
+
+// CodeWithPayloadError allow returning non HTTP 200
+// Error codes while not returning PlainText payload
+type CodeWithPayloadError struct {
+	Reason      string
+	StatusCode  int
+	ContentType string
+}
+
+func (e CodeWithPayloadError) Error() string {
+	return e.Reason
+}
+
+type ForbiddenError struct {
+}
+
+func (e ForbiddenError) Error() string {
+	return "Access is restricted"
 }
 
 // HTTPServer provides an HTTP api for an agent.
@@ -219,6 +242,7 @@ func (s *HTTPServer) handler(enableDebug bool) http.Handler {
 			uifs = &redirectFS{fs: uifs}
 		}
 
+		mux.Handle("/robots.txt", http.FileServer(uifs))
 		mux.Handle("/ui/", http.StripPrefix("/ui/", http.FileServer(uifs)))
 	}
 
@@ -296,6 +320,14 @@ func (s *HTTPServer) wrap(handler endpoint, methods []string) http.HandlerFunc {
 			return
 		}
 
+		isForbidden := func(err error) bool {
+			if acl.IsErrPermissionDenied(err) || acl.IsErrNotFound(err) {
+				return true
+			}
+			_, ok := err.(ForbiddenError)
+			return ok
+		}
+
 		isMethodNotAllowed := func(err error) bool {
 			_, ok := err.(MethodNotAllowedError)
 			return ok
@@ -306,6 +338,11 @@ func (s *HTTPServer) wrap(handler endpoint, methods []string) http.HandlerFunc {
 			return ok
 		}
 
+		isTooManyRequests := func(err error) bool {
+			// Sadness net/rpc can't do nice typed errors so this is all we got
+			return err.Error() == consul.ErrRateLimited.Error()
+		}
+
 		addAllowHeader := func(methods []string) {
 			resp.Header().Add("Allow", strings.Join(methods, ","))
 		}
@@ -313,7 +350,7 @@ func (s *HTTPServer) wrap(handler endpoint, methods []string) http.HandlerFunc {
 		handleErr := func(err error) {
 			s.agent.logger.Printf("[ERR] http: Request %s %v, error: %v from=%s", req.Method, logURL, err, req.RemoteAddr)
 			switch {
-			case acl.IsErrPermissionDenied(err) || acl.IsErrNotFound(err):
+			case isForbidden(err):
 				resp.WriteHeader(http.StatusForbidden)
 				fmt.Fprint(resp, err.Error())
 			case structs.IsErrRPCRateExceeded(err):
@@ -328,6 +365,9 @@ func (s *HTTPServer) wrap(handler endpoint, methods []string) http.HandlerFunc {
 				fmt.Fprint(resp, err.Error())
 			case isBadRequest(err):
 				resp.WriteHeader(http.StatusBadRequest)
+				fmt.Fprint(resp, err.Error())
+			case isTooManyRequests(err):
+				resp.WriteHeader(http.StatusTooManyRequests)
 				fmt.Fprint(resp, err.Error())
 			default:
 				resp.WriteHeader(http.StatusInternalServerError)
@@ -360,24 +400,48 @@ func (s *HTTPServer) wrap(handler endpoint, methods []string) http.HandlerFunc {
 		if !methodFound {
 			err = MethodNotAllowedError{req.Method, append([]string{"OPTIONS"}, methods...)}
 		} else {
-			// Invoke the handler
-			obj, err = handler(resp, req)
-		}
+			err = s.checkWriteAccess(req)
 
+			if err == nil {
+				// Invoke the handler
+				obj, err = handler(resp, req)
+			}
+		}
+		contentType := "application/json"
+		httpCode := http.StatusOK
 		if err != nil {
-			handleErr(err)
-			return
+			if errPayload, ok := err.(CodeWithPayloadError); ok {
+				httpCode = errPayload.StatusCode
+				if errPayload.ContentType != "" {
+					contentType = errPayload.ContentType
+				}
+				if errPayload.Reason != "" {
+					resp.Header().Add("X-Consul-Reason", errPayload.Reason)
+				}
+			} else {
+				handleErr(err)
+				return
+			}
 		}
 		if obj == nil {
 			return
 		}
-
-		buf, err := s.marshalJSON(req, obj)
-		if err != nil {
-			handleErr(err)
-			return
+		var buf []byte
+		if contentType == "application/json" {
+			buf, err = s.marshalJSON(req, obj)
+			if err != nil {
+				handleErr(err)
+				return
+			}
+		} else {
+			if strings.HasPrefix(contentType, "text/") {
+				if val, ok := obj.(string); ok {
+					buf = []byte(val)
+				}
+			}
 		}
-		resp.Header().Set("Content-Type", "application/json")
+		resp.Header().Set("Content-Type", contentType)
+		resp.WriteHeader(httpCode)
 		resp.Write(buf)
 	}
 }
@@ -446,7 +510,47 @@ func decodeBody(req *http.Request, out interface{}, cb func(interface{}) error) 
 			return err
 		}
 	}
-	return mapstructure.Decode(raw, out)
+
+	decodeConf := &mapstructure.DecoderConfig{
+		DecodeHook: mapstructure.ComposeDecodeHookFunc(
+			mapstructure.StringToTimeDurationHookFunc(),
+			stringToReadableDurationFunc(),
+		),
+		Result: &out,
+	}
+
+	decoder, err := mapstructure.NewDecoder(decodeConf)
+	if err != nil {
+		return err
+	}
+
+	return decoder.Decode(raw)
+}
+
+// stringToReadableDurationFunc is a mapstructure hook for decoding a string
+// into an api.ReadableDuration for backwards compatibility.
+func stringToReadableDurationFunc() mapstructure.DecodeHookFunc {
+	return func(
+		f reflect.Type,
+		t reflect.Type,
+		data interface{}) (interface{}, error) {
+		var v api.ReadableDuration
+		if t != reflect.TypeOf(v) {
+			return data, nil
+		}
+
+		switch {
+		case f.Kind() == reflect.String:
+			if dur, err := time.ParseDuration(data.(string)); err != nil {
+				return nil, err
+			} else {
+				v = api.ReadableDuration(dur)
+			}
+			return v, nil
+		default:
+			return data, nil
+		}
+	}
 }
 
 // setTranslateAddr is used to set the address translation header. This is only
@@ -806,4 +910,30 @@ func (s *HTTPServer) parse(resp http.ResponseWriter, req *http.Request, dc *stri
 // parseWithoutResolvingProxyToken is a convenience method similar to parse except that it disables resolving proxy tokens
 func (s *HTTPServer) parseWithoutResolvingProxyToken(resp http.ResponseWriter, req *http.Request, dc *string, b *structs.QueryOptions) bool {
 	return s.parseInternal(resp, req, dc, b, false)
+}
+
+func (s *HTTPServer) checkWriteAccess(req *http.Request) error {
+	if req.Method == http.MethodGet || req.Method == http.MethodHead || req.Method == http.MethodOptions {
+		return nil
+	}
+
+	allowed := s.agent.config.AllowWriteHTTPFrom
+	if len(allowed) == 0 {
+		return nil
+	}
+
+	ipStr, _, err := net.SplitHostPort(req.RemoteAddr)
+	if err != nil {
+		return errors.Wrap(err, "unable to parse remote addr")
+	}
+
+	ip := net.ParseIP(ipStr)
+
+	for _, n := range allowed {
+		if n.Contains(ip) {
+			return nil
+		}
+	}
+
+	return ForbiddenError{}
 }

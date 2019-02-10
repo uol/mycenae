@@ -2,10 +2,12 @@ package structs
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"reflect"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -52,6 +54,7 @@ const (
 	ACLTokenDeleteRequestType              = 18
 	ACLPolicySetRequestType                = 19
 	ACLPolicyDeleteRequestType             = 20
+	ConnectCALeafRequestType               = 21
 )
 
 const (
@@ -351,11 +354,13 @@ type ServiceSpecificRequest struct {
 	Datacenter      string
 	NodeMetaFilters map[string]string
 	ServiceName     string
-	ServiceTag      string
-	ServiceTags     []string
-	ServiceAddress  string
-	TagFilter       bool // Controls tag filtering
-	Source          QuerySource
+	// DEPRECATED (singular-service-tag) - remove this when backwards RPC compat
+	// with 1.2.x is not required.
+	ServiceTag     string
+	ServiceTags    []string
+	ServiceAddress string
+	TagFilter      bool // Controls tag filtering
+	Source         QuerySource
 
 	// Connect if true will only search for Connect-compatible services.
 	Connect bool
@@ -384,10 +389,19 @@ func (r *ServiceSpecificRequest) CacheInfo() cache.RequestInfo {
 	// cached results, we need to be careful we maintain the same order of fields
 	// here. We could alternatively use `hash:set` struct tag on an anonymous
 	// struct to make it more robust if it becomes significant.
+	sort.Strings(r.ServiceTags)
 	v, err := hashstructure.Hash([]interface{}{
 		r.NodeMetaFilters,
 		r.ServiceName,
+		// DEPRECATED (singular-service-tag) - remove this when upgrade RPC compat
+		// with 1.2.x is not required. We still need this in because <1.3 agents
+		// might still send RPCs with singular tag set. In fact the only place we
+		// use this method is in agent cache so if the agent is new enough to have
+		// this code this should never be set, but it's safer to include it until we
+		// completely remove this field just in case it's erroneously used anywhere
+		// (e.g. until this change DNS still used it).
 		r.ServiceTag,
+		r.ServiceTags,
 		r.ServiceAddress,
 		r.TagFilter,
 		r.Connect,
@@ -893,14 +907,72 @@ type HealthCheck struct {
 }
 
 type HealthCheckDefinition struct {
-	HTTP                           string               `json:",omitempty"`
-	TLSSkipVerify                  bool                 `json:",omitempty"`
-	Header                         map[string][]string  `json:",omitempty"`
-	Method                         string               `json:",omitempty"`
-	TCP                            string               `json:",omitempty"`
-	Interval                       api.ReadableDuration `json:",omitempty"`
-	Timeout                        api.ReadableDuration `json:",omitempty"`
-	DeregisterCriticalServiceAfter api.ReadableDuration `json:",omitempty"`
+	HTTP                           string              `json:",omitempty"`
+	TLSSkipVerify                  bool                `json:",omitempty"`
+	Header                         map[string][]string `json:",omitempty"`
+	Method                         string              `json:",omitempty"`
+	TCP                            string              `json:",omitempty"`
+	Interval                       time.Duration       `json:",omitempty"`
+	Timeout                        time.Duration       `json:",omitempty"`
+	DeregisterCriticalServiceAfter time.Duration       `json:",omitempty"`
+}
+
+func (d *HealthCheckDefinition) MarshalJSON() ([]byte, error) {
+	type Alias HealthCheckDefinition
+	exported := &struct {
+		Interval                       string `json:",omitempty"`
+		Timeout                        string `json:",omitempty"`
+		DeregisterCriticalServiceAfter string `json:",omitempty"`
+		*Alias
+	}{
+		Interval:                       d.Interval.String(),
+		Timeout:                        d.Timeout.String(),
+		DeregisterCriticalServiceAfter: d.DeregisterCriticalServiceAfter.String(),
+		Alias:                          (*Alias)(d),
+	}
+	if d.Interval == 0 {
+		exported.Interval = ""
+	}
+	if d.Timeout == 0 {
+		exported.Timeout = ""
+	}
+	if d.DeregisterCriticalServiceAfter == 0 {
+		exported.DeregisterCriticalServiceAfter = ""
+	}
+
+	return json.Marshal(exported)
+}
+
+func (d *HealthCheckDefinition) UnmarshalJSON(data []byte) error {
+	type Alias HealthCheckDefinition
+	aux := &struct {
+		Interval                       string
+		Timeout                        string
+		DeregisterCriticalServiceAfter string
+		*Alias
+	}{
+		Alias: (*Alias)(d),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	var err error
+	if aux.Interval != "" {
+		if d.Interval, err = time.ParseDuration(aux.Interval); err != nil {
+			return err
+		}
+	}
+	if aux.Timeout != "" {
+		if d.Timeout, err = time.ParseDuration(aux.Timeout); err != nil {
+			return err
+		}
+	}
+	if aux.DeregisterCriticalServiceAfter != "" {
+		if d.DeregisterCriticalServiceAfter, err = time.ParseDuration(aux.DeregisterCriticalServiceAfter); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // IsSame checks if one HealthCheck is the same as another, without looking
@@ -916,7 +988,8 @@ func (c *HealthCheck) IsSame(other *HealthCheck) bool {
 		c.Output != other.Output ||
 		c.ServiceID != other.ServiceID ||
 		c.ServiceName != other.ServiceName ||
-		!reflect.DeepEqual(c.ServiceTags, other.ServiceTags) {
+		!reflect.DeepEqual(c.ServiceTags, other.ServiceTags) ||
+		!reflect.DeepEqual(c.Definition, other.Definition) {
 		return false
 	}
 

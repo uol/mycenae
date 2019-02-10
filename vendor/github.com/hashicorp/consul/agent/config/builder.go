@@ -568,9 +568,17 @@ func (b *Builder) Build() (rt RuntimeConfig, err error) {
 			"token":                 "Token",
 			"root_pki_path":         "RootPKIPath",
 			"intermediate_pki_path": "IntermediatePKIPath",
+			"ca_file":               "CAFile",
+			"ca_path":               "CAPath",
+			"cert_file":             "CertFile",
+			"key_file":              "KeyFile",
+			"tls_server_name":       "TLSServerName",
+			"tls_skip_verify":       "TLSSkipVerify",
 
 			// Common CA config
-			"leaf_cert_ttl": "LeafCertTTL",
+			"leaf_cert_ttl":      "LeafCertTTL",
+			"csr_max_per_second": "CSRMaxPerSecond",
+			"csr_max_concurrent": "CSRMaxConcurrent",
 		})
 	}
 
@@ -612,6 +620,18 @@ func (b *Builder) Build() (rt RuntimeConfig, err error) {
 
 	enableRemoteScriptChecks := b.boolVal(c.EnableScriptChecks)
 	enableLocalScriptChecks := b.boolValWithDefault(c.EnableLocalScriptChecks, enableRemoteScriptChecks)
+
+	// VerifyServerHostname implies VerifyOutgoing
+	verifyServerName := b.boolVal(c.VerifyServerHostname)
+	verifyOutgoing := b.boolVal(c.VerifyOutgoing)
+	if verifyServerName {
+		// Setting only verify_server_hostname is documented to imply
+		// verify_outgoing. If it doesn't then we risk sending communication over TCP
+		// when we documented it as forcing TLS for RPCs. Enforce this here rather
+		// than in several different places through the code that need to reason
+		// about it. (See CVE-2018-19653)
+		verifyOutgoing = true
+	}
 
 	// ----------------------------------------------------------------
 	// build runtime config
@@ -703,6 +723,7 @@ func (b *Builder) Build() (rt RuntimeConfig, err error) {
 		HTTPSAddrs:          httpsAddrs,
 		HTTPBlockEndpoints:  c.HTTPConfig.BlockEndpoints,
 		HTTPResponseHeaders: c.HTTPConfig.ResponseHeaders,
+		AllowWriteHTTPFrom:  b.cidrsVal("allow_write_http_from", c.HTTPConfig.AllowWriteHTTPFrom),
 
 		// Telemetry
 		Telemetry: lib.TelemetryConfig{
@@ -840,8 +861,8 @@ func (b *Builder) Build() (rt RuntimeConfig, err error) {
 		VerifyIncoming:                          b.boolVal(c.VerifyIncoming),
 		VerifyIncomingHTTPS:                     b.boolVal(c.VerifyIncomingHTTPS),
 		VerifyIncomingRPC:                       b.boolVal(c.VerifyIncomingRPC),
-		VerifyOutgoing:                          b.boolVal(c.VerifyOutgoing),
-		VerifyServerHostname:                    b.boolVal(c.VerifyServerHostname),
+		VerifyOutgoing:                          verifyOutgoing,
+		VerifyServerHostname:                    verifyServerName,
 		Watches:                                 c.Watches,
 	}
 
@@ -1176,7 +1197,7 @@ func (b *Builder) serviceVal(v *ServiceDefinition) *structs.ServiceDefinition {
 		Weights:           serviceWeights,
 		Checks:            checks,
 		// DEPRECATED (ProxyDestination) - don't populate deprecated field, just use
-		// it as a default below on read. Remove that when remofing ProxyDestination
+		// it as a default below on read. Remove that when removing ProxyDestination
 		Proxy:   b.serviceProxyVal(v.Proxy, v.ProxyDestination),
 		Connect: b.serviceConnectVal(v.Connect),
 	}
@@ -1335,6 +1356,22 @@ func (b *Builder) float64Val(v *float64) float64 {
 	}
 
 	return *v
+}
+
+func (b *Builder) cidrsVal(name string, v []string) (nets []*net.IPNet) {
+	if v == nil {
+		return
+	}
+
+	for _, p := range v {
+		_, net, err := net.ParseCIDR(strings.TrimSpace(p))
+		if err != nil {
+			b.err = multierror.Append(b.err, fmt.Errorf("%s: invalid cidr: %s", name, p))
+		}
+		nets = append(nets, net)
+	}
+
+	return
 }
 
 func (b *Builder) tlsCipherSuites(name string, v *string) []uint16 {

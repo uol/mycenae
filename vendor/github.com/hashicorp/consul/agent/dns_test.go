@@ -1683,6 +1683,61 @@ func TestDNS_ExternalServiceLookup(t *testing.T) {
 	}
 }
 
+func TestDNS_InifiniteRecursion(t *testing.T) {
+	// This test should not create an infinite recursion
+	t.Parallel()
+	a := NewTestAgent(t.Name(), `
+		domain = "CONSUL."
+		node_name = "test node"
+	`)
+	defer a.Shutdown()
+	testrpc.WaitForLeader(t, a.RPC, "dc1")
+
+	// Register the initial node with a service
+	{
+		args := &structs.RegisterRequest{
+			Datacenter: "dc1",
+			Node:       "web",
+			Address:    "web.service.consul.",
+			Service: &structs.NodeService{
+				Service: "web",
+				Port:    12345,
+				Address: "web.service.consul.",
+			},
+		}
+
+		var out struct{}
+		if err := a.RPC("Catalog.Register", args, &out); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	}
+
+	// Look up the service directly
+	questions := []string{
+		"web.service.consul.",
+	}
+	for _, question := range questions {
+		m := new(dns.Msg)
+		m.SetQuestion(question, dns.TypeA)
+		c := new(dns.Client)
+		in, _, err := c.Exchange(m, a.DNSAddr())
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		if len(in.Answer) < 1 {
+			t.Fatalf("Bad: %#v", in)
+		}
+		aRec, ok := in.Answer[0].(*dns.CNAME)
+		if !ok {
+			t.Fatalf("Bad: %#v", in.Answer[0])
+		}
+		if aRec.Target != "web.service.consul." {
+			t.Fatalf("Bad: %#v, target:=%s", aRec, aRec.Target)
+		}
+	}
+}
+
 func TestDNS_ExternalServiceToConsulCNAMELookup(t *testing.T) {
 	t.Parallel()
 	a := NewTestAgent(t.Name(), `
@@ -1803,7 +1858,7 @@ func TestDNS_NSRecords(t *testing.T) {
 		node_name = "server1"
 	`)
 	defer a.Shutdown()
-	testrpc.WaitForLeader(t, a.RPC, "dc1")
+	testrpc.WaitForTestAgent(t, a.RPC, "dc1")
 
 	m := new(dns.Msg)
 	m.SetQuestion("something.node.consul.", dns.TypeNS)
@@ -1839,7 +1894,7 @@ func TestDNS_NSRecords_IPV6(t *testing.T) {
  		advertise_addr = "::1"
  	`)
 	defer a.Shutdown()
-	testrpc.WaitForLeader(t, a.RPC, "dc1")
+	testrpc.WaitForTestAgent(t, a.RPC, "dc1")
 
 	m := new(dns.Msg)
 	m.SetQuestion("server1.node.dc1.consul.", dns.TypeNS)
@@ -2571,11 +2626,24 @@ func TestDNS_ServiceLookup_TagPeriod(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
+	m1 := new(dns.Msg)
+	m1.SetQuestion("v1.master2.db.service.consul.", dns.TypeSRV)
+
+	c1 := new(dns.Client)
+	in, _, err := c1.Exchange(m1, a.DNSAddr())
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if len(in.Answer) != 0 {
+		t.Fatalf("Bad: %#v", in)
+	}
+
 	m := new(dns.Msg)
 	m.SetQuestion("v1.master.db.service.consul.", dns.TypeSRV)
 
 	c := new(dns.Client)
-	in, _, err := c.Exchange(m, a.DNSAddr())
+	in, _, err = c.Exchange(m, a.DNSAddr())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -6261,4 +6329,23 @@ func TestDNSInvalidRegex(t *testing.T) {
 		})
 
 	}
+}
+
+func TestDNS_formatNodeRecord(t *testing.T) {
+	s := &DNSServer{}
+
+	node := &structs.Node{
+		Meta: map[string]string{
+			"key":  "value",
+			"key2": "value2",
+		},
+	}
+
+	records, meta := s.formatNodeRecord(node, "198.18.0.1", "test.node.consul", dns.TypeA, 5*time.Minute, false, 3, false)
+	require.Len(t, records, 1)
+	require.Len(t, meta, 0)
+
+	records, meta = s.formatNodeRecord(node, "198.18.0.1", "test.node.consul", dns.TypeA, 5*time.Minute, false, 3, true)
+	require.Len(t, records, 1)
+	require.Len(t, meta, 2)
 }

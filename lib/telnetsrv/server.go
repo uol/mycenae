@@ -1,7 +1,9 @@
 package telnetsrv
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"net"
 	"time"
 
@@ -10,6 +12,8 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
+
+const lineSeparator byte = 10
 
 // Server - the telnet server struct
 type Server struct {
@@ -21,6 +25,7 @@ type Server struct {
 	logger         *zap.Logger
 	stats          *tsstats.StatsTS
 	telnetHandler  TelnetDataHandler
+	lineSplitter   []byte
 }
 
 // New - creates a new telnet server
@@ -34,6 +39,7 @@ func New(listenAddress string, onErrorTimeout int, maxBufferSize int64, collecto
 		logger:         logger,
 		stats:          stats,
 		telnetHandler:  telnetHandler,
+		lineSplitter:   []byte{lineSeparator},
 	}
 }
 
@@ -67,7 +73,7 @@ func (server *Server) Listen() error {
 				time.Sleep(time.Duration(server.onErrorTimeout) * time.Millisecond)
 			}
 
-			conn.SetReadDeadline(time.Now().Add(time.Duration(server.onErrorTimeout) * time.Millisecond))
+			conn.SetDeadline(time.Time{})
 
 			server.logger.Debug(fmt.Sprintf("received new connection from %q", conn.RemoteAddr()), lf...)
 
@@ -81,33 +87,34 @@ func (server *Server) Listen() error {
 // handleConnection - handles an incoming connection
 func (server *Server) handleConnection(conn net.Conn) {
 
-	defer conn.Close()
-
 	lf := []zapcore.Field{
 		zap.String("package", "telnetsrv"),
 		zap.String("func", "handleConnection"),
 	}
 
-	// Make a buffer to hold incoming data.
 	buffer := make([]byte, server.maxBufferSize)
+	data := make([]byte, 0)
+	for {
+		n, err := conn.Read(buffer)
+		if err != nil {
+			conn.Close()
+			if err != io.EOF {
+				server.logger.Error(err.Error(), lf...)
+			}
+			server.logger.Debug("closing tcp telnet connection", lf...)
+			break
+		}
 
-	// Read the incoming connection into the buffer.
-	numRead, err := conn.Read(buffer)
-	if err != nil {
-		server.logger.Error("error reading: "+err.Error(), lf...)
-		return
+		data = append(data, buffer[0:n]...)
+
+		if data[len(data)-1] == lineSeparator {
+			byteLines := bytes.Split(data, server.lineSplitter)
+			for _, byteLine := range byteLines {
+				server.telnetHandler.Handle(string(byteLine), server.collector, server.logger, lf)
+			}
+			data = make([]byte, 0)
+		}
 	}
-
-	if numRead == 0 {
-		server.logger.Warn("received an empty message", lf...)
-		return
-	}
-
-	data := string(buffer[0:numRead])
-
-	server.telnetHandler.Handle(&data, server.collector, server.logger)
-
-	conn.Write([]byte("OK"))
 }
 
 // Shutdown - stops listening

@@ -235,7 +235,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	netdataServer := telnetsrv.New(fmt.Sprintf("%s:%d", settings.NetdataServer.Host, settings.NetdataServer.Port), settings.NetdataServer.OnErrorTimeout, settings.NetdataServer.MaxBufferSize, coll, tssts, tsLogger.General, telnet.NewNetdataHandler())
+	netdataServer := telnetsrv.New(fmt.Sprintf("%s:%d", settings.NetdataServer.Host, settings.NetdataServer.Port), settings.NetdataServer.OnErrorTimeout, settings.NetdataServer.MaxBufferSize, coll, tssts, tsLogger.General, telnet.NewNetdataHandler(settings.NetdataHandlerReplacements))
 	err = netdataServer.Listen()
 	if err != nil {
 		tsLogger.General.Fatal(err.Error(), lf...)

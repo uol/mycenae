@@ -3,7 +3,6 @@ package rip
 import (
 	"context"
 	"fmt"
-	"net"
 	"net/http"
 	"strconv"
 	"time"
@@ -96,32 +95,7 @@ func (h *LogHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	status := logw.status
 
-	addr, _, _ := net.SplitHostPort(r.RemoteAddr)
-
 	d := time.Since(start)
-
-	reqLogger := h.logger.With(
-		zap.String("id", rid),
-		zap.Int("status", status),
-		zap.String("method", r.Method),
-		zap.String("path", r.RequestURI),
-		zap.String("remote", addr),
-		zap.String("service", h.service),
-		zap.String("system", h.system),
-		zap.String("duration", d.String()),
-		zap.Int("size", logw.size),
-		zap.String("user-agent", r.UserAgent()),
-	)
-
-	if f := r.Header.Get("X-FORWARDED-FOR"); f != "" {
-		reqLogger = reqLogger.With(zap.String("forward", f))
-	}
-
-	if status >= http.StatusInternalServerError {
-		reqLogger.Error("completed handling request with errors")
-	} else {
-		reqLogger.Info("completed handling request")
-	}
 
 	tags := map[string]string{
 		"protocol": r.Proto,

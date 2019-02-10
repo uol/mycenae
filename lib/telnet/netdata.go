@@ -6,83 +6,127 @@ import (
 	"strings"
 
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/uol/mycenae/lib/collector"
+	"github.com/uol/mycenae/lib/structs"
 )
 
 // netdataJSON - a JSON line from netdata packet
 type netdataJSON struct {
-	HostName    string  `json:"hostname"`
-	DefaultTags string  `json:"host_tags"`
-	ChartID     string  `json:"chart_id"`
-	Name        string  `json:"name"`
-	Value       float64 `json:"value"`
-	Timestamp   int64   `json:"timestamp"`
+	HostName     string  `json:"hostname"`
+	DefaultTags  string  `json:"host_tags"`
+	ChartID      string  `json:"chart_id"`
+	ChartFamily  string  `json:"chart_family"`
+	ChartContext string  `json:"chart_context"`
+	ChartType    string  `json:"chart_type"`
+	Units        string  `json:"units"`
+	Name         string  `json:"name"`
+	Value        float64 `json:"value"`
+	Timestamp    int64   `json:"timestamp"`
+}
+
+// getJSONValue - returns one JSON property value by its name
+func (nh *NetdataHandler) getJSONValue(property *string, data *netdataJSON) string {
+
+	switch *property {
+	case "chart_family":
+		return data.ChartFamily
+	case "chart_context":
+		return data.ChartContext
+	case "chart_type":
+		return data.ChartType
+	case "units":
+		return data.Units
+	case "name":
+		return data.Name
+	default:
+		return data.ChartID
+	}
 }
 
 // NetdataHandler - handles netdata telnet format data
 type NetdataHandler struct {
-	tagsRegexp *regexp.Regexp
+	tagsRegexp     *regexp.Regexp
+	replacements   []structs.NetdataMetricReplacement
+	replaceMetrics bool
 }
 
 // NewNetdataHandler - creates the new handler
-func NewNetdataHandler() *NetdataHandler {
+func NewNetdataHandler(netdataMetricReplacements []structs.NetdataMetricReplacement) *NetdataHandler {
 
-	return &NetdataHandler{
+	nh := &NetdataHandler{
 		tagsRegexp: regexp.MustCompile(`([0-9A-Za-z-\._\%\&\#\;\/]+)=([0-9A-Za-z-\._\%\&\#\;\/]+)`),
 	}
+
+	numReplacements := len(netdataMetricReplacements)
+	if numReplacements > 0 {
+
+		nh.replacements = netdataMetricReplacements
+		nh.replaceMetrics = true
+	}
+
+	return nh
 }
 
 // Handle - extracts the points received by telnet
-func (nh *NetdataHandler) Handle(data *string, pointCollector *collector.Collector, logger *zap.Logger) {
+func (nh *NetdataHandler) Handle(line string, pointCollector *collector.Collector, logger *zap.Logger, loggerFields []zapcore.Field) {
 
-	lines := strings.Split(*data, "\n")
-	numLines := len(lines)
+	if line == "" {
+		return
+	}
 
-	for i := 0; i < numLines; i++ {
+	pointJSON := netdataJSON{}
 
-		if lines[i] == "" {
-			continue
-		}
+	err := json.Unmarshal([]byte(line), &pointJSON)
+	if err != nil {
+		logger.Error("error unmarshalling line: "+line, loggerFields...)
+	}
 
-		pointJSON := netdataJSON{}
+	point := collector.TSDBpoint{
+		Metric:    pointJSON.ChartID,
+		Timestamp: pointJSON.Timestamp,
+		Value:     &pointJSON.Value,
+		Tags:      map[string]string{},
+	}
 
-		err := json.Unmarshal([]byte(lines[i]), &pointJSON)
-		if err != nil {
-			logger.Debug("error unmarshalling line: " + lines[i])
-		}
+	if nh.replaceMetrics {
 
-		point := collector.TSDBpoint{
-			Metric:    pointJSON.ChartID,
-			Timestamp: pointJSON.Timestamp,
-			Value:     &pointJSON.Value,
-			Tags:      map[string]string{},
-		}
+		for _, replacement := range nh.replacements {
 
-		tagMatches := nh.tagsRegexp.FindAllStringSubmatch(pointJSON.DefaultTags, -1)
-		if len(tagMatches) > 0 {
+			if nh.getJSONValue(&replacement.LookForPropertyName, &pointJSON) == replacement.LookForPropertyValue {
 
-			for i := 0; i < len(tagMatches); i++ {
-				point.Tags[tagMatches[i][1]] = tagMatches[i][2]
+				point.Metric = nh.getJSONValue(&replacement.PropertyAsNewMetric, &pointJSON)
+				if len(replacement.NewTagName) > 0 {
+					point.Tags[replacement.NewTagName] = nh.getJSONValue(&replacement.NewTagValue, &pointJSON)
+				}
 			}
 		}
-
-		if pointJSON.Name != "" {
-			point.Tags["name"] = pointJSON.Name
-		}
-
-		if pointJSON.HostName != "" {
-			point.Tags["host"] = pointJSON.HostName
-		}
-
-		validatedPoint := &collector.Point{}
-
-		err = pointCollector.MakePacket(validatedPoint, point, true)
-		if err != nil {
-			logger.Debug("point validation failure in line: " + lines[i])
-			continue
-		}
-
-		pointCollector.HandlePacket(point, validatedPoint, true, "netdata", nil)
 	}
+
+	tagMatches := nh.tagsRegexp.FindAllStringSubmatch(pointJSON.DefaultTags, -1)
+	if len(tagMatches) > 0 {
+
+		for i := 0; i < len(tagMatches); i++ {
+			point.Tags[tagMatches[i][1]] = tagMatches[i][2]
+		}
+	}
+
+	if pointJSON.Name != "" {
+		point.Tags["name"] = strings.Replace(pointJSON.Name, " ", "_", -1)
+	}
+
+	if pointJSON.HostName != "" {
+		point.Tags["host"] = pointJSON.HostName
+	}
+
+	validatedPoint := &collector.Point{}
+
+	err = pointCollector.MakePacket(validatedPoint, point, true)
+	if err != nil {
+		logger.Error("point validation failure in line: "+line, loggerFields...)
+		return
+	}
+
+	pointCollector.HandlePacket(point, validatedPoint, true, "telnet-netdata", nil)
 }

@@ -1,4 +1,63 @@
-## 1.4.0 (UNRELEASED)
+## 1.4.2 (January 28, 2019)
+
+BUG FIXES:
+
+* api: Fixed backwards compatibility in the Consul Go API client. [[GH-5270](https://github.com/hashicorp/consul/issues/5270)]
+* dns: Fixed a bug that would cause node meta TXT records to always be generated even if they were not used in the responses. [[GH-5271](https://github.com/hashicorp/consul/issues/5271)]
+
+## 1.4.1 (January 23, 2019)
+
+**Note:** Consul 1.4.1 can break compatibility with older versions of the Consul Go API client. At this time, we recommend that you not upgrade to 1.4.1 if you use the Go API client or other applications that utilize it such as Nomad. Read more: [[GH-5270](https://github.com/hashicorp/consul/issues/5270)]
+
+FEATURES:
+
+* api: The transaction API now supports catalog operations for interacting with nodes, services and checks. See the [transacton API page](https://www.consul.io/api/txn.html#tables-of-operations) for more information. [[GH-4869](https://github.com/hashicorp/consul/pull/4869)]
+
+SECURITY:
+
+* Fixed an issue that caused `verify_server_hostname` to not implicitly configure `verify_outgoing` to true. The documentation stated this was implicit. The previous implementation had a bug that resulted in this being partially incorrect and resulted in plaintext communication in agent-to-agent RPC when `verify_outgoing` was not explicitly set. (CVE-2018-19653) [[GH-5069](https://github.com/hashicorp/consul/issues/5069)]
+
+
+IMPROVEMENTS:
+
+* agent: Improve blocking queries for services that do not exist. [[GH-4810](https://github.com/hashicorp/consul/pull/4810)]
+* api: Added new `/v1/agent/health/service/name/<service name>` and `/v1/agent/health/service/id/<service id>` endpoints  to allow querying a services status from the agent itself and avoid querying a Consul server. [[GH-2488](https://github.com/hashicorp/consul/issues/2488)]
+* api: Added a new `allow_write_http_from` configuration to set which CIDR network ranges can send non GET/HEAD/OPTIONS HTTP requests. Requests originating from other addresses will be denied. [[GH-4712](https://github.com/hashicorp/consul/issues/4712)]
+* cli: Added a new cli command: `consul tls` with subcommands `ca create` and `cert create` to help bootstrapping a secure agent TLS setup. This includes a new guide for creating certificates.
+* connect: clients are smarter about when they regenerate leaf certificates to improve performance and reliability [[GH-5091](https://github.com/hashicorp/consul/pull/5091)]
+* gossip: CPU performance improvements to memberlist gossip on very large clusters [[GH-5189](https://github.com/hashicorp/consul/pull/5189)]
+* connect: Added support for prepared query upstream proxy destination type watching. [[GH-4969](https://github.com/hashicorp/consul/issues/4969)
+* connect: (Consul Enterprise) Now forwards any intention API calls from secondary datacenters to the primary instead of erroring when intention replication is enabled.
+* connect: Now controls rate of Certificate Signing Requests during a CA rotation so the servers aren't overwhelmed. [[GH-5228](https://github.com/hashicorp/consul/pull/5228)]
+
+BUG FIXES:
+
+* acl: Fixed a concurrent policy resolution issue that would fail to resolve policies for a token [[GH-5219](https://github.com/hashicorp/consul/issues/5219)]
+* acl: Fixed a few racey edge cases regarding policy resolution where the RPC request could error out due to the token used for the request being deleted or modified after the token was read but before policy resolution. [[GH-5246](https://github.com/hashicorp/consul/pull/5246)]
+* acl: Fixed a bug that would cause legacy ACL tokens of type management to not get full privileges when they also had rules set on them. [[GH-5261](https://github.com/hashicorp/consul/pull/5261)]
+* agent: Prevent health check status flapping during check re-registration. [[GH-4904](https://github.com/hashicorp/consul/pull/4904)]
+* agent: Consul 1.2.3 added DNS weights but this caused an issue with agent Anti-Entropy that didn't set the same default and so performed a re-sync every 2 minutes despite no changes. [[GH-5096](https://github.com/hashicorp/consul/pull/5096)]
+* agent: Fix an anti-entropy state syncing issue where an invalid token being used for registration of 1 service could cause a failure to register a different service with a valid token. [[GH-3676](https://github.com/hashicorp/consul/issues/3676)]
+* agent: (Consul Enterprise) Snapshot agent now uses S3 API for unversioned objects to workaround an issue when a bucket has versioning enabled.
+* agent: Fixed a bug where agent cache could return an error older than the last non-error value stored. This mostly affected Connect bootstrapping in integration environments but lead to some very hard to track down "impossible" issues [[GH-4480](https://github.com/hashicorp/consul/issues/4480)]
+* agent: snapshot verification now works regardless of spacing in `meta.json` [[GH-5193](https://github.com/hashicorp/consul/issues/5193)]
+* agent: Fixed a bug where `disable_host_node_id = false` was not working properly [[GH-4914](https://github.com/hashicorp/consul/issues/4914)]
+* agent: Fixed issue where DNS weights added in 1.2.3 caused unnecessary Anti-Entropy syncs due to implicit vs explicit default weights being considered "different". [[GH-5126](https://github.com/hashicorp/consul/pull/5126)]
+* api: Fixed an issue where service discovery requests that use both `?cached` and multiple repeated tag filters might incorrectly see the cached result for a different query [[GH-4987](https://github.com/hashicorp/consul/pull/4987)]
+* api: Fixed an issue causing blocking query wait times to not be used when retrieving leaf certificates. [[GH-4462](https://github.com/hashicorp/consul/issues/4462)]
+* cli: display messages from serf in cli [[GH-5236](https://github.com/hashicorp/consul/pull/5236)]
+* connect: Fixed an issue where a blank CA config could be written to a snapshot when Connect was disabled. [[GH-4954](https://github.com/hashicorp/consul/pull/4954)]
+* connect: Fixed a bug with the create and modify indices of leaf certificates not being incremented properly. [[GH-4463](https://github.com/hashicorp/consul/issues/4463)]
+* connect: Fixed an issue where certificates could leak and remain in client memory forever [[GH-5091](https://github.com/hashicorp/consul/pull/5091)] 
+* connect: (Consul Enterprise) When requesting to sign intermediates the primary dc is now used
+* connect: added tls config for vault connect ca provider [[GH-5125](https://github.com/hashicorp/consul/issues/5125)]
+* connect: Fix a panic on 32 bit systems for unaligned 64 bit atomic operations. [[GH-5128](https://github.com/hashicorp/consul/issues/5128)]
+* debug: Fixed an issue causing the debug archive to not be gzipped. [[GH-5141](https://github.com/hashicorp/consul/issues/5141)]
+* dns: Fix an issue causing infinite recursion for some DNS queries when a nodes address had bee misconfigured [[GH-4907](https://github.com/hashicorp/consul/issues/4907)]
+* watch: Fix a data race during setting up a watch plan. [[GH-4357](https://github.com/hashicorp/consul/issues/4357)]
+* ui: Correctly encode/decode URLs within the KV areas. Also encode/decode slashes in URLS related to service names [[GH5206](https://github.com/hashicorp/consul/pull/5206)]
+
+## 1.4.0 (November 14, 2018)
 
 FEATURES:
 
@@ -90,6 +149,12 @@ BUG FIXES:
 * connect: Fix to ensure leaf certificates for a service are not shared between clients on the same agent using different ACL tokens [[GH-4736](https://github.com/hashicorp/consul/pull/4736)]
 * ui: Ensure service names that contain slashes are displayable [[GH-4756]](https://github.com/hashicorp/consul/pull/4756)
 * watch: Fix issue with HTTPs only agents not executing watches properly. [[GH-4727](https://github.com/hashicorp/consul/pull/4727)]
+
+## 1.2.4 (November 27, 2018)
+
+SECURITY:
+
+ * agent: backported enable_local_script_checks feature from 1.3.0. [Announcement](https://www.hashicorp.com/blog/protecting-consul-from-rce-risk-in-specific-configurations) [[GH-4711](https://github.com/hashicorp/consul/issues/4711)]
 
 ## 1.2.3 (September 13, 2018)
 
@@ -207,6 +272,13 @@ BUG FIXES:
 * agent: Fixed bug that would cause unnecessary and frequent logging yamux keepalives [[GH-3040](https://github.com/hashicorp/consul/issues/3040)]
 * dns: Re-enable full DNS compression [[GH-4071](https://github.com/hashicorp/consul/issues/4071)]
 
+
+## 1.1.1 (November 27, 2018)
+
+SECURITY:
+
+ * agent: backported enable_local_script_checks feature from 1.3.0. [Announcement](https://www.hashicorp.com/blog/protecting-consul-from-rce-risk-in-specific-configurations) [[GH-4711](https://github.com/hashicorp/consul/issues/4711)]
+
 ## 1.1.0 (May 11, 2018)
 
 FEATURES:
@@ -239,6 +311,12 @@ BUG FIXES:
 * api: Add support for the new Service Meta field in API client [[GH-4045](https://github.com/hashicorp/consul/issues/4045)]
 * agent: Updated serf library for two bug fixes - allow enough time for leave intents to propagate [[GH-510](https://github.com/hashicorp/serf/pull/510)] and preventing a deadlock [[GH-507](https://github.com/hashicorp/serf/pull/510)]
 * agent: When node-level checks (e.g. maintenance mode) were deleted, some watchers currently in between blocking calls may have missed the change in index. See [[GH-3970](https://github.com/hashicorp/consul/pull/3970)]
+
+## 1.0.8 (November 27, 2018)
+
+SECURITY:
+
+ * agent: backported enable_local_script_checks feature from 1.3.0. [Announcement](https://www.hashicorp.com/blog/protecting-consul-from-rce-risk-in-specific-configurations) [[GH-4711](https://github.com/hashicorp/consul/issues/4711)]
 
 ## 1.0.7 (April 13, 2018)
 
@@ -552,6 +630,12 @@ BUG FIXES:
 * cli: If the `consul operator raft list-peers` command encounters an error it will now exit with a non-zero exit code. [[GH-3513](https://github.com/hashicorp/consul/issues/3513)]
 * cli: CLI commands will now show help for all of their arguments. [[GH-3536](https://github.com/hashicorp/consul/issues/3536)]
 * server: Fixed an issue where the leader server could get into a state where it was no longer performing the periodic leader loop duties and unable to serve consistent reads after a barrier timeout error. [[GH-3545](https://github.com/hashicorp/consul/issues/3545)]
+
+## 0.9.4 (November 27, 2018)
+
+SECURITY:
+
+ * agent: backported enable_local_script_checks feature from 1.3.0. [Announcement](https://www.hashicorp.com/blog/protecting-consul-from-rce-risk-in-specific-configurations) [[GH-4711](https://github.com/hashicorp/consul/issues/4711)]
 
 ## 0.9.3 (September 8, 2017)
 

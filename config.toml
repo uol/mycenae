@@ -64,7 +64,7 @@ AllowCORS = true
 [cassandra]
   keyspace = "mycenae"
   consistency = "one"
-  nodes = ["172.18.0.2","172.18.0.3","172.18.0.4"]
+  nodes = ["172.18.0.5","172.18.0.6","172.18.0.7"]
   username = "cassandra"
   password = "cassandra"
   connections = 3
@@ -84,17 +84,31 @@ AllowCORS = true
   port = "8082"
   bind = "0.0.0.0"
 
-[Netdataserver]
+[[NetdataHandlerReplacements]]
+  LookForPropertyName   = "chart_type"
+  LookForPropertyValue  = "disk_space"
+  PropertyAsNewMetric   = "chart_type"
+  NewTagName            = "volume"
+  NewTagValue           = "chart_family"
+
+[[NetdataHandlerReplacements]]
+  LookForPropertyName   = "chart_type"
+  LookForPropertyValue  = "disk_inodes"
+  PropertyAsNewMetric   = "chart_type"
+  NewTagName            = "volume"
+  NewTagValue           = "chart_family"
+
+[NetdataServer]
   port = 8023
   bind = "0.0.0.0"
   onErrorTimeout = 5 
-  maxBufferSize = 5242880
+  maxBufferSize = 1024
 
 [TELNETserver]
   port = 443
   bind = "0.0.0.0"
   onErrorTimeout = 5 
-  maxBufferSize = 2097152
+  maxBufferSize = 204800
 
 [logs]
   environment = "PROD"
@@ -137,7 +151,7 @@ AllowCORS = true
 [metadataSettings]
   numShards = 1
   replicationFactor = 1
-  url = "http://172.18.0.6:8983/solr"
+  url = "http://172.18.0.3:8983/solr"
   IDCacheTTL = -1
   QueryCacheTTL = -1
   KeysetCacheTTL = -1

@@ -1,21 +1,27 @@
 package election
 
-// Master - int signal for the election channel
+import "github.com/samuel/go-zookeeper/zk"
+
+// Master - signals for master role acquisition
 const Master = 1
 
-// Slave - int signal for the election channel
+// Slave - signals for slave role acquisition
 const Slave = 2
 
-// Disconnected - int signal for the message channel
-const Disconnected = 3
+// ClusterChanged - signals for cluster change
+const ClusterChanged = 3
+
+// Disconnected - int signal for disconnection
+const Disconnected = 4
 
 // Config - configures the election
 type Config struct {
-	ZKURL               []string
-	ZKElectionNodeURI   string
-	ZKSlaveNodesURI     string
-	ReconnectionTimeout int
-	SessionTimeout      int
+	ZKURL                  []string
+	ZKElectionNodeURI      string
+	ZKSlaveNodesURI        string
+	ReconnectionTimeout    int
+	SessionTimeout         int
+	ClusterChangeCheckTime int
 }
 
 // Cluster - has cluster info
@@ -26,3 +32,8 @@ type Cluster struct {
 	Nodes    []string
 	NumNodes int
 }
+
+const (
+	// EventDisconnected - specifies a custom event for disconnection
+	EventDisconnected zk.EventType = 99
+)

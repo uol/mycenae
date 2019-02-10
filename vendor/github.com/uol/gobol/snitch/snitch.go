@@ -21,17 +21,18 @@ import (
 // The timeseries backend address and port. The POST interval. The default tags
 // to be added to all points and a map of all points.
 type Stats struct {
-	logger   *zap.Logger
-	cron     *cron.Cron
-	address  string
-	port     string
-	tags     map[string]string
-	proto    string
-	timeout  time.Duration
-	postInt  time.Duration
-	points   map[string]*CustomPoint
-	hBuffer  []message
-	receiver chan message
+	logger              *zap.Logger
+	cron                *cron.Cron
+	address             string
+	port                string
+	tags                map[string]string
+	proto               string
+	timeout             time.Duration
+	postInt             time.Duration
+	points              map[string]*CustomPoint
+	hBuffer             []message
+	receiver            chan message
+	raiseDebugVerbosity bool
 
 	mtx sync.RWMutex
 }
@@ -78,17 +79,18 @@ func New(logger *zap.Logger, settings Settings) (*Stats, error) {
 	tags["host"] = hostname
 
 	stats := &Stats{
-		cron:     cron.New(),
-		address:  settings.Address,
-		port:     settings.Port,
-		proto:    settings.Protocol,
-		timeout:  dur,
-		postInt:  postInt,
-		logger:   logger,
-		tags:     tags,
-		points:   make(map[string]*CustomPoint),
-		hBuffer:  []message{},
-		receiver: make(chan message),
+		cron:                cron.New(),
+		address:             settings.Address,
+		port:                settings.Port,
+		proto:               settings.Protocol,
+		timeout:             dur,
+		postInt:             postInt,
+		logger:              logger,
+		tags:                tags,
+		points:              make(map[string]*CustomPoint),
+		hBuffer:             []message{},
+		receiver:            make(chan message),
+		raiseDebugVerbosity: settings.RaiseDebugVerbosity,
 	}
 	go stats.start(settings.Runtime)
 	return stats, nil
@@ -194,7 +196,9 @@ func (st *Stats) clientHTTP() {
 				if err != nil {
 					st.logger.Error("", zap.Error(err))
 				}
-				st.logger.Debug(string(reqResponse))
+				if st.raiseDebugVerbosity {
+					st.logger.Debug(string(reqResponse))
+				}
 			}
 			st.hBuffer = []message{}
 			resp.Body.Close()

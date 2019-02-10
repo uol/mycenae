@@ -37,6 +37,14 @@ type SettingsUDP struct {
 	ReadBuffer int
 }
 
+type NetdataMetricReplacement struct {
+	LookForPropertyName  string
+	LookForPropertyValue string
+	PropertyAsNewMetric  string
+	NewTagName           string
+	NewTagValue          string
+}
+
 type Settings struct {
 	MaxTimeseries         int
 	LogQueryTSthreshold   int
@@ -71,4 +79,5 @@ type Settings struct {
 	Probe            struct {
 		Threshold float64
 	}
+	NetdataHandlerReplacements []NetdataMetricReplacement
 }
