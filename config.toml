@@ -64,7 +64,7 @@ AllowCORS = true
 [cassandra]
   keyspace = "mycenae"
   consistency = "one"
-  nodes = ["172.18.0.5","172.18.0.6","172.18.0.7"]
+  nodes = ["172.18.0.2","172.18.0.3","172.18.0.4"]
   username = "cassandra"
   password = "cassandra"
   connections = 3
@@ -86,16 +86,23 @@ AllowCORS = true
 
 [[NetdataHandlerReplacements]]
   LookForPropertyName   = "chart_type"
-  LookForPropertyValue  = "disk_space"
+  LookForPropertyValue  = "^disk_.*"
   PropertyAsNewMetric   = "chart_type"
   NewTagName            = "volume"
   NewTagValue           = "chart_family"
 
 [[NetdataHandlerReplacements]]
   LookForPropertyName   = "chart_type"
-  LookForPropertyValue  = "disk_inodes"
+  LookForPropertyValue  = "^net_.*"
   PropertyAsNewMetric   = "chart_type"
-  NewTagName            = "volume"
+  NewTagName            = "interface"
+  NewTagValue           = "chart_family"
+
+[[NetdataHandlerReplacements]]
+  LookForPropertyName   = "chart_type"
+  LookForPropertyValue  = "^net$"
+  PropertyAsNewMetric   = "chart_type"
+  NewTagName            = "interface"
   NewTagValue           = "chart_family"
 
 [NetdataServer]
@@ -151,7 +158,7 @@ AllowCORS = true
 [metadataSettings]
   numShards = 1
   replicationFactor = 1
-  url = "http://172.18.0.3:8983/solr"
+  url = "http://172.18.0.6:8983/solr"
   IDCacheTTL = -1
   QueryCacheTTL = -1
   KeysetCacheTTL = -1
