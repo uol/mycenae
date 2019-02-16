@@ -4,18 +4,18 @@ import (
 	"time"
 )
 
-func statsQueryTSThreshold(ksid, metric string, total int) {
+func statsQueryTSThreshold(ksid string, total int) {
 	go statsValueMax(
 		"mycenae.query.threshold",
-		map[string]string{"keyset": ksid, "metric": metric},
+		map[string]string{"keyset": ksid},
 		float64(total),
 	)
 }
 
-func statsQueryTSLimit(ksid, metric string, total int) {
+func statsQueryTSLimit(ksid string, total int) {
 	go statsValueMax(
 		"mycenae.query.limit",
-		map[string]string{"keyset": ksid, "metric": metric},
+		map[string]string{"keyset": ksid},
 		float64(total),
 	)
 }

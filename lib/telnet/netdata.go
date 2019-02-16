@@ -12,6 +12,14 @@ import (
 	"github.com/uol/mycenae/lib/structs"
 )
 
+type metricReplacement struct {
+	LookForPropertyName  string
+	LookForPropertyValue *regexp.Regexp
+	PropertyAsNewMetric  string
+	NewTagName           string
+	NewTagValue          string
+}
+
 // netdataJSON - a JSON line from netdata packet
 type netdataJSON struct {
 	HostName     string  `json:"hostname"`
@@ -48,7 +56,7 @@ func (nh *NetdataHandler) getJSONValue(property *string, data *netdataJSON) stri
 // NetdataHandler - handles netdata telnet format data
 type NetdataHandler struct {
 	tagsRegexp     *regexp.Regexp
-	replacements   []structs.NetdataMetricReplacement
+	replacements   []metricReplacement
 	replaceMetrics bool
 }
 
@@ -62,7 +70,19 @@ func NewNetdataHandler(netdataMetricReplacements []structs.NetdataMetricReplacem
 	numReplacements := len(netdataMetricReplacements)
 	if numReplacements > 0 {
 
-		nh.replacements = netdataMetricReplacements
+		replacements := make([]metricReplacement, numReplacements)
+
+		for i, r := range netdataMetricReplacements {
+
+			replacements[i] = metricReplacement{
+				LookForPropertyName:  r.LookForPropertyName,
+				LookForPropertyValue: regexp.MustCompile(r.LookForPropertyValue),
+				NewTagName:           r.NewTagName,
+				NewTagValue:          r.NewTagValue,
+				PropertyAsNewMetric:  r.PropertyAsNewMetric,
+			}
+		}
+		nh.replacements = replacements
 		nh.replaceMetrics = true
 	}
 
@@ -94,7 +114,7 @@ func (nh *NetdataHandler) Handle(line string, pointCollector *collector.Collecto
 
 		for _, replacement := range nh.replacements {
 
-			if nh.getJSONValue(&replacement.LookForPropertyName, &pointJSON) == replacement.LookForPropertyValue {
+			if replacement.LookForPropertyValue.MatchString(nh.getJSONValue(&replacement.LookForPropertyName, &pointJSON)) {
 
 				point.Metric = nh.getJSONValue(&replacement.PropertyAsNewMetric, &pointJSON)
 				if len(replacement.NewTagName) > 0 {

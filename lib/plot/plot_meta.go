@@ -39,11 +39,12 @@ func (plot Plot) checkParams(from, size int) (int, int) {
 func (plot Plot) checkTotalTSLimits(log, keyset, metric string, total int) gobol.Error {
 
 	if total > plot.LogQueryTSThreshold {
-		statsQueryTSThreshold(keyset, metric, total)
+		statsQueryTSThreshold(keyset, total)
 		lf := []zapcore.Field{
 			zap.String("package", "plot/plot_meta"),
 			zap.String("func", "checkTotalLimits"),
 			zap.String("keyset", keyset),
+			zap.String("metric", metric),
 			zap.String("total", fmt.Sprintf("%d", total)),
 			zap.String("config LogQueryTSthreshold", fmt.Sprintf("%d", plot.LogQueryTSThreshold)),
 		}
@@ -51,11 +52,12 @@ func (plot Plot) checkTotalTSLimits(log, keyset, metric string, total int) gobol
 	}
 
 	if total > plot.MaxTimeseries {
-		statsQueryTSLimit(keyset, metric, total)
+		statsQueryTSLimit(keyset, total)
 		lf := []zapcore.Field{
 			zap.String("package", "plot/plot_meta"),
 			zap.String("func", "checkTotalLimits"),
 			zap.String("keyset", keyset),
+			zap.String("metric", metric),
 			zap.String("total", fmt.Sprintf("%d", total)),
 			zap.String("config MaxTimeseries", fmt.Sprintf("%d", plot.MaxTimeseries)),
 		}
