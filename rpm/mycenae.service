@@ -15,7 +15,7 @@ LimitNOFILE=800000
 LimitAS=infinity
 MemoryLimit=14G
 RemainAfterExit=no
-Restart=on-failure
+Restart=on-abnormal
 RestartSec=20s
 
 [Install]

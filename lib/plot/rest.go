@@ -14,6 +14,8 @@ import (
 	"github.com/uol/mycenae/lib/structs"
 )
 
+const totalItemsPerDeletion int = 50000
+
 func (plot *Plot) ListPoints(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	keyset := ps.ByName("keyset")
@@ -562,7 +564,7 @@ func (plot *Plot) deleteTS(w http.ResponseWriter, r *http.Request, ps httprouter
 		tags[tag.Key] = tag.Value
 	}
 
-	keys, total, gerr := plot.ListMeta(*keyset, tsType, query.Metric, tags, false, plot.defaultMaxResults, 0)
+	keys, total, gerr := plot.ListMeta(*keyset, tsType, query.Metric, tags, false, totalItemsPerDeletion, 0)
 	if gerr != nil {
 		rip.Fail(w, gerr)
 		return
