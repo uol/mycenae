@@ -64,7 +64,7 @@ AllowCORS = true
 [cassandra]
   keyspace = "mycenae"
   consistency = "one"
-  nodes = ["172.18.0.7","172.18.0.8","172.18.0.9"]
+  nodes = ["172.18.0.9","172.18.0.10","172.18.0.11"]
   username = "cassandra"
   password = "cassandra"
   connections = 3
@@ -103,6 +103,13 @@ AllowCORS = true
   LookForPropertyValue  = "^net$"
   PropertyAsNewMetric   = "chart_type"
   NewTagName            = "interface"
+  NewTagValue           = "chart_family"
+
+[[NetdataHandlerReplacements]]
+  LookForPropertyName   = "chart_id"
+  LookForPropertyValue  = "^Custom.*"
+  PropertyAsNewMetric   = "chart_context"
+  NewTagName            = "custom"
   NewTagValue           = "chart_family"
 
 [NetdataServer]
@@ -158,7 +165,7 @@ AllowCORS = true
 [metadataSettings]
   numShards = 1
   replicationFactor = 1
-  url = "http://172.18.0.10:8983/solr"
+  url = "http://172.18.0.12:8983/solr"
   IDCacheTTL = -1
   QueryCacheTTL = -1
   KeysetCacheTTL = -1
@@ -167,6 +174,6 @@ AllowCORS = true
   BlacklistedKeysets = ["chimera", "blacklist"]
 
 [memcached]
-  pool = ["172.18.0.14:11211","172.18.0.15:11211","172.18.0.16:11211"]
+  pool = ["172.18.0.16:11211","172.18.0.17:11211","172.18.0.18:11211"]
   timeout = 10000
   maxIdleConns = 5

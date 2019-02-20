@@ -40,6 +40,8 @@ func (nh *NetdataHandler) getJSONValue(property *string, data *netdataJSON) stri
 	switch *property {
 	case "chart_family":
 		return data.ChartFamily
+	case "chart_id":
+		return data.ChartID
 	case "chart_context":
 		return data.ChartContext
 	case "chart_type":
