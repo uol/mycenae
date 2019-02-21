@@ -59,6 +59,7 @@ type Settings struct {
 	UDPserver             SettingsUDP
 	TELNETserver          SettingsTelnet
 	NetdataServer         SettingsTelnet
+	RawNetdataServer      SettingsTelnet
 	DefaultTTL            int
 	MaxAllowedTTL         int
 	DefaultKeysets        []string

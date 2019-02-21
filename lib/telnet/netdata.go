@@ -3,7 +3,6 @@ package telnet
 import (
 	"encoding/json"
 	"regexp"
-	"strings"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -12,6 +11,7 @@ import (
 	"github.com/uol/mycenae/lib/structs"
 )
 
+// metricReplacement - metric replacement configuration struct
 type metricReplacement struct {
 	LookForPropertyName  string
 	LookForPropertyValue *regexp.Regexp
@@ -28,18 +28,24 @@ type netdataJSON struct {
 	ChartFamily  string  `json:"chart_family"`
 	ChartContext string  `json:"chart_context"`
 	ChartType    string  `json:"chart_type"`
+	ChartName    string  `json:"chart_name"`
+	ID           string  `json:"id"`
 	Units        string  `json:"units"`
 	Name         string  `json:"name"`
 	Value        float64 `json:"value"`
 	Timestamp    int64   `json:"timestamp"`
 }
 
+const tagRegexp string = `([0-9A-Za-z-\._\%\&\#\;\/]+)=([0-9A-Za-z-\._\%\&\#\;\/]+)`
+const tagValueReplacementRegexp string = `[^0-9A-Za-z-\._\%\&\#\;\/]+`
+const specialCharReplacement string = "_"
+
 // getJSONValue - returns one JSON property value by its name
 func (nh *NetdataHandler) getJSONValue(property *string, data *netdataJSON) string {
 
 	switch *property {
 	case "chart_family":
-		return data.ChartFamily
+		return nh.specialCharRegexp.ReplaceAllString(data.ChartFamily, specialCharReplacement)
 	case "chart_id":
 		return data.ChartID
 	case "chart_context":
@@ -49,7 +55,7 @@ func (nh *NetdataHandler) getJSONValue(property *string, data *netdataJSON) stri
 	case "units":
 		return data.Units
 	case "name":
-		return data.Name
+		return nh.specialCharRegexp.ReplaceAllString(data.Name, specialCharReplacement)
 	default:
 		return data.ChartID
 	}
@@ -57,16 +63,18 @@ func (nh *NetdataHandler) getJSONValue(property *string, data *netdataJSON) stri
 
 // NetdataHandler - handles netdata telnet format data
 type NetdataHandler struct {
-	tagsRegexp     *regexp.Regexp
-	replacements   []metricReplacement
-	replaceMetrics bool
+	tagsRegexp        *regexp.Regexp
+	specialCharRegexp *regexp.Regexp
+	replacements      []metricReplacement
+	replaceMetrics    bool
 }
 
 // NewNetdataHandler - creates the new handler
 func NewNetdataHandler(netdataMetricReplacements []structs.NetdataMetricReplacement) *NetdataHandler {
 
 	nh := &NetdataHandler{
-		tagsRegexp: regexp.MustCompile(`([0-9A-Za-z-\._\%\&\#\;\/]+)=([0-9A-Za-z-\._\%\&\#\;\/]+)`),
+		tagsRegexp:        regexp.MustCompile(tagRegexp),
+		specialCharRegexp: regexp.MustCompile(tagValueReplacementRegexp),
 	}
 
 	numReplacements := len(netdataMetricReplacements)
@@ -135,7 +143,7 @@ func (nh *NetdataHandler) Handle(line string, pointCollector *collector.Collecto
 	}
 
 	if pointJSON.Name != "" {
-		point.Tags["name"] = strings.Replace(pointJSON.Name, " ", "_", -1)
+		point.Tags["name"] = nh.specialCharRegexp.ReplaceAllString(pointJSON.Name, specialCharReplacement)
 	}
 
 	if pointJSON.HostName != "" {

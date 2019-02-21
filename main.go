@@ -242,6 +242,13 @@ func main() {
 		os.Exit(1)
 	}
 
+	rawNetdataServer := telnetsrv.New(fmt.Sprintf("%s:%d", settings.RawNetdataServer.Host, settings.RawNetdataServer.Port), settings.RawNetdataServer.OnErrorTimeout, settings.RawNetdataServer.MaxBufferSize, coll, tssts, tsLogger.General, telnet.NewRawNetdataHandler())
+	err = rawNetdataServer.Listen()
+	if err != nil {
+		tsLogger.General.Fatal(err.Error(), lf...)
+		os.Exit(1)
+	}
+
 	signalChannel := make(chan os.Signal, 1)
 	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 
@@ -250,7 +257,7 @@ func main() {
 		sig := <-signalChannel
 		switch sig {
 		case os.Interrupt, syscall.SIGTERM:
-			stop(tsLogger, tsRest, coll, udpServer, telnetServer, netdataServer)
+			stop(tsLogger, tsRest, coll, udpServer, telnetServer, netdataServer, rawNetdataServer)
 			return
 		case syscall.SIGHUP:
 			//THIS IS A HACK DO NOT EXTEND IT. THE FEATURE IS NICE BUT NEEDS TO BE DONE CORRECTLY!!!!!
@@ -272,7 +279,7 @@ func main() {
 	}
 }
 
-func stop(logger *structs.TsLog, rest *rest.REST, collector *collector.Collector, udpServer *udp.UDPserver, telnetServer *telnetsrv.Server, netdataServer *telnetsrv.Server) {
+func stop(logger *structs.TsLog, rest *rest.REST, collector *collector.Collector, udpServer *udp.UDPserver, telnetServer, netdataServer, rawNetdataServer *telnetsrv.Server) {
 
 	lf := []zapcore.Field{
 		zap.String("package", "main"),
@@ -294,4 +301,8 @@ func stop(logger *structs.TsLog, rest *rest.REST, collector *collector.Collector
 	logger.General.Info("stopping Netdata", lf...)
 	telnetServer.Shutdown()
 	logger.General.Info("Netdata stopped", lf...)
+
+	logger.General.Info("stopping Raw Netdata", lf...)
+	rawNetdataServer.Shutdown()
+	logger.General.Info("Raw Netdata stopped", lf...)
 }

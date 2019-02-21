@@ -64,7 +64,7 @@ AllowCORS = true
 [cassandra]
   keyspace = "mycenae"
   consistency = "one"
-  nodes = ["172.18.0.9","172.18.0.10","172.18.0.11"]
+  nodes = ["172.18.0.2","172.18.0.3","172.18.0.4"]
   username = "cassandra"
   password = "cassandra"
   connections = 3
@@ -116,10 +116,16 @@ AllowCORS = true
   port = 8023
   bind = "0.0.0.0"
   onErrorTimeout = 5 
-  maxBufferSize = 1024
+  maxBufferSize = 204800
+
+[RawNetdataServer]
+  port = 443
+  bind = "0.0.0.0"
+  onErrorTimeout = 5 
+  maxBufferSize = 204800
 
 [TELNETserver]
-  port = 443
+  port = 8123
   bind = "0.0.0.0"
   onErrorTimeout = 5 
   maxBufferSize = 204800
@@ -165,7 +171,7 @@ AllowCORS = true
 [metadataSettings]
   numShards = 1
   replicationFactor = 1
-  url = "http://172.18.0.12:8983/solr"
+  url = "http://172.18.0.6:8983/solr"
   IDCacheTTL = -1
   QueryCacheTTL = -1
   KeysetCacheTTL = -1
@@ -174,6 +180,6 @@ AllowCORS = true
   BlacklistedKeysets = ["chimera", "blacklist"]
 
 [memcached]
-  pool = ["172.18.0.16:11211","172.18.0.17:11211","172.18.0.18:11211"]
+  pool = ["172.18.0.10:11211","172.18.0.11:11211","172.18.0.12:11211"]
   timeout = 10000
   maxIdleConns = 5
