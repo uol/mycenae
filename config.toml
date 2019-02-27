@@ -64,7 +64,7 @@ AllowCORS = true
 [cassandra]
   keyspace = "mycenae"
   consistency = "one"
-  nodes = ["172.18.0.9","172.18.0.10","172.18.0.11"]
+  nodes = ["172.18.0.2","172.18.0.3","172.18.0.4"]
   username = "cassandra"
   password = "cassandra"
   connections = 3
@@ -84,42 +84,15 @@ AllowCORS = true
   port = "8082"
   bind = "0.0.0.0"
 
-[[NetdataHandlerReplacements]]
-  LookForPropertyName   = "chart_type"
-  LookForPropertyValue  = "^disk_.*"
-  PropertyAsNewMetric   = "chart_type"
-  NewTagName            = "volume"
-  NewTagValue           = "chart_family"
-
-[[NetdataHandlerReplacements]]
-  LookForPropertyName   = "chart_type"
-  LookForPropertyValue  = "^net_.*"
-  PropertyAsNewMetric   = "chart_type"
-  NewTagName            = "interface"
-  NewTagValue           = "chart_family"
-
-[[NetdataHandlerReplacements]]
-  LookForPropertyName   = "chart_type"
-  LookForPropertyValue  = "^net$"
-  PropertyAsNewMetric   = "chart_type"
-  NewTagName            = "interface"
-  NewTagValue           = "chart_family"
-
-[[NetdataHandlerReplacements]]
-  LookForPropertyName   = "chart_id"
-  LookForPropertyValue  = "^Custom.*"
-  PropertyAsNewMetric   = "chart_context"
-  NewTagName            = "custom"
-  NewTagValue           = "chart_family"
-
 [NetdataServer]
   port = 8023
   bind = "0.0.0.0"
   onErrorTimeout = 5 
-  maxBufferSize = 1024
+  maxBufferSize = 204800
+  cacheDuration = "1m"
 
 [TELNETserver]
-  port = 443
+  port = 8123
   bind = "0.0.0.0"
   onErrorTimeout = 5 
   maxBufferSize = 204800
@@ -135,7 +108,7 @@ AllowCORS = true
 
 [stats]
   address = "0.0.0.0"
-  port = "8082"
+  port = 8082
   protocol = "http"
   httptimeout = "10s"
   httppostinterval = "1m"
@@ -148,7 +121,7 @@ AllowCORS = true
 
 [statsAnalytic]
   address = "0.0.0.0"
-  port = "8082"
+  port = 8082
   protocol = "http"
   httptimeout = "10s"
   httppostinterval = "10m"
@@ -165,7 +138,7 @@ AllowCORS = true
 [metadataSettings]
   numShards = 1
   replicationFactor = 1
-  url = "http://172.18.0.12:8983/solr"
+  url = "http://172.18.0.6:8983/solr"
   IDCacheTTL = -1
   QueryCacheTTL = -1
   KeysetCacheTTL = -1
@@ -174,6 +147,6 @@ AllowCORS = true
   BlacklistedKeysets = ["chimera", "blacklist"]
 
 [memcached]
-  pool = ["172.18.0.16:11211","172.18.0.17:11211","172.18.0.18:11211"]
+  pool = ["172.18.0.10:11211","172.18.0.11:11211","172.18.0.12:11211"]
   timeout = 10000
   maxIdleConns = 5

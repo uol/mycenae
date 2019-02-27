@@ -50,7 +50,7 @@ echo "Zookeeper OK"
 # /zookeeper
 
 docker run -it -d -h et1 --name et1 --add-host="zookeeper.intranet:${zkIP}" electiontest
-sleep 5
+sleep 10
 docker logs et1
 grepResult=$(docker logs et1 | grep 'master node created')
 if [ -z "$grepResult" ]; then
@@ -63,7 +63,7 @@ fi
 createSlave et2
 createSlave et3
 
-sleep 5
+sleep 10
 
 grepResultMaster=$(docker logs et1 | grep 'cluster changed signal received' | wc -l)
 

@@ -130,7 +130,7 @@ func TestSimultaneousTasks(t *testing.T) {
 		return
 	}
 
-	time.Sleep(401 * time.Millisecond)
+	time.Sleep(410 * time.Millisecond)
 
 	assert.Equal(t, 3, manager.GetNumTasks(), "expected three tasks")
 
@@ -142,7 +142,7 @@ func TestSimultaneousTasks(t *testing.T) {
 
 	assert.Equal(t, 2, manager.GetNumTasks(), "expected three tasks")
 
-	time.Sleep(401 * time.Millisecond)
+	time.Sleep(410 * time.Millisecond)
 
 	assert.Equal(t, 8, job2.counter, "expected eigth increments")
 }

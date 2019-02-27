@@ -2,23 +2,17 @@ package telnet
 
 import (
 	"encoding/json"
+	"fmt"
 	"regexp"
 	"strings"
+	"sync"
+	"time"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
 	"github.com/uol/mycenae/lib/collector"
-	"github.com/uol/mycenae/lib/structs"
 )
-
-type metricReplacement struct {
-	LookForPropertyName  string
-	LookForPropertyValue *regexp.Regexp
-	PropertyAsNewMetric  string
-	NewTagName           string
-	NewTagValue          string
-}
 
 // netdataJSON - a JSON line from netdata packet
 type netdataJSON struct {
@@ -28,71 +22,84 @@ type netdataJSON struct {
 	ChartFamily  string  `json:"chart_family"`
 	ChartContext string  `json:"chart_context"`
 	ChartType    string  `json:"chart_type"`
+	ChartName    string  `json:"chart_name"`
+	ID           string  `json:"id"`
 	Units        string  `json:"units"`
 	Name         string  `json:"name"`
 	Value        float64 `json:"value"`
 	Timestamp    int64   `json:"timestamp"`
 }
 
-// getJSONValue - returns one JSON property value by its name
-func (nh *NetdataHandler) getJSONValue(property *string, data *netdataJSON) string {
-
-	switch *property {
-	case "chart_family":
-		return data.ChartFamily
-	case "chart_id":
-		return data.ChartID
-	case "chart_context":
-		return data.ChartContext
-	case "chart_type":
-		return data.ChartType
-	case "units":
-		return data.Units
-	case "name":
-		return data.Name
-	default:
-		return data.ChartID
-	}
-}
+const tagRegexp string = `([0-9A-Za-z-\._\%\&\#\;\/]+)=([0-9A-Za-z-\._\%\&\#\;\/\*\+\']+)`
+const tagValueReplacementRegexp string = `[^0-9A-Za-z-\._\%\&\#\;\/]+`
+const specialCharReplacement string = "_"
 
 // NetdataHandler - handles netdata telnet format data
 type NetdataHandler struct {
-	tagsRegexp     *regexp.Regexp
-	replacements   []metricReplacement
-	replaceMetrics bool
+	tagsRegexp        *regexp.Regexp
+	specialCharRegexp *regexp.Regexp
+	netdataTags       map[string]struct{}
+	regexpCache       map[string]*regexp.Regexp
+	mutex             *sync.Mutex
+	cacheDuration     time.Duration
+	collector         *collector.Collector
+	logger            *zap.Logger
+	loggerFields      []zapcore.Field
 }
 
 // NewNetdataHandler - creates the new handler
-func NewNetdataHandler(netdataMetricReplacements []structs.NetdataMetricReplacement) *NetdataHandler {
+func NewNetdataHandler(regexpCacheDuration string, collector *collector.Collector, logger *zap.Logger) *NetdataHandler {
 
-	nh := &NetdataHandler{
-		tagsRegexp: regexp.MustCompile(`([0-9A-Za-z-\._\%\&\#\;\/]+)=([0-9A-Za-z-\._\%\&\#\;\/]+)`),
+	netdataTags := map[string]struct{}{
+		"chart_id":      struct{}{},
+		"chart_family":  struct{}{},
+		"chart_context": struct{}{},
+		"chart_type":    struct{}{},
+		"chart_name":    struct{}{},
+		"id":            struct{}{},
+		"name":          struct{}{},
 	}
 
-	numReplacements := len(netdataMetricReplacements)
-	if numReplacements > 0 {
-
-		replacements := make([]metricReplacement, numReplacements)
-
-		for i, r := range netdataMetricReplacements {
-
-			replacements[i] = metricReplacement{
-				LookForPropertyName:  r.LookForPropertyName,
-				LookForPropertyValue: regexp.MustCompile(r.LookForPropertyValue),
-				NewTagName:           r.NewTagName,
-				NewTagValue:          r.NewTagValue,
-				PropertyAsNewMetric:  r.PropertyAsNewMetric,
-			}
-		}
-		nh.replacements = replacements
-		nh.replaceMetrics = true
+	cacheDuration, err := time.ParseDuration(regexpCacheDuration)
+	if err != nil {
+		panic(err)
 	}
 
-	return nh
+	return &NetdataHandler{
+		tagsRegexp:        regexp.MustCompile(tagRegexp),
+		specialCharRegexp: regexp.MustCompile(tagValueReplacementRegexp),
+		netdataTags:       netdataTags,
+		cacheDuration:     cacheDuration,
+		collector:         collector,
+		regexpCache:       map[string]*regexp.Regexp{},
+		mutex:             &sync.Mutex{},
+		logger:            logger,
+		loggerFields: []zapcore.Field{
+			zap.String("package", "telnet"),
+			zap.String("func", "Handle"),
+		},
+	}
+}
+
+// expireCachedRegexp - expires the cached regexp after some time
+func (nh *NetdataHandler) expireCachedRegexp(regexp string) {
+
+	go func() {
+
+		<-time.After(nh.cacheDuration)
+
+		nh.mutex.Lock()
+
+		delete(nh.regexpCache, regexp)
+
+		nh.logger.Info(fmt.Sprintf("regular expression expired from cache: %s", regexp), nh.loggerFields...)
+
+		nh.mutex.Unlock()
+	}()
 }
 
 // Handle - extracts the points received by telnet
-func (nh *NetdataHandler) Handle(line string, pointCollector *collector.Collector, logger *zap.Logger, loggerFields []zapcore.Field) {
+func (nh *NetdataHandler) Handle(line string) {
 
 	if line == "" {
 		return
@@ -102,53 +109,122 @@ func (nh *NetdataHandler) Handle(line string, pointCollector *collector.Collecto
 
 	err := json.Unmarshal([]byte(line), &pointJSON)
 	if err != nil {
-		logger.Error("error unmarshalling line: "+line, loggerFields...)
+		nh.logger.Error("error unmarshalling line: "+line, nh.loggerFields...)
 	}
 
-	point := collector.TSDBpoint{
-		Metric:    pointJSON.ChartID,
-		Timestamp: pointJSON.Timestamp,
-		Value:     &pointJSON.Value,
-		Tags:      map[string]string{},
-	}
-
-	if nh.replaceMetrics {
-
-		for _, replacement := range nh.replacements {
-
-			if replacement.LookForPropertyValue.MatchString(nh.getJSONValue(&replacement.LookForPropertyName, &pointJSON)) {
-
-				point.Metric = nh.getJSONValue(&replacement.PropertyAsNewMetric, &pointJSON)
-				if len(replacement.NewTagName) > 0 {
-					point.Tags[replacement.NewTagName] = nh.getJSONValue(&replacement.NewTagValue, &pointJSON)
-				}
-			}
-		}
-	}
+	tags := map[string]string{}
 
 	tagMatches := nh.tagsRegexp.FindAllStringSubmatch(pointJSON.DefaultTags, -1)
 	if len(tagMatches) > 0 {
-
 		for i := 0; i < len(tagMatches); i++ {
-			point.Tags[tagMatches[i][1]] = tagMatches[i][2]
+			tags[tagMatches[i][1]] = tagMatches[i][2]
 		}
 	}
 
+	metricProperty := "chart_id"
+
+	if metricValue, switchMetric := tags["%set_metric%"]; switchMetric {
+
+		if _, ok := nh.netdataTags[metricValue]; !ok {
+			nh.logger.Error("invalid netdata property to use set_metric: "+metricValue, nh.loggerFields...)
+			return
+		}
+
+		metricProperty = metricValue
+
+		delete(tags, "%set_metric%")
+	}
+
+	if pluginMetricValue, switchPluginMetric := tags["%set_plugin_metric%"]; switchPluginMetric {
+
+		array := strings.Split(strings.Trim(pluginMetricValue, "'"), ";")
+
+		if len(array) != 2 {
+			nh.logger.Error("invalid set_plugin_metric value: "+pluginMetricValue, nh.loggerFields...)
+			return
+		}
+
+		if _, ok := nh.netdataTags[array[1]]; !ok {
+			nh.logger.Error("invalid netdata property to use set_plugin_metric: "+pluginMetricValue, nh.loggerFields...)
+			return
+		}
+
+		var pluginMetricRegex *regexp.Regexp
+		if compiledRegex, ok := nh.regexpCache[array[0]]; !ok {
+
+			var err error
+			compiledRegex, err = regexp.Compile(array[0])
+			if err != nil {
+				nh.logger.Error("invalid set_plugin_metric regular expression: "+pluginMetricValue, nh.loggerFields...)
+				return
+			}
+
+			nh.regexpCache[array[0]] = compiledRegex
+
+			nh.logger.Info(fmt.Sprintf("new regular expression was cached: %s", array[0]), nh.loggerFields...)
+
+			nh.expireCachedRegexp(array[0])
+
+			pluginMetricRegex = compiledRegex
+		} else {
+			pluginMetricRegex = compiledRegex
+		}
+
+		if pluginMetricRegex.MatchString(pointJSON.ChartID) {
+			metricProperty = array[1]
+		}
+
+		delete(tags, "%set_plugin_metric%")
+	}
+
+	tags["chart_id"] = pointJSON.ChartID
+
+	if pointJSON.ChartContext != "" {
+		tags["chart_context"] = pointJSON.ChartContext
+	}
+
+	if pointJSON.ChartFamily != "" {
+		tags["chart_family"] = nh.specialCharRegexp.ReplaceAllString(pointJSON.ChartFamily, specialCharReplacement)
+	}
+
+	if pointJSON.ChartType != "" {
+		tags["chart_type"] = pointJSON.ChartType
+	}
+
+	if pointJSON.ChartName != "" {
+		tags["chart_name"] = pointJSON.ChartName
+	}
+
 	if pointJSON.Name != "" {
-		point.Tags["name"] = strings.Replace(pointJSON.Name, " ", "_", -1)
+		tags["name"] = nh.specialCharRegexp.ReplaceAllString(pointJSON.Name, specialCharReplacement)
+	}
+
+	if pointJSON.ID != "" {
+		tags["id"] = pointJSON.ID
 	}
 
 	if pointJSON.HostName != "" {
-		point.Tags["host"] = pointJSON.HostName
+		tags["host"] = pointJSON.HostName
+	}
+
+	newMetric := tags[metricProperty]
+
+	delete(tags, metricProperty)
+
+	point := collector.TSDBpoint{
+		Metric:    newMetric,
+		Timestamp: pointJSON.Timestamp,
+		Value:     &pointJSON.Value,
+		Tags:      tags,
 	}
 
 	validatedPoint := &collector.Point{}
 
-	err = pointCollector.MakePacket(validatedPoint, point, true)
+	err = nh.collector.MakePacket(validatedPoint, point, true)
 	if err != nil {
-		logger.Error("point validation failure in line: "+line, loggerFields...)
+		nh.logger.Error("point validation failure in line: "+line, nh.loggerFields...)
 		return
 	}
 
-	pointCollector.HandlePacket(point, validatedPoint, true, "telnet-netdata", nil)
+	nh.collector.HandlePacket(point, validatedPoint, true, "telnet-netdata", nil)
 }

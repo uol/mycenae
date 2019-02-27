@@ -58,7 +58,7 @@ func (server *Server) Listen() error {
 
 	lf := []zapcore.Field{
 		zap.String("package", "telnetsrv"),
-		zap.String("func", "ListenAndServe"),
+		zap.String("func", "Listen"),
 	}
 
 	server.logger.Info(fmt.Sprintf("listening telnet connections at %q...", server.listener.Addr()), lf...)
@@ -110,7 +110,7 @@ func (server *Server) handleConnection(conn net.Conn) {
 		if data[len(data)-1] == lineSeparator {
 			byteLines := bytes.Split(data, server.lineSplitter)
 			for _, byteLine := range byteLines {
-				server.telnetHandler.Handle(string(byteLine), server.collector, server.logger, lf)
+				server.telnetHandler.Handle(string(byteLine))
 			}
 			data = make([]byte, 0)
 		}

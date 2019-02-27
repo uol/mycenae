@@ -17,19 +17,27 @@ const TelnetFormatTagsRegexp string = `([0-9A-Za-z-\._\%\&\#\;\/]+)=([0-9A-Za-z-
 type OpenTSDBHandler struct {
 	formatRegexp *regexp.Regexp
 	tagsRegexp   *regexp.Regexp
+	collector    *collector.Collector
+	logger       *zap.Logger
+	loggerFields []zapcore.Field
 }
 
 // NewOpenTSDBHandler - creates the new handler
-func NewOpenTSDBHandler() *OpenTSDBHandler {
+func NewOpenTSDBHandler(collector *collector.Collector, logger *zap.Logger) *OpenTSDBHandler {
 
 	return &OpenTSDBHandler{
 		formatRegexp: regexp.MustCompile(`^put ([0-9A-Za-z-\._\%\&\#\;\/]+) ([0-9]+) ([0-9E\.\-\,]+) ([0-9A-Za-z-\._\%\&\#\;\/ =]+)$`),
 		tagsRegexp:   regexp.MustCompile(TelnetFormatTagsRegexp),
+		collector:    collector,
+		loggerFields: []zapcore.Field{
+			zap.String("package", "telnet"),
+			zap.String("func", "Handle"),
+		},
 	}
 }
 
 // Handle - extracts the points received by telnet
-func (otsdbh *OpenTSDBHandler) Handle(line string, pointCollector *collector.Collector, logger *zap.Logger, loggerFields []zapcore.Field) {
+func (otsdbh *OpenTSDBHandler) Handle(line string) {
 
 	if line == "" {
 		return
@@ -37,13 +45,13 @@ func (otsdbh *OpenTSDBHandler) Handle(line string, pointCollector *collector.Col
 
 	matches := otsdbh.formatRegexp.FindStringSubmatch(line)
 	if len(matches) != 5 {
-		logger.Error("this line does not follows the accepted pattern: "+line, loggerFields...)
+		otsdbh.logger.Error("this line does not follows the accepted pattern: "+line, otsdbh.loggerFields...)
 		return
 	}
 
 	tagMatches := otsdbh.tagsRegexp.FindAllStringSubmatch(matches[4], -1)
 	if len(tagMatches) == 0 {
-		logger.Error("no parseable tags found in line: "+line, loggerFields...)
+		otsdbh.logger.Error("no parseable tags found in line: "+line, otsdbh.loggerFields...)
 		return
 	}
 
@@ -59,13 +67,13 @@ func (otsdbh *OpenTSDBHandler) Handle(line string, pointCollector *collector.Col
 
 	point.Timestamp, err = strconv.ParseInt(matches[2], 10, 64)
 	if err != nil {
-		logger.Error("no parseable timestamp found in line: "+line, loggerFields...)
+		otsdbh.logger.Error("no parseable timestamp found in line: "+line, otsdbh.loggerFields...)
 		return
 	}
 
 	value, err := strconv.ParseFloat(matches[3], 64)
 	if err != nil {
-		logger.Error("no parseable float number found in line: "+line, loggerFields...)
+		otsdbh.logger.Error("no parseable float number found in line: "+line, otsdbh.loggerFields...)
 		return
 	}
 
@@ -73,11 +81,11 @@ func (otsdbh *OpenTSDBHandler) Handle(line string, pointCollector *collector.Col
 
 	validatedPoint := &collector.Point{}
 
-	err = pointCollector.MakePacket(validatedPoint, point, true)
+	err = otsdbh.collector.MakePacket(validatedPoint, point, true)
 	if err != nil {
-		logger.Error("point validation failure in line: "+line, loggerFields...)
+		otsdbh.logger.Error("point validation failure in line: "+line, otsdbh.loggerFields...)
 		return
 	}
 
-	pointCollector.HandlePacket(point, validatedPoint, true, "telnet-opentsdb", nil)
+	otsdbh.collector.HandlePacket(point, validatedPoint, true, "telnet-opentsdb", nil)
 }

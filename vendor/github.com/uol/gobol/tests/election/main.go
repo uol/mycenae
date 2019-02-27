@@ -36,9 +36,10 @@ func main() {
 		ZKURL:                  []string{"zookeeper.intranet"},
 		ZKElectionNodeURI:      "/master",
 		ZKSlaveNodesURI:        "/slaves",
-		ReconnectionTimeout:    3,
-		SessionTimeout:         5,
-		ClusterChangeCheckTime: 1000,
+		ReconnectionTimeout:    "3s",
+		SessionTimeout:         "5s",
+		ClusterChangeCheckTime: "1s",
+		ClusterChangeWaitTime:  "2s",
 	}
 
 	manager, err := election.New(&cfg, logger)
@@ -59,6 +60,8 @@ func main() {
 					logger.Info("slave signal received", lf...)
 				} else if signal == election.ClusterChanged {
 					logger.Info("cluster changed signal received", lf...)
+				} else if signal == election.Disconnected {
+					logger.Info("disconnected signal received", lf...)
 				}
 			}
 		}
@@ -79,7 +82,7 @@ func main() {
 	go func() {
 		<-gracefulStop
 		logger.Error("exiting...", lf...)
-		manager.Terminate()
+		manager.Disconnect()
 		time.Sleep(2 * time.Second)
 		os.Exit(0)
 	}()

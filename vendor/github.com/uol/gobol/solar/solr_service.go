@@ -24,6 +24,17 @@ type SolrService struct {
 	solrInterfaceCache   map[string]*solr.SolrInterface
 }
 
+// recoverFromFailure - recovers from a failure
+func (ss *SolrService) recoverFromFailure(funcName string) {
+	if r := recover(); r != nil {
+		lf := []zapcore.Field{
+			zap.String("package", "solar"),
+			zap.String("func", funcName),
+		}
+		ss.logger.Error(fmt.Sprintf("recovered from: %s", r), lf...)
+	}
+}
+
 // NewSolrService - creates a new instance
 func NewSolrService(url string, logger *zap.Logger) (*SolrService, error) {
 
@@ -65,6 +76,8 @@ func (ss *SolrService) getSolrInterface(collection string) (*solr.SolrInterface,
 // AddDocuments - add one or more documentos to the solr collection
 func (ss *SolrService) AddDocuments(collection string, commit bool, docs ...solr.Document) error {
 
+	defer ss.recoverFromFailure("AddDocuments")
+
 	lf := []zapcore.Field{
 		zap.String("package", "solar"),
 		zap.String("func", "AddDocuments"),
@@ -102,6 +115,8 @@ func (ss *SolrService) AddDocuments(collection string, commit bool, docs ...solr
 // DeleteDocumentByID - delete a document by ID
 func (ss *SolrService) DeleteDocumentByID(collection string, commit bool, id string) error {
 
+	defer ss.recoverFromFailure("DeleteDocumentByID")
+
 	lf := []zapcore.Field{
 		zap.String("package", "solar"),
 		zap.String("func", "DeleteDocumentByID"),
@@ -124,6 +139,8 @@ func (ss *SolrService) DeleteDocumentByID(collection string, commit bool, id str
 
 // DeleteDocumentByQuery - delete document by query
 func (ss *SolrService) DeleteDocumentByQuery(collection string, commit bool, query string) error {
+
+	defer ss.recoverFromFailure("DeleteDocumentByQuery")
 
 	lf := []zapcore.Field{
 		zap.String("package", "solar"),
