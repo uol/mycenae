@@ -14,6 +14,8 @@ import (
 // buildBasicQuery - builds a basic query
 func (ss *SolrService) buildBasicQuery(collection, query, fields string, start, rows int) *solr.Query {
 
+	defer ss.recoverFromFailure("buildBasicQuery")
+
 	q := solr.NewQuery()
 	q.Q(query)
 
@@ -30,6 +32,8 @@ func (ss *SolrService) buildBasicQuery(collection, query, fields string, start, 
 // builFilteredQuery - builds a basic query
 func (ss *SolrService) buildFilteredQuery(collection, query, fields string, start, rows int, filterQueries []string) *solr.Query {
 
+	defer ss.recoverFromFailure("buildFilteredQuery")
+
 	q := ss.buildBasicQuery(collection, query, fields, start, rows)
 
 	if filterQueries != nil && len(filterQueries) > 0 {
@@ -43,6 +47,8 @@ func (ss *SolrService) buildFilteredQuery(collection, query, fields string, star
 
 // SimpleQuery - queries the solr
 func (ss *SolrService) SimpleQuery(collection, query, fields string, start, rows int) (*solr.SolrResult, error) {
+
+	defer ss.recoverFromFailure("SimpleQuery")
 
 	si, err := ss.getSolrInterface(collection)
 	if err != nil {
@@ -61,6 +67,8 @@ func (ss *SolrService) SimpleQuery(collection, query, fields string, start, rows
 
 // FilteredQuery - queries the solr
 func (ss *SolrService) FilteredQuery(collection, query, fields string, start, rows int, filterQueries []string) (*solr.SolrResult, error) {
+
+	defer ss.recoverFromFailure("FilteredQuery")
 
 	si, err := ss.getSolrInterface(collection)
 	if err != nil {
@@ -99,6 +107,8 @@ func (ss *SolrService) addChildrenFacets(q *solr.Query, facetFields []string) {
 
 // Facets - get facets from solr
 func (ss *SolrService) Facets(collection, query, fields string, start, rows int, filterQueries []string, facetFields, childrenFacetFields []string, blockJoin bool, facetLimit, minCount int) (*solr.SolrResult, error) {
+
+	defer ss.recoverFromFailure("Facets")
 
 	si, err := ss.getSolrInterface(collection)
 	if err != nil {

@@ -19,9 +19,10 @@ type Config struct {
 	ZKURL                  []string
 	ZKElectionNodeURI      string
 	ZKSlaveNodesURI        string
-	ReconnectionTimeout    int
-	SessionTimeout         int
-	ClusterChangeCheckTime int
+	ReconnectionTimeout    string
+	SessionTimeout         string
+	ClusterChangeCheckTime string
+	ClusterChangeWaitTime  string
 }
 
 // Cluster - has cluster info

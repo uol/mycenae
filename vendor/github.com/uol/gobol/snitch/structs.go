@@ -3,7 +3,7 @@ package snitch
 //Settings represents default package-wide settings.
 type Settings struct {
 	Address             string
-	Port                string
+	Port                int
 	Protocol            string
 	HTTPTimeout         string
 	HTTPPostInterval    string

@@ -8,7 +8,7 @@ import:
 - package: github.com/julienschmidt/httprouter
 - package: github.com/pborman/uuid
 - package: github.com/uol/gobol
-  version: ^v1.17.8
+  version: ^v1.18.0
   subpackages:
   - cassandra
   - loader

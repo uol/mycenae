@@ -26,18 +26,20 @@ func (collect *Collector) cloneMetadataMap() map[string][]metadata.Metadata {
 
 func (collect *Collector) metaCoordinator(saveInterval time.Duration) {
 
-	ticker := time.NewTicker(saveInterval)
-
-	for {
-		select {
-		case <-ticker.C:
+	go func() {
+		for {
+			<-time.After(saveInterval)
 
 			if len(collect.metadataMap) != 0 {
 				collect.concBulk <- struct{}{}
 				go collect.saveBulk(collect.cloneMetadataMap())
 			}
+		}
+	}()
 
-		case p := <-collect.metaChan:
+	go func() {
+		for {
+			p := <-collect.metaChan
 
 			gerr := collect.generateBulk(p)
 			if gerr != nil {
@@ -54,7 +56,7 @@ func (collect *Collector) metaCoordinator(saveInterval time.Duration) {
 				go collect.saveBulk(collect.cloneMetadataMap())
 			}
 		}
-	}
+	}()
 }
 
 func (collect *Collector) saveMeta(packet Point) {

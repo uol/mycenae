@@ -1,5 +1,5 @@
-hash: 707cf21ecf5193a686787e00cc5e9b44896247011eb64d1752f887e8a57cb69e
-updated: 2019-02-07T02:36:38.32327918-02:00
+hash: 6a8c6da4f007993f98a63357675bb12bcf76df713cdb9da856190caeba8fcc53
+updated: 2019-02-26T17:33:21.330272611-03:00
 imports:
 - name: github.com/armon/go-metrics
   version: f0300d1749da6fa982027e449ec0c7a145510c3c
@@ -70,7 +70,7 @@ imports:
   subpackages:
   - solr
 - name: github.com/uol/gobol
-  version: 38d188120db6d124146791b0629e1bf113444fe7
+  version: 160c6903d443f3106b16cece2ffeca2a895d60b2
   subpackages:
   - cassandra
   - loader
@@ -91,7 +91,7 @@ imports:
   - internal/exit
   - zapcore
 - name: golang.org/x/net
-  version: 65e2d4e15006aab9813ff8769e768bbf4bb667a0
+  version: 66a96c8a540e84140eaf74e38bb3a0a2ff5e5c53
   subpackages:
   - context
   - http/httpguts
@@ -101,14 +101,14 @@ imports:
   - internal/timeseries
   - trace
 - name: golang.org/x/text
-  version: e6919f6577db79269a6443b9dc46d18f2238fb5d
+  version: d14c52b222ee852cdba8b07206ca0c614b389876
   subpackages:
   - secure/bidirule
   - transform
   - unicode/bidi
   - unicode/norm
 - name: google.golang.org/genproto
-  version: 4b09977fb92221987e99d190c8f88f2c92727a29
+  version: fc2db5cae922db113989ef87b5b859cc8a179f59
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc

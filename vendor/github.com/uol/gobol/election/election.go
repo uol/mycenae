@@ -15,41 +15,62 @@ import (
 //
 
 const defaultChannelSize int = 5
-const terminalChannelSize int = 2
 
 // Manager - handles the zookeeper election
 type Manager struct {
-	zkConnection                  *zk.Conn
-	config                        *Config
-	isMaster                      bool
-	defaultACL                    []zk.ACL
-	logger                        *zap.Logger
-	feedbackChannel               chan int
-	clusterConnectionEventChannel <-chan zk.Event
-	electionFlowChannel           chan int
-	nodeFlowChannel               chan int
-	terminateElectionChannel      chan bool
-	sessionID                     int64
-	nodeName                      string
-	disconnectedEvent             zk.Event
-	clusterNodes                  map[string]bool
+	zkConnection                   *zk.Conn
+	config                         *Config
+	isMaster                       bool
+	defaultACL                     []zk.ACL
+	logger                         *zap.Logger
+	feedbackChannel                chan int
+	clusterConnectionEventChannel  <-chan zk.Event
+	sessionID                      int64
+	nodeName                       string
+	clusterNodes                   map[string]bool
+	terminate                      bool
+	sessionTimeoutDuration         time.Duration
+	reconnectionTimeoutDuration    time.Duration
+	clusterChangeCheckTimeDuration time.Duration
+	clusterChangeWaitTimeDuration  time.Duration
 }
 
 // New - creates a new instance
 func New(config *Config, logger *zap.Logger) (*Manager, error) {
 
+	sessionTimeoutDuration, err := time.ParseDuration(config.SessionTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("invalid session timeout duration: %s", config.SessionTimeout)
+	}
+
+	reconnectionTimeoutDuration, err := time.ParseDuration(config.ReconnectionTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("invalid reconnection timeout duration: %s", config.ReconnectionTimeout)
+	}
+
+	clusterChangeCheckTimeDuration, err := time.ParseDuration(config.ClusterChangeCheckTime)
+	if err != nil {
+		return nil, fmt.Errorf("invalid cluster change check time duration: %s", config.ClusterChangeCheckTime)
+	}
+
+	clusterChangeWaitTimeDuration, err := time.ParseDuration(config.ClusterChangeWaitTime)
+	if err != nil {
+		return nil, fmt.Errorf("invalid cluster change wait time duration: %s", config.ClusterChangeWaitTime)
+	}
+
 	return &Manager{
-		zkConnection:                  nil,
-		config:                        config,
-		defaultACL:                    zk.WorldACL(zk.PermAll),
-		logger:                        logger,
-		feedbackChannel:               make(chan int, defaultChannelSize),
-		terminateElectionChannel:      make(chan bool, terminalChannelSize),
-		clusterConnectionEventChannel: nil,
-		electionFlowChannel:           make(chan int, terminalChannelSize),
-		nodeFlowChannel:               make(chan int, terminalChannelSize),
-		disconnectedEvent:             zk.Event{Type: EventDisconnected},
-		clusterNodes:                  map[string]bool{},
+		zkConnection:                   nil,
+		config:                         config,
+		defaultACL:                     zk.WorldACL(zk.PermAll),
+		logger:                         logger,
+		feedbackChannel:                make(chan int, defaultChannelSize),
+		clusterConnectionEventChannel:  nil,
+		clusterNodes:                   map[string]bool{},
+		terminate:                      false,
+		sessionTimeoutDuration:         sessionTimeoutDuration,
+		reconnectionTimeoutDuration:    reconnectionTimeoutDuration,
+		clusterChangeCheckTimeDuration: clusterChangeCheckTimeDuration,
+		clusterChangeWaitTimeDuration:  clusterChangeWaitTimeDuration,
 	}, nil
 }
 
@@ -100,48 +121,49 @@ func (m *Manager) connect() error {
 	var err error
 
 	// Create the ZK connection
-	m.zkConnection, m.clusterConnectionEventChannel, err = zk.Connect(m.config.ZKURL, time.Duration(m.config.SessionTimeout)*time.Second)
+	m.zkConnection, m.clusterConnectionEventChannel, err = zk.Connect(m.config.ZKURL, m.sessionTimeoutDuration)
 	if err != nil {
 		return err
 	}
 
 	go func() {
 		for {
-			select {
-			case event := <-m.clusterConnectionEventChannel:
-				if event.Type == zk.EventSession {
-					if event.State == zk.StateConnected ||
-						event.State == zk.StateConnectedReadOnly {
-						m.logInfo("connect", "connection established with zookeeper")
-					} else if event.State == zk.StateSaslAuthenticated ||
-						event.State == zk.StateHasSession {
-						m.logInfo("connect", "session created in zookeeper")
-					} else if event.State == zk.StateAuthFailed ||
-						event.State == zk.StateDisconnected ||
-						event.State == zk.StateExpired {
-						m.logInfo("connect", "zookeeper connection was lost")
-						m.disconnect()
-						m.electionFlowChannel <- Disconnected
-						m.nodeFlowChannel <- Disconnected
-						for {
-							time.Sleep(time.Duration(m.config.ReconnectionTimeout) * time.Second)
-							m.zkConnection, m.clusterConnectionEventChannel, err = zk.Connect(m.config.ZKURL, time.Duration(m.config.SessionTimeout)*time.Second)
+
+			if m.terminate {
+				m.logInfo("connect", "ending cluster connection event loop")
+				m.feedbackChannel <- Disconnected
+				return
+			}
+
+			event := <-m.clusterConnectionEventChannel
+			if event.Type == zk.EventSession {
+				if event.State == zk.StateConnected ||
+					event.State == zk.StateConnectedReadOnly {
+					m.logInfo("connect", "connection established with zookeeper")
+				} else if event.State == zk.StateSaslAuthenticated ||
+					event.State == zk.StateHasSession {
+					m.logInfo("connect", "session created in zookeeper")
+				} else if event.State == zk.StateAuthFailed ||
+					event.State == zk.StateDisconnected ||
+					event.State == zk.StateExpired {
+					m.logInfo("connect", "zookeeper connection was lost")
+					m.Disconnect()
+					m.feedbackChannel <- Disconnected
+					for {
+						<-time.After(m.reconnectionTimeoutDuration)
+						m.zkConnection, m.clusterConnectionEventChannel, err = zk.Connect(m.config.ZKURL, m.sessionTimeoutDuration)
+						if err != nil {
+							m.logError("connect", "error reconnecting to zookeeper: "+err.Error())
+						} else {
+							_, err := m.Start()
 							if err != nil {
-								m.logError("connect", "error reconnecting to zookeeper: "+err.Error())
+								m.logError("connect", "error starting election loop: "+err.Error())
 							} else {
-								_, err := m.Start()
-								if err != nil {
-									m.logError("connect", "error starting election loop: "+err.Error())
-								} else {
-									break
-								}
+								return
 							}
 						}
 					}
 				}
-			case <-m.terminateElectionChannel:
-				m.logInfo("connect", "terminating connection channel")
-				return
 			}
 		}
 	}()
@@ -151,6 +173,8 @@ func (m *Manager) connect() error {
 
 // Start - starts to listen zk events
 func (m *Manager) Start() (*chan int, error) {
+
+	m.terminate = false
 
 	err := m.connect()
 	if err != nil {
@@ -195,24 +219,22 @@ func (m *Manager) listenForElectionEvents() error {
 
 	go func() {
 		for {
-			select {
-			case event := <-electionEventsChannel:
-				if event.Type == zk.EventNodeDeleted {
-					m.logInfo("listenForElectionEvents", "master has quit, trying to be the new master...")
-					err := m.electForMaster()
-					if err != nil {
-						m.logError("listenForElectionEvents", "error trying to elect this node for master: "+err.Error())
-					}
-				} else if event.Type == zk.EventNodeCreated {
-					m.logInfo("listenForElectionEvents", "a new master has been elected...")
+
+			if m.terminate {
+				m.logInfo("listenForElectionEvents", "ending election events loop")
+				m.feedbackChannel <- Disconnected
+				return
+			}
+
+			event := <-electionEventsChannel
+			if event.Type == zk.EventNodeDeleted {
+				m.logInfo("listenForElectionEvents", "master has quit, trying to be the new master...")
+				err := m.electForMaster()
+				if err != nil {
+					m.logError("listenForElectionEvents", "error trying to elect this node for master: "+err.Error())
 				}
-			case event := <-m.electionFlowChannel:
-				if event == Disconnected {
-					m.logInfo("listenForElectionEvents", "breaking election loop...")
-					m.isMaster = false
-					m.feedbackChannel <- Disconnected
-					return
-				}
+			} else if event.Type == zk.EventNodeCreated {
+				m.logInfo("listenForElectionEvents", "a new master has been elected...")
 			}
 		}
 	}()
@@ -233,43 +255,43 @@ func (m *Manager) listenForNodeEvents() error {
 		m.clusterNodes[node] = true
 	}
 
-	ticker := time.NewTicker(time.Duration(m.config.ClusterChangeCheckTime) * time.Millisecond)
-
 	go func() {
 		for {
-			select {
-			case <-ticker.C:
-				cluster, err := m.GetClusterInfo()
-				if err != nil {
-					m.logError("listenForNodeEvents", err.Error())
+
+			if m.terminate {
+				m.logInfo("listenForNodeEvents", "ending node events loop")
+				m.feedbackChannel <- Disconnected
+				return
+			}
+
+			<-time.After(m.clusterChangeCheckTimeDuration)
+
+			cluster, err := m.GetClusterInfo()
+			if err != nil {
+				m.logError("listenForNodeEvents", err.Error())
+			} else {
+				changed := false
+				if len(cluster.Nodes) != len(m.clusterNodes) {
+					changed = true
 				} else {
-					changed := false
-					if len(cluster.Nodes) != len(m.clusterNodes) {
-						changed = true
-					} else {
-						for _, node := range cluster.Nodes {
-							if _, ok := m.clusterNodes[node]; !ok {
-								changed = true
-								break
-							}
+					for _, node := range cluster.Nodes {
+						if _, ok := m.clusterNodes[node]; !ok {
+							changed = true
+							break
 						}
-					}
-					if changed {
-						m.logInfo("listenForNodeEvents", "cluster node configuration changed")
-						for k := range m.clusterNodes {
-							delete(m.clusterNodes, k)
-						}
-						for _, node := range cluster.Nodes {
-							m.clusterNodes[node] = true
-						}
-						m.feedbackChannel <- ClusterChanged
 					}
 				}
-			case event := <-m.nodeFlowChannel:
-				if event == Disconnected {
-					ticker.Stop()
-					m.logInfo("listenForNodeEvents", "breaking node events loop...")
-					return
+
+				if changed {
+					m.logInfo("listenForNodeEvents", "cluster node configuration changed")
+					for k := range m.clusterNodes {
+						delete(m.clusterNodes, k)
+					}
+					for _, node := range cluster.Nodes {
+						m.clusterNodes[node] = true
+					}
+					m.feedbackChannel <- ClusterChanged
+					<-time.After(m.clusterChangeWaitTimeDuration)
 				}
 			}
 		}
@@ -278,25 +300,18 @@ func (m *Manager) listenForNodeEvents() error {
 	return nil
 }
 
-// disconnect - disconnects from the zookeeper
-func (m *Manager) disconnect() {
+// Disconnect - disconnects from the zookeeper
+func (m *Manager) Disconnect() {
 
+	m.terminate = true
 	if m.zkConnection != nil && m.zkConnection.State() != zk.StateDisconnected {
 		m.zkConnection.Close()
+		m.feedbackChannel <- Disconnected
 		time.Sleep(2 * time.Second)
-		m.logInfo("Close", "zk connection closed")
+		m.logInfo("Disconnect", "zk connection closed")
 	} else {
-		m.logInfo("Close", "zk connection is already closed")
+		m.logInfo("Disconnect", "zk connection is already closed")
 	}
-}
-
-// Terminate - end all channels and disconnects from the zookeeper
-func (m *Manager) Terminate() {
-
-	m.terminateElectionChannel <- true
-	m.electionFlowChannel <- Disconnected
-	m.nodeFlowChannel <- Disconnected
-	m.disconnect()
 }
 
 // GetHostname - retrieves this node hostname from the OS
@@ -439,7 +454,9 @@ func (m *Manager) GetClusterInfo() (*Cluster, error) {
 		return nil, err
 	}
 
-	nodes = append(nodes, *masterNode)
+	if masterNode != nil {
+		nodes = append(nodes, *masterNode)
+	}
 
 	slaveDir, err := m.getNodeData(m.config.ZKSlaveNodesURI)
 	if err != nil {
@@ -459,11 +476,16 @@ func (m *Manager) GetClusterInfo() (*Cluster, error) {
 		children = []string{}
 	}
 
-	return &Cluster{
+	cluster := &Cluster{
 		IsMaster: m.isMaster,
-		Master:   *masterNode,
 		Slaves:   children,
 		Nodes:    nodes,
 		NumNodes: len(nodes),
-	}, nil
+	}
+
+	if masterNode != nil {
+		cluster.Master = *masterNode
+	}
+
+	return cluster, nil
 }

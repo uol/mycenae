@@ -26,7 +26,7 @@ import (
 
 // New returns http handler to the endpoints
 func New(
-	log *structs.TsLog,
+	log *structs.Loggers,
 	gbs *snitch.Stats,
 	p *plot.Plot,
 	keyspace *keyspace.Keyspace,

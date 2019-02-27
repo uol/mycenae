@@ -16,7 +16,6 @@ type job interface {
 
 // Task - a scheduled task
 type Task struct {
-	ticker   *time.Ticker
 	ID       string
 	Duration time.Duration
 	Job      job
@@ -37,15 +36,18 @@ func NewTask(id string, duration time.Duration, job job) *Task {
 // Start - starts to run this task
 func (t *Task) Start() {
 
-	if t.ticker != nil {
-		t.ticker.Stop()
+	if t.running {
+		return
 	}
-
-	t.ticker = time.NewTicker(t.Duration)
 
 	go func() {
 		for {
-			<-t.ticker.C
+			<-time.After(t.Duration)
+
+			if !t.running {
+				return
+			}
+
 			t.Job.Execute()
 		}
 	}()
@@ -55,10 +57,6 @@ func (t *Task) Start() {
 
 // Stop - stops the task
 func (t *Task) Stop() {
-
-	if t.ticker != nil {
-		t.ticker.Stop()
-	}
 
 	t.running = false
 }

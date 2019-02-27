@@ -14,7 +14,7 @@ type LogSetting struct {
 	Prefix string
 }
 
-type TsLog struct {
+type Loggers struct {
 	General *zap.Logger
 	Stats   *zap.Logger
 }
@@ -30,6 +30,7 @@ type SettingsTelnet struct {
 	Host           string
 	OnErrorTimeout int
 	MaxBufferSize  int64
+	CacheDuration  string
 }
 
 type SettingsUDP struct {
@@ -37,12 +38,10 @@ type SettingsUDP struct {
 	ReadBuffer int
 }
 
-type NetdataMetricReplacement struct {
-	LookForPropertyName  string
-	LookForPropertyValue string
-	PropertyAsNewMetric  string
-	NewTagName           string
-	NewTagValue          string
+type LoggerSettings struct {
+	Environment string
+	General     LogSetting
+	Stats       LogSetting
 }
 
 type Settings struct {
@@ -69,16 +68,11 @@ type Settings struct {
 	Cassandra             cassandra.Settings
 	Memcached             memcached.Configuration
 	AllowCORS             bool
-	Logs                  struct {
-		Environment string
-		General     LogSetting
-		Stats       LogSetting
-	}
-	Stats            snitch.Settings
-	StatsAnalytic    snitch.Settings
-	MetadataSettings metadata.Settings
-	Probe            struct {
+	Logs                  LoggerSettings
+	Stats                 snitch.Settings
+	StatsAnalytic         snitch.Settings
+	MetadataSettings      metadata.Settings
+	Probe                 struct {
 		Threshold float64
 	}
-	NetdataHandlerReplacements []NetdataMetricReplacement
 }

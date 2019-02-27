@@ -28,7 +28,7 @@ var (
 )
 
 func New(
-	log *structs.TsLog,
+	log *structs.Loggers,
 	sts *tsstats.StatsTS,
 	cass *gocql.Session,
 	metaStorage *metadata.Storage,

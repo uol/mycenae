@@ -84,45 +84,12 @@ AllowCORS = true
   port = "8082"
   bind = "0.0.0.0"
 
-[[NetdataHandlerReplacements]]
-  LookForPropertyName   = "chart_type"
-  LookForPropertyValue  = "^disk_.*"
-  PropertyAsNewMetric   = "chart_type"
-  NewTagName            = "volume"
-  NewTagValue           = "chart_family"
-
-[[NetdataHandlerReplacements]]
-  LookForPropertyName   = "chart_type"
-  LookForPropertyValue  = "^net_.*"
-  PropertyAsNewMetric   = "chart_type"
-  NewTagName            = "interface"
-  NewTagValue           = "chart_family"
-
-[[NetdataHandlerReplacements]]
-  LookForPropertyName   = "chart_type"
-  LookForPropertyValue  = "^net$"
-  PropertyAsNewMetric   = "chart_type"
-  NewTagName            = "interface"
-  NewTagValue           = "chart_family"
-
-[[NetdataHandlerReplacements]]
-  LookForPropertyName   = "chart_id"
-  LookForPropertyValue  = "^Custom.*"
-  PropertyAsNewMetric   = "chart_context"
-  NewTagName            = "custom"
-  NewTagValue           = "chart_family"
-
 [NetdataServer]
   port = 8023
   bind = "0.0.0.0"
   onErrorTimeout = 5 
   maxBufferSize = 204800
-
-[RawNetdataServer]
-  port = 443
-  bind = "0.0.0.0"
-  onErrorTimeout = 5 
-  maxBufferSize = 204800
+  cacheDuration = "1m"
 
 [TELNETserver]
   port = 8123
@@ -141,7 +108,7 @@ AllowCORS = true
 
 [stats]
   address = "0.0.0.0"
-  port = "8082"
+  port = 8082
   protocol = "http"
   httptimeout = "10s"
   httppostinterval = "1m"
@@ -154,7 +121,7 @@ AllowCORS = true
 
 [statsAnalytic]
   address = "0.0.0.0"
-  port = "8082"
+  port = 8082
   protocol = "http"
   httptimeout = "10s"
   httppostinterval = "10m"
