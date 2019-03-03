@@ -77,7 +77,6 @@ type Collector struct {
 
 	receivedSinceLastProbe float64
 	errorsSinceLastProbe   float64
-	saving                 float64
 	shutdown               bool
 	saveMutex              sync.Mutex
 	recvMutex              sync.Mutex
@@ -147,13 +146,9 @@ func (collect *Collector) ReceivedErrorRatio() (ratio float64) {
 	return
 }
 
+// Stop - stops the UDP collector
 func (collect *Collector) Stop() {
 	collect.shutdown = true
-	for {
-		if collect.saving <= 0 {
-			return
-		}
-	}
 }
 
 func (collect *Collector) processPacket(rcvMsg TSDBpoint, point *Point, number bool) gobol.Error {

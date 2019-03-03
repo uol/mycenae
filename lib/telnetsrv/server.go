@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sync/atomic"
 	"time"
 
 	"github.com/uol/mycenae/lib/collector"
@@ -17,30 +18,52 @@ const lineSeparator byte = 10
 
 // Server - the telnet server struct
 type Server struct {
-	listenAddress  string
-	listener       net.Listener
-	onErrorTimeout int
-	maxBufferSize  int64
-	collector      *collector.Collector
-	logger         *zap.Logger
-	stats          *tsstats.StatsTS
-	telnetHandler  TelnetDataHandler
-	lineSplitter   []byte
+	listenAddress        string
+	listener             net.Listener
+	onErrorTimeout       time.Duration
+	sendStatsTimeout     time.Duration
+	maxBufferSize        int64
+	collector            *collector.Collector
+	logger               *zap.Logger
+	stats                *tsstats.StatsTS
+	telnetHandler        TelnetDataHandler
+	lineSplitter         []byte
+	statsTags            map[string]string
+	numConnections       uint32
+	terminate            bool
+	sendStatsTimeoutFreq string
 }
 
 // New - creates a new telnet server
-func New(listenAddress string, onErrorTimeout int, maxBufferSize int64, collector *collector.Collector, stats *tsstats.StatsTS, logger *zap.Logger, telnetHandler TelnetDataHandler) *Server {
+func New(listenAddress, onErrorTimeout, sendStatsTimeout string, maxBufferSize int64, collector *collector.Collector, stats *tsstats.StatsTS, logger *zap.Logger, telnetHandler TelnetDataHandler) (*Server, error) {
+
+	onErrorTimeoutDuration, err := time.ParseDuration(onErrorTimeout)
+	if err != nil {
+		return nil, err
+	}
+
+	sendStatsTimeoutDuration, err := time.ParseDuration(sendStatsTimeout)
+	if err != nil {
+		return nil, err
+	}
 
 	return &Server{
-		listenAddress:  listenAddress,
-		onErrorTimeout: onErrorTimeout,
-		maxBufferSize:  maxBufferSize,
-		collector:      collector,
-		logger:         logger,
-		stats:          stats,
-		telnetHandler:  telnetHandler,
-		lineSplitter:   []byte{lineSeparator},
-	}
+		listenAddress:        listenAddress,
+		onErrorTimeout:       onErrorTimeoutDuration,
+		sendStatsTimeoutFreq: "@every " + sendStatsTimeout,
+		sendStatsTimeout:     sendStatsTimeoutDuration,
+		maxBufferSize:        maxBufferSize,
+		collector:            collector,
+		logger:               logger,
+		stats:                stats,
+		telnetHandler:        telnetHandler,
+		lineSplitter:         []byte{lineSeparator},
+		terminate:            false,
+		statsTags: map[string]string{
+			"type":   "tcp",
+			"source": telnetHandler.SourceName(),
+		},
+	}, nil
 }
 
 // Listen - starts to listen and to handle the incoming messages
@@ -56,6 +79,8 @@ func (server *Server) Listen() error {
 		return err
 	}
 
+	go server.collectStats()
+
 	lf := []zapcore.Field{
 		zap.String("package", "telnetsrv"),
 		zap.String("func", "Listen"),
@@ -70,8 +95,11 @@ func (server *Server) Listen() error {
 			conn, err := server.listener.Accept()
 			if err != nil {
 				server.logger.Error(err.Error(), lf...)
-				time.Sleep(time.Duration(server.onErrorTimeout) * time.Millisecond)
+				<-time.After(server.onErrorTimeout)
+				continue
 			}
+
+			atomic.AddUint32(&server.numConnections, 1)
 
 			conn.SetDeadline(time.Time{})
 
@@ -92,16 +120,22 @@ func (server *Server) handleConnection(conn net.Conn) {
 		zap.String("func", "handleConnection"),
 	}
 
+	defer server.recover(conn, lf)
+
 	buffer := make([]byte, server.maxBufferSize)
 	data := make([]byte, 0)
 	for {
 		n, err := conn.Read(buffer)
 		if err != nil {
-			conn.Close()
 			if err != io.EOF {
 				server.logger.Error(err.Error(), lf...)
 			}
-			server.logger.Debug("closing tcp telnet connection", lf...)
+			err := conn.Close()
+			if err != nil {
+				server.logger.Error(err.Error(), lf...)
+			}
+			server.logger.Info("closing tcp telnet connection", lf...)
+			atomic.AddUint32(&server.numConnections, ^uint32(0))
 			break
 		}
 
@@ -125,6 +159,8 @@ func (server *Server) Shutdown() error {
 		zap.String("func", "Shutdown"),
 	}
 
+	server.terminate = true
+
 	err := server.listener.Close()
 	if err != nil {
 		server.logger.Error(err.Error(), lf...)
@@ -132,4 +168,42 @@ func (server *Server) Shutdown() error {
 	}
 
 	return nil
+}
+
+// collectStats - send all TCP connection statistics
+func (server *Server) collectStats() {
+
+	lf := []zapcore.Field{
+		zap.String("package", "telnetsrv"),
+		zap.String("func", "collectStats"),
+	}
+
+	server.logger.Info("starting telnet server stats", lf...)
+
+	for {
+		<-time.After(server.sendStatsTimeout)
+
+		if server.terminate {
+			server.logger.Info("terminating telnet server stats", lf...)
+			return
+		}
+
+		server.stats.ValueAdd("telnetsrv", "network.connection", server.statsTags, (float64)(server.numConnections))
+	}
+}
+
+// recover - recovers from panic
+func (server *Server) recover(conn net.Conn, lf []zapcore.Field) {
+
+	if conn != nil {
+		err := conn.Close()
+		if err != nil {
+			server.logger.Error(err.Error(), lf...)
+		}
+	}
+
+	if r := recover(); r != nil {
+		server.logger.Error(fmt.Sprintf("recovered from: %s", r), lf...)
+		atomic.AddUint32(&server.numConnections, ^uint32(0))
+	}
 }

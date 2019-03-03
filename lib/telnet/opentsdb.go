@@ -15,11 +15,12 @@ const TelnetFormatTagsRegexp string = `([0-9A-Za-z-\._\%\&\#\;\/]+)=([0-9A-Za-z-
 
 // OpenTSDBHandler - handles opentsdb telnet format data
 type OpenTSDBHandler struct {
-	formatRegexp *regexp.Regexp
-	tagsRegexp   *regexp.Regexp
-	collector    *collector.Collector
-	logger       *zap.Logger
-	loggerFields []zapcore.Field
+	formatRegexp       *regexp.Regexp
+	tagsRegexp         *regexp.Regexp
+	collector          *collector.Collector
+	logger             *zap.Logger
+	loggerFields       []zapcore.Field
+	sourceName string
 }
 
 // NewOpenTSDBHandler - creates the new handler
@@ -33,6 +34,7 @@ func NewOpenTSDBHandler(collector *collector.Collector, logger *zap.Logger) *Ope
 			zap.String("package", "telnet"),
 			zap.String("func", "Handle"),
 		},
+		sourceName: "telnet-opentsdb",
 	}
 }
 
@@ -87,5 +89,10 @@ func (otsdbh *OpenTSDBHandler) Handle(line string) {
 		return
 	}
 
-	otsdbh.collector.HandlePacket(point, validatedPoint, true, "telnet-opentsdb", nil)
+	otsdbh.collector.HandlePacket(point, validatedPoint, true, otsdbh.sourceName, nil)
+}
+
+// sourceName - returns the connection type name
+func (otsdbh *OpenTSDBHandler) SourceName() string {
+	return otsdbh.sourceName
 }

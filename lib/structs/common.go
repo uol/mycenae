@@ -26,16 +26,18 @@ type SettingsHTTP struct {
 }
 
 type SettingsTelnet struct {
-	Port           int
-	Host           string
-	OnErrorTimeout int
-	MaxBufferSize  int64
-	CacheDuration  string
+	Port             int
+	Host             string
+	OnErrorTimeout   string
+	SendStatsTimeout string
+	MaxBufferSize    int64
+	CacheDuration    string
 }
 
 type SettingsUDP struct {
-	Port       string
-	ReadBuffer int
+	Port             string
+	SendStatsTimeout string
+	ReadBuffer       int
 }
 
 type LoggerSettings struct {

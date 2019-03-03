@@ -4,13 +4,11 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/uol/mycenae/lib/tsstats"
+
 	"github.com/uol/mycenae/lib/structs"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-)
-
-var (
-	gblog *zap.Logger
 )
 
 type udpHandler interface {
@@ -18,21 +16,28 @@ type udpHandler interface {
 	Stop()
 }
 
-func New(gbl *zap.Logger, setUDP structs.SettingsUDP, handler udpHandler) *UDPserver {
-
-	gblog = gbl
+func New(logger *zap.Logger, setUDP structs.SettingsUDP, handler udpHandler, stats *tsstats.StatsTS) *UDPserver {
 
 	return &UDPserver{
 		handler:  handler,
 		settings: setUDP,
+		stats:    stats,
+		logger:   logger,
+		statsTags: map[string]string{
+			"type":   "udp",
+			"source": "udp-json",
+		},
 	}
 }
 
 type UDPserver struct {
-	handler  udpHandler
-	settings structs.SettingsUDP
-	shutdown bool
-	closed   chan struct{}
+	handler   udpHandler
+	settings  structs.SettingsUDP
+	shutdown  bool
+	closed    chan struct{}
+	stats     *tsstats.StatsTS
+	statsTags map[string]string
+	logger    *zap.Logger
 }
 
 func (us UDPserver) Start() {
@@ -51,31 +56,32 @@ func (us UDPserver) asyncStart() {
 	addr, err := net.ResolveUDPAddr("udp", port)
 
 	if err != nil {
-		gblog.Fatal(fmt.Sprintf("addr: %s", err.Error()), lf...)
+		us.logger.Fatal(fmt.Sprintf("addr: %s", err.Error()), lf...)
 	} else {
-		gblog.Info("addr: resolved", lf...)
+		us.logger.Info("addr: resolved", lf...)
 	}
 	sock, err := net.ListenUDP("udp", addr)
 
 	if err != nil {
-		gblog.Fatal(fmt.Sprintf("listen: %s", err.Error()), lf...)
+		us.logger.Fatal(fmt.Sprintf("listen: %s", err.Error()), lf...)
 	} else {
-		gblog.Info(fmt.Sprintf("listen: binded to port: %s", us.settings.Port), lf...)
+		us.logger.Info(fmt.Sprintf("listen: binded to port: %s", us.settings.Port), lf...)
 	}
 	defer sock.Close()
 
 	err = sock.SetReadBuffer(us.settings.ReadBuffer)
 
 	if err != nil {
-		gblog.Fatal(fmt.Sprintf("set buffer: %s", err.Error()), lf...)
+		us.logger.Fatal(fmt.Sprintf("set buffer: %s", err.Error()), lf...)
 	} else {
-		gblog.Info("set buffer: setted", lf...)
+		us.logger.Info("set buffer: setted", lf...)
 	}
 
 	for {
 		buf := make([]byte, 1024)
 
 		rlen, addr, err := sock.ReadFromUDP(buf)
+		us.incConnectionStats()
 
 		saddr := ""
 
@@ -83,7 +89,7 @@ func (us UDPserver) asyncStart() {
 			saddr = addr.IP.String()
 		}
 		if err != nil {
-			gblog.Error(fmt.Sprintf("read buffer from %s : %s", saddr, err), lf...)
+			us.logger.Error(fmt.Sprintf("read buffer from %s : %s", saddr, err), lf...)
 		} else {
 			go us.handler.HandleUDPpacket(buf[0:rlen], saddr)
 		}
@@ -102,4 +108,9 @@ func (us *UDPserver) Stop() {
 		us.handler.Stop()
 		return
 	}
+}
+
+// incConnectionStats - increments the UDP connection statistics
+func (us *UDPserver) incConnectionStats() {
+	go us.stats.Increment("udp", "network.connection", us.statsTags)
 }

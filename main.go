@@ -81,7 +81,7 @@ func main() {
 	keysetManager := createKeysetManager(settings, timeseriesStats, metadataStorage, loggers.General)
 	collectorService := createCollectorService(settings, timeseriesStats, metadataStorage, scyllaConn, keysetManager, keyspaceTTLMap, loggers)
 	plotService := createPlotService(settings, timeseriesStats, metadataStorage, scyllaConn, keyspaceTTLMap, loggers.General)
-	udpServer := createUDPServer(&settings.UDPserver, collectorService, loggers.General)
+	udpServer := createUDPServer(&settings.UDPserver, collectorService, timeseriesStats, loggers.General)
 	restServer := createRESTserver(settings, stats, plotService, collectorService, keyspaceManager, keysetManager, memcachedConn, loggers)
 	telnetServer := createTelnetServer(&settings.TELNETserver, "opentsdb telnet server", telnet.NewOpenTSDBHandler(collectorService, loggers.General), collectorService, timeseriesStats, loggers.General)
 	netdataServer := createTelnetServer(&settings.NetdataServer, "netdata telnet server", telnet.NewNetdataHandler(settings.NetdataServer.CacheDuration, collectorService, loggers.General), collectorService, timeseriesStats, loggers.General)
@@ -412,9 +412,9 @@ func createPlotService(conf *structs.Settings, timeseriesStats *tsstats.StatsTS,
 }
 
 // createUDPServer - creates the UDP server and starts it
-func createUDPServer(conf *structs.SettingsUDP, collectorService *collector.Collector, logger *zap.Logger) *udp.UDPserver {
+func createUDPServer(conf *structs.SettingsUDP, collectorService *collector.Collector, stats *tsstats.StatsTS, logger *zap.Logger) *udp.UDPserver {
 
-	udpServer := udp.New(logger, *conf, collectorService)
+	udpServer := udp.New(logger, *conf, collectorService, stats)
 	udpServer.Start()
 
 	lf := []zapcore.Field{
@@ -455,14 +455,15 @@ func createRESTserver(conf *structs.Settings, stats *snitch.Stats, plotService *
 }
 
 // createTelnetServer - creates a new telnet server
-func createTelnetServer(conf *structs.SettingsTelnet, name string, telnetHandler telnetsrv.TelnetDataHandler, collectorService *collector.Collector, timeseriesStats *tsstats.StatsTS, logger *zap.Logger) *telnetsrv.Server {
+func createTelnetServer(conf *structs.SettingsTelnet, name string, telnetHandler telnetsrv.TelnetDataHandler, collectorService *collector.Collector, stats *tsstats.StatsTS, logger *zap.Logger) *telnetsrv.Server {
 
-	telnetServer := telnetsrv.New(
+	telnetServer, err := telnetsrv.New(
 		fmt.Sprintf("%s:%d", conf.Host, conf.Port),
 		conf.OnErrorTimeout,
+		conf.SendStatsTimeout,
 		conf.MaxBufferSize,
 		collectorService,
-		timeseriesStats,
+		stats,
 		logger,
 		telnetHandler,
 	)
@@ -472,9 +473,14 @@ func createTelnetServer(conf *structs.SettingsTelnet, name string, telnetHandler
 		zap.String("func", "createRESTserver"),
 	}
 
-	err := telnetServer.Listen()
 	if err != nil {
 		logger.Fatal(fmt.Sprintf("error creating telnet server '%s': %s", name, err.Error()), lf...)
+		os.Exit(1)
+	}
+
+	err = telnetServer.Listen()
+	if err != nil {
+		logger.Fatal(fmt.Sprintf("error starting listening on telnet server '%s': %s", name, err.Error()), lf...)
 		os.Exit(1)
 	}
 

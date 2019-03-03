@@ -45,6 +45,7 @@ type NetdataHandler struct {
 	collector         *collector.Collector
 	logger            *zap.Logger
 	loggerFields      []zapcore.Field
+	sourceName        string
 }
 
 // NewNetdataHandler - creates the new handler
@@ -78,6 +79,7 @@ func NewNetdataHandler(regexpCacheDuration string, collector *collector.Collecto
 			zap.String("package", "telnet"),
 			zap.String("func", "Handle"),
 		},
+		sourceName: "telnet-netdata",
 	}
 }
 
@@ -226,5 +228,10 @@ func (nh *NetdataHandler) Handle(line string) {
 		return
 	}
 
-	nh.collector.HandlePacket(point, validatedPoint, true, "telnet-netdata", nil)
+	nh.collector.HandlePacket(point, validatedPoint, true, nh.sourceName, nil)
+}
+
+// sourceName - returns the connection type name
+func (nh *NetdataHandler) SourceName() string {
+	return nh.sourceName
 }
