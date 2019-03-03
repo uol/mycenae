@@ -87,14 +87,16 @@ AllowCORS = true
 [NetdataServer]
   port = 8023
   bind = "0.0.0.0"
-  onErrorTimeout = 5 
+  onErrorTimeout = "5s"
+  sendStatsTimeout = "10s"
   maxBufferSize = 204800
   cacheDuration = "1m"
 
 [TELNETserver]
   port = 8123
   bind = "0.0.0.0"
-  onErrorTimeout = 5 
+  onErrorTimeout = "5s" 
+  sendStatsTimeout = "10s"
   maxBufferSize = 204800
 
 [logs]

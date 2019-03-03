@@ -1,12 +1,12 @@
-hash: 6a8c6da4f007993f98a63357675bb12bcf76df713cdb9da856190caeba8fcc53
-updated: 2019-02-26T17:33:21.330272611-03:00
+hash: c4671926f61a50b66f64447d64bcf5138b2b0c0bea7bc93daa265f27651cb465
+updated: 2019-03-02T23:33:38.920438402-03:00
 imports:
 - name: github.com/armon/go-metrics
   version: f0300d1749da6fa982027e449ec0c7a145510c3c
 - name: github.com/BurntSushi/toml
   version: 3012a1dbe2e4bd1391d42b32f0577cb7bbc7f005
 - name: github.com/gocql/gocql
-  version: 70385f88b28b43805bd83d212169ab2d38810b15
+  version: f6df8288f9b44e66f50c9a59aee53a705c788dbe
   subpackages:
   - internal/lru
   - internal/murmur
@@ -20,9 +20,9 @@ imports:
   - ptypes/duration
   - ptypes/timestamp
 - name: github.com/golang/snappy
-  version: 2e65f85255dbc3072edf28d6b5b8efc472979f5a
+  version: 2a8bb927dd31d8daada140a5d09578521ce5c36a
 - name: github.com/google/uuid
-  version: d460ce9f8df2e77fb1ba55ca87fafed96c607494
+  version: 0cd6bf5da1e1c83f8b45653022c74f71af0538a4
 - name: github.com/hailocab/go-hostpool
   version: e80d13ce29ede4452c43dea11e79b9bc8a15b478
 - name: github.com/hashicorp/consul
@@ -34,13 +34,13 @@ imports:
 - name: github.com/hashicorp/go-immutable-radix
   version: 27df80928bb34bb1b0d6d0e01b9e679902e7a6b5
 - name: github.com/hashicorp/go-rootcerts
-  version: 6bb64b370b90e7ef1fa532be9e591a81c3493e00
+  version: 63503fb4e1eca22f9ae0f90b49c5d5538a0e87eb
 - name: github.com/hashicorp/golang-lru
-  version: 20f1fb78b0740ba8c3cb143a61e86ba5c8669768
+  version: 7087cb70de9f7a8bc0a10c375cb0d2280a8edf9c
   subpackages:
   - simplelru
 - name: github.com/hashicorp/serf
-  version: 4a3a10ccd1b09be9af798006fc9c85827b5f2ba6
+  version: b89a09ebd4b1b570e0076d5097272e67c10ac4f6
   subpackages:
   - coordinate
 - name: github.com/json-iterator/go
@@ -48,7 +48,7 @@ imports:
 - name: github.com/julienschmidt/httprouter
   version: 348b672cd90d8190f8240323e372ecd1e66b59dc
 - name: github.com/mitchellh/go-homedir
-  version: ae18d6b8b3205b561c79e8e5f69bff09736185f4
+  version: af06845cf3004701891bf4fdb884bfe4920b3727
 - name: github.com/mitchellh/hashstructure
   version: a38c50148365edc8df43c1580c48fb2b3a1e9cd7
 - name: github.com/mitchellh/mapstructure
@@ -70,7 +70,7 @@ imports:
   subpackages:
   - solr
 - name: github.com/uol/gobol
-  version: 160c6903d443f3106b16cece2ffeca2a895d60b2
+  version: b3d35d462bd2eeb64b30a5a85a9d7f42e406adea
   subpackages:
   - cassandra
   - loader
@@ -91,7 +91,7 @@ imports:
   - internal/exit
   - zapcore
 - name: golang.org/x/net
-  version: 66a96c8a540e84140eaf74e38bb3a0a2ff5e5c53
+  version: 16b79f2e4e95ea23b2bf9903c9809ff7b013ce85
   subpackages:
   - context
   - http/httpguts
@@ -108,7 +108,7 @@ imports:
   - unicode/bidi
   - unicode/norm
 - name: google.golang.org/genproto
-  version: fc2db5cae922db113989ef87b5b859cc8a179f59
+  version: 4f5b463f9597cbe0dd13a6a2cd4f85e788d27508
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc
@@ -148,7 +148,7 @@ testImports:
   subpackages:
   - spew
 - name: github.com/pmezard/go-difflib
-  version: 792786c7400a136282c1664665ae0a8db921c6c2
+  version: 5d4384ee4fb2527b0a1256a821ebfc92f91efefc
   subpackages:
   - difflib
 - name: github.com/reiver/go-oi

@@ -58,19 +58,27 @@ func NewLogMiddleware(service, system string, logger *zap.Logger, sts *snitch.St
 		logger:    logger,
 		stats:     sts,
 		allowCORS: allowCORS,
+		connectionStatsTags: map[string]string{
+			"type":   "tcp",
+			"source": "http",
+		},
 	}
 }
 
 type LogHandler struct {
-	service   string
-	system    string
-	next      http.Handler
-	logger    *zap.Logger
-	stats     *snitch.Stats
-	allowCORS bool
+	service             string
+	system              string
+	next                http.Handler
+	logger              *zap.Logger
+	stats               *snitch.Stats
+	allowCORS           bool
+	connectionStatsTags map[string]string
 }
 
 func (h *LogHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+
+	go h.incrementHTTPConn()
+
 	start := time.Now()
 
 	rid := uuid.NewRandom().String()
@@ -146,6 +154,19 @@ func (h *LogHandler) valueAdd(metric string, tags map[string]string, v float64) 
 			zap.String("package", "rip"),
 			zap.String("func", "statsValueAdd"),
 			zap.String("metric", metric),
+		)
+	}
+}
+
+func (h *LogHandler) incrementHTTPConn() {
+	err := h.stats.Increment("network.connection", h.connectionStatsTags, "@every 10s", false, true)
+	if err != nil {
+		h.logger.Error(
+			"",
+			zap.Error(err),
+			zap.String("package", "rip"),
+			zap.String("func", "incrementHTTPConn"),
+			zap.String("metric", "network.connection"),
 		)
 	}
 }
