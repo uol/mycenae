@@ -461,6 +461,7 @@ func createTelnetServer(conf *structs.SettingsTelnet, name string, telnetHandler
 		fmt.Sprintf("%s:%d", conf.Host, conf.Port),
 		conf.OnErrorTimeout,
 		conf.SendStatsTimeout,
+		conf.MaxIdleConnectionTimeout,
 		conf.MaxBufferSize,
 		collectorService,
 		stats,
