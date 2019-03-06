@@ -89,6 +89,7 @@ AllowCORS = true
   bind = "0.0.0.0"
   onErrorTimeout = "5s"
   sendStatsTimeout = "10s"
+  maxIdleConnectionTimeout = "30s"
   maxBufferSize = 204800
   cacheDuration = "1m"
 
@@ -97,6 +98,7 @@ AllowCORS = true
   bind = "0.0.0.0"
   onErrorTimeout = "5s" 
   sendStatsTimeout = "10s"
+  maxIdleConnectionTimeout = "30s"
   maxBufferSize = 204800
 
 [logs]
