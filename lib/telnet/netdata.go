@@ -139,7 +139,7 @@ func (nh *NetdataHandler) Handle(line string) {
 
 	if pluginMetricValue, switchPluginMetric := tags["%set_plugin_metric%"]; switchPluginMetric {
 
-		list := strings.Split(strings.Trim(pluginMetricValue, "'"), "|")
+		list := strings.Split(strings.Trim(pluginMetricValue, "'"), "#")
 
 		for i := 0; i < len(list); i++ {
 
