@@ -139,41 +139,49 @@ func (nh *NetdataHandler) Handle(line string) {
 
 	if pluginMetricValue, switchPluginMetric := tags["%set_plugin_metric%"]; switchPluginMetric {
 
-		array := strings.Split(strings.Trim(pluginMetricValue, "'"), ";")
+		list := strings.Split(strings.Trim(pluginMetricValue, "'"), "#")
 
-		if len(array) != 2 {
-			nh.logger.Error("invalid set_plugin_metric value: "+pluginMetricValue, nh.loggerFields...)
-			return
-		}
+		for i := 0; i < len(list); i++ {
 
-		if _, ok := nh.netdataTags[array[1]]; !ok {
-			nh.logger.Error("invalid netdata property to use set_plugin_metric: "+pluginMetricValue, nh.loggerFields...)
-			return
-		}
+			array := strings.Split(list[i], ";")
 
-		var pluginMetricRegex *regexp.Regexp
-		if compiledRegex, ok := nh.regexpCache[array[0]]; !ok {
-
-			var err error
-			compiledRegex, err = regexp.Compile(array[0])
-			if err != nil {
-				nh.logger.Error("invalid set_plugin_metric regular expression: "+pluginMetricValue, nh.loggerFields...)
+			if len(array) != 2 {
+				nh.logger.Error("invalid set_plugin_metric value: "+pluginMetricValue, nh.loggerFields...)
 				return
 			}
 
-			nh.regexpCache[array[0]] = compiledRegex
+			if _, ok := nh.netdataTags[array[1]]; !ok {
+				nh.logger.Error("invalid netdata property to use set_plugin_metric: "+pluginMetricValue, nh.loggerFields...)
+				return
+			}
 
-			nh.logger.Info(fmt.Sprintf("new regular expression was cached: %s", array[0]), nh.loggerFields...)
+			var pluginMetricRegex *regexp.Regexp
+			if compiledRegex, ok := nh.regexpCache[array[0]]; !ok {
 
-			nh.expireCachedRegexp(array[0])
+				var err error
+				compiledRegex, err = regexp.Compile(array[0])
+				if err != nil {
+					nh.logger.Error("invalid set_plugin_metric regular expression: "+pluginMetricValue, nh.loggerFields...)
+					return
+				}
 
-			pluginMetricRegex = compiledRegex
-		} else {
-			pluginMetricRegex = compiledRegex
-		}
+				nh.regexpCache[array[0]] = compiledRegex
 
-		if pluginMetricRegex.MatchString(pointJSON.ChartID) {
-			metricProperty = array[1]
+				nh.logger.Info(fmt.Sprintf("new regular expression was cached: %s", array[0]), nh.loggerFields...)
+
+				nh.expireCachedRegexp(array[0])
+
+				pluginMetricRegex = compiledRegex
+
+			} else {
+
+				pluginMetricRegex = compiledRegex
+			}
+
+			if pluginMetricRegex.MatchString(pointJSON.ChartID) {
+
+				metricProperty = array[1]
+			}
 		}
 
 		delete(tags, "%set_plugin_metric%")

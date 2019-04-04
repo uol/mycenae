@@ -32,10 +32,11 @@ type Server struct {
 	statsConnectionTags      map[string]string
 	numConnections           uint32
 	terminate                bool
+	port                     string
 }
 
 // New - creates a new telnet server
-func New(listenAddress, onErrorTimeout, sendStatsTimeout, maxIdleConnectionTimeout string, maxBufferSize int64, collector *collector.Collector, stats *tsstats.StatsTS, logger *zap.Logger, telnetHandler TelnetDataHandler) (*Server, error) {
+func New(host string, port int, onErrorTimeout, sendStatsTimeout, maxIdleConnectionTimeout string, maxBufferSize int64, collector *collector.Collector, stats *tsstats.StatsTS, logger *zap.Logger, telnetHandler TelnetDataHandler) (*Server, error) {
 
 	onErrorTimeoutDuration, err := time.ParseDuration(onErrorTimeout)
 	if err != nil {
@@ -52,8 +53,10 @@ func New(listenAddress, onErrorTimeout, sendStatsTimeout, maxIdleConnectionTimeo
 		return nil, err
 	}
 
+	strPort := fmt.Sprintf("%d", port)
+
 	return &Server{
-		listenAddress:            listenAddress,
+		listenAddress:            fmt.Sprintf("%s:%d", host, port),
 		onErrorTimeout:           onErrorTimeoutDuration,
 		sendStatsTimeout:         sendStatsTimeoutDuration,
 		maxIdleConnectionTimeout: maxIdleConnectionTimeoutDuration,
@@ -64,8 +67,10 @@ func New(listenAddress, onErrorTimeout, sendStatsTimeout, maxIdleConnectionTimeo
 		telnetHandler:            telnetHandler,
 		lineSplitter:             []byte{lineSeparator},
 		terminate:                false,
+		port:                     strPort,
 		statsConnectionTags: map[string]string{
 			"type":   "tcp",
+			"port":   strPort,
 			"source": telnetHandler.SourceName(),
 		},
 	}, nil
@@ -167,6 +172,7 @@ func (server *Server) closeConnection(conn net.Conn, from string) {
 	statsCloseTags := map[string]string{
 		"type":   from,
 		"source": server.telnetHandler.SourceName(),
+		"port":   server.port,
 	}
 
 	go server.stats.Increment("telnetsrv", "network.connection.close", statsCloseTags)

@@ -458,7 +458,8 @@ func createRESTserver(conf *structs.Settings, stats *snitch.Stats, plotService *
 func createTelnetServer(conf *structs.SettingsTelnet, name string, telnetHandler telnetsrv.TelnetDataHandler, collectorService *collector.Collector, stats *tsstats.StatsTS, logger *zap.Logger) *telnetsrv.Server {
 
 	telnetServer, err := telnetsrv.New(
-		fmt.Sprintf("%s:%d", conf.Host, conf.Port),
+		conf.Host,
+		conf.Port,
 		conf.OnErrorTimeout,
 		conf.SendStatsTimeout,
 		conf.MaxIdleConnectionTimeout,

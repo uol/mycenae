@@ -15,19 +15,19 @@ const TelnetFormatTagsRegexp string = `([0-9A-Za-z-\._\%\&\#\;\/]+)=([0-9A-Za-z-
 
 // OpenTSDBHandler - handles opentsdb telnet format data
 type OpenTSDBHandler struct {
-	formatRegexp       *regexp.Regexp
-	tagsRegexp         *regexp.Regexp
-	collector          *collector.Collector
-	logger             *zap.Logger
-	loggerFields       []zapcore.Field
-	sourceName string
+	formatRegexp *regexp.Regexp
+	tagsRegexp   *regexp.Regexp
+	collector    *collector.Collector
+	logger       *zap.Logger
+	loggerFields []zapcore.Field
+	sourceName   string
 }
 
 // NewOpenTSDBHandler - creates the new handler
 func NewOpenTSDBHandler(collector *collector.Collector, logger *zap.Logger) *OpenTSDBHandler {
 
 	return &OpenTSDBHandler{
-		formatRegexp: regexp.MustCompile(`^put ([0-9A-Za-z-\._\%\&\#\;\/]+) ([0-9]+) ([0-9E\.\-\,]+) ([0-9A-Za-z-\._\%\&\#\;\/ =]+)$`),
+		formatRegexp: regexp.MustCompile(`put ([0-9A-Za-z-\._\%\&\#\;\/]+) ([0-9]+) ([0-9E\.\-\,]+) ([0-9A-Za-z-\._\%\&\#\;\/ =]+)`),
 		tagsRegexp:   regexp.MustCompile(TelnetFormatTagsRegexp),
 		collector:    collector,
 		loggerFields: []zapcore.Field{
