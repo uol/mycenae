@@ -57,6 +57,7 @@ type Settings struct {
 	DefaultPaginationSize int
 	MetaSaveInterval      string
 	HostNameCleanerRegex  string
+	MaxTelnetConnections  uint32
 	HTTPserver            SettingsHTTP
 	UDPserver             SettingsUDP
 	TELNETserver          SettingsTelnet
