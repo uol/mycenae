@@ -31,12 +31,14 @@ type Server struct {
 	lineSplitter             []byte
 	statsConnectionTags      map[string]string
 	numConnections           uint32
+	maxTelnetConnections     uint32
+	sharedConnectionCounter  *uint32
 	terminate                bool
 	port                     string
 }
 
 // New - creates a new telnet server
-func New(host string, port int, onErrorTimeout, sendStatsTimeout, maxIdleConnectionTimeout string, maxBufferSize int64, collector *collector.Collector, stats *tsstats.StatsTS, logger *zap.Logger, telnetHandler TelnetDataHandler) (*Server, error) {
+func New(host string, port int, onErrorTimeout, sendStatsTimeout, maxIdleConnectionTimeout string, maxBufferSize int64, collector *collector.Collector, stats *tsstats.StatsTS, logger *zap.Logger, sharedConnectionCounter *uint32, maxTelnetConnections uint32, telnetHandler TelnetDataHandler) (*Server, error) {
 
 	onErrorTimeoutDuration, err := time.ParseDuration(onErrorTimeout)
 	if err != nil {
@@ -68,6 +70,8 @@ func New(host string, port int, onErrorTimeout, sendStatsTimeout, maxIdleConnect
 		lineSplitter:             []byte{lineSeparator},
 		terminate:                false,
 		port:                     strPort,
+		sharedConnectionCounter:  sharedConnectionCounter,
+		maxTelnetConnections:     maxTelnetConnections,
 		statsConnectionTags: map[string]string{
 			"type":   "tcp",
 			"port":   strPort,
@@ -109,6 +113,19 @@ func (server *Server) Listen() error {
 				continue
 			}
 
+			if atomic.LoadUint32(server.sharedConnectionCounter) >= server.maxTelnetConnections {
+
+				server.logger.Info(fmt.Sprintf("max number of telnet connections reached (%d), closing connection from %q", server.maxTelnetConnections, conn.RemoteAddr()), lf...)
+
+				err = conn.Close()
+				if err != nil {
+					server.logger.Error(fmt.Sprintf("error closing tcp telnet connection (%s): %s", conn.RemoteAddr(), err.Error()), lf...)
+				}
+
+				continue
+			}
+
+			atomic.AddUint32(server.sharedConnectionCounter, 1)
 			atomic.AddUint32(&server.numConnections, 1)
 
 			server.logger.Debug(fmt.Sprintf("received new connection from %q", conn.RemoteAddr()), lf...)
@@ -167,6 +184,7 @@ func (server *Server) closeConnection(conn net.Conn, from string) {
 	}
 
 	server.logger.Info(fmt.Sprintf("closing tcp telnet connection (%s)", from), lf...)
+	atomic.AddUint32(server.sharedConnectionCounter, ^uint32(0))
 	atomic.AddUint32(&server.numConnections, ^uint32(0))
 
 	statsCloseTags := map[string]string{

@@ -70,6 +70,8 @@ func main() {
 		loggers.General.Info("DEV MODE IS ENABLED!", lf...)
 	}
 
+	var numActiveTelnetConnections uint32
+
 	stats := createStatisticsService("stats", &settings.Stats, loggers.Stats)
 	analyticsStats := createStatisticsService("analytics-stats", &settings.StatsAnalytic, loggers.Stats)
 	timeseriesStats := createTimeseriesStatisticsService(stats, analyticsStats, settings, loggers.General)
@@ -83,8 +85,8 @@ func main() {
 	plotService := createPlotService(settings, timeseriesStats, metadataStorage, scyllaConn, keyspaceTTLMap, loggers.General)
 	udpServer := createUDPServer(&settings.UDPserver, collectorService, timeseriesStats, loggers.General)
 	restServer := createRESTserver(settings, stats, plotService, collectorService, keyspaceManager, keysetManager, memcachedConn, loggers)
-	telnetServer := createTelnetServer(&settings.TELNETserver, "opentsdb telnet server", telnet.NewOpenTSDBHandler(collectorService, loggers.General), collectorService, timeseriesStats, loggers.General)
-	netdataServer := createTelnetServer(&settings.NetdataServer, "netdata telnet server", telnet.NewNetdataHandler(settings.NetdataServer.CacheDuration, collectorService, loggers.General), collectorService, timeseriesStats, loggers.General)
+	telnetServer := createTelnetServer(&settings.TELNETserver, "opentsdb telnet server", telnet.NewOpenTSDBHandler(collectorService, loggers.General), collectorService, timeseriesStats, &numActiveTelnetConnections, settings.MaxTelnetConnections, loggers.General)
+	netdataServer := createTelnetServer(&settings.NetdataServer, "netdata telnet server", telnet.NewNetdataHandler(settings.NetdataServer.CacheDuration, collectorService, loggers.General), collectorService, timeseriesStats, &numActiveTelnetConnections, settings.MaxTelnetConnections, loggers.General)
 
 	loggers.General.Info("mycenae started successfully", lf...)
 
@@ -455,7 +457,7 @@ func createRESTserver(conf *structs.Settings, stats *snitch.Stats, plotService *
 }
 
 // createTelnetServer - creates a new telnet server
-func createTelnetServer(conf *structs.SettingsTelnet, name string, telnetHandler telnetsrv.TelnetDataHandler, collectorService *collector.Collector, stats *tsstats.StatsTS, logger *zap.Logger) *telnetsrv.Server {
+func createTelnetServer(conf *structs.SettingsTelnet, name string, telnetHandler telnetsrv.TelnetDataHandler, collectorService *collector.Collector, stats *tsstats.StatsTS, numActiveTelnetConnections *uint32, maxActiveTelnetConnections uint32, logger *zap.Logger) *telnetsrv.Server {
 
 	telnetServer, err := telnetsrv.New(
 		conf.Host,
@@ -467,6 +469,8 @@ func createTelnetServer(conf *structs.SettingsTelnet, name string, telnetHandler
 		collectorService,
 		stats,
 		logger,
+		numActiveTelnetConnections,
+		maxActiveTelnetConnections,
 		telnetHandler,
 	)
 
