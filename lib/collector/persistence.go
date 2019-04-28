@@ -11,10 +11,6 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-const (
-	SECOND int64 = 1000000000
-)
-
 type persistence struct {
 	cassandra   *gocql.Session
 	metaStorage *metadata.Storage

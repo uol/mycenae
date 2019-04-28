@@ -30,7 +30,7 @@ import (
 	"github.com/uol/mycenae/lib/rest"
 	"github.com/uol/mycenae/lib/structs"
 	"github.com/uol/mycenae/lib/telnet"
-	"github.com/uol/mycenae/lib/telnetsrv"
+	"github.com/uol/mycenae/lib/telnetmgr"
 	"github.com/uol/mycenae/lib/tsstats"
 	"github.com/uol/mycenae/lib/udp"
 )
@@ -70,8 +70,6 @@ func main() {
 		loggers.General.Info("DEV MODE IS ENABLED!", lf...)
 	}
 
-	var numActiveTelnetConnections uint32
-
 	stats := createStatisticsService("stats", &settings.Stats, loggers.Stats)
 	analyticsStats := createStatisticsService("analytics-stats", &settings.StatsAnalytic, loggers.Stats)
 	timeseriesStats := createTimeseriesStatisticsService(stats, analyticsStats, settings, loggers.General)
@@ -84,9 +82,8 @@ func main() {
 	collectorService := createCollectorService(settings, timeseriesStats, metadataStorage, scyllaConn, keysetManager, keyspaceTTLMap, loggers)
 	plotService := createPlotService(settings, timeseriesStats, metadataStorage, scyllaConn, keyspaceTTLMap, loggers.General)
 	udpServer := createUDPServer(&settings.UDPserver, collectorService, timeseriesStats, loggers.General)
-	restServer := createRESTserver(settings, stats, plotService, collectorService, keyspaceManager, keysetManager, memcachedConn, loggers)
-	telnetServer := createTelnetServer(&settings.TELNETserver, "opentsdb telnet server", telnet.NewOpenTSDBHandler(collectorService, loggers.General), collectorService, timeseriesStats, &numActiveTelnetConnections, settings.MaxTelnetConnections, loggers.General)
-	netdataServer := createTelnetServer(&settings.NetdataServer, "netdata telnet server", telnet.NewNetdataHandler(settings.NetdataServer.CacheDuration, collectorService, loggers.General), collectorService, timeseriesStats, &numActiveTelnetConnections, settings.MaxTelnetConnections, loggers.General)
+	telnetManager := createTelnetManager(settings, collectorService, timeseriesStats, loggers.General)
+	restServer := createRESTserver(settings, stats, plotService, collectorService, keyspaceManager, keysetManager, memcachedConn, telnetManager, loggers)
 
 	loggers.General.Info("mycenae started successfully", lf...)
 
@@ -105,13 +102,9 @@ func main() {
 	udpServer.Stop()
 	loggers.General.Info("udp server stopped", lf...)
 
-	loggers.General.Info("stopping opentsdb telnet server", lf...)
-	telnetServer.Shutdown()
-	loggers.General.Info("opentsdb telnet server stopped", lf...)
-
-	loggers.General.Info("stopping netdata telnet server", lf...)
-	netdataServer.Shutdown()
-	loggers.General.Info("netdata telnet server stopped", lf...)
+	loggers.General.Info("stopping telnet manager", lf...)
+	telnetManager.Shutdown()
+	loggers.General.Info("opentsdb telnet manager stopped", lf...)
 
 	loggers.General.Info("stopping statistics service", lf...)
 	stats.Terminate()
@@ -430,7 +423,7 @@ func createUDPServer(conf *structs.SettingsUDP, collectorService *collector.Coll
 }
 
 // createRESTserver - creates the REST server and starts it
-func createRESTserver(conf *structs.Settings, stats *snitch.Stats, plotService *plot.Plot, collectorService *collector.Collector, keyspaceManager *keyspace.Keyspace, keysetManager *keyset.KeySet, memcachedConn *memcached.Memcached, loggers *structs.Loggers) *rest.REST {
+func createRESTserver(conf *structs.Settings, stats *snitch.Stats, plotService *plot.Plot, collectorService *collector.Collector, keyspaceManager *keyspace.Keyspace, keysetManager *keyset.KeySet, memcachedConn *memcached.Memcached, telnetManager *telnetmgr.Manager, loggers *structs.Loggers) *rest.REST {
 
 	restServer := rest.New(
 		loggers,
@@ -442,6 +435,7 @@ func createRESTserver(conf *structs.Settings, stats *snitch.Stats, plotService *
 		conf.HTTPserver,
 		conf.Probe.Threshold,
 		keysetManager,
+		telnetManager,
 	)
 
 	restServer.Start()
@@ -456,41 +450,35 @@ func createRESTserver(conf *structs.Settings, stats *snitch.Stats, plotService *
 	return restServer
 }
 
-// createTelnetServer - creates a new telnet server
-func createTelnetServer(conf *structs.SettingsTelnet, name string, telnetHandler telnetsrv.TelnetDataHandler, collectorService *collector.Collector, stats *tsstats.StatsTS, numActiveTelnetConnections *uint32, maxActiveTelnetConnections uint32, logger *zap.Logger) *telnetsrv.Server {
+// createTelnetManager - creates a new telnet manager
+func createTelnetManager(conf *structs.Settings, collectorService *collector.Collector, stats *tsstats.StatsTS, logger *zap.Logger) *telnetmgr.Manager {
 
-	telnetServer, err := telnetsrv.New(
-		conf.Host,
-		conf.Port,
-		conf.OnErrorTimeout,
-		conf.SendStatsTimeout,
-		conf.MaxIdleConnectionTimeout,
-		conf.MaxBufferSize,
+	telnetManager, err := telnetmgr.New(
+		&conf.GlobalTelnetServerConfiguration,
+		conf.HTTPserver.Port,
 		collectorService,
 		stats,
 		logger,
-		numActiveTelnetConnections,
-		maxActiveTelnetConnections,
-		telnetHandler,
 	)
 
 	lf := []zapcore.Field{
 		zap.String("package", "main"),
-		zap.String("func", "createRESTserver"),
+		zap.String("func", "createTelnetManager"),
 	}
 
+	err = telnetManager.AddServer(&conf.NetdataServer, telnet.NewNetdataHandler(conf.NetdataServer.CacheDuration, collectorService, logger))
 	if err != nil {
-		logger.Fatal(fmt.Sprintf("error creating telnet server '%s': %s", name, err.Error()), lf...)
+		logger.Fatal(fmt.Sprintf("error creating telnet server '%s': %s", "netdata", err.Error()), lf...)
 		os.Exit(1)
 	}
 
-	err = telnetServer.Listen()
+	err = telnetManager.AddServer(&conf.TELNETserver, telnet.NewOpenTSDBHandler(collectorService, logger))
 	if err != nil {
-		logger.Fatal(fmt.Sprintf("error starting listening on telnet server '%s': %s", name, err.Error()), lf...)
+		logger.Fatal(fmt.Sprintf("error creating telnet server '%s': %s", "opentsdb", err.Error()), lf...)
 		os.Exit(1)
 	}
 
-	logger.Info("telnet server was created: "+name, lf...)
+	logger.Info("telnet manager was created", lf...)
 
-	return telnetServer
+	return telnetManager
 }

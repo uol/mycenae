@@ -21,11 +21,11 @@ type Loggers struct {
 
 type SettingsHTTP struct {
 	Path string
-	Port string
+	Port int
 	Bind string
 }
 
-type SettingsTelnet struct {
+type TelnetServerConfiguration struct {
 	Port                     int
 	Host                     string
 	OnErrorTimeout           string
@@ -33,10 +33,11 @@ type SettingsTelnet struct {
 	MaxBufferSize            int64
 	CacheDuration            string
 	MaxIdleConnectionTimeout string
+	ServerName               string
 }
 
 type SettingsUDP struct {
-	Port             string
+	Port             int
 	SendStatsTimeout string
 	ReadBuffer       int
 }
@@ -47,36 +48,44 @@ type LoggerSettings struct {
 	Stats       LogSetting
 }
 
+type GlobalTelnetServerConfiguration struct {
+	MaxTelnetConnections              uint32
+	MaxUnbalancedTelnetConnsPerNode   uint32
+	TelnetConnsBalanceCheckInterval   string
+	MaxWaitForDropTelnetConnsInterval string
+	HTTPRequestTimeout                string
+	ConnectionCloseChannelSize        int
+	Nodes                             []string
+}
+
 type Settings struct {
-	MaxTimeseries         int
-	LogQueryTSthreshold   int
-	MaxConcurrentPoints   int
-	MaxConcurrentBulks    int
-	MaxMetaBulkSize       int
-	MetaBufferSize        int
-	DefaultPaginationSize int
-	MetaSaveInterval      string
-	HostNameCleanerRegex  string
-	MaxTelnetConnections  uint32
-	HTTPserver            SettingsHTTP
-	UDPserver             SettingsUDP
-	TELNETserver          SettingsTelnet
-	NetdataServer         SettingsTelnet
-	RawNetdataServer      SettingsTelnet
-	DefaultTTL            int
-	MaxAllowedTTL         int
-	DefaultKeysets        []string
-	BlacklistedKeysets    []string
-	DefaultKeyspaceData   keyspace.Config
-	DefaultKeyspaces      map[string]int
-	Cassandra             cassandra.Settings
-	Memcached             memcached.Configuration
-	AllowCORS             bool
-	Logs                  LoggerSettings
-	Stats                 snitch.Settings
-	StatsAnalytic         snitch.Settings
-	MetadataSettings      metadata.Settings
-	Probe                 struct {
+	MaxTimeseries                   int
+	LogQueryTSthreshold             int
+	MaxConcurrentPoints             int
+	MaxConcurrentBulks              int
+	MaxMetaBulkSize                 int
+	MetaBufferSize                  int
+	DefaultPaginationSize           int
+	MetaSaveInterval                string
+	GlobalTelnetServerConfiguration GlobalTelnetServerConfiguration
+	HTTPserver                      SettingsHTTP
+	UDPserver                       SettingsUDP
+	TELNETserver                    TelnetServerConfiguration
+	NetdataServer                   TelnetServerConfiguration
+	DefaultTTL                      int
+	MaxAllowedTTL                   int
+	DefaultKeysets                  []string
+	BlacklistedKeysets              []string
+	DefaultKeyspaceData             keyspace.Config
+	DefaultKeyspaces                map[string]int
+	Cassandra                       cassandra.Settings
+	Memcached                       memcached.Configuration
+	AllowCORS                       bool
+	Logs                            LoggerSettings
+	Stats                           snitch.Settings
+	StatsAnalytic                   snitch.Settings
+	MetadataSettings                metadata.Settings
+	Probe                           struct {
 		Threshold float64
 	}
 }
