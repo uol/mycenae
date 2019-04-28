@@ -1,20 +1,9 @@
 #!/bin/bash
 
 POD_NAME="mycenae${1}"
-LOGS="/tmp/mycenae-logs/"
 docker rm -f "${POD_NAME}"
 
-if ! make -C "${GOPATH}/src/github.com/uol/mycenae/" build ; then
-    exit 1
-fi
-
-scyllaIPs=$(docker inspect --format "{{ .NetworkSettings.Networks.timeseriesNetwork.IPAddress }}" scylla1 scylla2 scylla3 | sed 's/^.*$/"&"/' | tr '\n' ',' | sed 's/.$//')
-memcachedIPs=$(docker inspect --format "{{ .NetworkSettings.Networks.timeseriesNetwork.IPAddress }}" memcached1 memcached2 memcached3 | sed 's/^.*$/"&:11211"/' | tr '\n' ',' | sed 's/.$//')
-solrIP=$(docker inspect --format "{{ .NetworkSettings.Networks.timeseriesNetwork.IPAddress }}" solr1)
-
-sed -i 's/nodes = \[[^]]*\]/nodes = \['$scyllaIPs'\]/' ../config.toml
-sed -i 's/pool = \[[^]]*\]/pool = \['$memcachedIPs'\]/' ../config.toml
-sed -i 's/http\:\/\/[^\:]*\:8983/http\:\/\/'$solrIP'\:8983/' ../config.toml
+LOGS="/tmp/mycenae-logs/"
 
 if [ ! -d "${LOGS}" ]; then
     mkdir ${LOGS}
@@ -28,8 +17,11 @@ pod_arguments=(
     '--volume' "${GOPATH}/src/github.com/uol/mycenae/config.toml:/config.toml"
     '--volume' "${LOGS}:/${LOGS}"
     '--entrypoint' '/tmp/mycenae'
-    "--net=timeseriesNetwork"
-    '-p' '8082:8082'
+    '--net=timeseriesNetwork'
+    '--hostname' "${POD_NAME}"
+    '--add-host' "loghost:182.168.0.25${1}"
+    '--add-host' "mycenae${2}:182.168.0.25${2}"
+    '--ip' "182.168.0.25${1}"
 )
 
 dockerCmd="docker run ${pod_arguments[@]} ubuntu:xenial"
@@ -37,5 +29,3 @@ eval "$dockerCmd"
 echo "$dockerCmd"
 
 echo 'Mycenae OK'
-
-docker logs "${POD_NAME}"

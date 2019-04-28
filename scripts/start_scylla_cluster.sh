@@ -13,11 +13,11 @@ checkScyllaUpNodes () {
 }
 
 ./start_scylla.sh 1
-sleep 30
+sleep 5
 ./start_scylla.sh 2
-sleep 30
+sleep 5
 ./start_scylla.sh 3
-sleep 30
+sleep 5
 
 checkScyllaUpNodes 3
 
