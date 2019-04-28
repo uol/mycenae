@@ -46,9 +46,6 @@ DefaultKeysets = ["pdeng_stats", "pdeng_collectd", "pdeng_analytics"]
 # Allow Cross Origin Resource Sharing
 AllowCORS = true
 
-# The maximum telnet connections allowed per node
-MaxTelnetConnections = 1
-
 # All default keyspaces
 [DefaultKeyspaces]
   one_day = 1
@@ -67,7 +64,7 @@ MaxTelnetConnections = 1
 [cassandra]
   keyspace = "mycenae"
   consistency = "one"
-  nodes = ["172.17.0.5","172.17.0.6","172.17.0.7"]
+  nodes = ["182.168.0.5","182.168.0.6","182.168.0.7"]
   username = "cassandra"
   password = "cassandra"
   connections = 3
@@ -79,30 +76,54 @@ MaxTelnetConnections = 1
   protoVersion = 4
 
 [UDPserver]
-  port = "4243"
+  port = 4243
   readBuffer = 1048576
 
 [HTTPserver]
   path = "/"
-  port = "8082"
-  bind = "0.0.0.0"
+  port = 8082
+  bind = "loghost"
+
+[GlobalTelnetServerConfiguration]
+  # The maximum request time to reach other nodes
+  HTTPRequestTimeout = "10s"
+
+  # The size of the connection close channel
+  ConnectionCloseChannelSize = 10
+
+  # The maximum telnet connections allowed per node
+  MaxTelnetConnections = 10
+
+  # The maximum number of unbalanced telnet connections
+  MaxUnbalancedTelnetConnsPerNode = 2
+
+  # the time duration to check if the node is balanced
+  TelnetConnsBalanceCheckInterval = "10s"
+
+  # the time duration to wait the unbalanced connection be dropped
+  MaxWaitForDropTelnetConnsInterval = "10s"
+
+  # the available timeseries nodes
+  Nodes = ["mycenae1", "mycenae2"]
 
 [NetdataServer]
   port = 8023
-  bind = "0.0.0.0"
+  bind = "loghost"
   onErrorTimeout = "5s"
   sendStatsTimeout = "10s"
-  maxIdleConnectionTimeout = "30s"
+  maxIdleConnectionTimeout = "5s"
   maxBufferSize = 204800
   cacheDuration = "1m"
+  ServerName = "Netdata Telnet Server"
 
 [TELNETserver]
   port = 8123
-  bind = "0.0.0.0"
+  bind = "loghost"
   onErrorTimeout = "5s" 
   sendStatsTimeout = "10s"
-  maxIdleConnectionTimeout = "30s"
+  maxIdleConnectionTimeout = "5s"
   maxBufferSize = 204800
+  ServerName = "OpenTSDB Telnet Server"
 
 [logs]
   environment = "PROD"
@@ -114,7 +135,7 @@ MaxTelnetConnections = 1
     prefix = "stats"
 
 [stats]
-  address = "0.0.0.0"
+  address = "loghost"
   port = 8082
   protocol = "http"
   httptimeout = "10s"
@@ -127,7 +148,7 @@ MaxTelnetConnections = 1
     ksid = "pdeng_stats"
 
 [statsAnalytic]
-  address = "0.0.0.0"
+  address = "loghost"
   port = 8082
   protocol = "http"
   httptimeout = "10s"
@@ -145,7 +166,7 @@ MaxTelnetConnections = 1
 [metadataSettings]
   numShards = 1
   replicationFactor = 1
-  url = "http://172.17.0.3:8983/solr"
+  url = "http://182.168.0.3:8983/solr"
   IDCacheTTL = -1
   QueryCacheTTL = -1
   KeysetCacheTTL = -1
@@ -154,6 +175,6 @@ MaxTelnetConnections = 1
   BlacklistedKeysets = ["chimera", "blacklist"]
 
 [memcached]
-  pool = ["172.17.0.10:11211","172.17.0.11:11211","172.17.0.12:11211"]
+  pool = ["182.168.0.10:11211","182.168.0.11:11211","182.168.0.12:11211"]
   timeout = 10000
   maxIdleConns = 5

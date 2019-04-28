@@ -9,10 +9,16 @@ import (
 	"time"
 
 	"github.com/uol/mycenae/lib/collector"
+	"github.com/uol/mycenae/lib/structs"
 	"github.com/uol/mycenae/lib/tsstats"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
+
+//
+// Implements a telnet server to input data
+// author: rnojiri
+//
 
 const lineSeparator byte = 10
 
@@ -30,39 +36,42 @@ type Server struct {
 	telnetHandler            TelnetDataHandler
 	lineSplitter             []byte
 	statsConnectionTags      map[string]string
-	numConnections           uint32
-	maxTelnetConnections     uint32
 	sharedConnectionCounter  *uint32
+	numLocalConnections      uint32
+	maxConnections           uint32
+	denyNewConnections       uint32
 	terminate                bool
 	port                     string
+	name                     string
+	closeConnectionChannel   *chan struct{}
 }
 
 // New - creates a new telnet server
-func New(host string, port int, onErrorTimeout, sendStatsTimeout, maxIdleConnectionTimeout string, maxBufferSize int64, collector *collector.Collector, stats *tsstats.StatsTS, logger *zap.Logger, sharedConnectionCounter *uint32, maxTelnetConnections uint32, telnetHandler TelnetDataHandler) (*Server, error) {
+func New(serverConfiguration *structs.TelnetServerConfiguration, sharedConnectionCounter *uint32, maxConnections uint32, closeConnectionChannel *chan struct{}, collector *collector.Collector, stats *tsstats.StatsTS, logger *zap.Logger, telnetHandler TelnetDataHandler) (*Server, error) {
 
-	onErrorTimeoutDuration, err := time.ParseDuration(onErrorTimeout)
+	onErrorTimeoutDuration, err := time.ParseDuration(serverConfiguration.OnErrorTimeout)
 	if err != nil {
 		return nil, err
 	}
 
-	sendStatsTimeoutDuration, err := time.ParseDuration(sendStatsTimeout)
+	sendStatsTimeoutDuration, err := time.ParseDuration(serverConfiguration.SendStatsTimeout)
 	if err != nil {
 		return nil, err
 	}
 
-	maxIdleConnectionTimeoutDuration, err := time.ParseDuration(maxIdleConnectionTimeout)
+	maxIdleConnectionTimeoutDuration, err := time.ParseDuration(serverConfiguration.MaxIdleConnectionTimeout)
 	if err != nil {
 		return nil, err
 	}
 
-	strPort := fmt.Sprintf("%d", port)
+	strPort := fmt.Sprintf("%d", serverConfiguration.Port)
 
 	return &Server{
-		listenAddress:            fmt.Sprintf("%s:%d", host, port),
+		listenAddress:            fmt.Sprintf("%s:%d", serverConfiguration.Host, serverConfiguration.Port),
 		onErrorTimeout:           onErrorTimeoutDuration,
 		sendStatsTimeout:         sendStatsTimeoutDuration,
 		maxIdleConnectionTimeout: maxIdleConnectionTimeoutDuration,
-		maxBufferSize:            maxBufferSize,
+		maxBufferSize:            serverConfiguration.MaxBufferSize,
 		collector:                collector,
 		logger:                   logger,
 		stats:                    stats,
@@ -71,7 +80,10 @@ func New(host string, port int, onErrorTimeout, sendStatsTimeout, maxIdleConnect
 		terminate:                false,
 		port:                     strPort,
 		sharedConnectionCounter:  sharedConnectionCounter,
-		maxTelnetConnections:     maxTelnetConnections,
+		maxConnections:           maxConnections,
+		denyNewConnections:       0,
+		closeConnectionChannel:   closeConnectionChannel,
+		name:                     serverConfiguration.ServerName,
 		statsConnectionTags: map[string]string{
 			"type":   "tcp",
 			"port":   strPort,
@@ -82,10 +94,6 @@ func New(host string, port int, onErrorTimeout, sendStatsTimeout, maxIdleConnect
 
 // Listen - starts to listen and to handle the incoming messages
 func (server *Server) Listen() error {
-
-	if "" == server.listenAddress {
-		server.listenAddress = ":telnet"
-	}
 
 	var err error
 	server.listener, err = net.Listen("tcp", server.listenAddress)
@@ -113,20 +121,24 @@ func (server *Server) Listen() error {
 				continue
 			}
 
-			if atomic.LoadUint32(server.sharedConnectionCounter) >= server.maxTelnetConnections {
+			if atomic.LoadUint32(&server.denyNewConnections) == 1 {
 
-				server.logger.Info(fmt.Sprintf("max number of telnet connections reached (%d), closing connection from %q", server.maxTelnetConnections, conn.RemoteAddr()), lf...)
+				server.logger.Info(fmt.Sprintf("telnet server is not accepting new connections, denying connection from %q", conn.RemoteAddr()), lf...)
+				go server.closeConnection(conn, "deny", false)
 
-				err = conn.Close()
-				if err != nil {
-					server.logger.Error(fmt.Sprintf("error closing tcp telnet connection (%s): %s", conn.RemoteAddr(), err.Error()), lf...)
-				}
+				continue
+			}
+
+			if atomic.LoadUint32(server.sharedConnectionCounter) >= server.maxConnections {
+
+				server.logger.Info(fmt.Sprintf("max number of telnet connections reached (%d), closing connection from %q", server.maxConnections, conn.RemoteAddr()), lf...)
+				go server.closeConnection(conn, "limit", false)
 
 				continue
 			}
 
 			atomic.AddUint32(server.sharedConnectionCounter, 1)
-			atomic.AddUint32(&server.numConnections, 1)
+			atomic.AddUint32(&server.numLocalConnections, 1)
 
 			server.logger.Debug(fmt.Sprintf("received new connection from %q", conn.RemoteAddr()), lf...)
 
@@ -149,18 +161,31 @@ func (server *Server) handleConnection(conn net.Conn) {
 
 	buffer := make([]byte, server.maxBufferSize)
 	data := make([]byte, 0)
+	var err error
+	var n int
 	for {
+		select {
+		case <-(*server.closeConnectionChannel):
+			go server.closeConnection(conn, "balancing", true)
+			return
+		default:
+		}
+
 		conn.SetDeadline(time.Now().Add(server.maxIdleConnectionTimeout))
 
-		n, err := conn.Read(buffer)
+		n, err = conn.Read(buffer)
 		if err != nil && err == io.EOF {
-			server.closeConnection(conn, "eof")
+			go server.closeConnection(conn, "eof", true)
 			break
 		}
 
 		if err, ok := err.(net.Error); ok && err.Timeout() {
-			server.closeConnection(conn, "timeout")
+			go server.closeConnection(conn, "timeout", true)
 			break
+		}
+
+		if n == 0 {
+			continue
 		}
 
 		data = append(data, buffer[0:n]...)
@@ -173,10 +198,16 @@ func (server *Server) handleConnection(conn net.Conn) {
 			data = make([]byte, 0)
 		}
 	}
+
+	if err != nil {
+		server.logger.Debug(fmt.Sprintf("connection loop was broken under error: %s", err), lf...)
+	} else {
+		server.logger.Debug("connection loop was broken with no error", lf...)
+	}
 }
 
 // closeConnection - closes an tcp connection
-func (server *Server) closeConnection(conn net.Conn, from string) {
+func (server *Server) closeConnection(conn net.Conn, from string, subtractCounter bool) {
 
 	lf := []zapcore.Field{
 		zap.String("package", "telnetsrv"),
@@ -184,8 +215,11 @@ func (server *Server) closeConnection(conn net.Conn, from string) {
 	}
 
 	server.logger.Info(fmt.Sprintf("closing tcp telnet connection (%s)", from), lf...)
-	atomic.AddUint32(server.sharedConnectionCounter, ^uint32(0))
-	atomic.AddUint32(&server.numConnections, ^uint32(0))
+
+	if subtractCounter {
+		atomic.AddUint32(server.sharedConnectionCounter, ^uint32(0))
+		atomic.AddUint32(&server.numLocalConnections, ^uint32(0))
+	}
 
 	statsCloseTags := map[string]string{
 		"type":   from,
@@ -221,6 +255,8 @@ func (server *Server) Shutdown() error {
 		return err
 	}
 
+	server.logger.Info("telnet server have shut down", lf...)
+
 	return nil
 }
 
@@ -242,7 +278,7 @@ func (server *Server) collectStats() {
 			return
 		}
 
-		server.stats.ValueAdd("telnetsrv", "network.connection", server.statsConnectionTags, (float64)(server.numConnections))
+		server.stats.ValueAdd("telnetsrv", "network.connection", server.statsConnectionTags, (float64)(server.numLocalConnections))
 	}
 }
 
@@ -251,6 +287,23 @@ func (server *Server) recover(conn net.Conn, lf []zapcore.Field) {
 
 	if r := recover(); r != nil {
 		server.logger.Error(fmt.Sprintf("recovered from: %s", r), lf...)
-		atomic.AddUint32(&server.numConnections, ^uint32(0))
+		atomic.AddUint32(&server.numLocalConnections, ^uint32(0))
 	}
+}
+
+// DenyNewConnections - deny new connections
+func (server *Server) DenyNewConnections(deny bool) {
+
+	var newValue uint32
+	if deny {
+		newValue = 1
+	}
+
+	atomic.SwapUint32(&server.denyNewConnections, newValue)
+}
+
+// GetName - returns the server's name
+func (server *Server) GetName() string {
+
+	return server.name
 }

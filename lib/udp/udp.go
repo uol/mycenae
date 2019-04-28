@@ -3,6 +3,7 @@ package udp
 import (
 	"fmt"
 	"net"
+	"strconv"
 
 	"github.com/uol/mycenae/lib/tsstats"
 
@@ -51,7 +52,7 @@ func (us UDPserver) asyncStart() {
 		zap.String("func", "asyncStart"),
 	}
 
-	port := ":" + us.settings.Port
+	port := ":" + strconv.Itoa(us.settings.Port)
 
 	addr, err := net.ResolveUDPAddr("udp", port)
 
@@ -65,7 +66,7 @@ func (us UDPserver) asyncStart() {
 	if err != nil {
 		us.logger.Fatal(fmt.Sprintf("listen: %s", err.Error()), lf...)
 	} else {
-		us.logger.Info(fmt.Sprintf("listen: binded to port: %s", us.settings.Port), lf...)
+		us.logger.Info(fmt.Sprintf("listen: binded to port: %d", us.settings.Port), lf...)
 	}
 	defer sock.Close()
 
