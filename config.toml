@@ -101,7 +101,7 @@ AllowCORS = true
   TelnetConnsBalanceCheckInterval = "10s"
 
   # the time duration to wait the unbalanced connection be dropped
-  MaxWaitForDropTelnetConnsInterval = "10s"
+  MaxWaitForDropTelnetConnsInterval = "35s"
 
   # the available timeseries nodes
   Nodes = ["mycenae1", "mycenae2"]
@@ -111,7 +111,7 @@ AllowCORS = true
   bind = "loghost"
   onErrorTimeout = "5s"
   sendStatsTimeout = "10s"
-  maxIdleConnectionTimeout = "5s"
+  maxIdleConnectionTimeout = "30s"
   maxBufferSize = 204800
   cacheDuration = "1m"
   ServerName = "Netdata Telnet Server"
@@ -121,7 +121,7 @@ AllowCORS = true
   bind = "loghost"
   onErrorTimeout = "5s" 
   sendStatsTimeout = "10s"
-  maxIdleConnectionTimeout = "5s"
+  maxIdleConnectionTimeout = "30s"
   maxBufferSize = 204800
   ServerName = "OpenTSDB Telnet Server"
 

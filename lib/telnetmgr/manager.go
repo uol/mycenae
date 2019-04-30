@@ -3,6 +3,7 @@ package telnetmgr
 import (
 	"crypto/tls"
 	"fmt"
+	"math"
 	"net/http"
 	"os"
 	"strconv"
@@ -198,15 +199,21 @@ func (manager *Manager) startConnectionBalancer() {
 
 		curConns := atomic.LoadUint32(&manager.sharedConnectionCounter)
 
+		var sum uint32
+
 		for i := 0; i < manager.numOtherNodes; i++ {
+			sum += results[i]
+		}
 
-			if curConns > results[i] && curConns-results[i] >= manager.globalConfiguration.MaxUnbalancedTelnetConnsPerNode {
+		average := uint32(math.Ceil(float64(sum) / float64(manager.numOtherNodes)))
+		diff := curConns - average
 
-				excess := curConns - results[i] - manager.globalConfiguration.MaxUnbalancedTelnetConnsPerNode
+		if curConns > average && diff >= manager.globalConfiguration.MaxUnbalancedTelnetConnsPerNode {
 
+			excess := diff - manager.globalConfiguration.MaxUnbalancedTelnetConnsPerNode
+
+			if excess > 0 {
 				manager.dropConnections(excess)
-
-				break
 			}
 		}
 	}
