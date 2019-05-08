@@ -135,6 +135,8 @@ func (manager *Manager) AddServer(serverConfiguration *structs.TelnetServerConfi
 
 	if !manager.connectionBalanceStarted {
 
+		manager.connectionBalanceStarted = true
+
 		go manager.startConnectionBalancer()
 	}
 
@@ -170,8 +172,6 @@ func (manager *Manager) startConnectionBalancer() {
 	}
 
 	manager.logger.Info("starting the connection balance checks", lf...)
-
-	manager.connectionBalanceStarted = true
 
 	for {
 		<-time.After(manager.connectionBalanceCheckTimeout)
