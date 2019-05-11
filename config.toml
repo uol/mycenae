@@ -64,7 +64,7 @@ AllowCORS = true
 [cassandra]
   keyspace = "mycenae"
   consistency = "one"
-  nodes = ["182.168.0.5","182.168.0.6","182.168.0.7"]
+  nodes = ["182.168.0.2","182.168.0.3","182.168.0.4"]
   username = "cassandra"
   password = "cassandra"
   connections = 3
@@ -102,6 +102,9 @@ AllowCORS = true
 
   # the time duration to wait the unbalanced connection be dropped
   MaxWaitForDropTelnetConnsInterval = "35s"
+
+  # the time duration to wait when a halt request is received for stop the balancing process
+  MaxWaitForOtherNodeConnsBalancing = "35s"
 
   # the available timeseries nodes
   Nodes = ["mycenae1", "mycenae2"]
@@ -166,7 +169,7 @@ AllowCORS = true
 [metadataSettings]
   numShards = 1
   replicationFactor = 1
-  url = "http://182.168.0.3:8983/solr"
+  url = "http://182.168.0.6:8983/solr"
   IDCacheTTL = -1
   QueryCacheTTL = -1
   KeysetCacheTTL = -1
