@@ -54,6 +54,7 @@ type GlobalTelnetServerConfiguration struct {
 	TelnetConnsBalanceCheckInterval   string
 	MaxWaitForDropTelnetConnsInterval string
 	HTTPRequestTimeout                string
+	MaxWaitForOtherNodeConnsBalancing string
 	ConnectionCloseChannelSize        int
 	Nodes                             []string
 }

@@ -106,6 +106,7 @@ func (trest *REST) asyncStart() {
 	router := rip.NewCustomRouter()
 	//NODE TO NODE
 	router.HEAD(path+"node/connections", trest.telnetManager.CountConnections)
+	router.HEAD(path+"node/halt/balancing", trest.telnetManager.HaltTelnetBalancingProcess)
 	//PROBE
 	router.GET(path+"probe", trest.check)
 	//READ

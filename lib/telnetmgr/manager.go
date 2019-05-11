@@ -32,9 +32,11 @@ type Manager struct {
 	terminate                         bool
 	connectionBalanceCheckTimeout     time.Duration
 	maxWaitForDropTelnetConnsInterval time.Duration
+	maxWaitForOtherNodeConnsBalancing time.Duration
 	connectionBalanceStarted          bool
 	globalConfiguration               *structs.GlobalTelnetServerConfiguration
 	sharedConnectionCounter           uint32
+	haltBalancingProcess              uint32
 	otherNodes                        []string
 	numOtherNodes                     int
 	httpListenPort                    int
@@ -57,6 +59,11 @@ func New(globalConfiguration *structs.GlobalTelnetServerConfiguration, httpListe
 	}
 
 	httpRequestTimeoutDuration, err := time.ParseDuration(globalConfiguration.HTTPRequestTimeout)
+	if err != nil {
+		return nil, err
+	}
+
+	maxWaitForOtherNodeConnsBalancingDuration, err := time.ParseDuration(globalConfiguration.MaxWaitForOtherNodeConnsBalancing)
 	if err != nil {
 		return nil, err
 	}
@@ -85,6 +92,7 @@ func New(globalConfiguration *structs.GlobalTelnetServerConfiguration, httpListe
 	return &Manager{
 		connectionBalanceCheckTimeout:     connectionBalanceCheckTimeoutDuration,
 		maxWaitForDropTelnetConnsInterval: maxWaitForDropTelnetConnsIntervalDuration,
+		maxWaitForOtherNodeConnsBalancing: maxWaitForOtherNodeConnsBalancingDuration,
 		connectionBalanceStarted:          false,
 		collector:                         collector,
 		logger:                            logger,
@@ -92,6 +100,7 @@ func New(globalConfiguration *structs.GlobalTelnetServerConfiguration, httpListe
 		terminate:                         false,
 		httpListenPort:                    httpListenPort,
 		sharedConnectionCounter:           0,
+		haltBalancingProcess:              0,
 		globalConfiguration:               globalConfiguration,
 		otherNodes:                        otherNodes,
 		numOtherNodes:                     len(otherNodes),
@@ -200,9 +209,21 @@ func (manager *Manager) startConnectionBalancer() {
 		curConns := atomic.LoadUint32(&manager.sharedConnectionCounter)
 
 		var sum uint32
+		var stopBalancing bool
 
 		for i := 0; i < manager.numOtherNodes; i++ {
+
+			if curConns < results[i] {
+				manager.logger.Info(fmt.Sprintf("there is another node with more connections: %s (%d)", manager.otherNodes[i], results[i]), lf...)
+				stopBalancing = true
+				break
+			}
+
 			sum += results[i]
+		}
+
+		if stopBalancing {
+			continue
 		}
 
 		average := uint32(math.Ceil(float64(sum) / float64(manager.numOtherNodes)))
@@ -213,19 +234,39 @@ func (manager *Manager) startConnectionBalancer() {
 			excess := diff - manager.globalConfiguration.MaxUnbalancedTelnetConnsPerNode
 
 			if excess > 0 {
-				manager.dropConnections(excess)
+
+				if !manager.dropConnections(excess) {
+
+					<-time.After(manager.maxWaitForOtherNodeConnsBalancing)
+
+					if atomic.CompareAndSwapUint32(&manager.haltBalancingProcess, 1, 0) {
+						manager.logger.Info("resuming the balancing process", lf...)
+					} else {
+						manager.logger.Warn("balancing process is already running, something went wrong...", lf...)
+					}
+				}
 			}
 		}
 	}
 }
 
 // dropConnections - add connections to be dropped and halt all new connections
-func (manager *Manager) dropConnections(excess uint32) {
+func (manager *Manager) dropConnections(excess uint32) bool {
 
 	lf := []zapcore.Field{
 		zap.String("package", "telnetmgr"),
 		zap.String("func", "dropConnections"),
 	}
+
+	if atomic.LoadUint32(&manager.haltBalancingProcess) > 0 {
+
+		manager.logger.Info("telnet balancing process is halted, waiting...", lf...)
+
+		return false
+	}
+
+	manager.logger.Info("halting connection balancing on other nodes", lf...)
+	manager.haltBalancingOnOtherNodes()
 
 	manager.logger.Info(fmt.Sprintf("the number of telnet connections was exceeded by %d connections", excess), lf...)
 
@@ -266,6 +307,8 @@ func (manager *Manager) dropConnections(excess uint32) {
 		manager.logger.Info(fmt.Sprintf("setting server to accept new connections: %s", manager.servers[i].GetName()), lf...)
 		manager.servers[i].DenyNewConnections(false)
 	}
+
+	return true
 }
 
 // getNumConnectionsFromNode - does a HEAD request to get number of connections from another node
@@ -281,7 +324,7 @@ func (manager *Manager) getNumConnectionsFromNode(node string, result *uint32, w
 
 	manager.logger.Debug(fmt.Sprintf("asking node for the number of connections..."), lf...)
 
-	url := fmt.Sprintf("http://%s:%d/%s", node, manager.httpListenPort, URI)
+	url := fmt.Sprintf("http://%s:%d/%s", node, manager.httpListenPort, CountConnsURI)
 
 	resp, err := manager.httpClient.Head(url)
 	if err != nil {
@@ -295,7 +338,7 @@ func (manager *Manager) getNumConnectionsFromNode(node string, result *uint32, w
 	}
 
 	if len(resp.Header[HTTPHeaderTotalConnections]) != 1 {
-		manager.logger.Error(fmt.Sprintf("unexpected array of values in header '%s'", HTTPHeaderTotalConnections), lf...)
+		manager.logger.Error(fmt.Sprintf("unexpected array of values in header: '%s'", HTTPHeaderTotalConnections), lf...)
 		return
 	}
 
@@ -308,6 +351,42 @@ func (manager *Manager) getNumConnectionsFromNode(node string, result *uint32, w
 	manager.logger.Debug(fmt.Sprintf("node has %d connections", r), lf...)
 
 	(*result) = uint32(r)
+
+	return
+}
+
+// haltBalancingOnOtherNodes - does a HEAD request to tell other nodes to halt the balancing
+func (manager *Manager) haltBalancingOnOtherNodes() {
+
+	lf := []zapcore.Field{
+		zap.String("package", "telnetmgr"),
+		zap.String("func", "haltBalancingOnOtherNodes"),
+	}
+
+	for _, node := range manager.otherNodes {
+
+		manager.logger.Info(fmt.Sprintf("notifying node to halt the balancing process: %s", node), lf...)
+
+		url := fmt.Sprintf("http://%s:%d/%s", node, manager.httpListenPort, HaltConnsURI)
+
+		resp, err := manager.httpClient.Head(url)
+		if err != nil {
+			manager.logger.Error(err.Error(), lf...)
+			return
+		}
+
+		if resp.StatusCode == http.StatusProcessing {
+			manager.logger.Info(fmt.Sprintf("node is already halting the balancing process: %s", node), lf...)
+			continue
+		}
+
+		if resp.StatusCode == http.StatusOK {
+			manager.logger.Info(fmt.Sprintf("node was notified to halt the connection balancing: %s", node), lf...)
+			continue
+		}
+
+		manager.logger.Error(fmt.Sprintf("error requesting node's to halt the balancing process: %s", node), lf...)
+	}
 
 	return
 }

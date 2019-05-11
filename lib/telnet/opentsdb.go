@@ -35,6 +35,7 @@ func NewOpenTSDBHandler(collector *collector.Collector, logger *zap.Logger) *Ope
 			zap.String("func", "Handle"),
 		},
 		sourceName: "telnet-opentsdb",
+		logger:     logger,
 	}
 }
 
@@ -92,7 +93,7 @@ func (otsdbh *OpenTSDBHandler) Handle(line string) {
 	otsdbh.collector.HandlePacket(point, validatedPoint, true, otsdbh.sourceName, nil)
 }
 
-// sourceName - returns the connection type name
+// SourceName - returns the connection type name
 func (otsdbh *OpenTSDBHandler) SourceName() string {
 	return otsdbh.sourceName
 }
