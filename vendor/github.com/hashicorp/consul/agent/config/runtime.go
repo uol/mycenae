@@ -320,6 +320,14 @@ type RuntimeConfig struct {
 	// hcl: http_config { block_endpoints = []string }
 	HTTPBlockEndpoints []string
 
+	// AllowWriteHTTPFrom restricts the agent write endpoints to the given
+	// networks. Any request to a protected endpoint that is not mactched
+	// by one of these networks will get a 403 response.
+	// An empty slice means no restriction.
+	//
+	// hcl: http_config { allow_write_http_from = []string }
+	AllowWriteHTTPFrom []*net.IPNet
+
 	// HTTPResponseHeaders are used to add HTTP header response fields to the HTTP API responses.
 	//
 	// hcl: http_config { response_headers = map[string]string }
@@ -531,7 +539,7 @@ type RuntimeConfig struct {
 	// ConnectReplicationToken is the ACL token used for replicating intentions.
 	ConnectReplicationToken string
 
-	// ConnectTestDisableManagedProxies is not exposed to public config but us
+	// ConnectTestDisableManagedProxies is not exposed to public config but is
 	// used by TestAgent to prevent self-executing the test binary in the
 	// background if a managed proxy is created for a test. The only place we
 	// actually want to test processes really being spun up and managed is in
@@ -540,6 +548,13 @@ type RuntimeConfig struct {
 	// all the agent state for them, just doesn't actually start external
 	// processes up.
 	ConnectTestDisableManagedProxies bool
+
+	// ConnectTestCALeafRootChangeSpread is used to control how long the CA leaf
+	// cache with spread CSRs over when a root change occurs. For now we don't
+	// expose this in public config intentionally but could later with a rename.
+	// We only set this from during tests to effectively make CA rotation tests
+	// deterministic again.
+	ConnectTestCALeafRootChangeSpread time.Duration
 
 	// DNSAddrs contains the list of TCP and UDP addresses the DNS server will
 	// bind to. If the DNS endpoint is disabled (ports.dns <= 0) the list is

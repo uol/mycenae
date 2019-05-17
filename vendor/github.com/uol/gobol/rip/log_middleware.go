@@ -3,7 +3,6 @@ package rip
 import (
 	"context"
 	"fmt"
-	"net"
 	"net/http"
 	"strconv"
 	"time"
@@ -59,19 +58,27 @@ func NewLogMiddleware(service, system string, logger *zap.Logger, sts *snitch.St
 		logger:    logger,
 		stats:     sts,
 		allowCORS: allowCORS,
+		connectionStatsTags: map[string]string{
+			"type":   "tcp",
+			"source": "http",
+		},
 	}
 }
 
 type LogHandler struct {
-	service   string
-	system    string
-	next      http.Handler
-	logger    *zap.Logger
-	stats     *snitch.Stats
-	allowCORS bool
+	service             string
+	system              string
+	next                http.Handler
+	logger              *zap.Logger
+	stats               *snitch.Stats
+	allowCORS           bool
+	connectionStatsTags map[string]string
 }
 
 func (h *LogHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+
+	go h.incrementHTTPConn()
+
 	start := time.Now()
 
 	rid := uuid.NewRandom().String()
@@ -96,32 +103,7 @@ func (h *LogHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	status := logw.status
 
-	addr, _, _ := net.SplitHostPort(r.RemoteAddr)
-
 	d := time.Since(start)
-
-	reqLogger := h.logger.With(
-		zap.String("id", rid),
-		zap.Int("status", status),
-		zap.String("method", r.Method),
-		zap.String("path", r.RequestURI),
-		zap.String("remote", addr),
-		zap.String("service", h.service),
-		zap.String("system", h.system),
-		zap.String("duration", d.String()),
-		zap.Int("size", logw.size),
-		zap.String("user-agent", r.UserAgent()),
-	)
-
-	if f := r.Header.Get("X-FORWARDED-FOR"); f != "" {
-		reqLogger = reqLogger.With(zap.String("forward", f))
-	}
-
-	if status >= http.StatusInternalServerError {
-		reqLogger.Error("completed handling request with errors")
-	} else {
-		reqLogger.Info("completed handling request")
-	}
 
 	tags := map[string]string{
 		"protocol": r.Proto,
@@ -172,6 +154,19 @@ func (h *LogHandler) valueAdd(metric string, tags map[string]string, v float64) 
 			zap.String("package", "rip"),
 			zap.String("func", "statsValueAdd"),
 			zap.String("metric", metric),
+		)
+	}
+}
+
+func (h *LogHandler) incrementHTTPConn() {
+	err := h.stats.Increment("network.connection", h.connectionStatsTags, "@every 10s", false, true)
+	if err != nil {
+		h.logger.Error(
+			"",
+			zap.Error(err),
+			zap.String("package", "rip"),
+			zap.String("func", "incrementHTTPConn"),
+			zap.String("metric", "network.connection"),
 		)
 	}
 }

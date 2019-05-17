@@ -3,7 +3,6 @@ package collector
 import (
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/uol/gobol"
 	"github.com/uol/mycenae/lib/utils"
@@ -24,7 +23,7 @@ func (collector *Collector) logPointError(p *TSDBpoint, err error, lf []zapcore.
 }
 
 // Validates a point and fills the packet
-func (collector *Collector) makePacket(packet *Point, rcvMsg TSDBpoint, number bool) gobol.Error {
+func (collector *Collector) MakePacket(packet *Point, rcvMsg TSDBpoint, number bool) gobol.Error {
 
 	lf := []zapcore.Field{
 		zap.String("package", "collector"),
@@ -167,47 +166,4 @@ func (collector *Collector) makePacket(packet *Point, rcvMsg TSDBpoint, number b
 	}
 
 	return nil
-}
-
-func (collector *Collector) validateTelnetFormat(body string) (TSDBpoint, gobol.Error) {
-
-	point := TSDBpoint{}
-	bodyParts := strings.Split(body, " ")
-
-	if bodyParts[0] != "put" {
-		gerr := errValidationTelnet("First argument must be 'put'")
-		return point, gerr
-	}
-
-	timestamp, err := strconv.ParseInt(bodyParts[2], 10, 64)
-	if err != nil {
-		gerr := errValidationTelnet("Third argument must be a timestamp")
-		return point, gerr
-	}
-
-	value, err := strconv.ParseFloat(bodyParts[3], 64)
-	if err != nil {
-		gerr := errValidationTelnet("Fourth argument must be a float value")
-		return point, gerr
-	}
-
-	tagsSlice := bodyParts[4:]
-	tags := map[string]string{}
-
-	for _, t := range tagsSlice {
-		tagKV := strings.Split(t, "=")
-		if len(tagKV) != 2 {
-			gerr := errValidationTelnet("Tags should be formed as follows tagk1=tagv1[ tagk2=tagv2 ...tagkN=tagvN]")
-			return point, gerr
-		}
-
-		tags[tagKV[0]] = tagKV[1]
-	}
-
-	point.Metric = bodyParts[1]
-	point.Tags = tags
-	point.Value = &value
-	point.Timestamp = timestamp
-
-	return point, nil
 }

@@ -94,9 +94,10 @@ The options below are all specified on the command-line.
   Event handlers can be changed by reloading the configuration.
 
 * `-join` - Address of another agent to join upon starting up. This can be
-  specified multiple times to specify multiple agents to join. If Serf is
-  unable to join with any of the specified addresses, agent startup will
-  fail. By default, the agent won't join any nodes when it starts up.
+  specified multiple times to specify multiple agents to join. Startup will
+  succeed if any specified agent can be joined, but will fail if none of the
+  agents specified can be joined. By default, the agent won't join any nodes
+  when it starts up.
 
 * `-replay` - If set, old user events from the past will be replayed for the
   agent/cluster that is joining based on a `-join` configuration. Otherwise,
@@ -140,6 +141,8 @@ The options below are all specified on the command-line.
 * `-retry-max` - Provides a limit on how many attempts to join the cluster
   can be made by `-retry-join`. If 0, there is no limit, and the agent will
   retry forever. Defaults to 0.
+  
+* `-disable-compression` - Disable message compression for broadcasting events. Enabled by default. **Useful for debugging message payloads**.
 
 * `-role` - **Deprecated** The role of this node, if any. By default this is blank or empty.
   The role can be used by events in order to differentiate members of a

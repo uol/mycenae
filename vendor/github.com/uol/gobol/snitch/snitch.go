@@ -21,27 +21,30 @@ import (
 // The timeseries backend address and port. The POST interval. The default tags
 // to be added to all points and a map of all points.
 type Stats struct {
-	logger   *zap.Logger
-	cron     *cron.Cron
-	address  string
-	port     string
-	tags     map[string]string
-	proto    string
-	timeout  time.Duration
-	postInt  time.Duration
-	points   map[string]*CustomPoint
-	hBuffer  []message
-	receiver chan message
+	logger              *zap.Logger
+	cron                *cron.Cron
+	address             string
+	port                int
+	tags                map[string]string
+	proto               string
+	timeout             time.Duration
+	postInt             time.Duration
+	points              map[string]*CustomPoint
+	hBuffer             []message
+	receiver            chan message
+	raiseDebugVerbosity bool
+	terminate           bool
 
 	mtx sync.RWMutex
 }
 
 // New creates a new stats
 func New(logger *zap.Logger, settings Settings) (*Stats, error) {
+
 	if settings.Address == "" {
 		return nil, errors.New("address is required")
 	}
-	if settings.Port == "" {
+	if settings.Port == 0 {
 		return nil, errors.New("port is required")
 	}
 	if settings.Protocol != "http" && settings.Protocol != "udp" {
@@ -78,23 +81,32 @@ func New(logger *zap.Logger, settings Settings) (*Stats, error) {
 	tags["host"] = hostname
 
 	stats := &Stats{
-		cron:     cron.New(),
-		address:  settings.Address,
-		port:     settings.Port,
-		proto:    settings.Protocol,
-		timeout:  dur,
-		postInt:  postInt,
-		logger:   logger,
-		tags:     tags,
-		points:   make(map[string]*CustomPoint),
-		hBuffer:  []message{},
-		receiver: make(chan message),
+		cron:                cron.New(),
+		address:             settings.Address,
+		port:                settings.Port,
+		proto:               settings.Protocol,
+		timeout:             dur,
+		postInt:             postInt,
+		logger:              logger,
+		tags:                tags,
+		points:              make(map[string]*CustomPoint),
+		hBuffer:             []message{},
+		receiver:            make(chan message),
+		raiseDebugVerbosity: settings.RaiseDebugVerbosity,
+		terminate:           false,
 	}
 	go stats.start(settings.Runtime)
 	return stats, nil
 }
 
+// Terminate - terminates the instance
+func (st *Stats) Terminate() {
+
+	st.terminate = true
+}
+
 func (st *Stats) start(runtime bool) {
+
 	if st == nil {
 		return
 	}
@@ -117,10 +129,13 @@ func (st *Stats) start(runtime bool) {
 }
 
 func (st *Stats) runtimeLoop() {
-	ticker := time.NewTicker(30 * time.Second)
 
 	for {
-		<-ticker.C
+		<-time.After(30 * time.Second)
+		if st.terminate {
+			st.logger.Info("terminating the runtime loop")
+			return
+		}
 		st.ValueAdd(
 			"runtime.goroutines.count",
 			st.tags, "max", "@every 1m", false, true,
@@ -130,7 +145,7 @@ func (st *Stats) runtimeLoop() {
 }
 
 func (st *Stats) clientUDP() {
-	conn, err := net.Dial("udp", fmt.Sprintf("%s:%s", st.address, st.port))
+	conn, err := net.Dial("udp", fmt.Sprintf("%s:%d", st.address, st.port))
 	if err != nil {
 		st.logger.Error("connect", zap.Error(err))
 	} else {
@@ -138,25 +153,28 @@ func (st *Stats) clientUDP() {
 	}
 
 	for {
-		select {
-		case messageData := <-st.receiver:
-			payload, err := json.Marshal(messageData)
-			if err != nil {
-				st.logger.Error("marshal", zap.Error(err))
-			}
+		if st.terminate {
+			st.logger.Info("terminating the udp client loop")
+			return
+		}
 
-			if conn != nil {
-				_, err = conn.Write(payload)
-				if err != nil {
-					st.logger.Error("write", zap.Error(err))
-				}
+		messageData := <-st.receiver
+		payload, err := json.Marshal(messageData)
+		if err != nil {
+			st.logger.Error("marshal", zap.Error(err))
+		}
+
+		if conn != nil {
+			_, err = conn.Write(payload)
+			if err != nil {
+				st.logger.Error("write", zap.Error(err))
+			}
+		} else {
+			conn, err = net.Dial("udp", fmt.Sprintf("%s:%d", st.address, st.port))
+			if err != nil {
+				st.logger.Error("connect", zap.Error(err))
 			} else {
-				conn, err = net.Dial("udp", fmt.Sprintf("%s:%s", st.address, st.port))
-				if err != nil {
-					st.logger.Error("connect", zap.Error(err))
-				} else {
-					defer conn.Close()
-				}
+				defer conn.Close()
 			}
 		}
 	}
@@ -167,9 +185,14 @@ func (st *Stats) clientHTTP() {
 		Timeout: st.timeout,
 	}
 
-	url := fmt.Sprintf("%s://%s:%s/api/put", st.proto, st.address, st.port)
+	url := fmt.Sprintf("%s://%s:%d/api/put", st.proto, st.address, st.port)
 	ticker := time.NewTicker(st.postInt)
 	for {
+		if st.terminate {
+			st.logger.Info("terminating the http client loop")
+			return
+		}
+
 		select {
 		case messageData := <-st.receiver:
 			st.hBuffer = append(st.hBuffer, messageData)
@@ -194,7 +217,9 @@ func (st *Stats) clientHTTP() {
 				if err != nil {
 					st.logger.Error("", zap.Error(err))
 				}
-				st.logger.Debug(string(reqResponse))
+				if st.raiseDebugVerbosity {
+					st.logger.Debug(string(reqResponse))
+				}
 			}
 			st.hBuffer = []message{}
 			resp.Body.Close()

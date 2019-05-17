@@ -2619,6 +2619,80 @@ func TestConfigFlagsAndEdgecases(t *testing.T) {
 				}
 			},
 		},
+		{
+			// This tests checks that VerifyServerHostname implies VerifyOutgoing
+			desc: "verify_server_hostname implies verify_outgoing",
+			args: []string{
+				`-data-dir=` + dataDir,
+			},
+			json: []string{`{
+			  "verify_server_hostname": true
+			}`},
+			hcl: []string{`
+			  verify_server_hostname = true
+			`},
+			patch: func(rt *RuntimeConfig) {
+				rt.DataDir = dataDir
+				rt.VerifyServerHostname = true
+				rt.VerifyOutgoing = true
+			},
+		},
+		{
+			desc: "test connect vault provider configuration",
+			args: []string{
+				`-data-dir=` + dataDir,
+			},
+			json: []string{`{
+				"connect": {
+					"enabled": true,
+					"ca_provider": "vault",
+					"ca_config": {
+						"ca_file": "/capath/ca.pem",
+						"ca_path": "/capath/",
+						"cert_file": "/certpath/cert.pem",
+						"key_file": "/certpath/key.pem",
+						"tls_server_name": "server.name",
+						"tls_skip_verify": true,
+						"token": "abc",
+						"root_pki_path": "consul-vault",
+						"intermediate_pki_path": "connect-intermediate"
+					}
+				}
+			}`},
+			hcl: []string{`
+			  connect {
+					enabled = true
+					ca_provider = "vault"
+					ca_config {
+						ca_file = "/capath/ca.pem"
+						ca_path = "/capath/"
+						cert_file = "/certpath/cert.pem"
+						key_file = "/certpath/key.pem"
+						tls_server_name = "server.name"
+						tls_skip_verify = true
+						token = "abc"
+						root_pki_path = "consul-vault"
+						intermediate_pki_path = "connect-intermediate"
+					}
+				}
+			`},
+			patch: func(rt *RuntimeConfig) {
+				rt.DataDir = dataDir
+				rt.ConnectEnabled = true
+				rt.ConnectCAProvider = "vault"
+				rt.ConnectCAConfig = map[string]interface{}{
+					"CAFile":              "/capath/ca.pem",
+					"CAPath":              "/capath/",
+					"CertFile":            "/certpath/cert.pem",
+					"KeyFile":             "/certpath/key.pem",
+					"TLSServerName":       "server.name",
+					"TLSSkipVerify":       true,
+					"Token":               "abc",
+					"RootPKIPath":         "consul-vault",
+					"IntermediatePKIPath": "connect-intermediate",
+				}
+			},
+		},
 	}
 
 	testConfig(t, tests, dataDir)
@@ -2801,6 +2875,11 @@ func TestFullConfig(t *testing.T) {
 	dataDir := testutil.TempDir(t, "consul")
 	defer os.RemoveAll(dataDir)
 
+	cidr := func(s string) *net.IPNet {
+		_, n, _ := net.ParseCIDR(s)
+		return n
+	}
+
 	flagSrc := []string{`-dev`}
 	src := map[string]string{
 		"json": `{
@@ -2930,8 +3009,10 @@ func TestFullConfig(t *testing.T) {
 			"connect": {
 				"ca_provider": "consul",
 				"ca_config": {
-					"RotationPeriod": "90h",
-					"LeafCertTTL": "1h"
+					"rotation_period": "90h",
+					"leaf_cert_ttl": "1h",
+					"csr_max_per_second": 100,
+					"csr_max_concurrent": 2
 				},
 				"enabled": true,
 				"proxy_defaults": {
@@ -2998,6 +3079,7 @@ func TestFullConfig(t *testing.T) {
 			"encrypt_verify_outgoing": true,
 			"http_config": {
 				"block_endpoints": [ "RBvAFcGD", "fWOWFznh" ],
+				"allow_write_http_from": [ "127.0.0.1/8", "22.33.44.55/32", "0.0.0.0/0" ],
 				"response_headers": {
 					"M6TKa9NP": "xjuxjOzQ",
 					"JRCrHZed": "rl0mTx81"
@@ -3478,6 +3560,10 @@ func TestFullConfig(t *testing.T) {
 				ca_config {
 					rotation_period = "90h"
 					leaf_cert_ttl = "1h"
+					# hack float since json parses numbers as float and we have to
+					# assert against the same thing
+					csr_max_per_second = 100.0
+					csr_max_concurrent = 2.0
 				}
 				enabled = true
 				proxy_defaults {
@@ -3546,6 +3632,7 @@ func TestFullConfig(t *testing.T) {
 			encrypt_verify_outgoing = true
 			http_config {
 				block_endpoints = [ "RBvAFcGD", "fWOWFznh" ]
+				allow_write_http_from = [ "127.0.0.1/8", "22.33.44.55/32", "0.0.0.0/0" ]
 				response_headers = {
 					"M6TKa9NP" = "xjuxjOzQ"
 					"JRCrHZed" = "rl0mTx81"
@@ -4130,8 +4217,10 @@ func TestFullConfig(t *testing.T) {
 		ConnectSidecarMaxPort:   9999,
 		ConnectCAProvider:       "consul",
 		ConnectCAConfig: map[string]interface{}{
-			"RotationPeriod": "90h",
-			"LeafCertTTL":    "1h",
+			"RotationPeriod":   "90h",
+			"LeafCertTTL":      "1h",
+			"CSRMaxPerSecond":  float64(100),
+			"CSRMaxConcurrent": float64(2),
 		},
 		ConnectProxyAllowManagedRoot:            false,
 		ConnectProxyAllowManagedAPIRegistration: false,
@@ -4185,6 +4274,7 @@ func TestFullConfig(t *testing.T) {
 		GRPCAddrs:                        []net.Addr{tcpAddr("32.31.61.91:4881")},
 		HTTPAddrs:                        []net.Addr{tcpAddr("83.39.91.39:7999")},
 		HTTPBlockEndpoints:               []string{"RBvAFcGD", "fWOWFznh"},
+		AllowWriteHTTPFrom:               []*net.IPNet{cidr("127.0.0.0/8"), cidr("22.33.44.55/32"), cidr("0.0.0.0/0")},
 		HTTPPort:                         7999,
 		HTTPResponseHeaders:              map[string]string{"M6TKa9NP": "xjuxjOzQ", "JRCrHZed": "rl0mTx81"},
 		HTTPSAddrs:                       []net.Addr{tcpAddr("95.17.17.19:15127")},
@@ -4907,6 +4997,7 @@ func TestSanitize(t *testing.T) {
 		"ConnectProxyDefaultScriptCommand": [],
 		"ConnectSidecarMaxPort": 0,
 		"ConnectSidecarMinPort": 0,
+		"ConnectTestCALeafRootChangeSpread": "0s",
 		"ConnectReplicationToken": "hidden",
 		"ConnectTestDisableManagedProxies": false,
 		"ConsulCoordinateUpdateBatchSize": 0,
@@ -5122,7 +5213,8 @@ func TestSanitize(t *testing.T) {
 		"VerifyServerHostname": false,
 		"Version": "",
 		"VersionPrerelease": "",
-		"Watches": []
+		"Watches": [],
+		"AllowWriteHTTPFrom": []
 	}`
 	b, err := json.MarshalIndent(rt.Sanitized(), "", "    ")
 	if err != nil {

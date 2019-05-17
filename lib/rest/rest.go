@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"time"
+
+	"github.com/uol/mycenae/lib/telnetmgr"
 
 	"go.uber.org/zap/zapcore"
 
@@ -25,7 +28,7 @@ import (
 
 // New returns http handler to the endpoints
 func New(
-	log *structs.TsLog,
+	log *structs.Loggers,
 	gbs *snitch.Stats,
 	p *plot.Plot,
 	keyspace *keyspace.Keyspace,
@@ -34,6 +37,7 @@ func New(
 	set structs.SettingsHTTP,
 	probeThreshold float64,
 	ks *keyset.KeySet,
+	telnetManager *telnetmgr.Manager,
 ) *REST {
 
 	return &REST{
@@ -41,14 +45,15 @@ func New(
 		probeStatus:    http.StatusOK,
 		closed:         make(chan struct{}),
 
-		gblog:     log.General,
-		sts:       gbs,
-		reader:    p,
-		kspace:    keyspace,
-		memcached: mc,
-		writer:    collector,
-		settings:  set,
-		keyset:    ks,
+		gblog:         log.General,
+		sts:           gbs,
+		reader:        p,
+		kspace:        keyspace,
+		memcached:     mc,
+		writer:        collector,
+		settings:      set,
+		keyset:        ks,
+		telnetManager: telnetManager,
 	}
 }
 
@@ -58,15 +63,16 @@ type REST struct {
 	probeStatus    int
 	closed         chan struct{}
 
-	gblog     *zap.Logger
-	sts       *snitch.Stats
-	reader    *plot.Plot
-	kspace    *keyspace.Keyspace
-	memcached *memcached.Memcached
-	writer    *collector.Collector
-	settings  structs.SettingsHTTP
-	server    *http.Server
-	keyset    *keyset.KeySet
+	gblog         *zap.Logger
+	sts           *snitch.Stats
+	reader        *plot.Plot
+	kspace        *keyspace.Keyspace
+	memcached     *memcached.Memcached
+	writer        *collector.Collector
+	settings      structs.SettingsHTTP
+	server        *http.Server
+	keyset        *keyset.KeySet
+	telnetManager *telnetmgr.Manager
 }
 
 // Start asynchronously the handler of the APIs
@@ -98,6 +104,9 @@ func (trest *REST) asyncStart() {
 	path := trest.settings.Path
 
 	router := rip.NewCustomRouter()
+	//NODE TO NODE
+	router.HEAD(path+"node/connections", trest.telnetManager.CountConnections)
+	router.HEAD(path+"node/halt/balancing", trest.telnetManager.HaltTelnetBalancingProcess)
 	//PROBE
 	router.GET(path+"probe", trest.check)
 	//READ
@@ -132,8 +141,6 @@ func (trest *REST) asyncStart() {
 	//WRITE
 	router.POST(path+"api/put", trest.writer.HandleNumber)
 	router.PUT(path+"api/put", trest.writer.HandleNumber)
-	router.POST(path+"api/netdata", trest.writer.HandleNumberTelnetFormat)
-	router.PUT(path+"api/netdata", trest.writer.HandleNumberTelnetFormat)
 	router.POST(path+"api/text/put", trest.writer.HandleText)
 	//OPENTSDB
 	router.POST("/keysets/:keyset/api/query", trest.reader.Query)
@@ -153,7 +160,7 @@ func (trest *REST) asyncStart() {
 	router.POST(path+"keysets/:keyset/delete/text/meta", trest.reader.DeleteTextTS)
 
 	trest.server = &http.Server{
-		Addr: fmt.Sprintf("%s:%s", trest.settings.Bind, trest.settings.Port),
+		Addr: fmt.Sprintf("%s:%d", trest.settings.Bind, trest.settings.Port),
 		Handler: rip.NewLogMiddleware(
 			"mycenae",
 			"mycenae",
@@ -162,6 +169,10 @@ func (trest *REST) asyncStart() {
 			rip.NewGzipMiddleware(rip.BestSpeed, router),
 			true,
 		),
+		ReadTimeout:       60 * time.Second,
+		ReadHeaderTimeout: 60 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		MaxHeaderBytes:    10485760,
 	}
 
 	err := trest.server.ListenAndServe()

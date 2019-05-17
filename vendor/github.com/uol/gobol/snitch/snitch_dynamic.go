@@ -17,7 +17,7 @@ func keyFromMetricID(metric string, tags map[string]string) string {
 		copy(s, k)
 		copy(s[len(k):], "=")
 		copy(s[len(k)+1:], v)
-		//merged = append(merged, fmt.Sprintf("%s=%s", k, v))
+
 		merged = append(merged, string(s))
 	}
 	sort.Strings(merged)
@@ -79,13 +79,16 @@ func (st *Stats) getPoint(
 		},
 		post: func(p *CustomPoint) {
 
-			st.logger.Debug(
-				"collected",
-				zap.String("metric", p.metric),
-				zap.String("interval", p.interval),
-				zap.Float64("value", p.GetValue()),
-				zap.Bool("null", p.IsValueNull()),
-			)
+			if st.raiseDebugVerbosity {
+				st.logger.Debug(
+					"collected",
+					zap.String("metric", p.metric),
+					zap.String("interval", p.interval),
+					zap.Float64("value", p.GetValue()),
+					zap.Bool("null", p.IsValueNull()),
+				)
+			}
+
 			if p.aggregation != "" || !p.keepValue {
 				p.SetValue(0)
 				p.SetCount(0)

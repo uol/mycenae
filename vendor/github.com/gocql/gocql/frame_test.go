@@ -2,6 +2,7 @@ package gocql
 
 import (
 	"bytes"
+	"os"
 	"testing"
 )
 
@@ -48,16 +49,21 @@ func TestFuzzBugs(t *testing.T) {
 			continue
 		}
 
-		_, err = framer.parseFrame()
+		frame, err := framer.parseFrame()
 		if err != nil {
 			continue
 		}
 
-		t.Errorf("(%d) expected to fail for input %q", i, test)
+		t.Errorf("(%d) expected to fail for input % X", i, test)
+		t.Errorf("(%d) frame=%+#v", i, frame)
 	}
 }
 
 func TestFrameWriteTooLong(t *testing.T) {
+	if os.Getenv("TRAVIS") == "true" {
+		t.Skip("skipping test in travis due to memory pressure with the race detecor")
+	}
+
 	w := &bytes.Buffer{}
 	framer := newFramer(nil, w, nil, 2)
 
@@ -70,6 +76,10 @@ func TestFrameWriteTooLong(t *testing.T) {
 }
 
 func TestFrameReadTooLong(t *testing.T) {
+	if os.Getenv("TRAVIS") == "true" {
+		t.Skip("skipping test in travis due to memory pressure with the race detecor")
+	}
+
 	r := &bytes.Buffer{}
 	r.Write(make([]byte, maxFrameSize+1))
 	// write a new header right after this frame to verify that we can read it

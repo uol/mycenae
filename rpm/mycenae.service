@@ -13,7 +13,9 @@ LimitNPROC=65535
 LimitMEMLOCK=infinity
 LimitNOFILE=800000
 LimitAS=infinity
-MemoryLimit=14G
+RemainAfterExit=no
+Restart=on-failure
+RestartSec=20s
 
 [Install]
 Alias=mycenae.service

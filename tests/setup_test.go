@@ -40,13 +40,13 @@ func TestMain(m *testing.M) {
 		ProtoVersion:   4,
 	})
 
-	mycenaeTools.InitHTTP("http://mycenae", "8080", 3*time.Minute)
+	mycenaeTools.InitHTTP("http://mycenae", "8082", 3*time.Minute)
 
 	mycenaeTools.InitUDP("mycenae", "4243")
 
 	mycenaeTools.InitMycenae(tools.RestAPISettings{
 		Node:    "http://mycenae",
-		Port:    "8080",
+		Port:    "8082",
 		Timeout: 5 * time.Minute,
 	})
 

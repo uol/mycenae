@@ -14,6 +14,11 @@ import (
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 )
 
+//
+// A helper to create connection to the Cockroach DB
+// author: rnojiri
+//
+
 // Connection - the connection manager
 type Connection struct {
 	dbConnection *gorm.DB

@@ -1,22 +1,27 @@
-// +build all integration
+// +build all cassandra
 
 package gocql
 
 import (
+	"context"
 	"fmt"
 	"testing"
 )
 
 func TestSessionAPI(t *testing.T) {
-
 	cfg := &ClusterConfig{}
 
 	s := &Session{
-		cfg:  *cfg,
-		cons: Quorum,
+		cfg:    *cfg,
+		cons:   Quorum,
+		policy: RoundRobinHostPolicy(),
 	}
 
 	s.pool = cfg.PoolConfig.buildPool(s)
+	s.executor = &queryExecutor{
+		pool:   s.pool,
+		policy: s.policy,
+	}
 	defer s.Close()
 
 	s.SetConsistency(All)
@@ -85,15 +90,27 @@ func TestSessionAPI(t *testing.T) {
 	}
 }
 
+type funcQueryObserver func(context.Context, ObservedQuery)
+
+func (f funcQueryObserver) ObserveQuery(ctx context.Context, o ObservedQuery) {
+	f(ctx, o)
+}
+
 func TestQueryBasicAPI(t *testing.T) {
 	qry := &Query{}
 
+	// Initialise metrics map
+	qry.metrics = &queryMetrics{m: make(map[string]*hostMetrics)}
+
+	// Initiate host
+	ip := "127.0.0.1"
+
+	qry.metrics.m[ip] = &hostMetrics{Attempts: 0, TotalLatency: 0}
 	if qry.Latency() != 0 {
 		t.Fatalf("expected Query.Latency() to return 0, got %v", qry.Latency())
 	}
 
-	qry.attempts = 2
-	qry.totalLatency = 4
+	qry.metrics.m[ip] = &hostMetrics{Attempts: 2, TotalLatency: 4}
 	if qry.Attempts() != 2 {
 		t.Fatalf("expected Query.Attempts() to return 2, got %v", qry.Attempts())
 	}
@@ -110,6 +127,12 @@ func TestQueryBasicAPI(t *testing.T) {
 	qry.Trace(trace)
 	if qry.trace != trace {
 		t.Fatalf("expected Query.Trace to be '%v', got '%v'", trace, qry.trace)
+	}
+
+	observer := funcQueryObserver(func(context.Context, ObservedQuery) {})
+	qry.Observer(observer)
+	if qry.observer == nil { // can't compare func to func, checking not nil instead
+		t.Fatal("expected Query.QueryObserver to be set, got nil")
 	}
 
 	qry.PageSize(10)
@@ -165,6 +188,7 @@ func TestBatchBasicAPI(t *testing.T) {
 
 	s.pool = cfg.PoolConfig.buildPool(s)
 
+	// Test UnloggedBatch
 	b := s.NewBatch(UnloggedBatch)
 	if b.Type != UnloggedBatch {
 		t.Fatalf("expceted batch.Type to be '%v', got '%v'", UnloggedBatch, b.Type)
@@ -172,33 +196,41 @@ func TestBatchBasicAPI(t *testing.T) {
 		t.Fatalf("expceted batch.RetryPolicy to be '%v', got '%v'", cfg.RetryPolicy, b.rt)
 	}
 
-	b = NewBatch(LoggedBatch)
+	// Test LoggedBatch
+	b = s.NewBatch(LoggedBatch)
 	if b.Type != LoggedBatch {
 		t.Fatalf("expected batch.Type to be '%v', got '%v'", LoggedBatch, b.Type)
 	}
 
-	b.attempts = 1
+	b.metrics = &queryMetrics{m: make(map[string]*hostMetrics)}
+	ip := "127.0.0.1"
+
+	// Test attempts
+	b.metrics.m[ip] = &hostMetrics{Attempts: 1}
 	if b.Attempts() != 1 {
-		t.Fatalf("expceted batch.Attempts() to return %v, got %v", 1, b.Attempts())
+		t.Fatalf("expected batch.Attempts() to return %v, got %v", 1, b.Attempts())
 	}
 
+	// Test latency
 	if b.Latency() != 0 {
 		t.Fatalf("expected batch.Latency() to be 0, got %v", b.Latency())
 	}
 
-	b.totalLatency = 4
+	b.metrics.m[ip] = &hostMetrics{Attempts: 1, TotalLatency: 4}
 	if b.Latency() != 4 {
 		t.Fatalf("expected batch.Latency() to return %v, got %v", 4, b.Latency())
 	}
 
+	// Test Consistency
 	b.Cons = One
 	if b.GetConsistency() != One {
 		t.Fatalf("expected batch.GetConsistency() to return 'One', got '%s'", b.GetConsistency())
 	}
 
+	// Test batch.Query()
 	b.Query("test", 1)
 	if b.Entries[0].Stmt != "test" {
-		t.Fatalf("expected batch.Entries[0].Stmt to be 'test', got '%v'", b.Entries[0].Stmt)
+		t.Fatalf("expected batch.Entries[0].Statement to be 'test', got '%v'", b.Entries[0].Stmt)
 	} else if b.Entries[0].Args[0].(int) != 1 {
 		t.Fatalf("expected batch.Entries[0].Args[0] to be 1, got %v", b.Entries[0].Args[0])
 	}
@@ -208,10 +240,12 @@ func TestBatchBasicAPI(t *testing.T) {
 	})
 
 	if b.Entries[1].Stmt != "test2" {
-		t.Fatalf("expected batch.Entries[1].Stmt to be 'test2', got '%v'", b.Entries[1].Stmt)
+		t.Fatalf("expected batch.Entries[1].Statement to be 'test2', got '%v'", b.Entries[1].Stmt)
 	} else if b.Entries[1].binding == nil {
 		t.Fatal("expected batch.Entries[1].binding to be defined, got nil")
 	}
+
+	// Test RetryPolicy
 	r := &SimpleRetryPolicy{NumRetries: 4}
 
 	b.RetryPolicy(r)
@@ -243,6 +277,33 @@ func TestConsistencyNames(t *testing.T) {
 	for k, v := range names {
 		if k.String() != v {
 			t.Fatalf("expected '%v', got '%v'", v, k.String())
+		}
+	}
+}
+
+func TestIsUseStatement(t *testing.T) {
+	testCases := []struct {
+		input string
+		exp   bool
+	}{
+		{"USE foo", true},
+		{"USe foo", true},
+		{"UsE foo", true},
+		{"Use foo", true},
+		{"uSE foo", true},
+		{"uSe foo", true},
+		{"usE foo", true},
+		{"use foo", true},
+		{"SELECT ", false},
+		{"UPDATE ", false},
+		{"INSERT ", false},
+		{"", false},
+	}
+
+	for _, tc := range testCases {
+		v := isUseStatement(tc.input)
+		if v != tc.exp {
+			t.Fatalf("expected %v but got %v for statement %q", tc.exp, v, tc.input)
 		}
 	}
 }

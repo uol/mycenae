@@ -41,10 +41,6 @@ func errISE(f, s string, e error) gobol.Error {
 	return nil
 }
 
-func errValidationTelnet(s string) gobol.Error {
-	return errBR("validateTelnetFormat", s, errors.New(s))
-}
-
 func errValidation(s string) gobol.Error {
 	return errBR("makePacket", s, errors.New(s))
 }

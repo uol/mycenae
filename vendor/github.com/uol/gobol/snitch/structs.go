@@ -2,14 +2,15 @@ package snitch
 
 //Settings represents default package-wide settings.
 type Settings struct {
-	Address          string
-	Port             string
-	Protocol         string
-	HTTPTimeout      string
-	HTTPPostInterval string
-	Tags             map[string]string
-	Interval         string
-	Runtime          bool
+	Address             string
+	Port                int
+	Protocol            string
+	HTTPTimeout         string
+	HTTPPostInterval    string
+	Tags                map[string]string
+	Interval            string
+	Runtime             bool
+	RaiseDebugVerbosity bool
 }
 
 //Point holds information required by timeseries and also control variables for the stats package.

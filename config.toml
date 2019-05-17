@@ -64,7 +64,7 @@ AllowCORS = true
 [cassandra]
   keyspace = "mycenae"
   consistency = "one"
-  nodes = ["172.17.0.2","172.17.0.3","172.17.0.4"]
+  nodes = ["182.168.0.2","182.168.0.3","182.168.0.4"]
   username = "cassandra"
   password = "cassandra"
   connections = 3
@@ -76,13 +76,57 @@ AllowCORS = true
   protoVersion = 4
 
 [UDPserver]
-  port = "4243"
+  port = 4243
   readBuffer = 1048576
 
 [HTTPserver]
   path = "/"
-  port = "8080"
-  bind = "0.0.0.0"
+  port = 8082
+  bind = "loghost"
+
+[GlobalTelnetServerConfiguration]
+  # The maximum request time to reach other nodes
+  HTTPRequestTimeout = "10s"
+
+  # The size of the connection close channel
+  ConnectionCloseChannelSize = 10
+
+  # The maximum telnet connections allowed per node
+  MaxTelnetConnections = 10
+
+  # The maximum number of unbalanced telnet connections
+  MaxUnbalancedTelnetConnsPerNode = 2
+
+  # the time duration to check if the node is balanced
+  TelnetConnsBalanceCheckInterval = "10s"
+
+  # the time duration to wait the unbalanced connection be dropped
+  MaxWaitForDropTelnetConnsInterval = "35s"
+
+  # the time duration to wait when a halt request is received for stop the balancing process
+  MaxWaitForOtherNodeConnsBalancing = "35s"
+
+  # the available timeseries nodes
+  Nodes = ["mycenae1", "mycenae2"]
+
+[NetdataServer]
+  port = 8023
+  bind = "loghost"
+  onErrorTimeout = "5s"
+  sendStatsTimeout = "10s"
+  maxIdleConnectionTimeout = "30s"
+  maxBufferSize = 204800
+  cacheDuration = "1m"
+  ServerName = "Netdata Telnet Server"
+
+[TELNETserver]
+  port = 8123
+  bind = "loghost"
+  onErrorTimeout = "5s" 
+  sendStatsTimeout = "10s"
+  maxIdleConnectionTimeout = "30s"
+  maxBufferSize = 204800
+  ServerName = "OpenTSDB Telnet Server"
 
 [logs]
   environment = "PROD"
@@ -94,8 +138,8 @@ AllowCORS = true
     prefix = "stats"
 
 [stats]
-  address = "0.0.0.0"
-  port = "8080"
+  address = "loghost"
+  port = 8082
   protocol = "http"
   httptimeout = "10s"
   httppostinterval = "1m"
@@ -107,8 +151,8 @@ AllowCORS = true
     ksid = "pdeng_stats"
 
 [statsAnalytic]
-  address = "0.0.0.0"
-  port = "8080"
+  address = "loghost"
+  port = 8082
   protocol = "http"
   httptimeout = "10s"
   httppostinterval = "10m"
@@ -125,7 +169,7 @@ AllowCORS = true
 [metadataSettings]
   numShards = 1
   replicationFactor = 1
-  url = "http://172.17.0.6:8983/solr"
+  url = "http://182.168.0.6:8983/solr"
   IDCacheTTL = -1
   QueryCacheTTL = -1
   KeysetCacheTTL = -1
@@ -134,6 +178,6 @@ AllowCORS = true
   BlacklistedKeysets = ["chimera", "blacklist"]
 
 [memcached]
-  pool = ["172.17.0.9:11211","172.17.0.10:11211","172.17.0.11:11211"]
+  pool = ["182.168.0.10:11211","182.168.0.11:11211","182.168.0.12:11211"]
   timeout = 10000
   maxIdleConns = 5

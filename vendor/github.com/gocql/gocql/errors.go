@@ -14,6 +14,8 @@ const (
 	errReadTimeout     = 0x1200
 	errReadFailure     = 0x1300
 	errFunctionFailure = 0x1400
+	errWriteFailure    = 0x1500
+	errCDCWriteFailure = 0x1600
 	errSyntax          = 0x2000
 	errUnauthorized    = 0x2100
 	errInvalid         = 0x2200
@@ -62,12 +64,28 @@ func (e *RequestErrUnavailable) String() string {
 	return fmt.Sprintf("[request_error_unavailable consistency=%s required=%d alive=%d]", e.Consistency, e.Required, e.Alive)
 }
 
+type ErrorMap map[string]uint16
+
 type RequestErrWriteTimeout struct {
 	errorFrame
 	Consistency Consistency
 	Received    int
 	BlockFor    int
 	WriteType   string
+}
+
+type RequestErrWriteFailure struct {
+	errorFrame
+	Consistency Consistency
+	Received    int
+	BlockFor    int
+	NumFailures int
+	WriteType   string
+	ErrorMap    ErrorMap
+}
+
+type RequestErrCDCWriteFailure struct {
+	errorFrame
 }
 
 type RequestErrReadTimeout struct {
@@ -96,6 +114,7 @@ type RequestErrReadFailure struct {
 	BlockFor    int
 	NumFailures int
 	DataPresent bool
+	ErrorMap    ErrorMap
 }
 
 type RequestErrFunctionFailure struct {

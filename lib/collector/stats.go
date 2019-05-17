@@ -97,16 +97,16 @@ func statsValueAdd(metric string, tags map[string]string, v float64) {
 	stats.ValueAdd("collector", metric, tags, v)
 }
 
-func statsCountNewTimeseries(ksid, vt, metric string, ttl int) {
+func statsCountNewTimeseries(ksid, vt string, ttl int) {
 	go statsIncrement(
 		"timeseries.count.new",
-		map[string]string{"target_ksid": ksid, "type": vt, "target_metric": metric, "target_ttl": strconv.Itoa(ttl)},
+		map[string]string{"target_ksid": ksid, "type": vt, "target_ttl": strconv.Itoa(ttl)},
 	)
 }
 
-func statsCountOldTimeseries(ksid, vt, metric string, ttl int) {
+func statsCountOldTimeseries(ksid, vt string, ttl int) {
 	go statsIncrement(
 		"timeseries.count.old",
-		map[string]string{"target_ksid": ksid, "type": vt, "target_metric": metric, "target_ttl": strconv.Itoa(ttl)},
+		map[string]string{"target_ksid": ksid, "type": vt, "target_ttl": strconv.Itoa(ttl)},
 	)
 }
