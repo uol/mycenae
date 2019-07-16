@@ -115,6 +115,36 @@ func TestRemoveTask(t *testing.T) {
 	assert.Equal(t, 3, job.counter, "expected three increments")
 }
 
+// TestRemoveAllTasks - test the removal of all tasks function
+func TestRemoveAllTasks(t *testing.T) {
+
+	job1, manager := createScheduler("x", true)
+
+	job2 := &IncJob{}
+	if !assert.NoError(t, manager.AddTask(scheduler.NewTask("y", 100*time.Millisecond, job2), true), "error was not expected") {
+		return
+	}
+
+	job3 := &IncJob{}
+	if !assert.NoError(t, manager.AddTask(scheduler.NewTask("z", 100*time.Millisecond, job3), true), "error was not expected") {
+		return
+	}
+
+	assert.Equal(t, 3, manager.GetNumTasks(), "expected only three tasks")
+
+	time.Sleep(301 * time.Millisecond)
+
+	manager.RemoveAllTasks()
+
+	assert.Equal(t, 0, manager.GetNumTasks(), "expected no tasks")
+
+	time.Sleep(301 * time.Millisecond)
+
+	assert.Equal(t, 3, job1.counter, "expected three increments")
+	assert.Equal(t, 3, job2.counter, "expected three increments")
+	assert.Equal(t, 3, job3.counter, "expected three increments")
+}
+
 // TestSimultaneousTasks - test multiple running tasks
 func TestSimultaneousTasks(t *testing.T) {
 

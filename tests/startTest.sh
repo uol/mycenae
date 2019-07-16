@@ -21,11 +21,11 @@ scylla2=$(docker inspect --format "{{ .NetworkSettings.Networks.timeseriesNetwor
 scylla3=$(docker inspect --format "{{ .NetworkSettings.Networks.timeseriesNetwork.IPAddress }}" scylla3)
 solr=$(docker inspect --format "{{ .NetworkSettings.Networks.timeseriesNetwork.IPAddress }}" solr1)
 
-mycenaePodId=$(docker ps -f 'name=mycenae' -q)
+mycenaePodId=$(docker ps -f 'name=mycenae1' -q)
 if [ -z "$mycenaePodId" ]; then
     mycenae=$(ifconfig docker0 | grep 'inet addr' | awk -F':' '{print $2}' | awk '{print $1}')
 else
-    mycenae=$(docker inspect --format "{{ .NetworkSettings.Networks.timeseriesNetwork.IPAddress }}" mycenae)
+    mycenae=$(docker inspect --format "{{ .NetworkSettings.Networks.timeseriesNetwork.IPAddress }}" mycenae1)
 fi
 
 docker exec testMycenae /bin/sh -c "echo $scylla1 scylla1 >> /etc/hosts"

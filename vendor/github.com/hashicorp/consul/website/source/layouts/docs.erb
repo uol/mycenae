@@ -3,6 +3,14 @@
     <ul class="nav docs-sidenav">
       <li<%= sidebar_current('docs-install-install') %>>
         <a href="/docs/install/index.html">Installing Consul</a>
+        <ul class="nav">
+          <li<%= sidebar_current("docs-install-ports") %>>
+            <a href="/docs/install/ports.html">Required Ports</a>
+          </li>
+          <li<%= sidebar_current("docs-install-bootstrapping") %>>
+            <a href="/docs/install/bootstrapping.html">Bootstrapping a Datacenter</a>
+          </li>
+        </ul>
       </li>
 
       <li<%= sidebar_current("docs-upgrading") %>>
@@ -292,6 +300,12 @@
           <li<%= sidebar_current("docs-agent-checks") %>>
             <a href="/docs/agent/checks.html">Check Definitions</a>
           </li>
+          <li<%= sidebar_current("docs-agent-kv") %>>
+            <a href="/docs/agent/kv.html">Consul KV</a>
+          </li>
+          <li<%= sidebar_current("docs-agent-sentinel") %>>
+            <a href="/docs/agent/sentinel.html">Sentinel</a>
+          </li>
           <li<%= sidebar_current("docs-agent-encryption") %>>
             <a href="/docs/agent/encryption.html">Encryption</a>
           </li>
@@ -392,15 +406,7 @@
         <a href="/docs/guides/index.html">Guides</a>
         <ul class="nav">
           <li<%= sidebar_current("docs-guides-acl") %>>
-            <a href="https://learn.hashicorp.com/consul/advanced/day-1-operations/acl-guide">ACLs</a>
-            <ul class="nav">
-              <li<%= sidebar_current("docs-guides-acl-legacy") %>>
-                <a href="/docs/guides/acl-legacy.html">Legacy</a>
-              </li>
-              <li<%= sidebar_current("docs-guides-acl-migrate-tokens") %>>
-                <a href="/docs/guides/acl-migrate-tokens.html">Token Migration</a>
-              </li>
-            </ul>
+            <a href="/docs/guides/acl-index.html">ACL Guides</a>
           </li>
           <li<%= sidebar_current("docs-guides-servers") %>>
             <a href="https://learn.hashicorp.com/consul/day-2-operations/advanced-operations/servers">Adding & Removing Servers</a>
@@ -410,12 +416,6 @@
           </li>
           <li<%= sidebar_current("docs-guides-autopilot") %>>
             <a href="https://learn.hashicorp.com/consul/day-2-operations/advanced-operations/autopilot">Autopilot</a>
-          </li>
-          <li<%= sidebar_current("docs-guides-bootstrapping") %>>
-            <a href="/docs/guides/bootstrapping.html">Bootstrapping</a>
-          </li>
-          <li<%= sidebar_current("docs-guides-backups") %>>
-            <a href="https://learn.hashicorp.com/consul/advanced/day-1-operations/backup">Datacenter Backups</a>
           </li>
           <li<%= sidebar_current("docs-guides-connect-production") %>>
             <a href="/docs/guides/connect-production.html">Connect in Production</a>
@@ -438,11 +438,14 @@
           <li<%= sidebar_current("docs-guides-creating-certificates") %>>
             <a href="https://learn.hashicorp.com/consul/advanced/day-1-operations/certificates">Creating TLS Certificates</a>
           </li>
+          <li<%= sidebar_current("docs-guides-backups") %>>
+            <a href="https://learn.hashicorp.com/consul/advanced/day-1-operations/backup">Datacenter Backups</a>
+          </li>
           <li<%= sidebar_current("docs-guides-deployment-guide") %>>
             <a href="https://learn.hashicorp.com/consul/advanced/day-1-operations/deployment-guide">Deployment Guide</a>
           </li>
           <li<%= sidebar_current("docs-guides-dns-cache") %>>
-            <a href="https://learn.hashicorp.com/consul/day-2-operations/advanced-operations/dns-cache">DNS Caching</a>
+            <a href="https://learn.hashicorp.com/consul/day-2-operations/advanced-operations/dns-caching">DNS Caching</a>
           </li>
           <li<%= sidebar_current("docs-guides-forwarding") %>>
             <a href="/docs/guides/forwarding.html">DNS Forwarding</a>
@@ -479,9 +482,6 @@
           </li>
           <li<%= sidebar_current("docs-guides-semaphore") %>>
             <a href="/docs/guides/semaphore.html">Semaphore</a>
-          </li>
-          <li<%= sidebar_current("docs-guides-sentinel") %>>
-            <a href="/docs/guides/sentinel.html">Sentinel</a>
           </li>
           <li<%= sidebar_current("docs-guides-performance") %>>
             <a href="/docs/guides/performance.html">Server Performance</a>

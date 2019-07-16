@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"sync"
 
 	"go.uber.org/zap/zapcore"
 
@@ -21,7 +22,7 @@ type SolrService struct {
 	solrCollectionsAdmin *solr.CollectionsAdmin
 	logger               *zap.Logger
 	url                  string
-	solrInterfaceCache   map[string]*solr.SolrInterface
+	solrInterfaceCache   sync.Map
 }
 
 // recoverFromFailure - recovers from a failure
@@ -47,15 +48,15 @@ func NewSolrService(url string, logger *zap.Logger) (*SolrService, error) {
 		solrCollectionsAdmin: sca,
 		logger:               logger,
 		url:                  url,
-		solrInterfaceCache:   map[string]*solr.SolrInterface{},
+		solrInterfaceCache:   sync.Map{},
 	}, nil
 }
 
 // getSolrInterface - creates a new solr interface based on the given collection
 func (ss *SolrService) getSolrInterface(collection string) (*solr.SolrInterface, error) {
 
-	if si, ok := ss.solrInterfaceCache[collection]; ok {
-		return si, nil
+	if si, ok := ss.solrInterfaceCache.Load(collection); ok {
+		return si.(*solr.SolrInterface), nil
 	}
 
 	si, err := solr.NewSolrInterface(ss.url, collection)
@@ -68,7 +69,7 @@ func (ss *SolrService) getSolrInterface(collection string) (*solr.SolrInterface,
 		return nil, err
 	}
 
-	ss.solrInterfaceCache[collection] = si
+	ss.solrInterfaceCache.Store(collection, si)
 
 	return si, err
 }

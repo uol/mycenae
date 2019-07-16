@@ -51,7 +51,7 @@ func New(
 		settings:       set,
 		concBulk:       make(chan struct{}, set.MaxConcurrentBulks),
 		metaChan:       make(chan Point, set.MetaBufferSize),
-		metadataMap:    map[string][]metadata.Metadata{},
+		metadataMap:    sync.Map{},
 		jobChannel:     make(chan workerData, set.MaxConcurrentPoints),
 		keyspaceTTLMap: keyspaceTTLMap,
 		keySet:         ks,
@@ -73,7 +73,7 @@ type Collector struct {
 
 	concBulk    chan struct{}
 	metaChan    chan Point
-	metadataMap map[string][]metadata.Metadata
+	metadataMap sync.Map
 
 	receivedSinceLastProbe float64
 	errorsSinceLastProbe   float64
