@@ -179,5 +179,5 @@ AllowCORS = true
 
 [memcached]
   pool = ["182.168.0.10:11211","182.168.0.11:11211","182.168.0.12:11211"]
-  timeout = 10000
+  timeout = "10s"
   maxIdleConns = 5

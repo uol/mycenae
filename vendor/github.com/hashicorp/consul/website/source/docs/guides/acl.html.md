@@ -43,7 +43,7 @@ The servers will need to be restarted to load the new configuration. Please take
 to restart the servers one at a time and ensure each server has joined and is operating
 correctly before restarting another.
 
-If ACLs are enabled correctly, we will now see the following warnings and info in the leader’s logs.
+If ACLs are enabled correctly, we will now see the following warnings and info in the leader's logs.
 
 ```sh
 2018/12/12 01:36:40 [INFO] acl: Created the anonymous token
@@ -130,7 +130,7 @@ We only need to create one policy and can do this on any of the servers. If you 
 `CONSUL_HTTP_TOKEN` environment variable to the bootstrap token, please refer to the previous step. 
 
 ```
-$ consul acl policy create  -name "agent-token" -description "Agent Token Policy" -rules @agent-policy.hcl
+$ consul acl policy create -name "agent-token" -description "Agent Token Policy" -rules @agent-policy.hcl
 ID:           5102b76c-6058-9fe7-82a4-315c353eb7f7
 Name:         agent-policy
 Description:  Agent Token Policy
@@ -139,7 +139,6 @@ Rules:
 node_prefix "" {
    policy = "write"
 }
-
 service_prefix "" {
    policy = "read"
 }
@@ -165,7 +164,8 @@ Policies:
 ## Step 5: Add the Agent Token to all the Servers
 
 Our final step for configuring the servers is to assign the token to all of our
-Consul servers via the configuration file restart Consul on them one last time.
+Consul servers via the configuration file and reload the Consul service 
+on all of the servers, one last time.
 
 ```json
 {
@@ -181,6 +181,10 @@ Consul servers via the configuration file restart Consul on them one last time.
 }
 ```
 
+~> Note: In Consul version 1.4.2 and older any ACL updates
+in the agent configuration file will require a full restart of the 
+Consul service. 
+
 At this point we should no longer see the coordinate warning in the servers logs, however, we should continue to see that the node information is in sync.
 
 ```sh
@@ -193,7 +197,7 @@ is a misconfiguration.
 
 #### Ensure the ACL System is Configured Properly
 
-Before configuring the clients, we should check that the servers are healthy. To do this, let’s view the catalog.
+Before configuring the clients, we should check that the servers are healthy. To do this, let's view the catalog.
 
 ```sh
 curl http://127.0.0.1:8500/v1/catalog/nodes -H 'x-consul-token: 4411f091-a4c9-48e6-0884-1fcb092da1c8' 
@@ -218,6 +222,21 @@ curl http://127.0.0.1:8500/v1/catalog/nodes -H 'x-consul-token: 4411f091-a4c9-48
 
 All the values should be as expected. Particularly, if `TaggedAddresses` is `null` it is likely we have not configured ACLs correctly. A good place to start debugging is reviewing the Consul logs on all the servers.
 
+If you encounter issues that are unresolvable, or misplace the bootstrap token, you can reset the ACL system by updating the index. First re-run the bootstrap command to get the index number.
+
+```
+$ consul acl bootstrap
+Failed ACL bootstrapping: Unexpected response code: 403 (Permission denied: ACL bootstrap no longer allowed (reset index: 13))
+```
+
+Then write the reset index into the bootstrap reset file: (here the reset index is 13)
+
+```
+$ echo 13 >> <data-directory>/acl-bootstrap-reset
+```
+
+After reseting the ACL system you can start again at Step 2. 
+
 ## Step 6: Enable ACLs on the Consul Clients
 
 Since ACL enforcement also occurs on the Consul clients, we need to also restart them
@@ -227,7 +246,6 @@ with a configuration file that enables ACLs. We can use the same ACL agent token
 {
   "acl" : {
     "enabled" : true,
-    "default_policy" : "deny",
     "down_policy" : "extend-cache",
     "tokens" : {
       "agent" : "da666809-98ca-0e94-a99c-893c4bf5f9eb"
@@ -236,7 +254,7 @@ with a configuration file that enables ACLs. We can use the same ACL agent token
 }
 ```
 
-To ensure the agent’s are configured correctly, we can again use the `/catalog` endpoint. 
+To ensure the agent's are configured correctly, we can again use the `/catalog` endpoint. 
 
 ## Additional ACL Configuration
 
@@ -276,7 +294,6 @@ we will give the anonymous token read privileges for all nodes:
 
 ```bash
 $ consul acl policy create -name 'list-all-nodes' -rules 'node_prefix "" { policy = "read" }'
-
 ID:           e96d0a33-28b4-d0dd-9b3f-08301700ac72
 Name:         list-all-nodes
 Description:
@@ -285,7 +302,6 @@ Rules:
 node_prefix "" { policy = "read" }
 
 $ consul acl token update -id 00000000-0000-0000-0000-000000000002 -policy-name list-all-nodes -description "Anonymous Token - Can List Nodes"
-
 Token updated successfully.
 AccessorID:   00000000-0000-0000-0000-000000000002
 SecretID:     anonymous
@@ -333,7 +349,7 @@ consul.                 0       IN      SOA     ns.consul. postmaster.consul. 14
 ```
 
 Now we get an `NXDOMAIN` error because the anonymous token doesn't have access to the
-"consul" service. Let's update the anonymous token's policy to allow for service reads of the “consul” service.
+"consul" service. Let's update the anonymous token's policy to allow for service reads of the "consul" service.
 
 ```bash
 $ consul acl policy create -name 'service-consul-read' -rules 'service "consul" { policy = "read" }'
@@ -403,21 +419,19 @@ First create the new policy.
 ```bash
 $ consul acl policy create -name "ui-policy" \
                            -description "Necessary permissions for UI functionality" \
-                           -rules 'key "" { policy = "write" } node "" { policy = "read" } service "" { policy = "read" }'
-
+                           -rules 'key_prefix "" { policy = "write" } node_prefix "" { policy = "read" } service_prefix "" { policy = "read" }'
 ID:           9cb99b2b-3c20-81d4-a7c0-9ffdc2fbf08a
 Name:         ui-policy
 Description:  Necessary permissions for UI functionality
 Datacenters:
 Rules:
-key "" { policy = "write" } node "" { policy = "read" } service "" { policy = "read" }
+key_prefix "" { policy = "write" } node_prefix "" { policy = "read" } service_prefix "" { policy = "read" }
 ```
 
 With the new policy, create a token.
 
 ```sh
 $ consul acl token create -description "UI Token" -policy-name "ui-policy"
-
 AccessorID:   56e605cf-a6f9-5f9d-5c08-a0e1323cf016
 SecretID:     117842b6-6208-446a-0d1e-daf93854857d
 Description:  UI Token
@@ -425,7 +439,6 @@ Local:        false
 Create Time:  2018-10-19 14:55:44.254063 -0400 EDT
 Policies:
    9cb99b2b-3c20-81d4-a7c0-9ffdc2fbf08a - ui-policy
-
 ```
 
 The token can then be set on the "settings" page of the UI.

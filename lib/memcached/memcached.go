@@ -15,7 +15,7 @@ import (
 type Configuration struct {
 	Pool         []string
 	MaxIdleConns int
-	Timeout      int
+	Timeout      string
 }
 
 // Memcached - main struct
@@ -28,6 +28,11 @@ func New(s *tsstats.StatsTS, c *Configuration) (*Memcached, gobol.Error) {
 
 	stats = s
 
+	timeoutDuration, err := time.ParseDuration(c.Timeout)
+	if err != nil {
+		return nil, errInternalServerErrorM("New", "error parsing memcached timeout")
+	}
+
 	client, err := memcache.New(c.Pool...)
 	if err != nil {
 		return nil, errInternalServerErrorM("New", "error creating a new memcached client")
@@ -38,7 +43,7 @@ func New(s *tsstats.StatsTS, c *Configuration) (*Memcached, gobol.Error) {
 	}
 
 	mc.client.SetMaxIdleConnsPerAddr(c.MaxIdleConns)
-	mc.client.SetTimeout(time.Duration(c.Timeout) * time.Millisecond)
+	mc.client.SetTimeout(timeoutDuration)
 
 	return mc, nil
 }

@@ -41,20 +41,20 @@ type LogFile struct {
 }
 
 func (l *LogFile) openNew() error {
-	// Extract the file extention
+	// Extract the file extension
 	fileExt := filepath.Ext(l.fileName)
 	// If we have no file extension we append .log
 	if fileExt == "" {
 		fileExt = ".log"
 	}
-	// Remove the file extention from the filename
+	// Remove the file extension from the filename
 	fileName := strings.TrimSuffix(l.fileName, fileExt)
 	// New file name has the format : filename-timestamp.extension
 	createTime := now()
 	newfileName := fileName + "-" + strconv.FormatInt(createTime.UnixNano(), 10) + fileExt
 	newfilePath := filepath.Join(l.logPath, newfileName)
 	// Try creating a file. We truncate the file because we are the only authority to write the logs
-	filePointer, err := os.OpenFile(newfilePath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 640)
+	filePointer, err := os.OpenFile(newfilePath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0640)
 	if err != nil {
 		return err
 	}

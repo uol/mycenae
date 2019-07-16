@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/uol/gobol"
+	"github.com/uol/gobol/util"
 	"github.com/uol/mycenae/lib/metadata"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -13,12 +14,13 @@ func (collect *Collector) cloneMetadataMap() map[string][]metadata.Metadata {
 
 	cloned := map[string][]metadata.Metadata{}
 
-	if len(collect.metadataMap) > 0 {
-		for k, v := range collect.metadataMap {
-			cloned[k] = v
-		}
+	if util.GetSyncMapSize(&collect.metadataMap) > 0 {
+		collect.metadataMap.Range(func(k, v interface{}) bool {
+			cloned[k.(string)] = v.([]metadata.Metadata)
+			collect.metadataMap.Delete(k)
 
-		collect.metadataMap = map[string][]metadata.Metadata{}
+			return true
+		})
 	}
 
 	return cloned
@@ -30,9 +32,9 @@ func (collect *Collector) metaCoordinator(saveInterval time.Duration) {
 		for {
 			<-time.After(saveInterval)
 
-			if len(collect.metadataMap) != 0 {
+			if util.GetSyncMapSize(&collect.metadataMap) != 0 {
 				collect.concBulk <- struct{}{}
-				go collect.saveBulk(collect.cloneMetadataMap())
+				go collect.saveBulk()
 			}
 		}
 	}()
@@ -51,9 +53,9 @@ func (collect *Collector) metaCoordinator(saveInterval time.Duration) {
 				gblog.Error(gerr.Error(), lf...)
 			}
 
-			if len(collect.metadataMap) > collect.settings.MaxMetaBulkSize {
+			if util.GetSyncMapSize(&collect.metadataMap) > collect.settings.MaxMetaBulkSize {
 				collect.concBulk <- struct{}{}
-				go collect.saveBulk(collect.cloneMetadataMap())
+				go collect.saveBulk()
 			}
 		}
 	}()
@@ -113,8 +115,8 @@ func (collect *Collector) generateBulk(packet Point) gobol.Error {
 
 	statsCountNewTimeseries(packet.Keyset, metaType, packet.TTL)
 
-	if _, ok := collect.metadataMap[packet.Keyset]; !ok {
-		collect.metadataMap[packet.Keyset] = []metadata.Metadata{}
+	if _, ok := collect.metadataMap.Load(packet.Keyset); !ok {
+		collect.metadataMap.Store(packet.Keyset, []metadata.Metadata{})
 	}
 
 	var tagKeys, tagValues []string
@@ -125,7 +127,7 @@ func (collect *Collector) generateBulk(packet Point) gobol.Error {
 		}
 	}
 
-	metadata := metadata.Metadata{
+	newItem := metadata.Metadata{
 		ID:       packet.ID,
 		Metric:   packet.Message.Metric,
 		MetaType: metaType,
@@ -133,14 +135,25 @@ func (collect *Collector) generateBulk(packet Point) gobol.Error {
 		TagValue: tagValues,
 	}
 
-	collect.metadataMap[packet.Keyset] = append(collect.metadataMap[packet.Keyset], metadata)
+	metadataInterface, ok := collect.metadataMap.Load(packet.Keyset)
+
+	var metadatas []metadata.Metadata
+	if !ok {
+		metadatas = []metadata.Metadata{}
+	} else {
+		metadatas = metadataInterface.([]metadata.Metadata)
+	}
+
+	metadatas = append(metadatas, newItem)
+
+	collect.metadataMap.Store(packet.Keyset, metadatas)
 
 	return nil
 }
 
-func (collect *Collector) saveBulk(metadataMap map[string][]metadata.Metadata) {
+func (collect *Collector) saveBulk() {
 
-	gerr := collect.persist.SaveBulk(metadataMap)
+	gerr := collect.persist.SaveBulk(collect.cloneMetadataMap())
 	if gerr != nil {
 		lf := []zapcore.Field{
 			zap.String("package", "collector"),
