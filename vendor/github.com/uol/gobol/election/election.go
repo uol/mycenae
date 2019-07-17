@@ -5,6 +5,10 @@ import (
 	"os"
 	"time"
 
+	"github.com/uol/gobol/util"
+
+	"sync"
+
 	"github.com/samuel/go-zookeeper/zk"
 	"go.uber.org/zap"
 )
@@ -27,7 +31,7 @@ type Manager struct {
 	clusterConnectionEventChannel  <-chan zk.Event
 	sessionID                      int64
 	nodeName                       string
-	clusterNodes                   map[string]bool
+	clusterNodes                   sync.Map
 	terminate                      bool
 	sessionTimeoutDuration         time.Duration
 	reconnectionTimeoutDuration    time.Duration
@@ -65,7 +69,7 @@ func New(config *Config, logger *zap.Logger) (*Manager, error) {
 		logger:                         logger,
 		feedbackChannel:                make(chan int, defaultChannelSize),
 		clusterConnectionEventChannel:  nil,
-		clusterNodes:                   map[string]bool{},
+		clusterNodes:                   sync.Map{},
 		terminate:                      false,
 		sessionTimeoutDuration:         sessionTimeoutDuration,
 		reconnectionTimeoutDuration:    reconnectionTimeoutDuration,
@@ -252,7 +256,7 @@ func (m *Manager) listenForNodeEvents() error {
 	}
 
 	for _, node := range cluster.Nodes {
-		m.clusterNodes[node] = true
+		m.clusterNodes.Store(node, true)
 	}
 
 	go func() {
@@ -271,11 +275,11 @@ func (m *Manager) listenForNodeEvents() error {
 				m.logError("listenForNodeEvents", err.Error())
 			} else {
 				changed := false
-				if len(cluster.Nodes) != len(m.clusterNodes) {
+				if len(cluster.Nodes) != util.GetSyncMapSize(&m.clusterNodes) {
 					changed = true
 				} else {
 					for _, node := range cluster.Nodes {
-						if _, ok := m.clusterNodes[node]; !ok {
+						if _, ok := m.clusterNodes.Load(node); !ok {
 							changed = true
 							break
 						}
@@ -284,11 +288,12 @@ func (m *Manager) listenForNodeEvents() error {
 
 				if changed {
 					m.logInfo("listenForNodeEvents", "cluster node configuration changed")
-					for k := range m.clusterNodes {
-						delete(m.clusterNodes, k)
-					}
+					m.clusterNodes.Range(func(k, _ interface{}) bool {
+						m.clusterNodes.Delete(k)
+						return true
+					})
 					for _, node := range cluster.Nodes {
-						m.clusterNodes[node] = true
+						m.clusterNodes.Store(node, true)
 					}
 					m.feedbackChannel <- ClusterChanged
 					<-time.After(m.clusterChangeWaitTimeDuration)

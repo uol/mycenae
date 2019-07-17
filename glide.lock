@@ -1,5 +1,5 @@
-hash: c4671926f61a50b66f64447d64bcf5138b2b0c0bea7bc93daa265f27651cb465
-updated: 2019-03-02T23:33:38.920438402-03:00
+hash: 73ac54eb6af063314a6cbfd881dd0a6ff2db617c3862b2d89905a363dccaf0eb
+updated: 2019-07-17T16:00:21.786626042-03:00
 imports:
 - name: github.com/armon/go-metrics
   version: f0300d1749da6fa982027e449ec0c7a145510c3c
@@ -12,7 +12,7 @@ imports:
   - internal/murmur
   - internal/streams
 - name: github.com/golang/protobuf
-  version: 925541529c1fa6821df4e44ce2723319eb2be768
+  version: 6c65a5562fc06764971b7c5d05c76c75e84bdbf7
   subpackages:
   - proto
   - ptypes
@@ -22,11 +22,11 @@ imports:
 - name: github.com/golang/snappy
   version: 2a8bb927dd31d8daada140a5d09578521ce5c36a
 - name: github.com/google/uuid
-  version: 0cd6bf5da1e1c83f8b45653022c74f71af0538a4
+  version: 064e2069ce9c359c118179501254f67d7d37ba24
 - name: github.com/hailocab/go-hostpool
   version: e80d13ce29ede4452c43dea11e79b9bc8a15b478
 - name: github.com/hashicorp/consul
-  version: c97c712e96e0e53308054d5e1180289fe02dce38
+  version: 501c22b5563935713596034d47a1cbdef1ec1904
   subpackages:
   - api
 - name: github.com/hashicorp/go-cleanhttp
@@ -44,7 +44,7 @@ imports:
   subpackages:
   - coordinate
 - name: github.com/json-iterator/go
-  version: 1624edc4454b8682399def8740d46db5e4362ba4
+  version: 0ff49de124c6f76f8494e194af75bde0f1a49a29
 - name: github.com/julienschmidt/httprouter
   version: 348b672cd90d8190f8240323e372ecd1e66b59dc
 - name: github.com/mitchellh/go-homedir
@@ -66,11 +66,11 @@ imports:
 - name: github.com/rs/cors
   version: 9a47f48565a795472d43519dd49aac781f3034fb
 - name: github.com/uol/go-solr
-  version: 2b20b79d603c54b3bfb42db257ed8322b3489f52
+  version: 3369487a58263cf9f0d65eff493012f6f34c60c0
   subpackages:
   - solr
 - name: github.com/uol/gobol
-  version: b3d35d462bd2eeb64b30a5a85a9d7f42e406adea
+  version: d0776c3be8fa19169f0d2de898198f47a24f434c
   subpackages:
   - cassandra
   - loader
@@ -78,8 +78,9 @@ imports:
   - saw
   - snitch
   - solar
+  - util
 - name: go.uber.org/atomic
-  version: 1ea20fb1cbb1cc08cbd0d913a96dead89aa18289
+  version: df976f2515e274675050de7b3f42545de80594fd
 - name: go.uber.org/multierr
   version: 3c4937480c32f4c13a875a1829af76c98ca3d40a
 - name: go.uber.org/zap
@@ -151,10 +152,6 @@ testImports:
   version: 5d4384ee4fb2527b0a1256a821ebfc92f91efefc
   subpackages:
   - difflib
-- name: github.com/reiver/go-oi
-  version: 431c83978379297f04f85f6eb94f129f25ab741d
-- name: github.com/reiver/go-telnet
-  version: 9ff0b2ab096ebe42bf8e2ffd1366e7ed2223b04c
 - name: github.com/stretchr/testify
   version: f35b8ab0b5a2cef36673838d662e249dd9c94686
   subpackages:

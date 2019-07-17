@@ -1,6 +1,9 @@
 package scheduler
 
-import "fmt"
+import (
+	"fmt"
+	"sync"
+)
 
 //
 // Manages tasks to be executed repeatedly
@@ -9,26 +12,26 @@ import "fmt"
 
 // Manager - schedules all expression executions
 type Manager struct {
-	taskMap map[string]*Task
+	taskMap sync.Map
 }
 
 // New - creates a new scheduler
 func New() *Manager {
 
 	return &Manager{
-		taskMap: map[string]*Task{},
+		taskMap: sync.Map{},
 	}
 }
 
 // AddTask - adds a new task
 func (m *Manager) AddTask(task *Task, autoStart bool) error {
 
-	if _, exists := m.taskMap[task.ID]; exists {
+	if _, exists := m.taskMap.Load(task.ID); exists {
 
 		return fmt.Errorf("task id %s already exists", task.ID)
 	}
 
-	m.taskMap[task.ID] = task
+	m.taskMap.Store(task.ID, task)
 
 	if autoStart {
 
@@ -36,7 +39,7 @@ func (m *Manager) AddTask(task *Task, autoStart bool) error {
 			return fmt.Errorf("task id %s already is running", task.ID)
 		}
 
-		m.taskMap[task.ID].Start()
+		task.Start()
 	}
 
 	return nil
@@ -45,7 +48,7 @@ func (m *Manager) AddTask(task *Task, autoStart bool) error {
 // Exists - checks if a task exists
 func (m *Manager) Exists(id string) bool {
 
-	_, exists := m.taskMap[id]
+	_, exists := m.taskMap.Load(id)
 
 	return exists
 }
@@ -53,11 +56,11 @@ func (m *Manager) Exists(id string) bool {
 // IsRunning - checks if a task is running
 func (m *Manager) IsRunning(id string) bool {
 
-	task, exists := m.taskMap[id]
+	task, exists := m.taskMap.Load(id)
 
 	if exists {
 
-		return task.running
+		return task.(*Task).running
 	}
 
 	return false
@@ -66,11 +69,11 @@ func (m *Manager) IsRunning(id string) bool {
 // RemoveTask - removes a task
 func (m *Manager) RemoveTask(id string) bool {
 
-	if task, exists := m.taskMap[id]; exists {
+	if task, exists := m.taskMap.Load(id); exists {
 
-		task.Stop()
+		task.(*Task).Stop()
 
-		delete(m.taskMap, id)
+		m.taskMap.Delete(id)
 
 		return true
 	}
@@ -78,13 +81,26 @@ func (m *Manager) RemoveTask(id string) bool {
 	return false
 }
 
+// RemoveAllTasks - removes all tasks
+func (m *Manager) RemoveAllTasks() {
+
+	m.taskMap.Range(func(k, v interface{}) bool {
+
+		v.(*Task).Stop()
+
+		m.taskMap.Delete(k)
+
+		return true
+	})
+}
+
 // StopTask - stops a task
 func (m *Manager) StopTask(id string) error {
 
-	if task, exists := m.taskMap[id]; exists {
+	if task, exists := m.taskMap.Load(id); exists {
 
-		if task.running {
-			task.Stop()
+		if task.(*Task).running {
+			task.(*Task).Stop()
 		} else {
 			return fmt.Errorf("task id %s was not running (stop)", id)
 		}
@@ -98,10 +114,10 @@ func (m *Manager) StopTask(id string) error {
 // StartTask - starts a task
 func (m *Manager) StartTask(id string) error {
 
-	if task, exists := m.taskMap[id]; exists {
+	if task, exists := m.taskMap.Load(id); exists {
 
-		if !task.running {
-			task.Start()
+		if !task.(*Task).running {
+			task.(*Task).Start()
 		} else {
 			return fmt.Errorf("task id %s is already running (start)", id)
 		}
@@ -115,18 +131,25 @@ func (m *Manager) StartTask(id string) error {
 // GetNumTasks - returns the number of tasks
 func (m *Manager) GetNumTasks() int {
 
-	return len(m.taskMap)
+	var length int
+
+	m.taskMap.Range(func(_, _ interface{}) bool {
+		length++
+		return true
+	})
+
+	return length
 }
 
 // GetTasksIDs - returns a list of task IDs
 func (m *Manager) GetTasksIDs() []string {
 
-	tasks := make([]string, len(m.taskMap))
-	i := 0
-	for k := range m.taskMap {
-		tasks[i] = k
-		i++
-	}
+	tasks := []string{}
+
+	m.taskMap.Range(func(k, _ interface{}) bool {
+		tasks = append(tasks, k.(string))
+		return true
+	})
 
 	return tasks
 }
@@ -134,12 +157,12 @@ func (m *Manager) GetTasksIDs() []string {
 // GetTasks - returns a list of tasks
 func (m *Manager) GetTasks() []interface{} {
 
-	tasks := make([]interface{}, len(m.taskMap))
-	i := 0
-	for _, v := range m.taskMap {
-		tasks[i] = v
-		i++
-	}
+	tasks := []interface{}{}
+
+	m.taskMap.Range(func(_, v interface{}) bool {
+		tasks = append(tasks, v)
+		return true
+	})
 
 	return tasks
 }
@@ -147,7 +170,7 @@ func (m *Manager) GetTasks() []interface{} {
 // GetTask - returns a task by it's ID
 func (m *Manager) GetTask(id string) interface{} {
 
-	if t, ok := m.taskMap[id]; ok {
+	if t, ok := m.taskMap.Load(id); ok {
 
 		return t
 	}

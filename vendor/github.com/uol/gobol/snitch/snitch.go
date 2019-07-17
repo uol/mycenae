@@ -29,7 +29,7 @@ type Stats struct {
 	proto               string
 	timeout             time.Duration
 	postInt             time.Duration
-	points              map[string]*CustomPoint
+	points              sync.Map
 	hBuffer             []message
 	receiver            chan message
 	raiseDebugVerbosity bool
@@ -89,7 +89,7 @@ func New(logger *zap.Logger, settings Settings) (*Stats, error) {
 		postInt:             postInt,
 		logger:              logger,
 		tags:                tags,
-		points:              make(map[string]*CustomPoint),
+		points:              sync.Map{},
 		hBuffer:             []message{},
 		receiver:            make(chan message),
 		raiseDebugVerbosity: settings.RaiseDebugVerbosity,
@@ -112,9 +112,12 @@ func (st *Stats) start(runtime bool) {
 	}
 
 	st.mtx.RLock()
-	for _, p := range st.points {
+	st.points.Range(func(_, v interface{}) bool {
+		p := v.(*CustomPoint)
 		st.cron.AddJob(p.interval, p)
-	}
+		return true
+	})
+
 	st.mtx.RUnlock()
 
 	if st.proto == "udp" {

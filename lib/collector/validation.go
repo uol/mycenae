@@ -88,18 +88,6 @@ func (collector *Collector) MakePacket(packet *Point, rcvMsg TSDBpoint, number b
 		return err
 	}
 
-	keySetExists, gerr := collector.persist.metaStorage.CheckKeySet(packet.Keyset)
-	if gerr != nil {
-		err := errISE("makePacket", "error checking keyspace existence", gerr)
-		collector.logPointError(&rcvMsg, err, lf)
-		return err
-	}
-	if !keySetExists {
-		err := errValidation(`"ksid" not exists. NO information will be saved`)
-		collector.logPointError(&rcvMsg, err, lf)
-		return err
-	}
-
 	if strTTL, ok := rcvMsg.Tags["ttl"]; !ok {
 		packet.TTL = collector.settings.DefaultTTL
 		lt++
@@ -144,6 +132,18 @@ func (collector *Collector) MakePacket(packet *Point, rcvMsg TSDBpoint, number b
 			collector.logPointError(&rcvMsg, err, lf)
 			return err
 		}
+	}
+
+	keySetExists, gerr := collector.persist.metaStorage.CheckKeySet(packet.Keyset)
+	if gerr != nil {
+		err := errISE("makePacket", "error checking keyspace existence", gerr)
+		collector.logPointError(&rcvMsg, err, lf)
+		return err
+	}
+	if !keySetExists {
+		err := errValidation(`"ksid" not exists. NO information will be saved`)
+		collector.logPointError(&rcvMsg, err, lf)
+		return err
 	}
 
 	if rcvMsg.Timestamp == 0 {

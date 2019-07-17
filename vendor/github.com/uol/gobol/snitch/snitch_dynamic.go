@@ -41,9 +41,9 @@ func (st *Stats) getPoint(
 
 	key := keyFromMetricID(metricName, tags)
 	st.mtx.RLock()
-	if metric, ok := st.points[key]; ok {
+	if metric, ok := st.points.Load(key); ok {
 		st.mtx.RUnlock()
-		return metric, nil
+		return metric.(*CustomPoint), nil
 	}
 	st.mtx.RUnlock()
 
@@ -105,7 +105,7 @@ func (st *Stats) getPoint(
 	}
 
 	st.mtx.Lock()
-	st.points[key] = metric
+	st.points.Store(key, metric)
 	st.mtx.Unlock()
 
 	st.cron.AddJob(interval, metric)

@@ -45,15 +45,16 @@ func New(
 		probeStatus:    http.StatusOK,
 		closed:         make(chan struct{}),
 
-		gblog:         log.General,
-		sts:           gbs,
-		reader:        p,
-		kspace:        keyspace,
-		memcached:     mc,
-		writer:        collector,
-		settings:      set,
-		keyset:        ks,
-		telnetManager: telnetManager,
+		gblog:               log.General,
+		sts:                 gbs,
+		reader:              p,
+		kspace:              keyspace,
+		memcached:           mc,
+		writer:              collector,
+		settings:            set,
+		keyset:              ks,
+		telnetManager:       telnetManager,
+		enableHTTPProfiling: set.EnableProfiling,
 	}
 }
 
@@ -63,16 +64,17 @@ type REST struct {
 	probeStatus    int
 	closed         chan struct{}
 
-	gblog         *zap.Logger
-	sts           *snitch.Stats
-	reader        *plot.Plot
-	kspace        *keyspace.Keyspace
-	memcached     *memcached.Memcached
-	writer        *collector.Collector
-	settings      structs.SettingsHTTP
-	server        *http.Server
-	keyset        *keyset.KeySet
-	telnetManager *telnetmgr.Manager
+	gblog               *zap.Logger
+	sts                 *snitch.Stats
+	reader              *plot.Plot
+	kspace              *keyspace.Keyspace
+	memcached           *memcached.Memcached
+	writer              *collector.Collector
+	settings            structs.SettingsHTTP
+	server              *http.Server
+	keyset              *keyset.KeySet
+	telnetManager       *telnetmgr.Manager
+	enableHTTPProfiling bool
 }
 
 // Start asynchronously the handler of the APIs
@@ -158,6 +160,13 @@ func (trest *REST) asyncStart() {
 	//DELETE
 	router.POST(path+"keysets/:keyset/delete/meta", trest.reader.DeleteNumberTS)
 	router.POST(path+"keysets/:keyset/delete/text/meta", trest.reader.DeleteTextTS)
+
+	if trest.enableHTTPProfiling {
+
+		trest.gblog.Info("WARNING - http profiling is enabled!!!", lf...)
+
+		router.Handler(http.MethodGet, "/debug/pprof/:item", http.DefaultServeMux)
+	}
 
 	trest.server = &http.Server{
 		Addr: fmt.Sprintf("%s:%d", trest.settings.Bind, trest.settings.Port),

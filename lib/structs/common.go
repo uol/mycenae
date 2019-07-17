@@ -20,9 +20,10 @@ type Loggers struct {
 }
 
 type SettingsHTTP struct {
-	Path string
-	Port int
-	Bind string
+	Path            string
+	Port            int
+	Bind            string
+	EnableProfiling bool
 }
 
 type TelnetServerConfiguration struct {
