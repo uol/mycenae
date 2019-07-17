@@ -1,5 +1,5 @@
-hash: 3297614aa7ffba0a2c822ad44c7a3e6f765b704d946184361221170f19d578b9
-updated: 2019-07-16T19:04:25.967278433-03:00
+hash: 73ac54eb6af063314a6cbfd881dd0a6ff2db617c3862b2d89905a363dccaf0eb
+updated: 2019-07-17T16:00:21.786626042-03:00
 imports:
 - name: github.com/armon/go-metrics
   version: f0300d1749da6fa982027e449ec0c7a145510c3c
@@ -66,7 +66,7 @@ imports:
 - name: github.com/rs/cors
   version: 9a47f48565a795472d43519dd49aac781f3034fb
 - name: github.com/uol/go-solr
-  version: 2b20b79d603c54b3bfb42db257ed8322b3489f52
+  version: 3369487a58263cf9f0d65eff493012f6f34c60c0
   subpackages:
   - solr
 - name: github.com/uol/gobol
@@ -78,6 +78,7 @@ imports:
   - saw
   - snitch
   - solar
+  - util
 - name: go.uber.org/atomic
   version: df976f2515e274675050de7b3f42545de80594fd
 - name: go.uber.org/multierr

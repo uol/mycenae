@@ -23,7 +23,6 @@ func NewCoreAdmin(solrUrl string) (*CoreAdmin, error) {
 	return &CoreAdmin{url: u}, nil
 }
 
-
 // Set basic auth in case solr require login
 func (ca *CoreAdmin) SetBasicAuth(username, password string) {
 	ca.username = username
@@ -42,7 +41,14 @@ func (ca *CoreAdmin) Get(path string, params *url.Values) (*SolrResponse, error)
 		return nil, err
 	}
 	result := &SolrResponse{Response: resp}
-	result.Status = int(resp["responseHeader"].(map[string]interface{})["status"].(float64))
+
+	rHeader, convOk := resp["responseHeader"].(map[string]interface{})
+	if !convOk {
+		return nil, fmt.Errorf("Get - type casting error")
+	}
+
+	result.Status = int(rHeader["status"].(float64))
+
 	return result, nil
 }
 
