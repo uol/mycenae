@@ -174,13 +174,24 @@ func (server *Server) handleConnection(conn net.Conn) {
 		conn.SetDeadline(time.Now().Add(server.maxIdleConnectionTimeout))
 
 		n, err = conn.Read(buffer)
-		if err != nil && err == io.EOF {
-			go server.closeConnection(conn, "eof", true)
+		if err != nil {
+			if err == io.EOF {
+				go server.closeConnection(conn, "eof", true)
+				break
+			}
+
+			if castedErr, ok := err.(net.Error); ok && castedErr.Timeout() {
+				go server.closeConnection(conn, "timeout", true)
+				break
+			}
+
+			go server.closeConnection(conn, "error", true)
 			break
 		}
 
-		if err, ok := err.(net.Error); ok && err.Timeout() {
-			go server.closeConnection(conn, "timeout", true)
+		size, err := conn.Write([]byte("OK"))
+		if err != nil || size == 0 {
+			go server.closeConnection(conn, "write", true)
 			break
 		}
 
