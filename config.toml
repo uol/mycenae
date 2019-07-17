@@ -83,6 +83,7 @@ AllowCORS = true
   path = "/"
   port = 8082
   bind = "loghost"
+  EnableProfiling = true
 
 [GlobalTelnetServerConfiguration]
   # The maximum request time to reach other nodes

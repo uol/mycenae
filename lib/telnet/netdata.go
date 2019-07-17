@@ -39,7 +39,7 @@ type NetdataHandler struct {
 	tagsRegexp        *regexp.Regexp
 	specialCharRegexp *regexp.Regexp
 	netdataTags       map[string]struct{}
-	regexpCache       map[string]*regexp.Regexp
+	regexpCache       sync.Map
 	mutex             *sync.Mutex
 	cacheDuration     time.Duration
 	collector         *collector.Collector
@@ -72,7 +72,7 @@ func NewNetdataHandler(regexpCacheDuration string, collector *collector.Collecto
 		netdataTags:       netdataTags,
 		cacheDuration:     cacheDuration,
 		collector:         collector,
-		regexpCache:       map[string]*regexp.Regexp{},
+		regexpCache:       sync.Map{},
 		mutex:             &sync.Mutex{},
 		logger:            logger,
 		loggerFields: []zapcore.Field{
@@ -92,7 +92,7 @@ func (nh *NetdataHandler) expireCachedRegexp(regexp string) {
 
 		nh.mutex.Lock()
 
-		delete(nh.regexpCache, regexp)
+		nh.regexpCache.Delete(regexp)
 
 		nh.logger.Info(fmt.Sprintf("regular expression expired from cache: %s", regexp), nh.loggerFields...)
 
@@ -156,26 +156,25 @@ func (nh *NetdataHandler) Handle(line string) {
 			}
 
 			var pluginMetricRegex *regexp.Regexp
-			if compiledRegex, ok := nh.regexpCache[array[0]]; !ok {
+			if compiledRegex, ok := nh.regexpCache.Load(array[0]); !ok {
 
-				var err error
-				compiledRegex, err = regexp.Compile(array[0])
+				newCompiledRegex, err := regexp.Compile(array[0])
 				if err != nil {
 					nh.logger.Error("invalid set_plugin_metric regular expression: "+pluginMetricValue, nh.loggerFields...)
 					return
 				}
 
-				nh.regexpCache[array[0]] = compiledRegex
+				nh.regexpCache.Store(array[0], compiledRegex)
 
 				nh.logger.Info(fmt.Sprintf("new regular expression was cached: %s", array[0]), nh.loggerFields...)
 
 				nh.expireCachedRegexp(array[0])
 
-				pluginMetricRegex = compiledRegex
+				pluginMetricRegex = newCompiledRegex
 
 			} else {
 
-				pluginMetricRegex = compiledRegex
+				pluginMetricRegex = compiledRegex.(*regexp.Regexp)
 			}
 
 			if pluginMetricRegex.MatchString(pointJSON.ChartID) {
