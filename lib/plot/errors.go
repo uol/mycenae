@@ -2,6 +2,7 @@ package plot
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/uol/gobol"
@@ -76,4 +77,12 @@ func errEmptyExpression(f string) gobol.Error {
 
 func errMandatoryParam(function string, parameter string) gobol.Error {
 	return errBasic(function, "query string parameter \""+parameter+"\" is mandatory", http.StatusBadRequest, errors.New(""))
+}
+
+func errMaxBytesLimitWrapper(function string, err error) gobol.Error {
+	return errBasic(function, err.Error(), 413, err)
+}
+
+func errMaxBytesLimit(function, keyset, metric string, start, end int64, ttl int) gobol.Error {
+	return errBasic(function, "payload too large", 413, fmt.Errorf("max bytes reached: keyset '%s', metric '%s', start '%d', end '%d', ttl '%d'", keyset, metric, start, end, ttl))
 }

@@ -17,18 +17,18 @@ func (plot *Plot) GetTextSeries(
 	mergeType string,
 	keepEmpties bool,
 	search *regexp.Regexp,
-) (TST, gobol.Error) {
+) (TST, uint32, gobol.Error) {
 
 	var keyspace string
 	var ok bool
 	if keyspace, ok = plot.keyspaceTTLMap[ttl]; !ok {
-		return TST{}, errNotFound("invalid ttl found: " + strconv.Itoa(int(ttl)))
+		return TST{}, 0, errNotFound("invalid ttl found: " + strconv.Itoa(int(ttl)))
 	}
 
-	tsMap, gerr := plot.getTextSerie(keyspace, keys, start, end, keepEmpties, search)
+	tsMap, numBytes, gerr := plot.getTextSerie(keyspace, keys, start, end, keepEmpties, search)
 
 	if gerr != nil {
-		return TST{}, gerr
+		return TST{}, numBytes, gerr
 	}
 
 	resultTSTs := TST{}
@@ -48,7 +48,7 @@ func (plot *Plot) GetTextSeries(
 		sort.Sort(resultTSTs.Data)
 	}
 
-	return resultTSTs, nil
+	return resultTSTs, numBytes, nil
 }
 
 func (plot *Plot) getTextSerie(
@@ -58,12 +58,12 @@ func (plot *Plot) getTextSerie(
 	end int64,
 	keepEmpties bool,
 	search *regexp.Regexp,
-) (map[string]TST, gobol.Error) {
+) (map[string]TST, uint32, gobol.Error) {
 
-	resultMap, gerr := plot.persist.GetTST(keyspace, keys, start, end, search)
+	resultMap, numBytes, gerr := plot.persist.GetTST(keyspace, keys, start, end, search, plot.maxBytesLimit)
 
 	if gerr != nil {
-		return map[string]TST{}, gerr
+		return map[string]TST{}, numBytes, gerr
 	}
 
 	transformedMap := map[string]TST{}
@@ -78,5 +78,5 @@ func (plot *Plot) getTextSerie(
 		transformedMap[tsid] = ts
 	}
 
-	return transformedMap, nil
+	return transformedMap, numBytes, nil
 }

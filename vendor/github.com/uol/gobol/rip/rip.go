@@ -13,7 +13,10 @@ import (
 	"go.uber.org/zap"
 )
 
-var logger *zap.Logger
+var (
+	logger          *zap.Logger
+	logErrorAsDebug bool
+)
 
 type customError struct {
 	error
@@ -62,8 +65,9 @@ func errUnmarshal(f string, e error) gobol.Error {
 	return errBasic(f, "Wrong JSON format", http.StatusBadRequest, e)
 }
 
-func SetLogger(l *zap.Logger) {
+func SetLogger(l *zap.Logger, forceErrorToDebugLog bool) {
 	logger = l
+	logErrorAsDebug = forceErrorToDebugLog
 }
 
 func FromJSON(r *http.Request, t Validator) gobol.Error {
@@ -126,7 +130,11 @@ func Fail(w http.ResponseWriter, gerr gobol.Error) {
 		if r := recover(); r != nil {
 
 			if logger != nil {
-				logger.Sugar().Error(gerr.Message(), gerr.LogFields())
+				if logErrorAsDebug {
+					logger.Debug(gerr.Message(), gerr.LogFields()...)
+				} else {
+					logger.Error(gerr.Message(), gerr.LogFields()...)
+				}
 			} else {
 				log.Println(gerr.Message())
 			}
@@ -153,7 +161,11 @@ func Fail(w http.ResponseWriter, gerr gobol.Error) {
 	}()
 
 	if logger != nil {
-		logger.Sugar().Error(gerr.Error(), gerr.LogFields())
+		if logErrorAsDebug {
+			logger.Debug(gerr.Error(), gerr.LogFields()...)
+		} else {
+			logger.Error(gerr.Error(), gerr.LogFields()...)
+		}
 	} else {
 		log.Println(gerr.Error())
 	}

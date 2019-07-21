@@ -1,6 +1,9 @@
 package plot
 
 import (
+	"errors"
+	"unsafe"
+
 	"github.com/gocql/gocql"
 	"github.com/uol/gobol"
 	"go.uber.org/zap"
@@ -15,8 +18,12 @@ var (
 )
 
 type persistence struct {
-	metaStorage *metadata.Storage
-	cassandra   *gocql.Session
+	metaStorage                   *metadata.Storage
+	cassandra                     *gocql.Session
+	constPartBytesFromNumberPoint uintptr
+	constPartBytesFromTextPoint   uintptr
+	stringSize                    uintptr
+	maxBytesErr                   error
 }
 
 func New(
@@ -29,6 +36,7 @@ func New(
 	keyspaceTTLMap map[int]string,
 	defaultTTL int,
 	defaultMaxResults int,
+	maxBytesLimit uint32,
 
 ) (*Plot, gobol.Error) {
 
@@ -43,13 +51,23 @@ func New(
 		return nil, errInit("LogQueryTSthreshold needs to be bigger than zero")
 	}
 
+	stringSize := unsafe.Sizeof("")
+
 	return &Plot{
 		MaxTimeseries:       maxTimeseries,
 		LogQueryTSThreshold: logQueryTSthreshold,
-		persist:             persistence{cassandra: cass, metaStorage: metaStorage},
-		keyspaceTTLMap:      keyspaceTTLMap,
-		defaultTTL:          defaultTTL,
-		defaultMaxResults:   defaultMaxResults,
+		persist: persistence{
+			cassandra:                     cass,
+			metaStorage:                   metaStorage,
+			stringSize:                    stringSize,
+			constPartBytesFromNumberPoint: unsafe.Sizeof(Pnt{}),                  //removing the tsid part because it's a string
+			constPartBytesFromTextPoint:   unsafe.Sizeof(TextPnt{}) - stringSize, //removing the tsid and value because they are all strings
+			maxBytesErr:                   errors.New("payload too large"),
+		},
+		keyspaceTTLMap:    keyspaceTTLMap,
+		defaultTTL:        defaultTTL,
+		defaultMaxResults: defaultMaxResults,
+		maxBytesLimit:     maxBytesLimit,
 	}, nil
 }
 
@@ -60,4 +78,11 @@ type Plot struct {
 	keyspaceTTLMap      map[int]string
 	defaultTTL          int
 	defaultMaxResults   int
+	maxBytesLimit       uint32
+}
+
+// getStringSize - calculates the string size
+func (persist *persistence) getStringSize(text string) uintptr {
+
+	return (uintptr(len(text)) + persist.stringSize)
 }

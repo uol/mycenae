@@ -10,10 +10,6 @@ import (
 	"github.com/uol/mycenae/lib/structs"
 )
 
-const (
-	milliWeek = 6.048e+8
-)
-
 func (plot *Plot) GetTimeSeries(
 	ttl int,
 	keys []string,
@@ -22,18 +18,18 @@ func (plot *Plot) GetTimeSeries(
 	opers structs.DataOperations,
 	ms,
 	keepEmpties bool,
-) (TS, gobol.Error) {
+) (TS, uint32, gobol.Error) {
 
 	var keyspace string
 	var ok bool
 	if keyspace, ok = plot.keyspaceTTLMap[ttl]; !ok {
-		return TS{}, errNotFound("invalid ttl found: " + strconv.Itoa(int(ttl)))
+		return TS{}, 0, errNotFound("invalid ttl found: " + strconv.Itoa(int(ttl)))
 	}
 
-	tsMap, gerr := plot.getTimeSerie(keyspace, keys, start, end, ms, keepEmpties, opers)
+	tsMap, numBytes, gerr := plot.getTimeSerie(keyspace, keys, start, end, ms, keepEmpties, opers)
 
 	if gerr != nil {
-		return TS{}, gerr
+		return TS{}, numBytes, gerr
 	}
 
 	resultTSs := TS{}
@@ -78,7 +74,7 @@ func (plot *Plot) GetTimeSeries(
 
 	resultTSs.Count = len(resultTSs.Data)
 
-	return resultTSs, nil
+	return resultTSs, numBytes, nil
 }
 
 func (plot *Plot) getTimeSerie(
@@ -89,12 +85,12 @@ func (plot *Plot) getTimeSerie(
 	ms,
 	keepEmpties bool,
 	opers structs.DataOperations,
-) (map[string]TS, gobol.Error) {
+) (map[string]TS, uint32, gobol.Error) {
 
-	resultMap, gerr := plot.persist.GetTS(keyspace, keys, start, end, ms)
+	resultMap, numBytes, gerr := plot.persist.GetTS(keyspace, keys, start, end, ms, plot.maxBytesLimit)
 
 	if gerr != nil {
-		return map[string]TS{}, gerr
+		return map[string]TS{}, numBytes, gerr
 	}
 
 	transformedMap := map[string]TS{}
@@ -133,5 +129,5 @@ func (plot *Plot) getTimeSerie(
 		transformedMap[tsid] = ts
 	}
 
-	return transformedMap, nil
+	return transformedMap, numBytes, nil
 }

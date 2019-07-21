@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -21,6 +23,23 @@ import (
 //
 
 const lineSeparator byte = 10
+
+var (
+	closeConnectionLogFields = []zapcore.Field{
+		zap.String("package", "telnetsrv"),
+		zap.String("func", "closeConnection"),
+	}
+
+	collectStatsLogFields = []zapcore.Field{
+		zap.String("package", "telnetsrv"),
+		zap.String("func", "collectStats"),
+	}
+
+	handleConnectionLogFields = []zapcore.Field{
+		zap.String("package", "telnetsrv"),
+		zap.String("func", "handleConnection"),
+	}
+)
 
 // Server - the telnet server struct
 type Server struct {
@@ -44,6 +63,7 @@ type Server struct {
 	port                     string
 	name                     string
 	closeConnectionChannel   *chan struct{}
+	connectedIPMap           sync.Map
 }
 
 // New - creates a new telnet server
@@ -84,12 +104,26 @@ func New(serverConfiguration *structs.TelnetServerConfiguration, sharedConnectio
 		denyNewConnections:       0,
 		closeConnectionChannel:   closeConnectionChannel,
 		name:                     serverConfiguration.ServerName,
+		connectedIPMap:           sync.Map{},
 		statsConnectionTags: map[string]string{
 			"type":   "tcp",
 			"port":   strPort,
 			"source": telnetHandler.SourceName(),
 		},
 	}, nil
+}
+
+// extractIP - extracts the remote address IP from the connection
+func (server *Server) extractIP(conn net.Conn) string {
+
+	array := strings.Split(conn.RemoteAddr().String(), ":")
+
+	var remoteAddress string
+	if len(array) > 0 {
+		remoteAddress = array[0]
+	}
+
+	return remoteAddress
 }
 
 // Listen - starts to listen and to handle the incoming messages
@@ -110,6 +144,8 @@ func (server *Server) Listen() error {
 
 	server.logger.Info(fmt.Sprintf("listening telnet connections at %q...", server.listener.Addr()), lf...)
 
+	handlerSourceName := server.telnetHandler.SourceName()
+
 	go func() {
 
 		for {
@@ -121,9 +157,23 @@ func (server *Server) Listen() error {
 				continue
 			}
 
+			remoteAddressIP := server.extractIP(conn)
+
+			// reports the connection IP and source
+			go server.stats.ValueAdd("telnetsrv", "network.ip", map[string]string{"ip": remoteAddressIP, "source": handlerSourceName}, 1)
+			go server.stats.ValueAdd("telnetsrv", "network.connection.open", map[string]string{"source": handlerSourceName, "port": server.port}, 1)
+
+			if _, stored := server.connectedIPMap.LoadOrStore(remoteAddressIP, struct{}{}); stored {
+
+				server.logger.Info(fmt.Sprintf("telnet server will not accept new connections from %s", remoteAddressIP), lf...)
+				go server.closeConnection(conn, "multiple", false)
+
+				continue
+			}
+
 			if atomic.LoadUint32(&server.denyNewConnections) == 1 {
 
-				server.logger.Info(fmt.Sprintf("telnet server is not accepting new connections, denying connection from %q", conn.RemoteAddr()), lf...)
+				server.logger.Info(fmt.Sprintf("telnet server is not accepting new connections, denying connection from %s", remoteAddressIP), lf...)
 				go server.closeConnection(conn, "deny", false)
 
 				continue
@@ -131,16 +181,22 @@ func (server *Server) Listen() error {
 
 			if atomic.LoadUint32(server.sharedConnectionCounter) >= server.maxConnections {
 
-				server.logger.Info(fmt.Sprintf("max number of telnet connections reached (%d), closing connection from %q", server.maxConnections, conn.RemoteAddr()), lf...)
+				server.logger.Info(fmt.Sprintf("max number of telnet connections reached (%d), closing connection from %s", server.maxConnections, remoteAddressIP), lf...)
 				go server.closeConnection(conn, "limit", false)
 
 				continue
 			}
 
-			atomic.AddUint32(server.sharedConnectionCounter, 1)
-			atomic.AddUint32(&server.numLocalConnections, 1)
+			server.increaseCounter(server.sharedConnectionCounter)
+			server.increaseCounter(&server.numLocalConnections)
 
-			server.logger.Debug(fmt.Sprintf("received new connection from %q", conn.RemoteAddr()), lf...)
+			server.logger.Info(fmt.Sprintf("received new connection from %s", remoteAddressIP), lf...)
+
+			err = conn.SetDeadline(time.Now().Add(server.maxIdleConnectionTimeout))
+			if err != nil {
+				go server.closeConnection(conn, "deadline", true)
+				continue
+			}
 
 			go server.handleConnection(conn)
 		}
@@ -152,47 +208,65 @@ func (server *Server) Listen() error {
 // handleConnection - handles an incoming connection
 func (server *Server) handleConnection(conn net.Conn) {
 
-	lf := []zapcore.Field{
-		zap.String("package", "telnetsrv"),
-		zap.String("func", "handleConnection"),
-	}
+	defer server.recover(conn, handleConnectionLogFields)
 
-	defer server.recover(conn, lf)
+	startTime := time.Now()
 
 	buffer := make([]byte, server.maxBufferSize)
 	data := make([]byte, 0)
 	var err error
 	var n int
+ConnLoop:
 	for {
 		select {
 		case <-(*server.closeConnectionChannel):
 			go server.closeConnection(conn, "balancing", true)
-			return
+			break ConnLoop
 		default:
 		}
 
-		conn.SetDeadline(time.Now().Add(server.maxIdleConnectionTimeout))
+		err = conn.SetWriteDeadline(time.Now().Add(server.maxIdleConnectionTimeout))
+		if err != nil {
+			go server.closeConnection(conn, "wdeadline", true)
+			break ConnLoop
+		}
+
+		_, err = conn.Write([]byte("OK" + string(server.lineSplitter)))
+		if err != nil {
+			if err == io.EOF {
+				go server.closeConnection(conn, "weof", true)
+				break ConnLoop
+			}
+
+			if castedErr, ok := err.(net.Error); ok && castedErr.Timeout() {
+				go server.closeConnection(conn, "wtimeout", true)
+				break ConnLoop
+			}
+
+			go server.closeConnection(conn, "wunknown", true)
+			break ConnLoop
+		}
+
+		err = conn.SetReadDeadline(time.Now().Add(server.maxIdleConnectionTimeout))
+		if err != nil {
+			go server.closeConnection(conn, "deadline", true)
+			break ConnLoop
+		}
 
 		n, err = conn.Read(buffer)
 		if err != nil {
 			if err == io.EOF {
 				go server.closeConnection(conn, "eof", true)
-				break
+				break ConnLoop
 			}
 
 			if castedErr, ok := err.(net.Error); ok && castedErr.Timeout() {
 				go server.closeConnection(conn, "timeout", true)
-				break
+				break ConnLoop
 			}
 
-			go server.closeConnection(conn, "error", true)
-			break
-		}
-
-		size, err := conn.Write([]byte("OK"))
-		if err != nil || size == 0 {
-			go server.closeConnection(conn, "write", true)
-			break
+			go server.closeConnection(conn, "unknown", true)
+			break ConnLoop
 		}
 
 		if n == 0 {
@@ -210,44 +284,76 @@ func (server *Server) handleConnection(conn net.Conn) {
 		}
 	}
 
+	go server.stats.ValueAdd(
+		"telnetsrv",
+		"network.connection.open.time",
+		map[string]string{
+			"source": server.telnetHandler.SourceName(),
+			"port":   server.port,
+		},
+		float64(time.Since(startTime).Nanoseconds())/float64(time.Millisecond),
+	)
+
 	if err != nil {
-		server.logger.Debug(fmt.Sprintf("connection loop was broken under error: %s", err), lf...)
+		server.logger.Error(fmt.Sprintf("connection loop was broken under error: %s", err), handleConnectionLogFields...)
 	} else {
-		server.logger.Debug("connection loop was broken with no error", lf...)
+		server.logger.Debug("connection loop was broken with no error", handleConnectionLogFields...)
 	}
 }
 
+// increaseCounter - increases the counter
+func (server *Server) increaseCounter(num *uint32) uint32 {
+
+	return atomic.AddUint32(num, 1)
+}
+
+// decreaseCounter - decreases the counter
+func (server *Server) decreaseCounter(num *uint32) uint32 {
+
+	return atomic.AddUint32(num, ^uint32(0))
+}
+
 // closeConnection - closes an tcp connection
-func (server *Server) closeConnection(conn net.Conn, from string, subtractCounter bool) {
+func (server *Server) closeConnection(conn net.Conn, reason string, subtractCounter bool) {
 
-	lf := []zapcore.Field{
-		zap.String("package", "telnetsrv"),
-		zap.String("func", "closeConnection"),
+	startTime := time.Now()
+
+	remoteAddressIP := server.extractIP(conn)
+
+	err := conn.Close()
+	if err != nil {
+		server.logger.Error(fmt.Sprintf("error closing tcp telnet connection %s (%s): %s", remoteAddressIP, reason, err.Error()), closeConnectionLogFields...)
 	}
 
-	server.logger.Info(fmt.Sprintf("closing tcp telnet connection (%s)", from), lf...)
+	conn = nil
 
-	if subtractCounter {
-		atomic.AddUint32(server.sharedConnectionCounter, ^uint32(0))
-		atomic.AddUint32(&server.numLocalConnections, ^uint32(0))
-	}
+	server.connectedIPMap.Delete(remoteAddressIP)
+
+	source := server.telnetHandler.SourceName()
 
 	statsCloseTags := map[string]string{
-		"type":   from,
-		"source": server.telnetHandler.SourceName(),
+		"type":   reason,
+		"source": source,
 		"port":   server.port,
 	}
 
 	go server.stats.Increment("telnetsrv", "network.connection.close", statsCloseTags)
 
-	if conn != nil {
-		err := conn.Close()
-		if err != nil {
-			server.logger.Error(fmt.Sprintf("error closing tcp telnet connection (%s): %s", from, err.Error()), lf...)
-		}
+	var localConns, sharedConns uint32
 
-		conn = nil
+	if subtractCounter {
+		localConns = server.decreaseCounter(&server.numLocalConnections)
+		sharedConns = server.decreaseCounter(server.sharedConnectionCounter)
+	} else {
+		localConns = server.numLocalConnections
+		sharedConns = *server.sharedConnectionCounter
 	}
+
+	server.logger.Info(fmt.Sprintf("tcp telnet connection closed %s (%s) from %d connections)", remoteAddressIP, reason, localConns), closeConnectionLogFields...)
+
+	server.logger.Info(fmt.Sprintf("total telnet connections: %d / %d (local conns / total conns -> %s)", localConns, sharedConns, source), closeConnectionLogFields...)
+
+	go server.stats.ValueAdd("telnetsrv", "network.connection.close.time", statsCloseTags, float64(time.Since(startTime).Nanoseconds())/float64(time.Millisecond))
 }
 
 // Shutdown - stops listening
@@ -274,22 +380,17 @@ func (server *Server) Shutdown() error {
 // collectStats - send all TCP connection statistics
 func (server *Server) collectStats() {
 
-	lf := []zapcore.Field{
-		zap.String("package", "telnetsrv"),
-		zap.String("func", "collectStats"),
-	}
-
-	server.logger.Info("starting telnet server stats", lf...)
+	server.logger.Info("starting telnet server stats", collectStatsLogFields...)
 
 	for {
 		<-time.After(server.sendStatsTimeout)
 
 		if server.terminate {
-			server.logger.Info("terminating telnet server stats", lf...)
+			server.logger.Info("terminating telnet server stats", collectStatsLogFields...)
 			return
 		}
 
-		server.stats.ValueAdd("telnetsrv", "network.connection", server.statsConnectionTags, (float64)(server.numLocalConnections))
+		go server.stats.ValueAdd("telnetsrv", "network.connection", server.statsConnectionTags, (float64)(server.numLocalConnections))
 	}
 }
 
@@ -298,7 +399,8 @@ func (server *Server) recover(conn net.Conn, lf []zapcore.Field) {
 
 	if r := recover(); r != nil {
 		server.logger.Error(fmt.Sprintf("recovered from: %s", r), lf...)
-		atomic.AddUint32(&server.numLocalConnections, ^uint32(0))
+		server.decreaseCounter(&server.numLocalConnections)
+		server.decreaseCounter(server.sharedConnectionCounter)
 	}
 }
 

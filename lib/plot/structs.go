@@ -200,14 +200,12 @@ type TST struct {
 }
 
 type Pnt struct {
-	TSID  string
 	Date  int64
 	Value float64
 	Empty bool
 }
 
 type TextPnt struct {
-	TSID  string
 	Date  int64  `json:"x"`
 	Value string `json:"title"`
 }

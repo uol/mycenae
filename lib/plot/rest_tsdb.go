@@ -14,9 +14,6 @@ import (
 
 	"github.com/uol/mycenae/lib/parser"
 	"github.com/uol/mycenae/lib/structs"
-
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
 func (plot *Plot) Lookup(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
@@ -123,7 +120,7 @@ func (plot *Plot) Suggest(w http.ResponseWriter, r *http.Request, ps httprouter.
 		q := fmt.Sprintf("%v*", queryString.Get("q"))
 		resp, _, gerr = plot.FilterTagValues(keyset, q, max)
 	default:
-		gerr = errValidationS("Suggest", "unsopported type")
+		gerr = errValidationS("Suggest", "unsupported type")
 		rip.Fail(w, gerr)
 		return
 	}
@@ -157,11 +154,13 @@ func (plot *Plot) Query(w http.ResponseWriter, r *http.Request, ps httprouter.Pa
 		return
 	}
 
-	resps, gerr := plot.getTimeseries(keyset, query)
+	resps, numBytes, gerr := plot.getTimeseries(keyset, query)
 	if gerr != nil {
 		rip.Fail(w, gerr)
 		return
 	}
+
+	addProcessedBytesHeader(w, numBytes)
 
 	if len(resps) == 0 {
 		rip.SuccessJSON(w, http.StatusOK, []string{})
@@ -175,19 +174,19 @@ func (plot *Plot) Query(w http.ResponseWriter, r *http.Request, ps httprouter.Pa
 func (plot *Plot) getTimeseries(
 	keyset string,
 	query structs.TSDBqueryPayload,
-) (resps TSDBresponses, gerr gobol.Error) {
+) (resps TSDBresponses, sumBytes uint32, gerr gobol.Error) {
 
 	if query.Relative != "" {
 		now := time.Now()
 		start, gerr := parser.GetRelativeStart(now, query.Relative)
 		if gerr != nil {
-			return resps, gerr
+			return resps, 0, gerr
 		}
 		query.Start = start.UnixNano() / 1e+6
 		query.End = now.UnixNano() / 1e+6
 	} else {
 		if query.Start == 0 {
-			return resps, errValidationS("getTimeseries", "start cannot be zero")
+			return resps, 0, errValidationS("getTimeseries", "start cannot be zero")
 		}
 
 		if query.End == 0 {
@@ -195,7 +194,7 @@ func (plot *Plot) getTimeseries(
 		}
 
 		if query.End < query.Start {
-			return resps, errValidationS("getTimeseries", "end date should be equal or bigger than start date")
+			return resps, 0, errValidationS("getTimeseries", "end date should be equal or bigger than start date")
 		}
 	}
 
@@ -292,7 +291,7 @@ func (plot *Plot) getTimeseries(
 				if filter.Tagk == "ttl" {
 					v, err := strconv.Atoi(filter.Filter)
 					if err != nil {
-						return resps, errValidationE("getTimeseries", err)
+						return resps, sumBytes, errValidationE("getTimeseries", err)
 					}
 					ttl = v
 					ttlIndex = i
@@ -307,13 +306,13 @@ func (plot *Plot) getTimeseries(
 
 		tsobs, total, gerr := plot.MetaFilterOpenTSDB(keyset, q.Metric, q.Filters, plot.MaxTimeseries)
 		if gerr != nil {
-			return resps, gerr
+			return resps, sumBytes, gerr
 		}
 
 		logIfExceeded := fmt.Sprintf("TS THRESHOLD/MAX EXCEEDED for query: %+v", query)
 		gerr = plot.checkTotalTSLimits(logIfExceeded, keyset, q.Metric, total)
 		if gerr != nil {
-			return TSDBresponses{}, gerr
+			return TSDBresponses{}, sumBytes, gerr
 		}
 
 		if len(tsobs) == 0 {
@@ -357,14 +356,14 @@ func (plot *Plot) getTimeseries(
 				if q.FilterValue[:2] == ">=" || q.FilterValue[:2] == "<=" || q.FilterValue[:2] == "==" {
 					val, err := strconv.ParseFloat(q.FilterValue[2:], 64)
 					if err != nil {
-						return resps, errValidationE("getTimeseries", err)
+						return resps, sumBytes, errValidationE("getTimeseries", err)
 					}
 					filterV.BoolOper = q.FilterValue[:2]
 					filterV.Value = val
 				} else if q.FilterValue[:1] == ">" || q.FilterValue[:1] == "<" {
 					val, err := strconv.ParseFloat(q.FilterValue[1:], 64)
 					if err != nil {
-						return resps, errValidationE("getTimeseries", err)
+						return resps, sumBytes, errValidationE("getTimeseries", err)
 					}
 					filterV.BoolOper = q.FilterValue[:1]
 					filterV.Value = val
@@ -394,7 +393,7 @@ func (plot *Plot) getTimeseries(
 				keepEmpty = true
 			}
 
-			serie, gerr := plot.GetTimeSeries(
+			serie, numBytes, gerr := plot.GetTimeSeries(
 				ttl,
 				ids,
 				query.Start,
@@ -404,21 +403,16 @@ func (plot *Plot) getTimeseries(
 				keepEmpty,
 			)
 			if gerr != nil {
-				return resps, gerr
+				if gerr.Error() == plot.persist.maxBytesErr.Error() {
+					return resps, sumBytes, errMaxBytesLimit("getTimeseries", keyset, q.Metric, query.Start, query.End, ttl)
+				}
+
+				return resps, sumBytes, gerr
 			}
 
 			sumTotalPoints += serie.Total
 			sumCountPoints += serie.Count
-
-			lf := []zapcore.Field{
-				zap.String("package", "plot/rest_tsdb"),
-				zap.String("func", "getTimeseries"),
-				zap.String("metric", q.Metric),
-				zap.String("keyset", keyset),
-				zap.String("count points", strconv.Itoa(serie.Count)),
-				zap.String("total points", strconv.Itoa(serie.Total)),
-			}
-			gblog.Debug("query executed", lf...)
+			sumBytes += numBytes
 
 			for k, kv := range tagK {
 				if len(kv) > 1 {
@@ -484,11 +478,11 @@ func (plot *Plot) getTimeseries(
 		statsConferMetric(keyset, q.Metric)
 	}
 
-	statsPlotSummaryPoints(sumCountPoints, sumTotalPoints, keyset)
+	statsPlotSummaryPoints(sumCountPoints, sumTotalPoints, sumBytes, keyset)
 
 	sort.Sort(resps)
 
-	return resps, gerr
+	return resps, sumBytes, gerr
 }
 
 func parseQuery(query string) (string, []Tag, gobol.Error) {
