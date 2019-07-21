@@ -20,10 +20,11 @@ type Loggers struct {
 }
 
 type SettingsHTTP struct {
-	Path            string
-	Port            int
-	Bind            string
-	EnableProfiling bool
+	Path              string
+	Port              int
+	Bind              string
+	EnableProfiling   bool
+	ForceErrorAsDebug bool
 }
 
 type TelnetServerConfiguration struct {
@@ -69,6 +70,7 @@ type Settings struct {
 	MetaBufferSize                  int
 	DefaultPaginationSize           int
 	MetaSaveInterval                string
+	MaxBytesOnQueryProcessing       uint32
 	GlobalTelnetServerConfiguration GlobalTelnetServerConfiguration
 	HTTPserver                      SettingsHTTP
 	UDPserver                       SettingsUDP

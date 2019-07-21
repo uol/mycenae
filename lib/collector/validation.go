@@ -16,9 +16,9 @@ func (collector *Collector) logPointError(p *TSDBpoint, err error, lf []zapcore.
 	jsonStr, errj := json.Marshal(&p)
 
 	if errj != nil {
-		gblog.Error(fmt.Sprintf("point error (%+v): %s", &p, err.Error()), lf...)
+		gblog.Debug(fmt.Sprintf("point error (%+v): %s", &p, err.Error()), lf...)
 	} else {
-		gblog.Error(fmt.Sprintf("point error (%s): %s", jsonStr, err.Error()), lf...)
+		gblog.Debug(fmt.Sprintf("point error (%s): %s", jsonStr, err.Error()), lf...)
 	}
 }
 
@@ -141,7 +141,7 @@ func (collector *Collector) MakePacket(packet *Point, rcvMsg TSDBpoint, number b
 		return err
 	}
 	if !keySetExists {
-		err := errValidation(`"ksid" not exists. NO information will be saved`)
+		err := errValidation("ksid \"" + packet.Keyset + "\" not exists. NO information will be saved")
 		collector.logPointError(&rcvMsg, err, lf)
 		return err
 	}

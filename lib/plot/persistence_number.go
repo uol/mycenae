@@ -10,7 +10,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-func (persist *persistence) GetTS(keyspace string, keys []string, start, end int64, ms bool) (map[string][]Pnt, gobol.Error) {
+func (persist *persistence) GetTS(keyspace string, keys []string, start, end int64, ms bool, maxBytesLimit uint32) (map[string][]Pnt, uint32, gobol.Error) {
 
 	track := time.Now()
 	start--
@@ -20,12 +20,14 @@ func (persist *persistence) GetTS(keyspace string, keys []string, start, end int
 	var date int64
 	var value float64
 	var err error
+	var numBytes uint32
+	idsGroup := persist.buildInGroup(keys)
 
 	iter := persist.cassandra.Query(
 		fmt.Sprintf(
 			`SELECT id, date, value FROM %v.ts_number_stamp WHERE id in (%s) AND date > ? AND date < ? ALLOW FILTERING`,
 			keyspace,
-			persist.buildInGroup(keys),
+			idsGroup,
 		),
 		start,
 		end,
@@ -33,6 +35,7 @@ func (persist *persistence) GetTS(keyspace string, keys []string, start, end int
 
 	tsMap := map[string][]Pnt{}
 	countRows := 0
+	limitReached := false
 
 	for iter.Scan(&tsid, &date, &value) {
 
@@ -41,12 +44,22 @@ func (persist *persistence) GetTS(keyspace string, keys []string, start, end int
 		}
 
 		point := Pnt{
-			TSID:  tsid,
 			Date:  date,
 			Value: value,
 		}
 
+		if _, ok := tsMap[tsid]; !ok {
+			numBytes += uint32(persist.getStringSize(tsid))
+		}
+
 		tsMap[tsid] = append(tsMap[tsid], point)
+
+		numBytes += uint32(persist.constPartBytesFromNumberPoint)
+
+		if numBytes >= maxBytesLimit {
+			limitReached = true
+			break
+		}
 
 		countRows++
 	}
@@ -60,14 +73,18 @@ func (persist *persistence) GetTS(keyspace string, keys []string, start, end int
 
 		if err == gocql.ErrNotFound {
 			statsSelect(keyspace, "ts_number_stamp", time.Since(track), countRows)
-			return map[string][]Pnt{}, errNoContent("getTS")
+			return map[string][]Pnt{}, 0, errNoContent("getTS")
 		}
 
 		statsSelectQerror(keyspace, "ts_number_stamp")
-		return map[string][]Pnt{}, errPersist("getTS", err)
+		return map[string][]Pnt{}, 0, errPersist("getTS", err)
 	}
 
 	statsSelect(keyspace, "ts_number_stamp", time.Since(track), countRows)
 
-	return tsMap, nil
+	if limitReached {
+		return map[string][]Pnt{}, numBytes, errMaxBytesLimitWrapper("GetTS", persist.maxBytesErr)
+	}
+
+	return tsMap, numBytes, nil
 }

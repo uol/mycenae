@@ -91,11 +91,11 @@ func statsPointsError(ksid, vt, protocol, ttl string) {
 }
 
 func statsIncrement(metric string, tags map[string]string) {
-	stats.Increment("collector", metric, tags)
+	go stats.Increment("collector", metric, tags)
 }
 
 func statsValueAdd(metric string, tags map[string]string, v float64) {
-	stats.ValueAdd("collector", metric, tags, v)
+	go stats.ValueAdd("collector", metric, tags, v)
 }
 
 func statsCountNewTimeseries(ksid, vt string, ttl int) {

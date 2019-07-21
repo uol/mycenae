@@ -55,6 +55,7 @@ func New(
 		keyset:              ks,
 		telnetManager:       telnetManager,
 		enableHTTPProfiling: set.EnableProfiling,
+		forceErrorAsDebug:   set.ForceErrorAsDebug,
 	}
 }
 
@@ -75,6 +76,7 @@ type REST struct {
 	keyset              *keyset.KeySet
 	telnetManager       *telnetmgr.Manager
 	enableHTTPProfiling bool
+	forceErrorAsDebug   bool
 }
 
 // Start asynchronously the handler of the APIs
@@ -91,7 +93,7 @@ func (trest *REST) asyncStart() {
 		zap.String("func", "asyncStart"),
 	}
 
-	rip.SetLogger(trest.gblog)
+	rip.SetLogger(trest.gblog, trest.forceErrorAsDebug)
 
 	pathMatcher := regexp.MustCompile(`^(/[a-zA-Z0-9._-]+)?/$`)
 
@@ -111,8 +113,6 @@ func (trest *REST) asyncStart() {
 	router.HEAD(path+"node/halt/balancing", trest.telnetManager.HaltTelnetBalancingProcess)
 	//PROBE
 	router.GET(path+"probe", trest.check)
-	//READ
-	router.POST(path+"keysets/:keyset/points", trest.reader.ListPoints)
 	//EXPRESSION
 	router.GET(path+"expression/check", trest.reader.ExpressionCheckGET)
 	router.POST(path+"expression/check", trest.reader.ExpressionCheckPOST)

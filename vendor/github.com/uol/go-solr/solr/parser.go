@@ -16,7 +16,7 @@ func bytes2json(data *[]byte) (map[string]interface{}, error) {
 
 	jsonDataIf, convOk := jsonData.(map[string]interface{})
 	if !convOk {
-		return nil, fmt.Errorf("bytes2json - type casting error")
+		return nil, TypeCastingError
 	}
 
 	return jsonDataIf, nil
@@ -52,7 +52,7 @@ func (parser *ExtensiveResultParser) Parse(resp_ *[]byte) (*SolrResult, error) {
 	response.Response = jsonbuf
 	rHeader, convOk := jsonbuf["responseHeader"].(map[string]interface{})
 	if !convOk {
-		return nil, fmt.Errorf("Parse - type casting error")
+		return nil, TypeCastingError
 	}
 
 	response.Status = int(rHeader["status"].(float64))
@@ -101,7 +101,7 @@ func (parser *ExtensiveResultParser) ParseResponseHeader(response *SolrResponse,
 		return nil
 	}
 
-	return fmt.Errorf("ParseResponseHeader - type casting error")
+	return TypeCastingError
 }
 
 func (parser *ExtensiveResultParser) ParseError(response *SolrResponse, sr *SolrResult) error {
@@ -110,7 +110,7 @@ func (parser *ExtensiveResultParser) ParseError(response *SolrResponse, sr *Solr
 		return nil
 	}
 
-	return fmt.Errorf("ParseError - type casting error")
+	return TypeCastingError
 }
 
 // ParseJsonFacets will assign facets and build sr.jsonfacets if there is a facet_counts
@@ -120,13 +120,13 @@ func (parser *ExtensiveResultParser) ParseFacets(response *SolrResponse, sr *Sol
 		if f, ok := fc["facet_fields"].(map[string]interface{}); ok {
 			sr.Facets = f
 		} else {
-			return fmt.Errorf("ParseFacets - type casting error (a)")
+			return TypeCastingError
 		}
 
 		return nil
 	}
 
-	return fmt.Errorf("ParseFacets - type casting error (b)")
+	return TypeCastingError
 }
 
 // ParseJsonFacets will assign facets and build sr.jsonfacets if there is a facets
@@ -136,7 +136,7 @@ func (parser *ExtensiveResultParser) ParseJsonFacets(response *SolrResponse, sr 
 		return nil
 	}
 
-	return fmt.Errorf("ParseJsonFacets - type casting error")
+	return TypeCastingError
 }
 
 // ParseSolrResponse will assign result and build sr.docs if there is a response.
@@ -170,7 +170,7 @@ func (parser *StandardResultParser) Parse(resp_ *[]byte) (*SolrResult, error) {
 	response.Response = jsonbuf
 	rHeader, convOk := jsonbuf["responseHeader"].(map[string]interface{})
 	if !convOk {
-		return nil, fmt.Errorf("Parse - type casting error")
+		return nil, TypeCastingError
 	}
 
 	response.Status = int(rHeader["status"].(float64))
@@ -213,7 +213,7 @@ func (parser *StandardResultParser) ParseResponseHeader(response *SolrResponse, 
 		return nil
 	}
 
-	return fmt.Errorf("ParseResponseHeader - type casting error")
+	return TypeCastingError
 }
 
 func (parser *StandardResultParser) ParseError(response *SolrResponse, sr *SolrResult) error {
@@ -222,7 +222,7 @@ func (parser *StandardResultParser) ParseError(response *SolrResponse, sr *SolrR
 		return nil
 	}
 
-	return fmt.Errorf("ParseError - type casting error")
+	return TypeCastingError
 }
 
 func ParseDocResponse(docResponse map[string]interface{}, collection *Collection) error {
@@ -233,7 +233,7 @@ func ParseDocResponse(docResponse map[string]interface{}, collection *Collection
 		for i, v := range docs {
 			d, convOk := v.(map[string]interface{})
 			if !convOk {
-				return fmt.Errorf("ParseDocResponse - type casting error (for)")
+				return TypeCastingError
 			}
 
 			collection.Docs[i] = Document(d)
@@ -270,7 +270,7 @@ func (parser *StandardResultParser) ParseFacetCounts(response *SolrResponse, sr 
 		return nil
 	}
 
-	return fmt.Errorf("ParseFacetCounts - type casting error")
+	return TypeCastingError
 }
 
 // ParseHighlighting will assign highlighting to sr if there is one.
@@ -281,7 +281,7 @@ func (parser *StandardResultParser) ParseHighlighting(response *SolrResponse, sr
 		return nil
 	}
 
-	return fmt.Errorf("ParseHighlighting - type casting error")
+	return TypeCastingError
 }
 
 // Parse stats if there is  in response
@@ -291,7 +291,7 @@ func (parser *StandardResultParser) ParseStats(response *SolrResponse, sr *SolrR
 		return nil
 	}
 
-	return fmt.Errorf("ParseStats - type casting error")
+	return TypeCastingError
 }
 
 // Parse moreLikeThis if there is in response
@@ -301,7 +301,7 @@ func (parser *StandardResultParser) ParseMoreLikeThis(response *SolrResponse, sr
 		return nil
 	}
 
-	return fmt.Errorf("ParseMoreLikeThis - type casting error")
+	return TypeCastingError
 }
 
 // Parse moreLikeThis if there is in response
@@ -311,7 +311,7 @@ func (parser *StandardResultParser) ParseSpellCheck(response *SolrResponse, sr *
 		return nil
 	}
 
-	return fmt.Errorf("ParseSpellCheck - type casting error")
+	return TypeCastingError
 }
 
 type MltResultParser interface {
@@ -331,7 +331,7 @@ func (parser *MoreLikeThisParser) Parse(resp_ *[]byte) (*SolrMltResult, error) {
 	resp.Response = jsonbuf
 	rHeader, convOk := jsonbuf["responseHeader"].(map[string]interface{})
 	if !convOk {
-		return nil, fmt.Errorf("Parse - type casting error")
+		return nil, TypeCastingError
 	}
 
 	resp.Status = int(rHeader["status"].(float64))
@@ -343,7 +343,7 @@ func (parser *MoreLikeThisParser) Parse(resp_ *[]byte) (*SolrMltResult, error) {
 	if responseHeader, ok := resp.Response["responseHeader"].(map[string]interface{}); ok {
 		sr.ResponseHeader = responseHeader
 	} else {
-		return nil, fmt.Errorf("Parse - type casting error")
+		return nil, TypeCastingError
 	}
 
 	if resp.Status == 0 {
@@ -353,7 +353,7 @@ func (parser *MoreLikeThisParser) Parse(resp_ *[]byte) (*SolrMltResult, error) {
 				return nil, err
 			}
 		} else {
-			return nil, fmt.Errorf("Parse - type casting error")
+			return nil, TypeCastingError
 		}
 
 		if match, ok := resp.Response["match"].(map[string]interface{}); ok {
@@ -362,13 +362,13 @@ func (parser *MoreLikeThisParser) Parse(resp_ *[]byte) (*SolrMltResult, error) {
 				return nil, err
 			}
 		} else {
-			return nil, fmt.Errorf("Parse - type casting error")
+			return nil, TypeCastingError
 		}
 	} else {
 		if err, ok := resp.Response["error"].(map[string]interface{}); ok {
 			sr.Error = err
 		} else {
-			return nil, fmt.Errorf("Parse - type casting error")
+			return nil, TypeCastingError
 		}
 	}
 	return sr, nil

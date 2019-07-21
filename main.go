@@ -389,6 +389,7 @@ func createPlotService(conf *structs.Settings, timeseriesStats *tsstats.StatsTS,
 		keyspaceTTLMap,
 		conf.DefaultTTL,
 		conf.DefaultPaginationSize,
+		conf.MaxBytesOnQueryProcessing,
 	)
 
 	lf := []zapcore.Field{

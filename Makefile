@@ -10,6 +10,7 @@ COVER := /tmp/mycenae.cover
 default: build
 build install:
 	@echo " === Running: $@ === "
+	@GOARCH=amd64
 	@go "$@" -a -v -o mycenae
 	@echo
 test $(COVER): $(wildcard *.go)

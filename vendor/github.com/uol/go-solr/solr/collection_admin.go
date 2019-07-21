@@ -43,7 +43,7 @@ func (ca *CollectionsAdmin) Get(params *url.Values) (*SolrResponse, error) {
 	result := &SolrResponse{Response: resp}
 	rHeader, convOk := resp["responseHeader"].(map[string]interface{})
 	if !convOk {
-		return nil, fmt.Errorf("Get - type casting error")
+		return nil, TypeCastingError
 	}
 
 	result.Status = int(rHeader["status"].(float64))

@@ -44,7 +44,7 @@ func (ca *CoreAdmin) Get(path string, params *url.Values) (*SolrResponse, error)
 
 	rHeader, convOk := resp["responseHeader"].(map[string]interface{})
 	if !convOk {
-		return nil, fmt.Errorf("Get - type casting error")
+		return nil, TypeCastingError
 	}
 
 	result.Status = int(rHeader["status"].(float64))

@@ -65,7 +65,7 @@ func NewSolrBackend(settings *Settings, stats *tsstats.StatsTS, logger *zap.Logg
 		zookeeperConfig:       settings.ZookeeperConfig,
 		maxReturnedMetadata:   settings.MaxReturnedMetadata,
 		blacklistedKeysetMap:  blacklistedKeysetMap,
-		solrSpecialCharRegexp: regexp.MustCompile(`(\+|\-|\&|\||\!|\(|\)|\{|\}|\[|\]|\^|"|\~|\*|\?|\:|\\|/)`),
+		solrSpecialCharRegexp: regexp.MustCompile(`(\+|\-|\&|\||\!|\(|\)|\{|\}|\[|\]|\^|"|\~|\*|\?|\:|\\|\/)`),
 	}, nil
 }
 
@@ -445,7 +445,7 @@ func (sb *SolrBackend) FilterMetadata(collection string, query *Query, from, max
 	r, err := sb.solrService.FilteredQuery(collection, q, sb.fieldListQuery, from, maxResults, qfs)
 	if err != nil {
 		sb.statsCollectionError(collection, "list_metas", "solr.collection.search.error")
-		return nil, 0, errInternalServer("ListMetas", err)
+		return nil, 0, errInternalServer("FilterMetadata", err)
 	}
 
 	sb.statsCollectionAction(collection, "list_metas", "solr.collection.search", time.Since(start))

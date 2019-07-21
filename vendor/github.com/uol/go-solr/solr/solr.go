@@ -2,10 +2,13 @@ package solr
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"net/url"
 )
+
+var TypeCastingError = errors.New("solr type cast error")
 
 // Shortcut for map[string]interface{}
 // Use where applicable

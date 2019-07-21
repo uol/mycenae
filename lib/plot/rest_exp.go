@@ -152,11 +152,13 @@ func (plot *Plot) expressionQuery(w http.ResponseWriter, r *http.Request, keyset
 		return
 	}
 
-	resps, gerr := plot.getTimeseries(keyset, payload)
+	resps, numBytes, gerr := plot.getTimeseries(keyset, payload)
 	if gerr != nil {
 		rip.Fail(w, gerr)
 		return
 	}
+
+	addProcessedBytesHeader(w, numBytes)
 
 	if len(resps) == 0 {
 		rip.SuccessJSON(w, http.StatusOK, []string{})

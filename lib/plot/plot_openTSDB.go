@@ -112,7 +112,7 @@ func (plot *Plot) MetaFilterOpenTSDB(keyset, metric string, filters []structs.TS
 		query.Tags[i] = metadata.QueryTag{
 			Key:    filter.Tagk,
 			Negate: filter.Ftype == "not_literal_or",
-			Regexp: filter.Ftype == "regexp" || filter.Ftype == "wildcard",
+			Regexp: (filter.Ftype == "regexp" || filter.Ftype == "wildcard"),
 		}
 
 		if filter.Ftype != "not_literal_or" && (filter.Filter == "*" || filter.Filter == ".*") {

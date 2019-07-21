@@ -1,7 +1,6 @@
 package telnet
 
 import (
-	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -11,8 +10,11 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
+	"github.com/json-iterator/go"
 	"github.com/uol/mycenae/lib/collector"
 )
+
+var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 // netdataJSON - a JSON line from netdata packet
 type netdataJSON struct {
@@ -164,7 +166,7 @@ func (nh *NetdataHandler) Handle(line string) {
 					return
 				}
 
-				nh.regexpCache.Store(array[0], compiledRegex)
+				nh.regexpCache.Store(array[0], newCompiledRegex)
 
 				nh.logger.Info(fmt.Sprintf("new regular expression was cached: %s", array[0]), nh.loggerFields...)
 

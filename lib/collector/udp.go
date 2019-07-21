@@ -8,7 +8,14 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+func sendIPStats(addr string) {
+
+	go stats.Increment("HandleUDPpacket", "network.ip", map[string]string{"ip": addr, "source": "udp"})
+}
+
 func (collector *Collector) HandleUDPpacket(buf []byte, addr string) {
+
+	sendIPStats(addr)
 
 	rcvMsg := TSDBpoint{}
 
