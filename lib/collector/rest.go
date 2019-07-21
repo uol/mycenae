@@ -1,13 +1,14 @@
 package collector
 
 import (
+	"compress/gzip"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"strings"
 
 	"github.com/julienschmidt/httprouter"
-	"github.com/uol/gobol"
 	"github.com/uol/gobol/rip"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -15,39 +16,55 @@ import (
 
 func (collect *Collector) handle(w http.ResponseWriter, r *http.Request, number bool) {
 
-	points := TSDBpoints{}
+	var bytes []byte
+	var err error
+	var gzipReader *gzip.Reader
 
-	gerr := rip.FromJSON(r, &points)
+	if r.Header.Get("Content-Encoding") == "gzip" {
+
+		gzipReader, err = gzip.NewReader(r.Body)
+		if err != nil {
+			rip.Fail(w, errUnmarshal("handle", err))
+			return
+		}
+
+		bytes, err = ioutil.ReadAll(gzipReader)
+
+	} else {
+
+		bytes, err = ioutil.ReadAll(r.Body)
+	}
+
+	if err != nil {
+		rip.Fail(w, errUnmarshal("handle", err))
+		return
+	}
+
+	_, gerr := collect.HandleJSONBytes(bytes, "http", number)
 	if gerr != nil {
 		rip.Fail(w, gerr)
 		return
 	}
 
-	hasError := false
+	rip.Success(w, http.StatusNoContent, nil)
 
-	for _, point := range points {
-		gerr = collect.handleRESTpacket(point, number)
-
-		if gerr != nil {
-			rip.Fail(w, gerr)
-			hasError = true
-			break
-		}
+	if gzipReader != nil {
+		gzipReader.Close()
 	}
 
-	if !hasError {
-		rip.Success(w, http.StatusNoContent, nil)
-	}
+	r.Body.Close()
 
 	return
 }
 
+// HandleNumber - handles the point in number format
 func (collect *Collector) HandleNumber(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 	collect.sendIPStats(r)
 	collect.handle(w, r, true)
 }
 
+// HandleText - handles the point in text format
 func (collect *Collector) HandleText(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 	collect.sendIPStats(r)
@@ -75,25 +92,4 @@ func (collect *Collector) sendIPStats(r *http.Request) {
 	}
 
 	statsValueAdd("network.ip", map[string]string{"ip": ip, "source": "http"}, 1)
-}
-
-func (collect *Collector) handleRESTpacket(rcvMsg TSDBpoint, number bool) gobol.Error {
-
-	if number {
-		rcvMsg.Text = ""
-	} else {
-		rcvMsg.Value = nil
-	}
-
-	p := &Point{}
-
-	err := collect.MakePacket(p, rcvMsg, number)
-
-	if err != nil {
-		return err
-	}
-
-	collect.HandlePacket(rcvMsg, p, number, "rest", nil)
-
-	return nil
 }
