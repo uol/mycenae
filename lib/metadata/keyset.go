@@ -72,20 +72,16 @@ func (sb *SolrBackend) ListKeySets() ([]string, gobol.Error) {
 
 	start := time.Now()
 
-	keySetMap, err := sb.getCachedKeySetMap()
+	cachedKeysets, err := sb.getCachedKeysets()
 	if err != nil {
 		sb.statsCollectionError("all", "list_cached", "memcached.collection.list.error")
 		return nil, errInternalServer("ListKeySets", err)
 	}
 
-	if keySetMap != nil && len(keySetMap) > 0 {
-		keysets := make([]string, 0, len(keySetMap))
-		for k := range keySetMap {
-			keysets = append(keysets, k)
-		}
+	if cachedKeysets != nil && len(cachedKeysets) > 0 {
 
 		sb.statsCollectionAction("all", "list_cached", "solr.collection.list", time.Since(start))
-		return keysets, nil
+		return cachedKeysets, nil
 	}
 
 	keysets, e := sb.solrService.ListCollections()
@@ -101,7 +97,7 @@ func (sb *SolrBackend) ListKeySets() ([]string, gobol.Error) {
 		}
 	}
 
-	_, err = sb.cacheKeySetMap(filteredKeysets)
+	err = sb.cacheKeysets(filteredKeysets)
 	if err != nil {
 		sb.statsCollectionError("all", "list_cached", "memcached.collection.list.error")
 		return nil, errInternalServer("ListKeySets", e)
@@ -116,14 +112,20 @@ func (sb *SolrBackend) CheckKeySet(keyset string) (bool, gobol.Error) {
 
 	start := time.Now()
 
-	keySetMap, err := sb.getCachedKeySetMap()
+	keysets, err := sb.getCachedKeysets()
 	if err != nil {
 		sb.statsCollectionError("all", "list_cached", "memcached.collection.list.error")
 		return false, errInternalServer("CheckKeySet", err)
 	}
 
-	if keySetMap != nil && len(keySetMap) > 0 {
-		return keySetMap[keyset], nil
+	if len(keysets) > 0 {
+		for _, k := range keysets {
+			if k == keyset {
+				return true, nil
+			}
+		}
+
+		return false, nil
 	}
 
 	keysets, e := sb.solrService.ListCollections()
@@ -139,12 +141,18 @@ func (sb *SolrBackend) CheckKeySet(keyset string) (bool, gobol.Error) {
 		}
 	}
 
-	keySetMap, err = sb.cacheKeySetMap(filteredKeysets)
+	err = sb.cacheKeysets(filteredKeysets)
 	if err != nil {
 		sb.statsCollectionError("all", "list_cached", "memcached.collection.list.error")
 		return false, errInternalServer("CheckKeySet", e)
 	}
 
 	sb.statsCollectionAction("all", "list", "solr.collection.list", time.Since(start))
-	return keySetMap[keyset], nil
+	for _, k := range keysets {
+		if k == keyset {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }

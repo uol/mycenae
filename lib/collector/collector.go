@@ -5,13 +5,13 @@ import (
 	"hash/crc32"
 	"regexp"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 
 	"go.uber.org/zap/zapcore"
 
 	"github.com/gocql/gocql"
-	jsoniter "github.com/json-iterator/go"
 	"github.com/uol/gobol"
 	"go.uber.org/zap"
 
@@ -24,9 +24,9 @@ import (
 var (
 	gblog *zap.Logger
 	stats *tsstats.StatsTS
-	json  = jsoniter.ConfigCompatibleWithStandardLibrary
 )
 
+// New - creates a new Collector
 func New(
 	log *structs.Loggers,
 	sts *tsstats.StatsTS,
@@ -50,7 +50,7 @@ func New(
 		validKey:       regexp.MustCompile(`^[0-9A-Za-z-\._\%\&\#\;\/]+$`),
 		settings:       set,
 		concBulk:       make(chan struct{}, set.MaxConcurrentBulks),
-		metaChan:       make(chan Point, set.MetaBufferSize),
+		metaChan:       make(chan *Point, set.MetaBufferSize),
 		metadataMap:    sync.Map{},
 		jobChannel:     make(chan workerData, set.MaxConcurrentPoints),
 		keyspaceTTLMap: keyspaceTTLMap,
@@ -66,32 +66,25 @@ func New(
 	return collect, nil
 }
 
+// Collector - implements a point collector structure
 type Collector struct {
 	persist  persistence
 	validKey *regexp.Regexp
 	settings *structs.Settings
 
 	concBulk    chan struct{}
-	metaChan    chan Point
+	metaChan    chan *Point
 	metadataMap sync.Map
 
-	receivedSinceLastProbe float64
-	errorsSinceLastProbe   float64
-	shutdown               bool
-	saveMutex              sync.Mutex
-	recvMutex              sync.Mutex
-	errMutex               sync.Mutex
-	jobChannel             chan workerData
-	keyspaceTTLMap         map[int]string
-	keySet                 *keyset.KeySet
+	shutdown       bool
+	jobChannel     chan workerData
+	keyspaceTTLMap map[int]string
+	keySet         *keyset.KeySet
 }
 
 type workerData struct {
-	point          TSDBpoint
 	validatedPoint *Point
-	number         bool
 	source         string
-	logFields      map[string]string
 }
 
 func (collect *Collector) getType(number bool) string {
@@ -104,46 +97,15 @@ func (collect *Collector) getType(number bool) string {
 func (collect *Collector) worker(id int, jobChannel <-chan workerData) {
 
 	for j := range jobChannel {
-		err := collect.processPacket(j.point, j.validatedPoint, j.number)
+
+		err := collect.processPacket(j.validatedPoint)
 		if err != nil {
-			statsPointsError(j.point.Tags["ksid"], collect.getType(j.number), j.source, j.point.Tags["ttl"])
-			lf := []zapcore.Field{
-				zap.String("package", "collector"),
-				zap.String("func", "worker"),
-			}
-			if j.logFields != nil && len(j.logFields) > 0 {
-				for k, v := range j.logFields {
-					lf = append(lf, zap.String(k, v))
-				}
-			}
-			collect.logPointError(&j.point, err, lf)
+			statsPointsError(j.validatedPoint.Keyset, collect.getType(j.validatedPoint.Number), j.source, strconv.Itoa(j.validatedPoint.TTL))
+			gblog.Error(err.Error(), zap.String("package", "collector"), zap.String("func", "worker"))
 		} else {
-			statsPoints(j.point.Tags["ksid"], collect.getType(j.number), j.source, j.point.Tags["ttl"])
+			statsPoints(j.validatedPoint.Keyset, collect.getType(j.validatedPoint.Number), j.source, strconv.Itoa(j.validatedPoint.TTL))
 		}
 	}
-}
-
-func (collect *Collector) ReceivedErrorRatio() (ratio float64) {
-	lf := []zapcore.Field{
-		zap.String("struct", "Collector"),
-		zap.String("func", "ReceivedErrorRatio"),
-	}
-	if collect.receivedSinceLastProbe == 0 {
-		ratio = 0
-	} else {
-		ratio = collect.errorsSinceLastProbe / collect.receivedSinceLastProbe
-	}
-
-	gblog.Debug(fmt.Sprintf("%f", ratio), lf...)
-
-	collect.recvMutex.Lock()
-	collect.receivedSinceLastProbe = 0
-	collect.recvMutex.Unlock()
-	collect.errMutex.Lock()
-	collect.errorsSinceLastProbe = 0
-	collect.errMutex.Unlock()
-
-	return
 }
 
 // Stop - stops the UDP collector
@@ -151,77 +113,80 @@ func (collect *Collector) Stop() {
 	collect.shutdown = true
 }
 
-func (collect *Collector) processPacket(rcvMsg TSDBpoint, point *Point, number bool) gobol.Error {
+func (collect *Collector) processPacket(point *Point) gobol.Error {
 
 	start := time.Now()
 
 	var gerr gobol.Error
-	var packet Point
 
-	if point == nil {
-		packet = Point{}
-		gerr := collect.MakePacket(&packet, rcvMsg, number)
-		if gerr != nil {
-			return gerr
-		}
+	if point.Number {
+		gerr = collect.saveValue(point)
 	} else {
-		packet = *point
-	}
-
-	go func() {
-		collect.recvMutex.Lock()
-		collect.receivedSinceLastProbe++
-		collect.recvMutex.Unlock()
-	}()
-
-	if number {
-		gerr = collect.saveValue(&packet)
-	} else {
-		gerr = collect.saveText(&packet)
+		gerr = collect.saveText(point)
 	}
 
 	if gerr != nil {
-		collect.errMutex.Lock()
-		collect.errorsSinceLastProbe++
-		collect.errMutex.Unlock()
 		return gerr
 	}
 
 	if len(collect.metaChan) < collect.settings.MetaBufferSize {
-		collect.saveMeta(packet)
+
+		collect.saveMeta(point)
+
 	} else {
+
 		lf := []zapcore.Field{
 			zap.String("package", "collector/collector"),
 			zap.String("func", "processPacket"),
 		}
 
-		jsonStr, err := json.Marshal(rcvMsg)
-		if err != nil {
-			gblog.Error("point discarded (error converting to string)...", lf...)
-		} else {
-			gblog.Warn(fmt.Sprintf("discarding point: %s", jsonStr), lf...)
-		}
+		gblog.Warn("discarding point, no space in the meta buffer", lf...)
 
 		statsLostMeta()
 	}
 
-	statsProcTime(packet.Keyset, time.Since(start))
+	statsProcTime(point.Keyset, time.Since(start))
 
 	return nil
 }
 
-func (collect *Collector) HandlePacket(rcvMsg TSDBpoint, vp *Point, number bool, source string, logFields map[string]string) {
+// HandleJSONBytes - handles a point in byte format
+func (collect *Collector) HandleJSONBytes(data []byte, source string, isNumber bool) (int, gobol.Error) {
+
+	points, err := ParsePoints("HandleJSONBytes", isNumber, data)
+	if err != nil {
+		return 0, err
+	}
+
+	err = points.Validate()
+	if err != nil {
+		return 0, err
+	}
+
+	for _, p := range points {
+
+		vp, err := collect.MakePacket(p, isNumber)
+		if err != nil {
+			return 0, err
+		}
+
+		collect.HandlePacket(vp, source)
+	}
+
+	return len(points), nil
+}
+
+// HandlePacket - handles a point in struct format
+func (collect *Collector) HandlePacket(vp *Point, source string) {
 
 	collect.jobChannel <- workerData{
-		point:          rcvMsg,
 		validatedPoint: vp,
-		number:         number,
 		source:         source,
-		logFields:      logFields,
 	}
 }
 
-func GenerateID(rcvMsg TSDBpoint) string {
+// GenerateID - generates the unique ID from a point
+func GenerateID(rcvMsg *TSDBpoint) string {
 
 	h := crc32.NewIEEE()
 

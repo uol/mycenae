@@ -1,13 +1,13 @@
 package metadata
 
 import (
-	"net/http"
+	"fmt"
 	"strconv"
+	"strings"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/mitchellh/hashstructure"
 	"github.com/uol/gobol"
-	"github.com/uol/mycenae/lib/tserr"
 )
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
@@ -57,54 +57,38 @@ func (sb *SolrBackend) deleteCachedID(collection, tsType, tsid string) gobol.Err
 	return nil
 }
 
-// getKeySetMap - return the keyset map
-func (sb *SolrBackend) getCachedKeySetMap() (map[string]bool, gobol.Error) {
+// getCachedKeysets - return the keysets
+func (sb *SolrBackend) getCachedKeysets() ([]string, gobol.Error) {
 
-	m, gerr := sb.memcached.Get(keysetNamespace, keysetMapID)
+	data, gerr := sb.memcached.Get(keysetNamespace, keysetMapID)
 	if gerr != nil {
 		return nil, gerr
 	}
 
-	if m != nil {
-		keySetMap := map[string]bool{}
-		err := json.Unmarshal(m, &keySetMap)
-		if err != nil {
-			return nil, tserr.New(err, "error converting binary to map", http.StatusInternalServerError, nil)
-		}
-
-		return keySetMap, nil
+	if len(data) > 0 {
+		return strings.Split(string(data), " "), nil
 	}
 
 	return nil, nil
 }
 
-// cacheKeysetMap - caches the keyset map
-func (sb *SolrBackend) cacheKeySetMap(keysets []string) (map[string]bool, gobol.Error) {
+// cacheKeysets - caches the keyset map
+func (sb *SolrBackend) cacheKeysets(keysets []string) gobol.Error {
 
 	if keysets == nil || len(keysets) == 0 {
-		return nil, nil
-	}
-
-	keysetMap := map[string]bool{}
-	for _, v := range keysets {
-		keysetMap[v] = true
+		return nil
 	}
 
 	if sb.keysetCacheTTL < 0 {
-		return keysetMap, nil
+		return nil
 	}
 
-	data, err := json.Marshal(keysetMap)
-	if err != nil {
-		return nil, tserr.New(err, "error converting map to binary", http.StatusInternalServerError, nil)
-	}
-
-	gerr := sb.memcached.Put(data, sb.keysetCacheTTL, keysetNamespace, keysetMapID)
+	gerr := sb.memcached.Put([]byte(strings.Trim(fmt.Sprint(keysets), "[]")), sb.keysetCacheTTL, keysetNamespace, keysetMapID)
 	if gerr != nil {
-		return nil, gerr
+		return gerr
 	}
 
-	return keysetMap, nil
+	return nil
 }
 
 // deleteKeySetMap - deletes the cached keyset map
@@ -135,19 +119,13 @@ func (sb *SolrBackend) getCachedFacets(collection, field string, v interface{}) 
 		return nil, gerr
 	}
 
-	f, gerr := sb.memcached.Get(facetsNamespace, collection, field, hash)
+	data, gerr := sb.memcached.Get(facetsNamespace, collection, field, hash)
 	if gerr != nil {
 		return nil, gerr
 	}
 
-	if f != nil {
-		facets := []string{}
-		err := json.Unmarshal(f, &facets)
-		if err != nil {
-			return nil, tserr.New(err, "error converting binary to string array", http.StatusInternalServerError, nil)
-		}
-
-		return facets, nil
+	if len(data) > 0 {
+		return strings.Split(string(data), " "), nil
 	}
 
 	return nil, nil
@@ -164,17 +142,12 @@ func (sb *SolrBackend) cacheFacets(facets []string, collection, field string, v 
 		return nil
 	}
 
-	data, err := json.Marshal(facets)
-	if err != nil {
-		return tserr.New(err, "error converting string array to binary", http.StatusInternalServerError, nil)
-	}
-
 	hash, gerr := sb.hash(v)
 	if gerr != nil {
 		return gerr
 	}
 
-	gerr = sb.memcached.Put(data, sb.queryCacheTTL, facetsNamespace, collection, field, hash)
+	gerr = sb.memcached.Put([]byte(strings.Trim(fmt.Sprint(facets), "[]")), sb.queryCacheTTL, facetsNamespace, collection, field, hash)
 	if gerr != nil {
 		return gerr
 	}

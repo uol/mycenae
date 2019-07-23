@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
+	"github.com/buger/jsonparser"
 	"github.com/json-iterator/go"
 	"github.com/uol/mycenae/lib/collector"
 )
@@ -30,6 +31,62 @@ type netdataJSON struct {
 	Name         string  `json:"name"`
 	Value        float64 `json:"value"`
 	Timestamp    int64   `json:"timestamp"`
+}
+
+// Parse - parses the json bytes to the object fields
+func (n *netdataJSON) Parse(data []byte) error {
+
+	var err error
+
+	if n.HostName, err = jsonparser.GetString(data, "hostname"); err != nil {
+		return err
+	}
+
+	if n.DefaultTags, err = jsonparser.GetString(data, "host_tags"); err != nil {
+		return err
+	}
+
+	if n.ChartID, err = jsonparser.GetString(data, "chart_id"); err != nil {
+		return err
+	}
+
+	if n.ChartFamily, err = jsonparser.GetString(data, "chart_family"); err != nil {
+		return err
+	}
+
+	if n.ChartContext, err = jsonparser.GetString(data, "chart_context"); err != nil {
+		return err
+	}
+
+	if n.ChartType, err = jsonparser.GetString(data, "chart_type"); err != nil {
+		return err
+	}
+
+	if n.ChartName, err = jsonparser.GetString(data, "chart_name"); err != nil {
+		return err
+	}
+
+	if n.ID, err = jsonparser.GetString(data, "id"); err != nil {
+		return err
+	}
+
+	if n.Units, err = jsonparser.GetString(data, "units"); err != nil {
+		return err
+	}
+
+	if n.Name, err = jsonparser.GetString(data, "name"); err != nil {
+		return err
+	}
+
+	if n.Value, err = jsonparser.GetFloat(data, "value"); err != nil {
+		return err
+	}
+
+	if n.Timestamp, err = jsonparser.GetInt(data, "timestamp"); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 const tagRegexp string = `([0-9A-Za-z-\._\%\&\#\;\/]+)=([0-9A-Za-z-\._\%\&\#\;\/\*\+\']+)`
@@ -110,8 +167,7 @@ func (nh *NetdataHandler) Handle(line string) {
 	}
 
 	pointJSON := netdataJSON{}
-
-	err := json.Unmarshal([]byte(line), &pointJSON)
+	err := pointJSON.Parse([]byte(line))
 	if err != nil {
 		nh.logger.Error("error unmarshalling line: "+line, nh.loggerFields...)
 	}
@@ -229,18 +285,16 @@ func (nh *NetdataHandler) Handle(line string) {
 		Tags:      tags,
 	}
 
-	validatedPoint := &collector.Point{}
-
-	err = nh.collector.MakePacket(validatedPoint, point, true)
+	validatedPoint, err := nh.collector.MakePacket(&point, true)
 	if err != nil {
-		nh.logger.Error("point validation failure in line: "+line, nh.loggerFields...)
+		nh.logger.Error(fmt.Sprintf("point validation failure in line: %s (error: %s)", line, err.Error()), nh.loggerFields...)
 		return
 	}
 
-	nh.collector.HandlePacket(point, validatedPoint, true, nh.sourceName, nil)
+	nh.collector.HandlePacket(validatedPoint, nh.sourceName)
 }
 
-// sourceName - returns the connection type name
+// SourceName - returns the connection type name
 func (nh *NetdataHandler) SourceName() string {
 	return nh.sourceName
 }

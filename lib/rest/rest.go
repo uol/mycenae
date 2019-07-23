@@ -41,9 +41,7 @@ func New(
 ) *REST {
 
 	return &REST{
-		probeThreshold: probeThreshold,
-		probeStatus:    http.StatusOK,
-		closed:         make(chan struct{}),
+		closed: make(chan struct{}),
 
 		gblog:               log.General,
 		sts:                 gbs,
@@ -61,9 +59,7 @@ func New(
 
 // REST is the http handler
 type REST struct {
-	probeThreshold float64
-	probeStatus    int
-	closed         chan struct{}
+	closed chan struct{}
 
 	gblog               *zap.Logger
 	sts                 *snitch.Stats
@@ -160,6 +156,8 @@ func (trest *REST) asyncStart() {
 	//DELETE
 	router.POST(path+"keysets/:keyset/delete/meta", trest.reader.DeleteNumberTS)
 	router.POST(path+"keysets/:keyset/delete/text/meta", trest.reader.DeleteTextTS)
+	//DEPRECATED
+	router.POST(path+"keysets/:keyset/points", trest.reader.ListPoints)
 
 	if trest.enableHTTPProfiling {
 
@@ -193,23 +191,16 @@ func (trest *REST) asyncStart() {
 
 func (trest *REST) check(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
-	ratio := trest.writer.ReceivedErrorRatio()
-
-	if ratio < trest.probeThreshold {
-		w.WriteHeader(trest.probeStatus)
-	} else {
-		w.WriteHeader(http.StatusInternalServerError)
-	}
+	w.WriteHeader(http.StatusOK)
 }
 
+// Stop - stops the rest server
 func (trest *REST) Stop() {
 
 	lf := []zapcore.Field{
 		zap.String("package", "rest"),
 		zap.String("func", "Stop"),
 	}
-
-	trest.probeStatus = http.StatusServiceUnavailable
 
 	if err := trest.server.Shutdown(context.Background()); err != nil {
 		trest.gblog.Error(err.Error(), lf...)
