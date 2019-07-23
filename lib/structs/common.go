@@ -72,6 +72,7 @@ type Settings struct {
 	DefaultPaginationSize           int
 	MetaSaveInterval                string
 	MaxBytesOnQueryProcessing       uint32
+	SilencePointValidationErrors    bool
 	GlobalTelnetServerConfiguration GlobalTelnetServerConfiguration
 	HTTPserver                      SettingsHTTP
 	UDPserver                       SettingsUDP

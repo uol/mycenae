@@ -277,9 +277,11 @@ ConnLoop:
 
 		if data[len(data)-1] == lineSeparator {
 			byteLines := bytes.Split(data, server.lineSplitter)
-			for _, byteLine := range byteLines {
-				server.telnetHandler.Handle(string(byteLine))
-			}
+			go func() {
+				for _, byteLine := range byteLines {
+					server.telnetHandler.Handle(string(byteLine))
+				}
+			}()
 			data = make([]byte, 0)
 		}
 	}

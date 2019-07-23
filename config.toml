@@ -46,6 +46,9 @@ DefaultKeysets = ["pdeng_stats", "pdeng_collectd", "pdeng_analytics"]
 # Maximum size of bytes for each query processing
 MaxBytesOnQueryProcessing = 104857600
 
+# Silences all point validation errors from the logs
+SilencePointValidationErrors = true
+
 # All default keyspaces
 [DefaultKeyspaces]
   one_day = 1
@@ -85,7 +88,6 @@ MaxBytesOnQueryProcessing = 104857600
   bind = "loghost"
   EnableProfiling = true
   ForceErrorAsDebug = false
-  # Allow Cross Origin Resource Sharing
   AllowCORS = true
 
 [GlobalTelnetServerConfiguration]

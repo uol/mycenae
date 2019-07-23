@@ -27,12 +27,12 @@ func (sb *SolrBackend) CreateKeySet(collection string) gobol.Error {
 		return errInternalServer("CreateKeySet", err)
 	}
 
-	err = sb.deleteCachedKeySetMap()
+	err = sb.deleteCachedKeySets()
 	if err != nil {
 		lf := []zapcore.Field{
 			zap.String("package", "metadata"),
 			zap.String("func", "CreateKeySet"),
-			zap.String("step", "deleteCachedKeySetMap"),
+			zap.String("step", "deleteCachedKeySets"),
 		}
 		sb.logger.Error("error deleting keyset map", lf...)
 		return errInternalServer("CreateKeySet", err)
@@ -52,12 +52,12 @@ func (sb *SolrBackend) DeleteKeySet(collection string) gobol.Error {
 		return errInternalServer("DeleteKeySet", err)
 	}
 
-	err = sb.deleteCachedKeySetMap()
+	err = sb.deleteCachedKeySets()
 	if err != nil {
 		lf := []zapcore.Field{
 			zap.String("package", "metadata"),
 			zap.String("func", "DeleteKeySet"),
-			zap.String("step", "deleteCachedKeySetMap"),
+			zap.String("step", "deleteCachedKeySets"),
 		}
 		sb.logger.Error("error deleting keyset map", lf...)
 		return errInternalServer("CreateKeySet", err)
