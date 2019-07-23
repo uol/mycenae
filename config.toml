@@ -43,9 +43,6 @@ DefaultPaginationSize = 1000
 # Mandatory keysets to create on app startup
 DefaultKeysets = ["pdeng_stats", "pdeng_collectd", "pdeng_analytics"]
 
-# Allow Cross Origin Resource Sharing
-AllowCORS = true
-
 # Maximum size of bytes for each query processing
 MaxBytesOnQueryProcessing = 104857600
 
@@ -67,7 +64,7 @@ MaxBytesOnQueryProcessing = 104857600
 [cassandra]
   keyspace = "mycenae"
   consistency = "one"
-  nodes = ["182.168.0.5","182.168.0.6","182.168.0.7"]
+  nodes = ["182.168.0.2","182.168.0.3","182.168.0.4"]
   username = "cassandra"
   password = "cassandra"
   connections = 3
@@ -88,6 +85,8 @@ MaxBytesOnQueryProcessing = 104857600
   bind = "loghost"
   EnableProfiling = true
   ForceErrorAsDebug = false
+  # Allow Cross Origin Resource Sharing
+  AllowCORS = true
 
 [GlobalTelnetServerConfiguration]
   # The maximum request time to reach other nodes
@@ -174,7 +173,7 @@ MaxBytesOnQueryProcessing = 104857600
 [metadataSettings]
   numShards = 1
   replicationFactor = 1
-  url = "http://182.168.0.3:8983/solr"
+  url = "http://182.168.0.6:8983/solr"
   IDCacheTTL = -1
   QueryCacheTTL = -1
   KeysetCacheTTL = -1
