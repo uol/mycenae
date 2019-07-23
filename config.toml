@@ -115,6 +115,9 @@ SilencePointValidationErrors = true
   # the available timeseries nodes
   Nodes = ["mycenae1", "mycenae2"]
 
+  # silence all info logs
+  SilenceLogs = true
+
 [NetdataServer]
   port = 8023
   bind = "loghost"

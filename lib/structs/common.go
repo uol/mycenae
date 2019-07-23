@@ -60,6 +60,7 @@ type GlobalTelnetServerConfiguration struct {
 	MaxWaitForOtherNodeConnsBalancing string
 	ConnectionCloseChannelSize        int
 	Nodes                             []string
+	SilenceLogs                       bool
 }
 
 type Settings struct {

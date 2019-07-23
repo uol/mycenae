@@ -64,10 +64,11 @@ type Server struct {
 	name                     string
 	closeConnectionChannel   *chan struct{}
 	connectedIPMap           sync.Map
+	globalTelnetConfigs      *structs.GlobalTelnetServerConfiguration
 }
 
 // New - creates a new telnet server
-func New(serverConfiguration *structs.TelnetServerConfiguration, sharedConnectionCounter *uint32, maxConnections uint32, closeConnectionChannel *chan struct{}, collector *collector.Collector, stats *tsstats.StatsTS, logger *zap.Logger, telnetHandler TelnetDataHandler) (*Server, error) {
+func New(serverConfiguration *structs.TelnetServerConfiguration, globalTelnetConfigs *structs.GlobalTelnetServerConfiguration, sharedConnectionCounter *uint32, maxConnections uint32, closeConnectionChannel *chan struct{}, collector *collector.Collector, stats *tsstats.StatsTS, logger *zap.Logger, telnetHandler TelnetDataHandler) (*Server, error) {
 
 	onErrorTimeoutDuration, err := time.ParseDuration(serverConfiguration.OnErrorTimeout)
 	if err != nil {
@@ -105,6 +106,7 @@ func New(serverConfiguration *structs.TelnetServerConfiguration, sharedConnectio
 		closeConnectionChannel:   closeConnectionChannel,
 		name:                     serverConfiguration.ServerName,
 		connectedIPMap:           sync.Map{},
+		globalTelnetConfigs:      globalTelnetConfigs,
 		statsConnectionTags: map[string]string{
 			"type":   "tcp",
 			"port":   strPort,
@@ -190,7 +192,9 @@ func (server *Server) Listen() error {
 			server.increaseCounter(server.sharedConnectionCounter)
 			server.increaseCounter(&server.numLocalConnections)
 
-			server.logger.Info(fmt.Sprintf("received new connection from %s", remoteAddressIP), lf...)
+			if !server.globalTelnetConfigs.SilenceLogs {
+				server.logger.Info(fmt.Sprintf("received new connection from %s", remoteAddressIP), lf...)
+			}
 
 			err = conn.SetDeadline(time.Now().Add(server.maxIdleConnectionTimeout))
 			if err != nil {
@@ -296,10 +300,12 @@ ConnLoop:
 		float64(time.Since(startTime).Nanoseconds())/float64(time.Millisecond),
 	)
 
-	if err != nil {
-		server.logger.Error(fmt.Sprintf("connection loop was broken under error: %s", err), handleConnectionLogFields...)
-	} else {
-		server.logger.Debug("connection loop was broken with no error", handleConnectionLogFields...)
+	if !server.globalTelnetConfigs.SilenceLogs {
+		if err != nil {
+			server.logger.Error(fmt.Sprintf("connection loop was broken under error: %s", err), handleConnectionLogFields...)
+		} else {
+			server.logger.Debug("connection loop was broken with no error", handleConnectionLogFields...)
+		}
 	}
 }
 
@@ -323,7 +329,7 @@ func (server *Server) closeConnection(conn net.Conn, reason string, subtractCoun
 	remoteAddressIP := server.extractIP(conn)
 
 	err := conn.Close()
-	if err != nil {
+	if err != nil && !server.globalTelnetConfigs.SilenceLogs {
 		server.logger.Error(fmt.Sprintf("error closing tcp telnet connection %s (%s): %s", remoteAddressIP, reason, err.Error()), closeConnectionLogFields...)
 	}
 
@@ -351,9 +357,12 @@ func (server *Server) closeConnection(conn net.Conn, reason string, subtractCoun
 		sharedConns = *server.sharedConnectionCounter
 	}
 
-	server.logger.Info(fmt.Sprintf("tcp telnet connection closed %s (%s) from %d connections)", remoteAddressIP, reason, localConns), closeConnectionLogFields...)
+	if !server.globalTelnetConfigs.SilenceLogs {
 
-	server.logger.Info(fmt.Sprintf("total telnet connections: %d / %d (local conns / total conns -> %s)", localConns, sharedConns, source), closeConnectionLogFields...)
+		server.logger.Info(fmt.Sprintf("tcp telnet connection closed %s (%s) from %d connections)", remoteAddressIP, reason, localConns), closeConnectionLogFields...)
+
+		server.logger.Info(fmt.Sprintf("total telnet connections: %d / %d (local conns / total conns -> %s)", localConns, sharedConns, source), closeConnectionLogFields...)
+	}
 
 	go server.stats.ValueAdd("telnetsrv", "network.connection.close.time", statsCloseTags, float64(time.Since(startTime).Nanoseconds())/float64(time.Millisecond))
 }
@@ -374,7 +383,7 @@ func (server *Server) Shutdown() error {
 		return err
 	}
 
-	server.logger.Info("telnet server have shut down", lf...)
+	server.logger.Info("telnet server have shutdown", lf...)
 
 	return nil
 }
