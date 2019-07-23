@@ -742,10 +742,10 @@ func TestRESTv2PayloadWithTwoPoints(t *testing.T) {
 	p2 := mycenaeTools.Mycenae.GetPayload(ksMycenae)
 	ps := tools.PayloadSlice{PS: []tools.Payload{*p1, *p2}}
 
-	sendRESTPayloadWithMoreThanAPointAndAssertPoints(t, ps, false)
+	sendRESTPayloadWithMoreThanAPointAndAssertPoints(t, ps)
 }
 
-func TestRESTv2PayloadWithTwoPointsWithHeaderGZIP(t *testing.T) {
+func TestRESTv2PayloadWithTwoPointsWithHeader(t *testing.T) {
 	t.Parallel()
 
 	p1 := mycenaeTools.Mycenae.GetPayload(ksMycenae)
@@ -760,7 +760,7 @@ func TestRESTv2PayloadWithTwoPointsWithHeaderGZIP(t *testing.T) {
 
 	ps := tools.PayloadSlice{PS: []tools.Payload{*p1, *p2}}
 
-	sendRESTPayloadWithMoreThanAPointAndAssertPoints(t, ps, true)
+	sendRESTPayloadWithMoreThanAPointAndAssertPoints(t, ps)
 }
 
 func TestRESTv2PayloadWithTwoPointsWithTwoTagsEach(t *testing.T) {
@@ -778,7 +778,7 @@ func TestRESTv2PayloadWithTwoPointsWithTwoTagsEach(t *testing.T) {
 
 	ps := tools.PayloadSlice{PS: []tools.Payload{*p1, *p2}}
 
-	sendRESTPayloadWithMoreThanAPointAndAssertPoints(t, ps, false)
+	sendRESTPayloadWithMoreThanAPointAndAssertPoints(t, ps)
 }
 
 func TestRESTv2PayloadWithTwoPointsAndAWrongFormatEmptyString(t *testing.T) {
@@ -961,15 +961,10 @@ func sendRESTPayloadAndAssertPoint(t *testing.T, payload *tools.Payload, start, 
 }
 
 // payload must be composed by point(s) with Timestamp(s) != nil
-func sendRESTPayloadWithMoreThanAPointAndAssertPoints(t *testing.T, payload tools.PayloadSlice, gzipit bool) {
+func sendRESTPayloadWithMoreThanAPointAndAssertPoints(t *testing.T, payload tools.PayloadSlice) {
 
-	if gzipit {
-		statusCode, _, _ := mycenaeTools.HTTP.POSTgziped("api/put", payload.Marshal())
-		assert.Equal(t, http.StatusNoContent, statusCode)
-	} else {
-		statusCode, _, _ := mycenaeTools.HTTP.POST("api/put", payload.Marshal())
-		assert.Equal(t, http.StatusNoContent, statusCode)
-	}
+	statusCode, _, _ := mycenaeTools.HTTP.POST("api/put", payload.Marshal())
+	assert.Equal(t, http.StatusNoContent, statusCode)
 
 	time.Sleep(tools.Sleep3)
 
