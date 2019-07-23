@@ -41,38 +41,35 @@ func New(
 ) *REST {
 
 	return &REST{
-		closed: make(chan struct{}),
-
-		gblog:               log.General,
-		sts:                 gbs,
-		reader:              p,
-		kspace:              keyspace,
-		memcached:           mc,
-		writer:              collector,
-		settings:            set,
-		keyset:              ks,
-		telnetManager:       telnetManager,
-		enableHTTPProfiling: set.EnableProfiling,
-		forceErrorAsDebug:   set.ForceErrorAsDebug,
+		probeThreshold: probeThreshold,
+		probeStatus:    http.StatusOK,
+		gblog:          log.General,
+		sts:            gbs,
+		reader:         p,
+		kspace:         keyspace,
+		memcached:      mc,
+		writer:         collector,
+		settings:       set,
+		keyset:         ks,
+		telnetManager:  telnetManager,
 	}
 }
 
 // REST is the http handler
 type REST struct {
-	closed chan struct{}
+	probeThreshold float64
+	probeStatus    int
 
-	gblog               *zap.Logger
-	sts                 *snitch.Stats
-	reader              *plot.Plot
-	kspace              *keyspace.Keyspace
-	memcached           *memcached.Memcached
-	writer              *collector.Collector
-	settings            structs.SettingsHTTP
-	server              *http.Server
-	keyset              *keyset.KeySet
-	telnetManager       *telnetmgr.Manager
-	enableHTTPProfiling bool
-	forceErrorAsDebug   bool
+	gblog         *zap.Logger
+	sts           *snitch.Stats
+	reader        *plot.Plot
+	kspace        *keyspace.Keyspace
+	memcached     *memcached.Memcached
+	writer        *collector.Collector
+	settings      structs.SettingsHTTP
+	server        *http.Server
+	keyset        *keyset.KeySet
+	telnetManager *telnetmgr.Manager
 }
 
 // Start asynchronously the handler of the APIs
@@ -89,7 +86,7 @@ func (trest *REST) asyncStart() {
 		zap.String("func", "asyncStart"),
 	}
 
-	rip.SetLogger(trest.gblog, trest.forceErrorAsDebug)
+	rip.SetLogger(trest.gblog, trest.settings.ForceErrorAsDebug)
 
 	pathMatcher := regexp.MustCompile(`^(/[a-zA-Z0-9._-]+)?/$`)
 
@@ -159,7 +156,7 @@ func (trest *REST) asyncStart() {
 	//DEPRECATED
 	router.POST(path+"keysets/:keyset/points", trest.reader.ListPoints)
 
-	if trest.enableHTTPProfiling {
+	if trest.settings.EnableProfiling {
 
 		trest.gblog.Info("WARNING - http profiling is enabled!!!", lf...)
 
@@ -173,8 +170,8 @@ func (trest *REST) asyncStart() {
 			"mycenae",
 			trest.gblog,
 			trest.sts,
-			rip.NewGzipMiddleware(rip.BestSpeed, router),
-			true,
+			router,
+			trest.settings.AllowCORS,
 		),
 		ReadTimeout:       60 * time.Second,
 		ReadHeaderTimeout: 60 * time.Second,
@@ -186,7 +183,6 @@ func (trest *REST) asyncStart() {
 	if err != nil && err != http.ErrServerClosed {
 		trest.gblog.Error(err.Error(), lf...)
 	}
-	trest.closed <- struct{}{}
 }
 
 func (trest *REST) check(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
@@ -205,6 +201,4 @@ func (trest *REST) Stop() {
 	if err := trest.server.Shutdown(context.Background()); err != nil {
 		trest.gblog.Error(err.Error(), lf...)
 	}
-
-	<-trest.closed
 }

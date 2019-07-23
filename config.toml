@@ -43,11 +43,11 @@ DefaultPaginationSize = 1000
 # Mandatory keysets to create on app startup
 DefaultKeysets = ["pdeng_stats", "pdeng_collectd", "pdeng_analytics"]
 
-# Allow Cross Origin Resource Sharing
-AllowCORS = true
-
 # Maximum size of bytes for each query processing
 MaxBytesOnQueryProcessing = 104857600
+
+# Silences all point validation errors from the logs
+SilencePointValidationErrors = true
 
 # All default keyspaces
 [DefaultKeyspaces]
@@ -88,6 +88,7 @@ MaxBytesOnQueryProcessing = 104857600
   bind = "loghost"
   EnableProfiling = true
   ForceErrorAsDebug = false
+  AllowCORS = true
 
 [GlobalTelnetServerConfiguration]
   # The maximum request time to reach other nodes

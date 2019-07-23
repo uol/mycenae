@@ -2,7 +2,6 @@ package tools
 
 import (
 	"bytes"
-	"compress/gzip"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -57,7 +56,7 @@ func (hT *httpTool) POSTjson(url string, postData interface{}, respData interfac
 		return
 	}
 	headers := map[string]string{"Content-Type": "application/json"}
-	statusCode, respBytes, _ := hT.request("POST", url, payload, false, headers)
+	statusCode, respBytes, _ := hT.request("POST", url, payload, headers)
 
 	if len(respBytes) > 0 {
 		err = json.Unmarshal(respBytes, respData)
@@ -80,32 +79,27 @@ func (hT *httpTool) GETjson(url string, respData interface{}) (statusCode int) {
 
 func (hT *httpTool) GET(url string) (statusCode int, respData []byte, err error) {
 	var payload []byte
-	return hT.request("GET", url, payload, false, nil)
+	return hT.request("GET", url, payload, nil)
 }
 
 func (hT *httpTool) CustomHeaderGET(url string, headers map[string]string) (statusCode int, respData []byte, err error) {
 	var payload []byte
-	return hT.request("GET", url, payload, false, headers)
+	return hT.request("GET", url, payload, headers)
 }
 
 func (hT *httpTool) POST(url string, payload []byte) (statusCode int, respData []byte, err error) {
-	statusCode, respData, err = hT.request("POST", url, payload, false, nil)
+	statusCode, respData, err = hT.request("POST", url, payload, nil)
 	return
 }
 
 func (hT *httpTool) CustomHeaderPOST(url string, payload []byte, headers map[string]string) (statusCode int, respData []byte, err error) {
-	statusCode, respData, err = hT.request("POST", url, payload, false, headers)
-	return
-}
-
-func (hT *httpTool) POSTgziped(url string, payload []byte) (statusCode int, respData []byte, err error) {
-	statusCode, respData, err = hT.request("POST", url, payload, true, nil)
+	statusCode, respData, err = hT.request("POST", url, payload, headers)
 	return
 }
 
 func (hT *httpTool) PUT(url string, payload []byte) (statusCode int, respData []byte, err error) {
 
-	statusCode, respData, err = hT.request("PUT", url, payload, false, nil)
+	statusCode, respData, err = hT.request("PUT", url, payload, nil)
 
 	return
 
@@ -115,13 +109,13 @@ func (hT *httpTool) DELETE(url string) (statusCode int, respData []byte, err err
 
 	var payload []byte
 
-	statusCode, respData, err = hT.request("DELETE", url, payload, false, nil)
+	statusCode, respData, err = hT.request("DELETE", url, payload, nil)
 
 	return
 
 }
 
-func (hT *httpTool) request(method string, url string, payload []byte, gzipit bool, headers map[string]string) (statusCode int, respData []byte, err error) {
+func (hT *httpTool) request(method string, url string, payload []byte, headers map[string]string) (statusCode int, respData []byte, err error) {
 	fullPath := ""
 
 	if hT.port == "" {
@@ -134,30 +128,7 @@ func (hT *httpTool) request(method string, url string, payload []byte, gzipit bo
 	if len(payload) == 0 {
 		req, err = http.NewRequest(method, fullPath, nil)
 	} else {
-
-		if gzipit {
-
-			var bb bytes.Buffer
-
-			gzw := gzip.NewWriter(&bb)
-
-			if _, err = gzw.Write(payload); err != nil {
-				log.Println("HTTPclient:", method, "gzip:", err)
-				return
-			}
-
-			if err = gzw.Close(); err != nil {
-				log.Println("HTTPclient:", method, "gzip:", err)
-				return
-			}
-
-			req, err = http.NewRequest(method, fullPath, &bb)
-
-			req.Header.Add("Content-Encoding", "gzip")
-
-		} else {
-			req, err = http.NewRequest(method, fullPath, bytes.NewBuffer(payload))
-		}
+		req, err = http.NewRequest(method, fullPath, bytes.NewBuffer(payload))
 
 		for k, v := range headers {
 			req.Header.Add(k, v)

@@ -47,7 +47,9 @@ func NewLogMiddleware(service, system string, logger *zap.Logger, sts *snitch.St
 	logger = logger.WithOptions(zap.AddStacktrace(zap.PanicLevel))
 	var fullHandler http.Handler
 	if allowCORS {
-		fullHandler = cors.AllowAll().Handler(next)
+		if next != nil {
+			fullHandler = cors.AllowAll().Handler(next)
+		}
 	} else {
 		fullHandler = next
 	}
@@ -99,7 +101,9 @@ func (h *LogHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	userTags := map[string]string{}
 
-	h.next.ServeHTTP(logw, r.WithContext(context.WithValue(ctx, statsTagskey, userTags)))
+	if h.next != nil {
+		h.next.ServeHTTP(logw, r.WithContext(context.WithValue(ctx, statsTagskey, userTags)))
+	}
 
 	status := logw.status
 

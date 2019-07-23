@@ -10,15 +10,19 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-var makePacketLogFields = []zapcore.Field{
-	zap.String("package", "collector"),
-	zap.String("func", "makePacket"),
-}
+var (
+	makePacketLogFields = []zapcore.Field{
+		zap.String("package", "collector"),
+		zap.String("func", "makePacket"),
+	}
+
+	errGenericValidation = errValidation("error in point validation")
+)
 
 // logPointError - logs the point error
 func (collector *Collector) logPointError(point *TSDBpoint, err gobol.Error) {
 
-	gblog.Warn(fmt.Sprintf("point validation error: %+v (%s)", point, err.Error), makePacketLogFields...)
+	gblog.Warn(fmt.Sprintf("point validation error: %+v (%s)", *point, err.Error()), makePacketLogFields...)
 }
 
 // MakePacket - validates a point and fills the packet
@@ -26,18 +30,27 @@ func (collector *Collector) MakePacket(rcvMsg *TSDBpoint, number bool) (*Point, 
 
 	if number {
 		if rcvMsg.Value == nil {
+			if collector.settings.SilencePointValidationErrors {
+				return nil, errGenericValidation
+			}
 			err := errValidation(`Wrong Format: Field "value" is required. NO information will be saved`)
 			collector.logPointError(rcvMsg, err)
 			return nil, err
 		}
 	} else {
 		if rcvMsg.Text == "" {
+			if collector.settings.SilencePointValidationErrors {
+				return nil, errGenericValidation
+			}
 			err := errValidation(`Wrong Format: Field "text" is required. NO information will be saved`)
 			collector.logPointError(rcvMsg, err)
 			return nil, err
 		}
 
 		if len(rcvMsg.Text) > 10000 {
+			if collector.settings.SilencePointValidationErrors {
+				return nil, errGenericValidation
+			}
 			err := errValidation(`Wrong Format: Field "text" can not have more than 10k`)
 			collector.logPointError(rcvMsg, err)
 			return nil, err
@@ -47,12 +60,18 @@ func (collector *Collector) MakePacket(rcvMsg *TSDBpoint, number bool) (*Point, 
 	lt := len(rcvMsg.Tags)
 
 	if lt == 0 {
+		if collector.settings.SilencePointValidationErrors {
+			return nil, errGenericValidation
+		}
 		err := errValidation(`Wrong Format: At least one tag is required. NO information will be saved`)
 		collector.logPointError(rcvMsg, err)
 		return nil, err
 	}
 
 	if !collector.validKey.MatchString(rcvMsg.Metric) {
+		if collector.settings.SilencePointValidationErrors {
+			return nil, errGenericValidation
+		}
 		err := errValidation(
 			fmt.Sprintf(
 				`Wrong Format: Field "metric" (%s) is not well formed. NO information will be saved`,
@@ -67,12 +86,18 @@ func (collector *Collector) MakePacket(rcvMsg *TSDBpoint, number bool) (*Point, 
 
 	var ok bool
 	if packet.Keyset, ok = rcvMsg.Tags["ksid"]; !ok {
+		if collector.settings.SilencePointValidationErrors {
+			return nil, errGenericValidation
+		}
 		err := errValidation(`Wrong Format: Tag "ksid" is required. NO information will be saved`)
 		collector.logPointError(rcvMsg, err)
 		return nil, err
 	}
 
 	if !collector.keySet.IsKeySetNameValid(packet.Keyset) {
+		if collector.settings.SilencePointValidationErrors {
+			return nil, errGenericValidation
+		}
 		err := errValidation(
 			fmt.Sprintf(
 				`Wrong Format: Field "ksid" (%s) is not well formed. NO information will be saved`,
@@ -89,6 +114,9 @@ func (collector *Collector) MakePacket(rcvMsg *TSDBpoint, number bool) (*Point, 
 	} else {
 		ttl, err := strconv.Atoi(strTTL)
 		if err != nil {
+			if collector.settings.SilencePointValidationErrors {
+				return nil, errGenericValidation
+			}
 			err := errValidation(`Wrong Format: Tag "ttl" must be a positive number. NO information will be saved`)
 			collector.logPointError(rcvMsg, err)
 			return nil, err
@@ -101,6 +129,9 @@ func (collector *Collector) MakePacket(rcvMsg *TSDBpoint, number bool) (*Point, 
 	rcvMsg.Tags["ttl"] = strconv.Itoa(packet.TTL)
 
 	if lt == 2 {
+		if collector.settings.SilencePointValidationErrors {
+			return nil, errGenericValidation
+		}
 		err := errValidation(`Wrong Format: At least one tag other than "ksid" and "ttl" is required. NO information will be saved`)
 		collector.logPointError(rcvMsg, err)
 		return nil, err
@@ -108,6 +139,9 @@ func (collector *Collector) MakePacket(rcvMsg *TSDBpoint, number bool) (*Point, 
 
 	for k, v := range rcvMsg.Tags {
 		if !collector.validKey.MatchString(k) {
+			if collector.settings.SilencePointValidationErrors {
+				return nil, errGenericValidation
+			}
 			err := errValidation(
 				fmt.Sprintf(
 					`Wrong Format: Tag key (%s) is not well formed. NO information will be saved`,
@@ -118,6 +152,9 @@ func (collector *Collector) MakePacket(rcvMsg *TSDBpoint, number bool) (*Point, 
 			return nil, err
 		}
 		if !collector.validKey.MatchString(v) {
+			if collector.settings.SilencePointValidationErrors {
+				return nil, errGenericValidation
+			}
 			err := errValidation(
 				fmt.Sprintf(
 					`Wrong Format: Tag value (%s) is not well formed. NO information will be saved`,
@@ -131,11 +168,17 @@ func (collector *Collector) MakePacket(rcvMsg *TSDBpoint, number bool) (*Point, 
 
 	keySetExists, gerr := collector.persist.metaStorage.CheckKeySet(packet.Keyset)
 	if gerr != nil {
+		if collector.settings.SilencePointValidationErrors {
+			return nil, errGenericValidation
+		}
 		err := errInternalServerError("makePacket", "error checking keyspace existence", gerr)
 		collector.logPointError(rcvMsg, err)
 		return nil, err
 	}
 	if !keySetExists {
+		if collector.settings.SilencePointValidationErrors {
+			return nil, errGenericValidation
+		}
 		err := errValidation("ksid \"" + packet.Keyset + "\" not exists. NO information will be saved")
 		collector.logPointError(rcvMsg, err)
 		return nil, err
@@ -146,6 +189,9 @@ func (collector *Collector) MakePacket(rcvMsg *TSDBpoint, number bool) (*Point, 
 	} else {
 		truncated, err := utils.MilliToSeconds(rcvMsg.Timestamp)
 		if err != nil {
+			if collector.settings.SilencePointValidationErrors {
+				return nil, errGenericValidation
+			}
 			err := errBadRequest("makePacket", err.Error(), err)
 			collector.logPointError(rcvMsg, err)
 			return nil, err

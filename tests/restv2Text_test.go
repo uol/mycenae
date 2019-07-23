@@ -924,10 +924,10 @@ func TestRESTv2TextPayloadWithTwoPoints(t *testing.T) {
 	p2 := mycenaeTools.Mycenae.GetTextPayload(ksMycenae)
 	ps := tools.PayloadSlice{PS: []tools.Payload{*p1, *p2}}
 
-	sendRESTextPayloadWithMoreThanAPointAndAssertPoints(t, ps, false)
+	sendRESTextPayloadWithMoreThanAPointAndAssertPoints(t, ps)
 }
 
-func TestRESTv2TextPayloadWithTwoPointsWithHeaderGZIP(t *testing.T) {
+func TestRESTv2TextPayloadWithTwoPointsWithHeader(t *testing.T) {
 	t.Parallel()
 
 	p1 := mycenaeTools.Mycenae.GetTextPayload(ksMycenae)
@@ -942,7 +942,7 @@ func TestRESTv2TextPayloadWithTwoPointsWithHeaderGZIP(t *testing.T) {
 
 	ps := tools.PayloadSlice{PS: []tools.Payload{*p1, *p2}}
 
-	sendRESTextPayloadWithMoreThanAPointAndAssertPoints(t, ps, true)
+	sendRESTextPayloadWithMoreThanAPointAndAssertPoints(t, ps)
 }
 
 func TestRESTv2TextPayloadWithTwoPointsWithTwoTagsEach(t *testing.T) {
@@ -960,7 +960,7 @@ func TestRESTv2TextPayloadWithTwoPointsWithTwoTagsEach(t *testing.T) {
 
 	ps := tools.PayloadSlice{PS: []tools.Payload{*p1, *p2}}
 
-	sendRESTextPayloadWithMoreThanAPointAndAssertPoints(t, ps, false)
+	sendRESTextPayloadWithMoreThanAPointAndAssertPoints(t, ps)
 }
 
 func TestRESTv2TextPayloadWithTwoPointsAndAWrongFormatEmptyString(t *testing.T) {
@@ -1141,15 +1141,10 @@ func sendRESTextPayloadAndAssertPoint(t *testing.T, payload *tools.Payload, star
 }
 
 // payload must be composed by point(s) with Timestamp(s) != nil
-func sendRESTextPayloadWithMoreThanAPointAndAssertPoints(t *testing.T, payload tools.PayloadSlice, gzipit bool) {
+func sendRESTextPayloadWithMoreThanAPointAndAssertPoints(t *testing.T, payload tools.PayloadSlice) {
 
-	if gzipit {
-		statusCode, _, _ := mycenaeTools.HTTP.POSTgziped("api/text/put", payload.Marshal())
-		assert.Equal(t, http.StatusNoContent, statusCode)
-	} else {
-		statusCode, _, _ := mycenaeTools.HTTP.POST("api/text/put", payload.Marshal())
-		assert.Equal(t, http.StatusNoContent, statusCode)
-	}
+	statusCode, _, _ := mycenaeTools.HTTP.POST("api/text/put", payload.Marshal())
+	assert.Equal(t, http.StatusNoContent, statusCode)
 
 	time.Sleep(tools.Sleep3)
 

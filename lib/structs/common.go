@@ -25,6 +25,7 @@ type SettingsHTTP struct {
 	Bind              string
 	EnableProfiling   bool
 	ForceErrorAsDebug bool
+	AllowCORS         bool
 }
 
 type TelnetServerConfiguration struct {
@@ -71,6 +72,7 @@ type Settings struct {
 	DefaultPaginationSize           int
 	MetaSaveInterval                string
 	MaxBytesOnQueryProcessing       uint32
+	SilencePointValidationErrors    bool
 	GlobalTelnetServerConfiguration GlobalTelnetServerConfiguration
 	HTTPserver                      SettingsHTTP
 	UDPserver                       SettingsUDP
@@ -84,7 +86,6 @@ type Settings struct {
 	DefaultKeyspaces                map[string]int
 	Cassandra                       cassandra.Settings
 	Memcached                       memcached.Configuration
-	AllowCORS                       bool
 	Logs                            LoggerSettings
 	Stats                           snitch.Settings
 	StatsAnalytic                   snitch.Settings

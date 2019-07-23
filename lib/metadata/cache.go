@@ -92,7 +92,7 @@ func (sb *SolrBackend) cacheKeysets(keysets []string) gobol.Error {
 }
 
 // deleteKeySetMap - deletes the cached keyset map
-func (sb *SolrBackend) deleteCachedKeySetMap() gobol.Error {
+func (sb *SolrBackend) deleteCachedKeySets() gobol.Error {
 
 	gerr := sb.memcached.Delete(keysetNamespace, keysetMapID)
 	if gerr != nil {
