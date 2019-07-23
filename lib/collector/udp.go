@@ -13,31 +13,23 @@ func sendIPStats(addr string) {
 	go stats.Increment("HandleUDPpacket", "network.ip", map[string]string{"ip": addr, "source": "udp"})
 }
 
+// HandleUDPpacket - handles the UDP packet received from the collector
 func (collector *Collector) HandleUDPpacket(buf []byte, addr string) {
 
 	sendIPStats(addr)
 
-	rcvMsg := TSDBpoint{}
-
-	var gerr gobol.Error
-
-	err := json.Unmarshal(buf, &rcvMsg)
-	if err != nil {
-		gerr = errUnmarshal("HandleUDPpacket", err)
+	_, gerr := collector.HandleJSONBytes(buf, "udp", true)
+	if gerr != nil {
 		collector.fail(gerr, addr)
-		return
 	}
-
-	logFields := map[string]string{}
-	logFields["addr"] = addr
-
-	collector.HandlePacket(rcvMsg, nil, true, "udp", logFields)
 }
 
 func (collector *Collector) fail(gerr gobol.Error, addr string) {
+
 	lf := []zapcore.Field{
 		zap.String("package", "Collector"),
 		zap.String("func", "fail"),
+		zap.String("addr", addr),
 	}
 
 	defer func() {
@@ -45,9 +37,6 @@ func (collector *Collector) fail(gerr gobol.Error, addr string) {
 			gblog.Error(fmt.Sprintf("Panic: %v", r), lf...)
 		}
 	}()
-
-	fields := gerr.LogFields()
-	fields = append(fields, zap.String("addr", addr))
 
 	gblog.Debug(gerr.Error(), lf...)
 }

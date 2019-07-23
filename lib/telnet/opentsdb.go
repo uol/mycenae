@@ -82,15 +82,13 @@ func (otsdbh *OpenTSDBHandler) Handle(line string) {
 
 	point.Value = &value
 
-	validatedPoint := &collector.Point{}
-
-	err = otsdbh.collector.MakePacket(validatedPoint, point, true)
+	validatedPoint, err := otsdbh.collector.MakePacket(&point, true)
 	if err != nil {
 		otsdbh.logger.Error("point validation failure in line: "+line, otsdbh.loggerFields...)
 		return
 	}
 
-	otsdbh.collector.HandlePacket(point, validatedPoint, true, otsdbh.sourceName, nil)
+	otsdbh.collector.HandlePacket(validatedPoint, otsdbh.sourceName)
 }
 
 // SourceName - returns the connection type name

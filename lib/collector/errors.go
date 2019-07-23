@@ -11,30 +11,30 @@ import (
 	"github.com/uol/mycenae/lib/tserr"
 )
 
-func errBR(f, s string, e error) gobol.Error {
-	if e != nil {
+func errBadRequest(function, message string, err error) gobol.Error {
+	if err != nil {
 		return tserr.New(
-			e,
-			s,
+			err,
+			message,
 			http.StatusBadRequest,
 			[]zapcore.Field{
 				zap.String("package", "collector"),
-				zap.String("func", f),
+				zap.String("func", function),
 			},
 		)
 	}
 	return nil
 }
 
-func errISE(f, s string, e error) gobol.Error {
-	if e != nil {
+func errInternalServerError(function, message string, err error) gobol.Error {
+	if err != nil {
 		return tserr.New(
-			e,
-			s,
+			err,
+			message,
 			http.StatusInternalServerError,
 			[]zapcore.Field{
 				zap.String("package", "collector"),
-				zap.String("func", f),
+				zap.String("func", function),
 			},
 		)
 	}
@@ -42,17 +42,13 @@ func errISE(f, s string, e error) gobol.Error {
 }
 
 func errValidation(s string) gobol.Error {
-	return errBR("makePacket", s, errors.New(s))
+	return errBadRequest("makePacket", s, errors.New(s))
 }
 
 func errUnmarshal(f string, e error) gobol.Error {
-	return errBR(f, "Wrong JSON format", e)
-}
-
-func errMarshal(f string, e error) gobol.Error {
-	return errISE(f, e.Error(), e)
+	return errBadRequest(f, "Wrong JSON format", e)
 }
 
 func errPersist(f string, e error) gobol.Error {
-	return errISE(f, e.Error(), e)
+	return errInternalServerError(f, e.Error(), e)
 }

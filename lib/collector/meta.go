@@ -61,7 +61,7 @@ func (collect *Collector) metaCoordinator(saveInterval time.Duration) {
 	}()
 }
 
-func (collect *Collector) saveMeta(packet Point) {
+func (collect *Collector) saveMeta(packet *Point) {
 
 	found := false
 
@@ -73,14 +73,7 @@ func (collect *Collector) saveMeta(packet Point) {
 		found, gerr = collect.persist.CheckMetadata(packet.Keyset, "metatext", packet.ID)
 	}
 	if gerr != nil {
-		lf := []zapcore.Field{
-			zap.String("package", "collector"),
-			zap.String("func", "saveMeta"),
-		}
-		gblog.Warn(gerr.Error(), lf...)
-		collect.errMutex.Lock()
-		collect.errorsSinceLastProbe++
-		collect.errMutex.Unlock()
+		gblog.Warn(gerr.Error(), zap.String("package", "collector"), zap.String("func", "saveMeta"))
 	}
 
 	if !found {
@@ -90,7 +83,7 @@ func (collect *Collector) saveMeta(packet Point) {
 
 }
 
-func (collect *Collector) generateBulk(packet Point) gobol.Error {
+func (collect *Collector) generateBulk(packet *Point) gobol.Error {
 
 	var metaType string
 	if packet.Number {

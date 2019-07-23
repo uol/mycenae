@@ -2,7 +2,9 @@ package: github.com/uol/mycenae
 import:
 - package: github.com/gocql/gocql
 - package: github.com/julienschmidt/httprouter
+  version: v1.2.0
 - package: github.com/pborman/uuid
+  version: v1.2.0
 - package: github.com/uol/gobol
   version: ^v1.21.1
   subpackages:
@@ -19,23 +21,21 @@ import:
   subpackages:
   - context
 - package: gopkg.in/robfig/cron.v2
-  version: ~1.0.0
+  version: ~v1.0.0
 - package: github.com/uol/go-solr
-  version: ^0.9.3
+  version: ^v0.9.3
 - package: github.com/rainycape/memcache
-- package: github.com/json-iterator/go
-  version: ~1.1.6
-- package: github.com/modern-go/concurrent
-  version: ~1.0.3
-- package: github.com/modern-go/reflect2
-  version: ~1.0.1
 - package: github.com/BurntSushi/toml
-  version: ~0.3.0
+  version: ~v0.3.1
 - package: github.com/rs/cors
-  version: ^1.5.0
+  version: ^v1.6.0
+- package: github.com/uber-go/zap
+  version: ^v1.10.0
+- package: github.com/buger/jsonparser
 - package: github.com/golang/snappy
+  version: ^0.0.1
 testImport:
 - package: github.com/stretchr/testify
-  version: ~1.2.1
+  version: ~v1.2.1
   subpackages:
   - assert
