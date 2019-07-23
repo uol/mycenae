@@ -13,6 +13,7 @@ import (
 	"github.com/buger/jsonparser"
 	"github.com/json-iterator/go"
 	"github.com/uol/mycenae/lib/collector"
+	"github.com/uol/mycenae/lib/structs"
 )
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
@@ -105,10 +106,11 @@ type NetdataHandler struct {
 	logger            *zap.Logger
 	loggerFields      []zapcore.Field
 	sourceName        string
+	telnetConfig      *structs.GlobalTelnetServerConfiguration
 }
 
 // NewNetdataHandler - creates the new handler
-func NewNetdataHandler(regexpCacheDuration string, collector *collector.Collector, logger *zap.Logger) *NetdataHandler {
+func NewNetdataHandler(regexpCacheDuration string, collector *collector.Collector, telnetConfig *structs.GlobalTelnetServerConfiguration, logger *zap.Logger) *NetdataHandler {
 
 	netdataTags := map[string]struct{}{
 		"chart_id":      struct{}{},
@@ -138,7 +140,8 @@ func NewNetdataHandler(regexpCacheDuration string, collector *collector.Collecto
 			zap.String("package", "telnet"),
 			zap.String("func", "Handle"),
 		},
-		sourceName: "telnet-netdata",
+		sourceName:   "telnet-netdata",
+		telnetConfig: telnetConfig,
 	}
 }
 
@@ -169,7 +172,10 @@ func (nh *NetdataHandler) Handle(line string) {
 	pointJSON := netdataJSON{}
 	err := pointJSON.Parse([]byte(line))
 	if err != nil {
-		nh.logger.Error("error unmarshalling line: "+line, nh.loggerFields...)
+		if !nh.telnetConfig.SilenceLogs {
+			nh.logger.Error("error unmarshalling line: "+line, nh.loggerFields...)
+		}
+		return
 	}
 
 	tags := map[string]string{}
@@ -186,7 +192,9 @@ func (nh *NetdataHandler) Handle(line string) {
 	if metricValue, switchMetric := tags["%set_metric%"]; switchMetric {
 
 		if _, ok := nh.netdataTags[metricValue]; !ok {
-			nh.logger.Error("invalid netdata property to use set_metric: "+metricValue, nh.loggerFields...)
+			if !nh.telnetConfig.SilenceLogs {
+				nh.logger.Error("invalid netdata property to use set_metric: "+metricValue, nh.loggerFields...)
+			}
 			return
 		}
 
@@ -204,12 +212,16 @@ func (nh *NetdataHandler) Handle(line string) {
 			array := strings.Split(list[i], ";")
 
 			if len(array) != 2 {
-				nh.logger.Error("invalid set_plugin_metric value: "+pluginMetricValue, nh.loggerFields...)
+				if !nh.telnetConfig.SilenceLogs {
+					nh.logger.Error("invalid set_plugin_metric value: "+pluginMetricValue, nh.loggerFields...)
+				}
 				return
 			}
 
 			if _, ok := nh.netdataTags[array[1]]; !ok {
-				nh.logger.Error("invalid netdata property to use set_plugin_metric: "+pluginMetricValue, nh.loggerFields...)
+				if !nh.telnetConfig.SilenceLogs {
+					nh.logger.Error("invalid netdata property to use set_plugin_metric: "+pluginMetricValue, nh.loggerFields...)
+				}
 				return
 			}
 
@@ -218,7 +230,9 @@ func (nh *NetdataHandler) Handle(line string) {
 
 				newCompiledRegex, err := regexp.Compile(array[0])
 				if err != nil {
-					nh.logger.Error("invalid set_plugin_metric regular expression: "+pluginMetricValue, nh.loggerFields...)
+					if !nh.telnetConfig.SilenceLogs {
+						nh.logger.Error("invalid set_plugin_metric regular expression: "+pluginMetricValue, nh.loggerFields...)
+					}
 					return
 				}
 
@@ -287,7 +301,9 @@ func (nh *NetdataHandler) Handle(line string) {
 
 	validatedPoint, err := nh.collector.MakePacket(&point, true)
 	if err != nil {
-		nh.logger.Error(fmt.Sprintf("point validation failure in line: %s (error: %s)", line, err.Error()), nh.loggerFields...)
+		if !nh.telnetConfig.SilenceLogs {
+			nh.logger.Error(fmt.Sprintf("point validation failure in line: %s (error: %s)", line, err.Error()), nh.loggerFields...)
+		}
 		return
 	}
 

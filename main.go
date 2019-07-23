@@ -467,13 +467,13 @@ func createTelnetManager(conf *structs.Settings, collectorService *collector.Col
 		zap.String("func", "createTelnetManager"),
 	}
 
-	err = telnetManager.AddServer(&conf.NetdataServer, telnet.NewNetdataHandler(conf.NetdataServer.CacheDuration, collectorService, logger))
+	err = telnetManager.AddServer(&conf.NetdataServer, &conf.GlobalTelnetServerConfiguration, telnet.NewNetdataHandler(conf.NetdataServer.CacheDuration, collectorService, &conf.GlobalTelnetServerConfiguration, logger))
 	if err != nil {
 		logger.Fatal(fmt.Sprintf("error creating telnet server '%s': %s", "netdata", err.Error()), lf...)
 		os.Exit(1)
 	}
 
-	err = telnetManager.AddServer(&conf.TELNETserver, telnet.NewOpenTSDBHandler(collectorService, logger))
+	err = telnetManager.AddServer(&conf.TELNETserver, &conf.GlobalTelnetServerConfiguration, telnet.NewOpenTSDBHandler(collectorService, &conf.GlobalTelnetServerConfiguration, logger))
 	if err != nil {
 		logger.Fatal(fmt.Sprintf("error creating telnet server '%s': %s", "opentsdb", err.Error()), lf...)
 		os.Exit(1)

@@ -111,10 +111,11 @@ func New(globalConfiguration *structs.GlobalTelnetServerConfiguration, httpListe
 }
 
 // AddServer - adds a new server
-func (manager *Manager) AddServer(serverConfiguration *structs.TelnetServerConfiguration, telnetHandler telnetsrv.TelnetDataHandler) error {
+func (manager *Manager) AddServer(serverConfiguration *structs.TelnetServerConfiguration, globalTelnetConfig *structs.GlobalTelnetServerConfiguration, telnetHandler telnetsrv.TelnetDataHandler) error {
 
 	server, err := telnetsrv.New(
 		serverConfiguration,
+		globalTelnetConfig,
 		&manager.sharedConnectionCounter,
 		manager.globalConfiguration.MaxTelnetConnections,
 		&manager.closeConnectionChannel,
