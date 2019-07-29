@@ -259,22 +259,11 @@ func (plot *Plot) getTimeseries(
 		for k, v := range q.Tags {
 
 			members := strings.Split(v, "|")
-			filter := structs.TSDBfilter{}
-
-			if members[0] == "*" || len(members) > 1 {
-				filter = structs.TSDBfilter{
-					Ftype:   "wildcard",
-					Tagk:    k,
-					Filter:  v,
-					GroupBy: true,
-				}
-			} else {
-				filter = structs.TSDBfilter{
-					Ftype:   "wildcard",
-					Tagk:    k,
-					Filter:  v,
-					GroupBy: false,
-				}
+			filter := structs.TSDBfilter{
+				Ftype:   "wildcard",
+				Tagk:    k,
+				Filter:  v,
+				GroupBy: members[0] == "*" || len(members) > 1,
 			}
 
 			q.Filters = append(q.Filters, filter)
