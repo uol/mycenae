@@ -17,21 +17,22 @@ import (
 
 // SolrBackend - struct
 type SolrBackend struct {
-	solrService           *solar.SolrService
-	numShards             int
-	replicationFactor     int
-	regexPattern          *regexp.Regexp
-	stats                 *tsstats.StatsTS
-	logger                *zap.Logger
-	memcached             *memcached.Memcached
-	idCacheTTL            int32
-	queryCacheTTL         int32
-	keysetCacheTTL        int32
-	fieldListQuery        string
-	zookeeperConfig       string
-	maxReturnedMetadata   int
-	blacklistedKeysetMap  map[string]bool
-	solrSpecialCharRegexp *regexp.Regexp
+	solrService                 *solar.SolrService
+	numShards                   int
+	replicationFactor           int
+	regexPattern                *regexp.Regexp
+	stats                       *tsstats.StatsTS
+	logger                      *zap.Logger
+	memcached                   *memcached.Memcached
+	idCacheTTL                  int32
+	queryCacheTTL               int32
+	keysetCacheTTL              int32
+	fieldListQuery              string
+	zookeeperConfig             string
+	maxReturnedMetadata         int
+	blacklistedKeysetMap        map[string]bool
+	solrSpecialCharRegexp       *regexp.Regexp
+	solrRegexpSpecialCharRegexp *regexp.Regexp
 }
 
 // NewSolrBackend - creates a new instance
@@ -51,21 +52,22 @@ func NewSolrBackend(settings *Settings, stats *tsstats.StatsTS, logger *zap.Logg
 	}
 
 	return &SolrBackend{
-		solrService:           ss,
-		stats:                 stats,
-		logger:                logger,
-		replicationFactor:     settings.ReplicationFactor,
-		numShards:             settings.NumShards,
-		regexPattern:          rp,
-		memcached:             memcached,
-		idCacheTTL:            settings.IDCacheTTL,
-		queryCacheTTL:         settings.QueryCacheTTL,
-		keysetCacheTTL:        settings.KeysetCacheTTL,
-		fieldListQuery:        fmt.Sprintf("*,[child parentFilter=parent_doc:true limit=%d]", settings.MaxReturnedMetadata),
-		zookeeperConfig:       settings.ZookeeperConfig,
-		maxReturnedMetadata:   settings.MaxReturnedMetadata,
-		blacklistedKeysetMap:  blacklistedKeysetMap,
-		solrSpecialCharRegexp: regexp.MustCompile(`(\+|\-|\&|\||\!|\(|\)|\{|\}|\[|\]|\^|"|\~|\*|\?|\:|\\|\/)`),
+		solrService:                 ss,
+		stats:                       stats,
+		logger:                      logger,
+		replicationFactor:           settings.ReplicationFactor,
+		numShards:                   settings.NumShards,
+		regexPattern:                rp,
+		memcached:                   memcached,
+		idCacheTTL:                  settings.IDCacheTTL,
+		queryCacheTTL:               settings.QueryCacheTTL,
+		keysetCacheTTL:              settings.KeysetCacheTTL,
+		fieldListQuery:              fmt.Sprintf("*,[child parentFilter=parent_doc:true limit=%d]", settings.MaxReturnedMetadata),
+		zookeeperConfig:             settings.ZookeeperConfig,
+		maxReturnedMetadata:         settings.MaxReturnedMetadata,
+		blacklistedKeysetMap:        blacklistedKeysetMap,
+		solrSpecialCharRegexp:       regexp.MustCompile(`(\+|\-|\&|\||\!|\(|\)|\{|\}|\[|\]|\^|"|\~|\*|\?|\:|\/|\\)`),
+		solrRegexpSpecialCharRegexp: regexp.MustCompile(`(\/)`),
 	}, nil
 }
 
@@ -265,7 +267,7 @@ func (sb *SolrBackend) SetRegexValue(value string) string {
 		return value
 	}
 
-	return fmt.Sprintf("/%s/", value)
+	return fmt.Sprintf("/%s/", sb.solrRegexpSpecialCharRegexp.ReplaceAllString(value, "\\$1"))
 }
 
 // leaveEmpty - checks if the value is '*' or empty
