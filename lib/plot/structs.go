@@ -1,8 +1,12 @@
 package plot
 
 import (
+	"io/ioutil"
+	"net/http"
 	"regexp"
 	"sort"
+
+	"github.com/buger/jsonparser"
 
 	"github.com/uol/gobol"
 )
@@ -379,4 +383,118 @@ type ExpQuery struct {
 
 func (eq ExpQuery) Validate() gobol.Error {
 	return nil
+}
+
+// RawDataMetadata - the raw data (metadata only)
+type RawDataMetadata struct {
+	Metric string            `json:"metric"`
+	Tags   map[string]string `json:"tags"`
+}
+
+// RawDataQuery - the raw data query JSON
+type RawDataQuery struct {
+	RawDataMetadata
+	Type  string `json:"type"`
+	Since string `json:"since"`
+	Until string `json:"until"`
+}
+
+const (
+	rawDataQueryNumberType  string = "number"
+	rawDataQueryTextType    string = "text"
+	rawDataQueryMetricParam string = "metric"
+	rawDataQueryTagsParam   string = "tags"
+	rawDataQuerySinceParam  string = "since"
+	rawDataQueryUntilParam  string = "until"
+	rawDataQueryTypeParam   string = "type"
+	rawDataQueryFunc        string = "Parse"
+	rawDataQueryKSID        string = "ksid"
+	rawDataQueryTTL         string = "ttl"
+)
+
+// Parse - parses the bytes tol JSON
+func (rq *RawDataQuery) Parse(r *http.Request) gobol.Error {
+
+	data, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return errUnmarshal(rawDataQueryFunc, err)
+	}
+
+	if rq.Type, err = jsonparser.GetString(data, rawDataQueryTypeParam); err != nil {
+		return errUnmarshal(rawDataQueryFunc, err)
+	}
+
+	if rq.Type != rawDataQueryNumberType && rq.Type != rawDataQueryTextType {
+		return errMandatoryParam(rawDataQueryFunc, rawDataQueryTypeParam)
+	}
+
+	if rq.Metric, err = jsonparser.GetString(data, rawDataQueryMetricParam); err != nil {
+		return errUnmarshal(rawDataQueryFunc, err)
+	}
+
+	if rq.Since, err = jsonparser.GetString(data, rawDataQuerySinceParam); err != nil {
+		return errUnmarshal(rawDataQueryFunc, err)
+	}
+
+	if rq.Until, err = jsonparser.GetString(data, rawDataQueryUntilParam); err != nil && err != jsonparser.KeyPathNotFoundError {
+		return errUnmarshal(rawDataQueryFunc, err)
+	}
+
+	rq.Tags = map[string]string{}
+	err = jsonparser.ObjectEach(data, func(key, value []byte, dataType jsonparser.ValueType, offset int) error {
+
+		tagKey, err := jsonparser.ParseString(key)
+		if err != nil {
+			return errUnmarshal(rawDataQueryFunc, err)
+		}
+
+		if rq.Tags[tagKey], err = jsonparser.ParseString(value); err != nil {
+			return errUnmarshal(rawDataQueryFunc, err)
+		}
+
+		return nil
+
+	}, rawDataQueryTagsParam)
+
+	if _, ok := rq.Tags[rawDataQueryKSID]; !ok {
+		return errMandatoryParam(rawDataQueryFunc, rawDataQueryKSID)
+	}
+
+	return nil
+}
+
+// RawDataNumberPoint - represents a raw number point result
+type RawDataNumberPoint struct {
+	Timestamp int64   `json:"timestamp"`
+	Value     float64 `json:"value"`
+}
+
+// RawDataTextPoint - represents a raw text point result
+type RawDataTextPoint struct {
+	Timestamp int64  `json:"timestamp"`
+	Text      string `json:"text"`
+}
+
+// RawDataQueryNumberPoints - the metadata and value results
+type RawDataQueryNumberPoints struct {
+	Metadata RawDataMetadata      `json:"metadata"`
+	Values   []RawDataNumberPoint `json:"points"`
+}
+
+// RawDataQueryTextPoints - the metadata and text results
+type RawDataQueryTextPoints struct {
+	Metadata RawDataMetadata    `json:"metadata"`
+	Texts    []RawDataTextPoint `json:"points"`
+}
+
+// RawDataQueryNumberResults - the final raw query number results
+type RawDataQueryNumberResults struct {
+	Results []RawDataQueryNumberPoints `json:"results"`
+	Total   int                        `json:"total"`
+}
+
+// RawDataQueryTextResults - the final raw query text results
+type RawDataQueryTextResults struct {
+	Results []RawDataQueryTextPoints `json:"results"`
+	Total   int                      `json:"total"`
 }

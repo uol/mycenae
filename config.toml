@@ -83,7 +83,6 @@ SilencePointValidationErrors = true
   readBuffer = 1048576
 
 [HTTPserver]
-  path = "/"
   port = 8082
   bind = "loghost"
   EnableProfiling = true

@@ -86,3 +86,11 @@ func errMaxBytesLimitWrapper(function string, err error) gobol.Error {
 func errMaxBytesLimit(function, keyset, metric string, start, end int64, ttl int) gobol.Error {
 	return errBasic(function, "payload too large", 413, fmt.Errorf("max bytes reached: keyset '%s', metric '%s', start '%d', end '%d', ttl '%d'", keyset, metric, start, end, ttl))
 }
+
+func errUnmarshal(function string, err error) gobol.Error {
+	return errBasic(function, "error unmarshalling json", http.StatusBadRequest, err)
+}
+
+func errInternalServer(function string, err error) gobol.Error {
+	return errBasic(function, "internal server error", http.StatusInternalServerError, err)
+}

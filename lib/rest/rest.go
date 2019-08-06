@@ -2,10 +2,8 @@ package rest
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
-	"regexp"
 	"time"
 
 	"github.com/uol/mycenae/lib/telnetmgr"
@@ -88,55 +86,43 @@ func (trest *REST) asyncStart() {
 
 	rip.SetLogger(trest.gblog, trest.settings.ForceErrorAsDebug)
 
-	pathMatcher := regexp.MustCompile(`^(/[a-zA-Z0-9._-]+)?/$`)
-
-	if !pathMatcher.Match([]byte(trest.settings.Path)) {
-		err := errors.New("Invalid path to start rest service")
-
-		if err != nil {
-			trest.gblog.Fatal(fmt.Sprintf("ERROR - Starting REST: %s", err.Error()), lf...)
-		}
-	}
-
-	path := trest.settings.Path
-
 	router := rip.NewCustomRouter()
 	//NODE TO NODE
-	router.HEAD(path+"node/connections", trest.telnetManager.CountConnections)
-	router.HEAD(path+"node/halt/balancing", trest.telnetManager.HaltTelnetBalancingProcess)
+	router.HEAD("/node/connections", trest.telnetManager.CountConnections)
+	router.HEAD("/node/halt/balancing", trest.telnetManager.HaltTelnetBalancingProcess)
 	//PROBE
-	router.GET(path+"probe", trest.check)
+	router.GET("/probe", trest.check)
 	//EXPRESSION
-	router.GET(path+"expression/check", trest.reader.ExpressionCheckGET)
-	router.POST(path+"expression/check", trest.reader.ExpressionCheckPOST)
-	router.POST(path+"expression/compile", trest.reader.ExpressionCompile)
-	router.GET(path+"expression/parse", trest.reader.ExpressionParseGET)
-	router.POST(path+"expression/parse", trest.reader.ExpressionParsePOST)
-	router.GET(path+"keysets/:keyset/expression/expand", trest.reader.ExpressionExpandGET)
-	router.POST(path+"keysets/:keyset/expression/expand", trest.reader.ExpressionExpandPOST)
+	router.GET("/expression/check", trest.reader.ExpressionCheckGET)
+	router.POST("/expression/check", trest.reader.ExpressionCheckPOST)
+	router.POST("/expression/compile", trest.reader.ExpressionCompile)
+	router.GET("/expression/parse", trest.reader.ExpressionParseGET)
+	router.POST("/expression/parse", trest.reader.ExpressionParsePOST)
+	router.GET("/keysets/:keyset/expression/expand", trest.reader.ExpressionExpandGET)
+	router.POST("/keysets/:keyset/expression/expand", trest.reader.ExpressionExpandPOST)
 	//NUMBER
-	router.GET(path+"keysets/:keyset/tags", trest.reader.ListTagsNumber)
-	router.GET(path+"keysets/:keyset/metrics", trest.reader.ListMetricsNumber)
-	router.POST(path+"keysets/:keyset/meta", trest.reader.ListMetaNumber)
-	router.GET(path+"keysets/:keyset/values", trest.reader.ListMetaNumber)
-	router.GET(path+"keysets/:keyset/metric/tag/keys", trest.reader.ListNumberTagKeysByMetric)
-	router.GET(path+"keysets/:keyset/metric/tag/values", trest.reader.ListNumberTagValuesByMetric)
+	router.GET("/keysets/:keyset/tags", trest.reader.ListTagsNumber)
+	router.GET("/keysets/:keyset/metrics", trest.reader.ListMetricsNumber)
+	router.POST("/keysets/:keyset/meta", trest.reader.ListMetaNumber)
+	router.GET("/keysets/:keyset/values", trest.reader.ListMetaNumber)
+	router.GET("/keysets/:keyset/metric/tag/keys", trest.reader.ListNumberTagKeysByMetric)
+	router.GET("/keysets/:keyset/metric/tag/values", trest.reader.ListNumberTagValuesByMetric)
 	//TEXT
-	router.GET(path+"keysets/:keyset/text/tags", trest.reader.ListTagsText)
-	router.GET(path+"keysets/:keyset/text/metrics", trest.reader.ListMetricsText)
-	router.POST(path+"keysets/:keyset/text/meta", trest.reader.ListMetaText)
-	router.GET(path+"keysets/:keyset/text/tag/keys", trest.reader.ListTextTagKeysByMetric)
-	router.GET(path+"keysets/:keyset/text/tag/values", trest.reader.ListTextTagValuesByMetric)
+	router.GET("/keysets/:keyset/text/tags", trest.reader.ListTagsText)
+	router.GET("/keysets/:keyset/text/metrics", trest.reader.ListMetricsText)
+	router.POST("/keysets/:keyset/text/meta", trest.reader.ListMetaText)
+	router.GET("/keysets/:keyset/text/tag/keys", trest.reader.ListTextTagKeysByMetric)
+	router.GET("/keysets/:keyset/text/tag/values", trest.reader.ListTextTagValuesByMetric)
 	//KEYSPACE
-	router.GET(path+"datacenters", trest.kspace.ListDC)
-	router.HEAD(path+"keyspaces/:keyspace", trest.kspace.Check)
-	router.POST(path+"keyspaces/:keyspace", trest.kspace.Create)
-	router.PUT(path+"keyspaces/:keyspace", trest.kspace.Update)
-	router.GET(path+"keyspaces", trest.kspace.GetAll)
+	router.GET("/datacenters", trest.kspace.ListDC)
+	router.HEAD("/keyspaces/:keyspace", trest.kspace.Check)
+	router.POST("/keyspaces/:keyspace", trest.kspace.Create)
+	router.PUT("/keyspaces/:keyspace", trest.kspace.Update)
+	router.GET("/keyspaces", trest.kspace.GetAll)
 	//WRITE
-	router.POST(path+"api/put", trest.writer.HandleNumber)
-	router.PUT(path+"api/put", trest.writer.HandleNumber)
-	router.POST(path+"api/text/put", trest.writer.HandleText)
+	router.POST("/api/put", trest.writer.HandleNumber)
+	router.PUT("/api/put", trest.writer.HandleNumber)
+	router.POST("/api/text/put", trest.writer.HandleText)
 	//OPENTSDB
 	router.POST("/keysets/:keyset/api/query", trest.reader.Query)
 	router.GET("/keysets/:keyset/api/suggest", trest.reader.Suggest)
@@ -146,15 +132,17 @@ func (trest *REST) asyncStart() {
 	//HYBRIDS
 	router.POST("/keysets/:keyset/query/expression", trest.reader.ExpressionQueryPOST)
 	router.GET("/keysets/:keyset/query/expression", trest.reader.ExpressionQueryGET)
+	//RAW POINTS API
+	router.POST("/api/query/raw", trest.reader.RawDataQuery)
 	//KEYSETS
 	router.POST("/keysets/:keyset", trest.keyset.CreateKeySet)
 	router.HEAD("/keysets/:keyset", trest.keyset.Check)
 	router.GET("/keysets", trest.keyset.GetKeySets)
 	//DELETE
-	router.POST(path+"keysets/:keyset/delete/meta", trest.reader.DeleteNumberTS)
-	router.POST(path+"keysets/:keyset/delete/text/meta", trest.reader.DeleteTextTS)
+	router.POST("/keysets/:keyset/delete/meta", trest.reader.DeleteNumberTS)
+	router.POST("/keysets/:keyset/delete/text/meta", trest.reader.DeleteTextTS)
 	//DEPRECATED
-	router.POST(path+"keysets/:keyset/points", trest.reader.ListPoints)
+	router.POST("/keysets/:keyset/points", trest.reader.ListPoints)
 
 	if trest.settings.EnableProfiling {
 

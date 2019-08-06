@@ -14,8 +14,6 @@ func (plot *Plot) GetTextSeries(
 	keys []string,
 	start,
 	end int64,
-	mergeType string,
-	keepEmpties bool,
 	search *regexp.Regexp,
 ) (TST, uint32, gobol.Error) {
 
@@ -25,7 +23,7 @@ func (plot *Plot) GetTextSeries(
 		return TST{}, 0, errNotFound("invalid ttl found: " + strconv.Itoa(int(ttl)))
 	}
 
-	tsMap, numBytes, gerr := plot.getTextSerie(keyspace, keys, start, end, keepEmpties, search)
+	tsMap, numBytes, gerr := plot.getTextSerie(keyspace, keys, start, end, search)
 
 	if gerr != nil {
 		return TST{}, numBytes, gerr
@@ -56,7 +54,6 @@ func (plot *Plot) getTextSerie(
 	keys []string,
 	start,
 	end int64,
-	keepEmpties bool,
 	search *regexp.Regexp,
 ) (map[string]TST, uint32, gobol.Error) {
 
