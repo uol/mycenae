@@ -116,8 +116,6 @@ func (plot *Plot) ListPoints(w http.ResponseWriter, r *http.Request, ps httprout
 			key,
 			query.Start,
 			query.End,
-			"",
-			true,
 			query.GetRe(),
 		)
 
@@ -186,8 +184,6 @@ func (plot *Plot) ListPoints(w http.ResponseWriter, r *http.Request, ps httprout
 					ids,
 					query.Start,
 					query.End,
-					ks.Option,
-					true,
 					query.GetRe(),
 				)
 				if gerr != nil {

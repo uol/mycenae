@@ -31,6 +31,7 @@ type Backend interface {
 	FilterMetrics(collection, prefix string, maxResults int) ([]string, int, gobol.Error)
 
 	// FilterMetadata - list all metas from a collection
+	// Returns: results, total and gobol.Error
 	FilterMetadata(collection string, query *Query, from, maxResults int) ([]Metadata, int, gobol.Error)
 
 	// AddDocuments - add/update a document or a series of documents
