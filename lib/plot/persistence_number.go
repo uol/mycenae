@@ -10,7 +10,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-func (persist *persistence) GetTS(keyspace string, keys []string, start, end int64, ms bool, maxBytesLimit uint32) (map[string][]Pnt, uint32, gobol.Error) {
+func (persist *persistence) GetTS(keyspace string, keys []string, start, end int64, ms, allowFullFetch bool, maxBytesLimit uint32, keyset string) (map[string][]Pnt, uint32, gobol.Error) {
 
 	track := time.Now()
 	start--
@@ -56,13 +56,23 @@ func (persist *persistence) GetTS(keyspace string, keys []string, start, end int
 
 		numBytes += uint32(persist.constPartBytesFromNumberPoint)
 
-		if numBytes >= maxBytesLimit {
+		if !allowFullFetch && numBytes >= maxBytesLimit {
 			limitReached = true
 			break
 		}
 
 		countRows++
 	}
+
+	statsValueAdd(
+		"scylla.query.bytes",
+		map[string]string{
+			"keyset":   keyset,
+			"keyspace": keyspace,
+			"type":     "number",
+		},
+		float64(numBytes),
+	)
 
 	if err = iter.Close(); err != nil {
 		fields := []zapcore.Field{
@@ -82,7 +92,7 @@ func (persist *persistence) GetTS(keyspace string, keys []string, start, end int
 
 	statsSelect(keyspace, "ts_number_stamp", time.Since(track), countRows)
 
-	if limitReached {
+	if limitReached && !allowFullFetch {
 		return map[string][]Pnt{}, numBytes, errMaxBytesLimitWrapper("GetTS", persist.maxBytesErr)
 	}
 

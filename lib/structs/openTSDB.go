@@ -37,6 +37,7 @@ type TSDBqueryPayload struct {
 	Queries      []TSDBquery `json:"queries"`
 	ShowTSUIDs   bool        `json:"showTSUIDs"`
 	MsResolution bool        `json:"msResolution"`
+	EstimateSize bool        `json:"estimateSize"`
 }
 
 func (query TSDBqueryPayload) Validate() gobol.Error {

@@ -15,6 +15,8 @@ func (plot *Plot) GetTextSeries(
 	start,
 	end int64,
 	search *regexp.Regexp,
+	keyset string,
+	allowFullFetch bool,
 ) (TST, uint32, gobol.Error) {
 
 	var keyspace string
@@ -23,7 +25,7 @@ func (plot *Plot) GetTextSeries(
 		return TST{}, 0, errNotFound("invalid ttl found: " + strconv.Itoa(int(ttl)))
 	}
 
-	tsMap, numBytes, gerr := plot.getTextSerie(keyspace, keys, start, end, search)
+	tsMap, numBytes, gerr := plot.getTextSerie(keyspace, keys, start, end, search, keyset, allowFullFetch)
 
 	if gerr != nil {
 		return TST{}, numBytes, gerr
@@ -55,9 +57,11 @@ func (plot *Plot) getTextSerie(
 	start,
 	end int64,
 	search *regexp.Regexp,
+	keyset string,
+	allowFullFetch bool,
 ) (map[string]TST, uint32, gobol.Error) {
 
-	resultMap, numBytes, gerr := plot.persist.GetTST(keyspace, keys, start, end, search, plot.maxBytesLimit)
+	resultMap, numBytes, gerr := plot.persist.GetTST(keyspace, keys, start, end, search, allowFullFetch, plot.maxBytesLimit, keyset)
 
 	if gerr != nil {
 		return map[string]TST{}, numBytes, gerr

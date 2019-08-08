@@ -60,6 +60,8 @@ func (plot *Plot) ListPoints(w http.ResponseWriter, r *http.Request, ps httprout
 			opers,
 			true,
 			true,
+			false,
+			k.TSid,
 		)
 		if gerr != nil {
 			rip.Fail(w, gerr)
@@ -117,6 +119,8 @@ func (plot *Plot) ListPoints(w http.ResponseWriter, r *http.Request, ps httprout
 			query.Start,
 			query.End,
 			query.GetRe(),
+			k.TSid,
+			false,
 		)
 
 		if gerr != nil {
@@ -185,6 +189,8 @@ func (plot *Plot) ListPoints(w http.ResponseWriter, r *http.Request, ps httprout
 					query.Start,
 					query.End,
 					query.GetRe(),
+					ks.Keys[0].TSid,
+					false,
 				)
 				if gerr != nil {
 					rip.Fail(w, gerr)
@@ -236,6 +242,8 @@ func (plot *Plot) ListPoints(w http.ResponseWriter, r *http.Request, ps httprout
 					opers,
 					true,
 					true,
+					false,
+					ks.Keys[0].TSid,
 				)
 				if gerr != nil {
 					rip.Fail(w, gerr)

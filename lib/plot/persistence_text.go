@@ -11,7 +11,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-func (persist *persistence) GetTST(keyspace string, keys []string, start, end int64, search *regexp.Regexp, maxBytesLimit uint32) (map[string][]TextPnt, uint32, gobol.Error) {
+func (persist *persistence) GetTST(keyspace string, keys []string, start, end int64, search *regexp.Regexp, allowFullFetch bool, maxBytesLimit uint32, keyset string) (map[string][]TextPnt, uint32, gobol.Error) {
 
 	track := time.Now()
 	start--
@@ -59,7 +59,7 @@ func (persist *persistence) GetTST(keyspace string, keys []string, start, end in
 
 			numBytes += uint32(persist.constPartBytesFromTextPoint + persist.getStringSize(value))
 
-			if numBytes >= maxBytesLimit {
+			if !allowFullFetch && numBytes >= maxBytesLimit {
 				limitReached = true
 				break
 			}
@@ -67,6 +67,16 @@ func (persist *persistence) GetTST(keyspace string, keys []string, start, end in
 			countRows++
 		}
 	}
+
+	statsValueAdd(
+		"scylla.query.bytes",
+		map[string]string{
+			"keyset":   keyset,
+			"keyspace": keyspace,
+			"type":     "number",
+		},
+		float64(numBytes),
+	)
 
 	if err = iter.Close(); err != nil {
 		fields := []zapcore.Field{
@@ -85,7 +95,7 @@ func (persist *persistence) GetTST(keyspace string, keys []string, start, end in
 
 	statsSelect(keyspace, "ts_text_stamp", time.Since(track), countRows)
 
-	if limitReached {
+	if limitReached && !allowFullFetch {
 		return map[string][]TextPnt{}, numBytes, errMaxBytesLimitWrapper("GetTS", persist.maxBytesErr)
 	}
 

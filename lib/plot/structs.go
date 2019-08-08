@@ -394,22 +394,24 @@ type RawDataMetadata struct {
 // RawDataQuery - the raw data query JSON
 type RawDataQuery struct {
 	RawDataMetadata
-	Type  string `json:"type"`
-	Since string `json:"since"`
-	Until string `json:"until"`
+	Type         string `json:"type"`
+	Since        string `json:"since"`
+	Until        string `json:"until"`
+	EstimateSize bool   `json:"estimateSize"`
 }
 
 const (
-	rawDataQueryNumberType  string = "number"
-	rawDataQueryTextType    string = "text"
-	rawDataQueryMetricParam string = "metric"
-	rawDataQueryTagsParam   string = "tags"
-	rawDataQuerySinceParam  string = "since"
-	rawDataQueryUntilParam  string = "until"
-	rawDataQueryTypeParam   string = "type"
-	rawDataQueryFunc        string = "Parse"
-	rawDataQueryKSID        string = "ksid"
-	rawDataQueryTTL         string = "ttl"
+	rawDataQueryNumberType   string = "number"
+	rawDataQueryTextType     string = "text"
+	rawDataQueryMetricParam  string = "metric"
+	rawDataQueryTagsParam    string = "tags"
+	rawDataQuerySinceParam   string = "since"
+	rawDataQueryUntilParam   string = "until"
+	rawDataQueryEstimateSize string = "estimateSize"
+	rawDataQueryTypeParam    string = "type"
+	rawDataQueryFunc         string = "Parse"
+	rawDataQueryKSID         string = "ksid"
+	rawDataQueryTTL          string = "ttl"
 )
 
 // Parse - parses the bytes tol JSON
@@ -437,6 +439,10 @@ func (rq *RawDataQuery) Parse(r *http.Request) gobol.Error {
 	}
 
 	if rq.Until, err = jsonparser.GetString(data, rawDataQueryUntilParam); err != nil && err != jsonparser.KeyPathNotFoundError {
+		return errUnmarshal(rawDataQueryFunc, err)
+	}
+
+	if rq.EstimateSize, err = jsonparser.GetBoolean(data, rawDataQueryEstimateSize); err != nil && err != jsonparser.KeyPathNotFoundError {
 		return errUnmarshal(rawDataQueryFunc, err)
 	}
 

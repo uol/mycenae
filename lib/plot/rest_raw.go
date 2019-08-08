@@ -16,11 +16,13 @@ import (
 )
 
 type queryParameters struct {
-	keyspace    string
-	since       int64
-	until       int64
-	tsids       []string
-	metadataMap map[string]RawDataMetadata
+	keyspace     string
+	keyset       string
+	since        int64
+	until        int64
+	tsids        []string
+	metadataMap  map[string]RawDataMetadata
+	estimateSize bool
 }
 
 // RawDataQuery - returns the raw query
@@ -37,7 +39,10 @@ func (plot *Plot) RawDataQuery(w http.ResponseWriter, r *http.Request, ps httpro
 		return
 	}
 
-	qp := queryParameters{}
+	qp := queryParameters{
+		estimateSize: rawQuery.EstimateSize,
+	}
+
 	var err error
 	var ttl int
 	var ok bool
@@ -97,6 +102,8 @@ func (plot *Plot) RawDataQuery(w http.ResponseWriter, r *http.Request, ps httpro
 		i++
 	}
 
+	qp.keyset = rawQuery.Tags[rawDataQueryKSID]
+
 	metadataArray, _, gerr := plot.persist.metaStorage.FilterMetadata(rawQuery.Tags[rawDataQueryKSID], &metadataQuery, 0, plot.MaxTimeseries)
 	if gerr != nil {
 		rip.Fail(w, gerr)
@@ -128,14 +135,19 @@ func (plot *Plot) RawDataQuery(w http.ResponseWriter, r *http.Request, ps httpro
 
 	addProcessedBytesHeader(w, numBytes)
 
-	if numBytes == 0 {
+	if !qp.estimateSize {
 
-		rip.Success(w, http.StatusNoContent, nil)
+		if numBytes == 0 {
+
+			rip.Success(w, http.StatusNoContent, nil)
+			return
+		}
+
+		rip.SuccessJSON(w, http.StatusOK, results)
 		return
 	}
 
-	rip.SuccessJSON(w, http.StatusOK, results)
-
+	rip.Success(w, http.StatusOK, []byte(fmt.Sprintf("%d bytes", numBytes)))
 	return
 }
 
@@ -160,7 +172,7 @@ func (plot *Plot) getNowMinusDuration(strDuration string) (int64, gobol.Error) {
 // getRawTextPoints - returns all texts points filtered by the query
 func (plot *Plot) getRawTextPoints(qp *queryParameters) (interface{}, uint32, gobol.Error) {
 
-	textTSMap, bytes, err := plot.persist.GetTST(qp.keyspace, qp.tsids, qp.since, qp.until, nil, plot.maxBytesLimit)
+	textTSMap, bytes, err := plot.persist.GetTST(qp.keyspace, qp.tsids, qp.since, qp.until, nil, qp.estimateSize, plot.maxBytesLimit, qp.keyset)
 	if err != nil {
 		return nil, 0, errInternalServer("getRawTextPoints", err)
 	}
@@ -208,7 +220,7 @@ func (plot *Plot) getRawTextPoints(qp *queryParameters) (interface{}, uint32, go
 // getRawNumberPoints - returns all number points filtered by the query
 func (plot *Plot) getRawNumberPoints(qp *queryParameters) (interface{}, uint32, gobol.Error) {
 
-	textTSMap, bytes, err := plot.persist.GetTS(qp.keyspace, qp.tsids, qp.since, qp.until, false, plot.maxBytesLimit)
+	textTSMap, bytes, err := plot.persist.GetTS(qp.keyspace, qp.tsids, qp.since, qp.until, false, qp.estimateSize, plot.maxBytesLimit, qp.keyset)
 	if err != nil {
 		return nil, 0, errInternalServer("getRawNumberPoints", err)
 	}
