@@ -17,7 +17,9 @@ func (plot *Plot) GetTimeSeries(
 	end int64,
 	opers structs.DataOperations,
 	ms,
-	keepEmpties bool,
+	keepEmpties,
+	allowFullFetch bool,
+	keyset string,
 ) (TS, uint32, gobol.Error) {
 
 	var keyspace string
@@ -26,7 +28,7 @@ func (plot *Plot) GetTimeSeries(
 		return TS{}, 0, errNotFound("invalid ttl found: " + strconv.Itoa(int(ttl)))
 	}
 
-	tsMap, numBytes, gerr := plot.getTimeSerie(keyspace, keys, start, end, ms, keepEmpties, opers)
+	tsMap, numBytes, gerr := plot.getTimeSerie(keyspace, keys, start, end, ms, keepEmpties, allowFullFetch, opers, keyset)
 
 	if gerr != nil {
 		return TS{}, numBytes, gerr
@@ -83,11 +85,13 @@ func (plot *Plot) getTimeSerie(
 	start,
 	end int64,
 	ms,
-	keepEmpties bool,
+	keepEmpties,
+	allowFullFetch bool,
 	opers structs.DataOperations,
+	keyset string,
 ) (map[string]TS, uint32, gobol.Error) {
 
-	resultMap, numBytes, gerr := plot.persist.GetTS(keyspace, keys, start, end, ms, plot.maxBytesLimit)
+	resultMap, numBytes, gerr := plot.persist.GetTS(keyspace, keys, start, end, ms, allowFullFetch, plot.maxBytesLimit, keyset)
 
 	if gerr != nil {
 		return map[string]TS{}, numBytes, gerr

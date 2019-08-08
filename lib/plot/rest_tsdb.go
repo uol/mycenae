@@ -162,12 +162,18 @@ func (plot *Plot) Query(w http.ResponseWriter, r *http.Request, ps httprouter.Pa
 
 	addProcessedBytesHeader(w, numBytes)
 
-	if len(resps) == 0 {
-		rip.SuccessJSON(w, http.StatusOK, []string{})
+	if !query.EstimateSize {
+
+		if len(resps) == 0 {
+			rip.SuccessJSON(w, http.StatusOK, []string{})
+			return
+		}
+
+		rip.SuccessJSON(w, http.StatusOK, resps)
 		return
 	}
 
-	rip.SuccessJSON(w, http.StatusOK, resps)
+	rip.Success(w, http.StatusOK, []byte(fmt.Sprintf("%d bytes", numBytes)))
 	return
 }
 
@@ -390,6 +396,8 @@ func (plot *Plot) getTimeseries(
 				opers,
 				query.MsResolution,
 				keepEmpty,
+				query.EstimateSize,
+				keyset,
 			)
 			if gerr != nil {
 				if gerr.Error() == plot.persist.maxBytesErr.Error() {
