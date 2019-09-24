@@ -9,6 +9,11 @@ import (
 	"github.com/uol/gobol/util"
 )
 
+/**
+* The util/collections library tests.
+* @author rnojiri
+**/
+
 // TestSyncMapSize - tests the function
 func TestSyncMapSize(t *testing.T) {
 

@@ -1,8 +1,7 @@
 package collector
 
 import (
-	"fmt"
-	"hash/crc32"
+	"encoding/hex"
 	"regexp"
 	"sort"
 	"strconv"
@@ -15,6 +14,7 @@ import (
 	"github.com/uol/gobol"
 	"go.uber.org/zap"
 
+	"github.com/uol/gobol/hashing"
 	"github.com/uol/mycenae/lib/keyset"
 	"github.com/uol/mycenae/lib/metadata"
 	"github.com/uol/mycenae/lib/structs"
@@ -186,28 +186,31 @@ func (collect *Collector) HandlePacket(vp *Point, source string) {
 }
 
 // GenerateID - generates the unique ID from a point
-func GenerateID(rcvMsg *TSDBpoint) string {
+func GenerateID(rcvMsg *TSDBpoint) (string, error) {
 
-	h := crc32.NewIEEE()
+	numParameters := (len(rcvMsg.Tags) * 2) + 1
+	strParameters := make([]string, numParameters)
+	strParameters[0] = rcvMsg.Metric
 
-	if rcvMsg.Metric != "" {
-		h.Write([]byte(rcvMsg.Metric))
+	i := 1
+	for k, v := range rcvMsg.Tags {
+		strParameters[i] = k
+		i++
+		strParameters[i] = v
+		i++
 	}
 
-	mk := []string{}
+	sort.Strings(strParameters)
 
-	for k := range rcvMsg.Tags {
-		mk = append(mk, k)
+	parameters := make([]interface{}, numParameters)
+	for i, v := range strParameters {
+		parameters[i] = v
 	}
 
-	sort.Strings(mk)
-
-	for _, k := range mk {
-
-		h.Write([]byte(k))
-		h.Write([]byte(rcvMsg.Tags[k]))
-
+	hash, err := hashing.GenerateSHA256(parameters...)
+	if err != nil {
+		return "", err
 	}
 
-	return fmt.Sprint(h.Sum32())
+	return hex.EncodeToString(hash), nil
 }

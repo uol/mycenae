@@ -6,15 +6,20 @@ import (
 	"time"
 )
 
+/**
+* Common functions used by http protocol.
+* @author rnojiri
+**/
+
 // CreateHTTPClient - creates a new HTTP client
 func CreateHTTPClient(timeout time.Duration, insecureSkipVerify bool) *http.Client {
 
-	defaultTransport := &http.Transport{
+	transportCore := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: insecureSkipVerify},
 	}
 
 	httpClient := &http.Client{
-		Transport: defaultTransport,
+		Transport: transportCore,
 		Timeout:   timeout,
 	}
 

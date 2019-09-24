@@ -2,6 +2,11 @@ package util
 
 import "sync"
 
+/**
+* Common functions used by collections.
+* @author rnojiri
+**/
+
 // GetSyncMapSize - returns the sync map size
 func GetSyncMapSize(m *sync.Map) int {
 

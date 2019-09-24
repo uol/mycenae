@@ -62,23 +62,17 @@ type GzipHandler struct {
 func (h *GzipHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if !strings.Contains(r.Header.Get(headerAcceptEncoding), encodingGzip) {
-		if h.next != nil {
-			h.next.ServeHTTP(w, r)
-		}
+		h.next.ServeHTTP(w, r)
 		return
 	}
 
 	if len(r.Header.Get(headerSecWebSocketKey)) > 0 {
-		if h.next != nil {
-			h.next.ServeHTTP(w, r)
-		}
+		h.next.ServeHTTP(w, r)
 		return
 	}
 
 	if w.Header().Get(headerContentEncoding) == encodingGzip {
-		if h.next != nil {
-			h.next.ServeHTTP(w, r)
-		}
+		h.next.ServeHTTP(w, r)
 		return
 	}
 
@@ -95,9 +89,7 @@ func (h *GzipHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		gz:             gz,
 	}
 
-	if h.next != nil {
-		h.next.ServeHTTP(gzw, r)
-	}
+	h.next.ServeHTTP(gzw, r)
 
 	w.Header().Del(headerContentLength)
 
