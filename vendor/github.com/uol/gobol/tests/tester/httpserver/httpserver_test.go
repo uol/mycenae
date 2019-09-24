@@ -9,6 +9,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+/**
+* The tests for the http server used by tests.
+* @author rnojiri
+**/
+
 // TestNoResponse - tests when no response configurations were found
 func TestNoResponse(t *testing.T) {
 

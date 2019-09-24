@@ -1,6 +1,6 @@
 #!/bin/bash
 
-image="jenkins.macs.intranet:5000/mycenae/scylladb:v3.0.5"
+image="jenkins.macs.intranet:5000/mycenae/scylladb:v3.0.10"
 pod_name="scylla$1"
 
 pod_arguments=(

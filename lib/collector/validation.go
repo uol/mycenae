@@ -199,9 +199,14 @@ func (collector *Collector) MakePacket(rcvMsg *TSDBpoint, number bool) (*Point, 
 		packet.Timestamp = truncated
 	}
 
+	var err error
 	packet.Number = number
 	packet.Message = rcvMsg
-	packet.ID = GenerateID(rcvMsg)
+	packet.ID, err = GenerateID(rcvMsg)
+	if err != nil {
+		return nil, errInternalServerError("makePacket", "error creating the tsid hash", err)
+	}
+
 	if !number {
 		packet.ID = fmt.Sprintf("T%v", packet.ID)
 	}

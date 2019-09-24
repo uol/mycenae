@@ -65,17 +65,13 @@ func WaitForHTTPServerRequest(server *HTTPServer) *RequestData {
 	var request *RequestData
 	var seconds int
 
-	fmt.Println("waiting")
-
 	for {
 		select {
 		case request = <-server.RequestChannel():
-			fmt.Println("received")
 		default:
 		}
 
 		if request != nil {
-			fmt.Println("not null")
 			break
 		}
 
@@ -83,14 +79,9 @@ func WaitForHTTPServerRequest(server *HTTPServer) *RequestData {
 		seconds++
 
 		if seconds >= maxRequestTimeout {
-			fmt.Println("timeout")
 			break
 		}
-
-		fmt.Println("loop")
 	}
-
-	fmt.Println("done")
 
 	return request
 }

@@ -1,5 +1,5 @@
-hash: a470dbc182d66aa52de05dbba3d1ca32ce50c43ea7f28721663c6f45830119ed
-updated: 2019-07-20T22:02:50.874728579-03:00
+hash: e6d566403ac1a1bb55d54c6f2a15c30da727a6728b2c6644c589ea1a72deb8ff
+updated: 2019-09-24T14:11:46.458040525-03:00
 imports:
 - name: github.com/armon/go-metrics
   version: f0300d1749da6fa982027e449ec0c7a145510c3c
@@ -38,7 +38,7 @@ imports:
   subpackages:
   - coordinate
 - name: github.com/json-iterator/go
-  version: 0ff49de124c6f76f8494e194af75bde0f1a49a29
+  version: 27518f6661eba504be5a7a9a9f6d9460d892ade3
 - name: github.com/julienschmidt/httprouter
   version: 348b672cd90d8190f8240323e372ecd1e66b59dc
 - name: github.com/mitchellh/go-homedir
@@ -58,7 +58,7 @@ imports:
 - name: github.com/robfig/cron
   version: b41be1df696709bb6395fe435af20370037c0b4c
 - name: github.com/rs/cors
-  version: 9a47f48565a795472d43519dd49aac781f3034fb
+  version: db0fe48135e83b5812a5a31be0eea66984b1b521
 - name: github.com/uber-go/zap
   version: 27376062155ad36be76b0f12cf1572a221d3a48c
 - name: github.com/uol/go-solr
@@ -66,9 +66,10 @@ imports:
   subpackages:
   - solr
 - name: github.com/uol/gobol
-  version: 9812d1a1a7ef3b5e0c00230edc90b3f60e72286f
+  version: 1f634375147eb76275a9630ad5b86fc3d068e0ce
   subpackages:
   - cassandra
+  - hashing
   - loader
   - rip
   - saw
@@ -87,55 +88,10 @@ imports:
   - internal/color
   - internal/exit
   - zapcore
-<<<<<<< HEAD
 - name: golang.org/x/net
-  version: da137c7871d730100384dbcf36e6f8fa493aef5b
+  version: aa69164e4478b84860dc6769c710c699c67058a3
   subpackages:
   - context
-  - http/httpguts
-  - http2
-  - http2/hpack
-  - idna
-  - internal/timeseries
-  - trace
-- name: golang.org/x/text
-  version: 342b2e1fbaa52c93f31447ad2c6abc048c63e475
-  subpackages:
-  - secure/bidirule
-  - transform
-  - unicode/bidi
-  - unicode/norm
-- name: google.golang.org/genproto
-  version: c506a9f9061087022822e8da603a52fc387115a8
-  subpackages:
-  - googleapis/rpc/status
-- name: google.golang.org/grpc
-  version: d11072e7ca9811b1100b80ca0269ac831f06d024
-  subpackages:
-  - balancer
-  - balancer/base
-  - balancer/roundrobin
-  - codes
-  - connectivity
-  - credentials
-  - encoding
-  - encoding/proto
-  - grpclb/grpc_lb_v1/messages
-  - grpclog
-  - internal
-  - keepalive
-  - metadata
-  - naming
-  - peer
-  - resolver
-  - resolver/dns
-  - resolver/passthrough
-  - stats
-  - status
-  - tap
-  - transport
-=======
->>>>>>> master
 - name: gopkg.in/inf.v0
   version: d2d2541c53f18d2a059457998ce2876cc8e67cbf
 - name: gopkg.in/robfig/cron.v2

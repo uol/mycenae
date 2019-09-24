@@ -1,14 +1,15 @@
 package tools
 
 import (
+	"encoding/hex"
 	"fmt"
-	"hash/crc32"
 	"log"
 	"sort"
 	"strconv"
 	"time"
 
 	"github.com/gocql/gocql"
+	"github.com/uol/gobol/hashing"
 )
 
 type cassTs struct {
@@ -140,22 +141,31 @@ func (ts *cassTs) GetTextFromTwoDatesSTAMP(ttl int, id string, dateBeforeRequest
 
 func GetHashFromMetricAndTags(metric string, tags map[string]string) string {
 
-	h := crc32.NewIEEE()
-	h.Write([]byte(metric))
-	mk := []string{}
+	numParameters := (len(tags) * 2) + 1
+	strParameters := make([]string, numParameters)
+	strParameters[0] = metric
 
-	for k := range tags {
-		mk = append(mk, k)
+	i := 1
+	for k, v := range tags {
+		strParameters[i] = k
+		i++
+		strParameters[i] = v
+		i++
 	}
 
-	sort.Strings(mk)
+	sort.Strings(strParameters)
 
-	for _, k := range mk {
-		h.Write([]byte(k))
-		h.Write([]byte(tags[k]))
+	parameters := make([]interface{}, numParameters)
+	for i, v := range strParameters {
+		parameters[i] = v
 	}
 
-	return fmt.Sprint(h.Sum32())
+	hash, err := hashing.GenerateSHA256(parameters...)
+	if err != nil {
+		panic(err)
+	}
+
+	return hex.EncodeToString(hash)
 }
 
 func GetTextHashFromMetricAndTags(metric string, tags map[string]string) string {
