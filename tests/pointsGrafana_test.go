@@ -8681,7 +8681,7 @@ func TestTsdbQueryInvalid(t *testing.T) {
 					}
 				}]
 			}`,
-			"json: cannot unmarshal string into Go struct field TSDBquery.rate of type bool",
+			"json: cannot unmarshal string into Go struct field TSDBquery.queries.rate of type bool",
 		},
 		"TagsInvalidTagValue": {
 			`{
@@ -8701,7 +8701,7 @@ func TestTsdbQueryInvalid(t *testing.T) {
 						}
 					}]
 				}`,
-			"json: cannot unmarshal string into Go struct field TSDBquery.rate of type bool",
+			"json: cannot unmarshal string into Go struct field TSDBquery.queries.rate of type bool",
 		},
 		"TagsInvalidMetric": {
 			`{
@@ -8721,7 +8721,7 @@ func TestTsdbQueryInvalid(t *testing.T) {
 					}
 				}]
 			}`,
-			"json: cannot unmarshal string into Go struct field TSDBquery.rate of type bool",
+			"json: cannot unmarshal string into Go struct field TSDBquery.queries.rate of type bool",
 		},
 		"InvalidOrderOperation": {
 			`{
@@ -8919,7 +8919,7 @@ func TestTsdbQueryInvalid(t *testing.T) {
 				}
 			}]
 		}`,
-			"json: cannot unmarshal string into Go struct field TSDBquery.rate of type bool",
+			"json: cannot unmarshal string into Go struct field TSDBquery.queries.rate of type bool",
 		},
 		"InvalidRateOptionCounter": {
 			`{
@@ -8939,7 +8939,7 @@ func TestTsdbQueryInvalid(t *testing.T) {
 					}
 				}]
 			}`,
-			"json: cannot unmarshal string into Go struct field TSDBrateOptions.counter of type bool",
+			"json: cannot unmarshal string into Go struct field TSDBrateOptions.queries.rateOptions.counter of type bool",
 		},
 		"InvalidRateOptionCounterMax": {
 			`{
@@ -8959,7 +8959,7 @@ func TestTsdbQueryInvalid(t *testing.T) {
 					}
 				}]
 			}`,
-			"json: cannot unmarshal string into Go struct field TSDBrateOptions.counterMax of type int64",
+			"json: cannot unmarshal string into Go struct field TSDBrateOptions.queries.rateOptions.counterMax of type int64",
 		},
 		"InvalidRateOptionCounterMaxNegative": {
 			`{
@@ -8999,7 +8999,7 @@ func TestTsdbQueryInvalid(t *testing.T) {
 					}
 				}]
 			}`,
-			"json: cannot unmarshal string into Go struct field TSDBrateOptions.resetValue of type int64",
+			"json: cannot unmarshal string into Go struct field TSDBrateOptions.queries.rateOptions.resetValue of type int64",
 		},
 		"InvalidFilterWildcard2": {
 			`{

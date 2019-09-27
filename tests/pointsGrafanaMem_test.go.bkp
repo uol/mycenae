@@ -8413,7 +8413,7 @@ func TestTsdbQueryMemTagsInvalidTagKey(t *testing.T) {
 	}
 
 	assert.Equal(t, 400, code)
-	assert.Equal(t, "json: cannot unmarshal string into Go struct field TSDBquery.rate of type bool", payloadError.Error)
+	assert.Equal(t, "json: cannot unmarshal string into Go struct field TSDBquery.queries.rate of type bool", payloadError.Error)
 
 }
 
@@ -8448,7 +8448,7 @@ func TestTsdbQueryMemTagsInvalidTagValue(t *testing.T) {
 	}
 
 	assert.Equal(t, 400, code)
-	assert.Equal(t, "json: cannot unmarshal string into Go struct field TSDBquery.rate of type bool", payloadError.Error)
+	assert.Equal(t, "json: cannot unmarshal string into Go struct field TSDBquery.queries.rate of type bool", payloadError.Error)
 
 }
 
@@ -8483,7 +8483,7 @@ func TestTsdbQueryMemTagsInvalidMetric(t *testing.T) {
 	}
 
 	assert.Equal(t, 400, code)
-	assert.Equal(t, "json: cannot unmarshal string into Go struct field TSDBquery.rate of type bool", payloadError.Error)
+	assert.Equal(t, "json: cannot unmarshal string into Go struct field TSDBquery.queries.rate of type bool", payloadError.Error)
 
 }
 
@@ -8884,7 +8884,7 @@ func TestTsdbQueryMemInvalidRate(t *testing.T) {
 	}
 
 	assert.Equal(t, 400, code)
-	assert.Equal(t, "json: cannot unmarshal string into Go struct field TSDBquery.rate of type bool", payloadError.Error)
+	assert.Equal(t, "json: cannot unmarshal string into Go struct field TSDBquery.queries.rate of type bool", payloadError.Error)
 
 }
 
@@ -8919,7 +8919,7 @@ func TestTsdbQueryMemInvalidRateOptionCounter(t *testing.T) {
 	}
 
 	assert.Equal(t, 400, code)
-	assert.Equal(t, "json: cannot unmarshal string into Go struct field TSDBrateOptions.counter of type bool", payloadError.Error)
+	assert.Equal(t, "json: cannot unmarshal string into Go struct field TSDBrateOptions.queries.counter of type bool", payloadError.Error)
 
 }
 
@@ -8954,7 +8954,7 @@ func TestTsdbQueryMemInvalidRateOptionCounterMax(t *testing.T) {
 	}
 
 	assert.Equal(t, 400, code)
-	assert.Equal(t, "json: cannot unmarshal string into Go struct field TSDBrateOptions.counterMax of type int64", payloadError.Error)
+	assert.Equal(t, "json: cannot unmarshal string into Go struct field TSDBrateOptions.queries.counterMax of type int64", payloadError.Error)
 
 }
 

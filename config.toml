@@ -49,6 +49,9 @@ MaxBytesOnQueryProcessing = 104857600
 # Silences all point validation errors from the logs
 SilencePointValidationErrors = true
 
+# Garbage collector initial percentage
+GarbageCollectorPercentage = 75
+
 # All default keyspaces
 [DefaultKeyspaces]
   one_day = 1

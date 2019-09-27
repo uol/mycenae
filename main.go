@@ -8,6 +8,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"syscall"
 
 	"go.uber.org/zap/zapcore"
@@ -68,6 +69,11 @@ func main() {
 
 	if devMode {
 		loggers.General.Info("DEV MODE IS ENABLED!", lf...)
+	}
+
+	if settings.GarbageCollectorPercentage > 0 {
+		debug.SetGCPercent(settings.GarbageCollectorPercentage)
+		loggers.General.Info(fmt.Sprintf("using garbage collector percentage from configuration: %d%%", settings.GarbageCollectorPercentage), lf...)
 	}
 
 	stats := createStatisticsService("stats", &settings.Stats, loggers.Stats)
