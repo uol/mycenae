@@ -73,6 +73,7 @@ type Settings struct {
 	MetaSaveInterval                string
 	MaxBytesOnQueryProcessing       uint32
 	SilencePointValidationErrors    bool
+	GarbageCollectorPercentage      int
 	GlobalTelnetServerConfiguration GlobalTelnetServerConfiguration
 	HTTPserver                      SettingsHTTP
 	UDPserver                       SettingsUDP

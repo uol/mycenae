@@ -1,5 +1,5 @@
 hash: e6d566403ac1a1bb55d54c6f2a15c30da727a6728b2c6644c589ea1a72deb8ff
-updated: 2019-09-24T14:11:46.458040525-03:00
+updated: 2019-09-27T16:51:08.464478631-03:00
 imports:
 - name: github.com/armon/go-metrics
   version: f0300d1749da6fa982027e449ec0c7a145510c3c
@@ -79,7 +79,7 @@ imports:
 - name: go.uber.org/atomic
   version: df976f2515e274675050de7b3f42545de80594fd
 - name: go.uber.org/multierr
-  version: 3c4937480c32f4c13a875a1829af76c98ca3d40a
+  version: 71e610a0e48dbda460d9c18adca8b5f2de04a7c1
 - name: go.uber.org/zap
   version: ff33455a0e382e8a81d14dd7c922020b6b5e7982
   subpackages:
@@ -89,7 +89,7 @@ imports:
   - internal/exit
   - zapcore
 - name: golang.org/x/net
-  version: aa69164e4478b84860dc6769c710c699c67058a3
+  version: c00fd9afed17cfdca9b3e1e3b8de7ef2b3f0347b
   subpackages:
   - context
 - name: gopkg.in/inf.v0

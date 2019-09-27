@@ -143,6 +143,10 @@ func (trest *REST) asyncStart() {
 	router.POST("/keysets/:keyset/delete/text/meta", trest.reader.DeleteTextTS)
 	//DEPRECATED
 	router.POST("/keysets/:keyset/points", trest.reader.ListPoints)
+	//ADMINISTRATIVE
+	router.POST("/admin/free-os-memory", trest.freeOSMemory)
+	router.POST("/admin/set-gc-percent", trest.setGCPercent)
+	router.GET("/admin/read-gc-stats", trest.readGCStats)
 
 	if trest.settings.EnableProfiling {
 
