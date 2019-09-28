@@ -207,7 +207,7 @@ func (collect *Collector) GenerateID(rcvMsg *TSDBpoint) (string, error) {
 		parameters[i] = v
 	}
 
-	hash, err := hashing.GenerateSHAKE256(collect.settings.TSIDKeySize, parameters...)
+	hash, err := hashing.GenerateSHAKE128(collect.settings.TSIDKeySize, parameters...)
 	if err != nil {
 		return "", err
 	}

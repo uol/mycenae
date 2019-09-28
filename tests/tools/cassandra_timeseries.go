@@ -160,7 +160,7 @@ func GetHashFromMetricAndTags(metric string, tags map[string]string) string {
 		parameters[i] = v
 	}
 
-	hash, err := hashing.GenerateSHAKE256(16, parameters...)
+	hash, err := hashing.GenerateSHAKE128(16, parameters...)
 	if err != nil {
 		panic(err)
 	}
