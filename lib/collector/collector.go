@@ -186,7 +186,7 @@ func (collect *Collector) HandlePacket(vp *Point, source string) {
 }
 
 // GenerateID - generates the unique ID from a point
-func GenerateID(rcvMsg *TSDBpoint) (string, error) {
+func (collect *Collector) GenerateID(rcvMsg *TSDBpoint) (string, error) {
 
 	numParameters := (len(rcvMsg.Tags) * 2) + 1
 	strParameters := make([]string, numParameters)
@@ -207,7 +207,7 @@ func GenerateID(rcvMsg *TSDBpoint) (string, error) {
 		parameters[i] = v
 	}
 
-	hash, err := hashing.GenerateSHA256(parameters...)
+	hash, err := hashing.GenerateSHAKE256(collect.settings.TSIDKeySize, parameters...)
 	if err != nil {
 		return "", err
 	}

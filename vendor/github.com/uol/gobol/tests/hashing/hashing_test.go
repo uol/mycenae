@@ -73,3 +73,47 @@ func TestMD5(t *testing.T) {
 	results, err = hashing.Generate(algorithm, testString)
 	testResults(t, algorithm, expected, results, err)
 }
+
+// TestShake256 - tests the shake 256 implementation
+func TestShake256(t *testing.T) {
+
+	size := []int{4, 8, 16, 32}
+	expectedHash := []string{
+		"1237cfe4",
+		"1237cfe493413ac8",
+		"1237cfe493413ac80f7b6b41369f7afa",
+		"1237cfe493413ac80f7b6b41369f7afa4a3ada93e7edf8de9f93e476796f9aa1",
+	}
+	algorithm := hashing.SHAKE256
+
+	for i := 0; i < len(size); i++ {
+
+		results, err := hashing.GenerateSHAKE256(size[i], testString)
+		testResults(t, algorithm, expectedHash[i], results, err)
+
+		results, err = hashing.GenerateSHAKE(algorithm, size[i], testString)
+		testResults(t, algorithm, expectedHash[i], results, err)
+	}
+}
+
+// TestShake128 - tests the shake 128 implementation
+func TestShake128(t *testing.T) {
+
+	size := []int{4, 8, 16, 32}
+	expectedHash := []string{
+		"15372b0f",
+		"15372b0f35229f5f",
+		"15372b0f35229f5fa04f4a262efd609d",
+		"15372b0f35229f5fa04f4a262efd609d79f9958d46f9693df968c821f6b2bfda",
+	}
+	algorithm := hashing.SHAKE128
+
+	for i := 0; i < len(size); i++ {
+
+		results, err := hashing.GenerateSHAKE128(size[i], testString)
+		testResults(t, algorithm, expectedHash[i], results, err)
+
+		results, err = hashing.GenerateSHAKE(algorithm, size[i], testString)
+		testResults(t, algorithm, expectedHash[i], results, err)
+	}
+}

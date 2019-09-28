@@ -74,6 +74,7 @@ type Settings struct {
 	MaxBytesOnQueryProcessing       uint32
 	SilencePointValidationErrors    bool
 	GarbageCollectorPercentage      int
+	TSIDKeySize                     int
 	GlobalTelnetServerConfiguration GlobalTelnetServerConfiguration
 	HTTPserver                      SettingsHTTP
 	UDPserver                       SettingsUDP
