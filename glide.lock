@@ -1,5 +1,5 @@
-hash: e6d566403ac1a1bb55d54c6f2a15c30da727a6728b2c6644c589ea1a72deb8ff
-updated: 2019-09-27T16:51:08.464478631-03:00
+hash: 448943228619540b2779d191bfe615ad9c143c3ad15ec738cd83d932de71bdf0
+updated: 2019-09-27T23:45:48.136125558-03:00
 imports:
 - name: github.com/armon/go-metrics
   version: f0300d1749da6fa982027e449ec0c7a145510c3c
@@ -66,7 +66,7 @@ imports:
   subpackages:
   - solr
 - name: github.com/uol/gobol
-  version: 1f634375147eb76275a9630ad5b86fc3d068e0ce
+  version: fac1c777f3d039938d0e2b8c8296e2b3c456ebb3
   subpackages:
   - cassandra
   - hashing
@@ -88,10 +88,18 @@ imports:
   - internal/color
   - internal/exit
   - zapcore
+- name: golang.org/x/crypto
+  version: 4def268fd1a49955bfb3dda92fe3db4f924f2285
+  subpackages:
+  - sha3
 - name: golang.org/x/net
   version: c00fd9afed17cfdca9b3e1e3b8de7ef2b3f0347b
   subpackages:
   - context
+- name: golang.org/x/sys
+  version: c990c680b611ac1aeb7d8f2af94a825f98d69720
+  subpackages:
+  - cpu
 - name: gopkg.in/inf.v0
   version: d2d2541c53f18d2a059457998ce2876cc8e67cbf
 - name: gopkg.in/robfig/cron.v2

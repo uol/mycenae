@@ -202,7 +202,7 @@ func (collector *Collector) MakePacket(rcvMsg *TSDBpoint, number bool) (*Point, 
 	var err error
 	packet.Number = number
 	packet.Message = rcvMsg
-	packet.ID, err = GenerateID(rcvMsg)
+	packet.ID, err = collector.GenerateID(rcvMsg)
 	if err != nil {
 		return nil, errInternalServerError("makePacket", "error creating the tsid hash", err)
 	}

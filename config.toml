@@ -52,6 +52,9 @@ SilencePointValidationErrors = true
 # Garbage collector initial percentage
 GarbageCollectorPercentage = 75
 
+# SHAKE hashing algorithm output size
+TSIDKeySize = 16
+
 # All default keyspaces
 [DefaultKeyspaces]
   one_day = 1
