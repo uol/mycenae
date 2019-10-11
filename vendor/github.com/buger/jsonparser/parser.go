@@ -285,7 +285,7 @@ func searchKeys(data []byte, keys ...string) int {
 			if !lastMatched {
 				end := blockEnd(data[i:], '{', '}')
 				i += end - 1
-			} else{
+			} else {
 				level++
 			}
 		case '}':
@@ -333,6 +333,8 @@ func searchKeys(data []byte, keys ...string) int {
 					i += arraySkip - 1
 				}
 			}
+		case ':': // If encountered, JSON data is malformed
+			return -1
 		}
 
 		i++
@@ -704,7 +706,12 @@ func Delete(data []byte, keys ...string) []byte {
 		newOffset = prevTok + 1
 	}
 
-	data = append(data[:newOffset], data[endOffset:]...)
+	// We have to make a copy here if we don't want to mangle the original data, because byte slices are
+	// accessed by reference and not by value
+	dataCopy := make([]byte, len(data))
+	copy(dataCopy, data)
+	data = append(dataCopy[:newOffset], dataCopy[endOffset:]...)
+
 	return data
 }
 
@@ -980,7 +987,6 @@ func ArrayEach(data []byte, cb func(value []byte, dataType ValueType, offset int
 
 // ObjectEach iterates over the key-value pairs of a JSON object, invoking a given callback for each such entry
 func ObjectEach(data []byte, callback func(key []byte, value []byte, dataType ValueType, offset int) error, keys ...string) (err error) {
-	var stackbuf [unescapeStackBufSize]byte // stack-allocated array for allocation-free unescaping of small strings
 	offset := 0
 
 	// Descend to the desired key, if requested
@@ -1034,6 +1040,7 @@ func ObjectEach(data []byte, callback func(key []byte, value []byte, dataType Va
 
 		// Unescape the string if needed
 		if keyEscaped {
+			var stackbuf [unescapeStackBufSize]byte // stack-allocated array for allocation-free unescaping of small strings
 			if keyUnescaped, err := Unescape(key, stackbuf[:]); err != nil {
 				return MalformedStringEscapeError
 			} else {

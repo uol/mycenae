@@ -19,18 +19,6 @@ LogQueryTSthreshold = 5000
 # Max number of concurrent points being processed
 MaxConcurrentPoints = 1000
 
-# Max number of concurrent bulk requests to elasticsearch
-MaxConcurrentBulks = 1
-
-# Number, in bytes of bulk playload
-MaxMetaBulkSize = 10000
-
-# Number of points in buffer
-MetaBufferSize = 100000
-
-# Elastichseach batch of meta save interval
-MetaSaveInterval = "1s"
-
 # The default TTL to use if not specified
 DefaultTTL = 1
 

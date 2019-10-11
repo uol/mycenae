@@ -61,10 +61,6 @@ func statsIndex(i, t, m string, d time.Duration) {
 	)
 }
 
-func statsBulkPoints() {
-	go statsIncrement("solr.bulk.points", map[string]string{})
-}
-
 func statsInsert(ks, cf string, d time.Duration) {
 	tags := map[string]string{"keyspace": ks, "column_family": cf, "operation": "insert"}
 	go statsIncrement("scylla.query", tags)
