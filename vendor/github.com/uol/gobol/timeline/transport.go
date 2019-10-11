@@ -2,7 +2,6 @@ package timeline
 
 import (
 	"fmt"
-	"sync/atomic"
 	"time"
 
 	"go.uber.org/zap"
@@ -51,11 +50,10 @@ type Transport interface {
 
 // transportCore - implements a default transport behaviour
 type transportCore struct {
-	transport              Transport
-	batchSendInterval      time.Duration
-	pointChannel           chan interface{}
-	logger                 *zap.Logger
-	dataTransferInProgress uint32
+	transport         Transport
+	batchSendInterval time.Duration
+	pointChannel      chan interface{}
+	logger            *zap.Logger
 }
 
 // DefaultTransportConfiguration - the default fields used by the transport configuration
@@ -119,13 +117,6 @@ outterFor:
 	for {
 		<-time.After(t.batchSendInterval)
 
-		if t.dataTransferInProgress > 0 {
-			t.logger.Info("another data transfer is in progress, skipping...", lf...)
-			continue
-		}
-
-		atomic.SwapUint32(&t.dataTransferInProgress, 1)
-
 		points := []interface{}{}
 		numPoints := 0
 
@@ -162,7 +153,6 @@ outterFor:
 			t.logger.Info(fmt.Sprintf("batch of %d points were sent!", numPoints), lf...)
 		}
 
-		atomic.SwapUint32(&t.dataTransferInProgress, 0)
 	}
 }
 

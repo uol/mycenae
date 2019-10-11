@@ -34,8 +34,8 @@ type Backend interface {
 	// Returns: results, total and gobol.Error
 	FilterMetadata(collection string, query *Query, from, maxResults int) ([]Metadata, int, gobol.Error)
 
-	// AddDocuments - add/update a document or a series of documents
-	AddDocuments(collection string, metadatas []Metadata) gobol.Error
+	// AddDocument - add/update a document
+	AddDocument(collection string, metadata *Metadata) gobol.Error
 
 	// CheckMetadata - verifies if a metadata exists
 	CheckMetadata(collection, tsType, tsid string) (bool, gobol.Error)

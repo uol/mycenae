@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"math/rand"
 	"net/http"
 	"regexp"
 	"strconv"
 	"testing"
 	"time"
+	"math/rand"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/uol/mycenae/tests/tools"

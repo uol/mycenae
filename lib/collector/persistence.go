@@ -73,17 +73,15 @@ func (persist *persistence) CheckMetadata(index, tsType, id string) (bool, gobol
 	return ok, nil
 }
 
-func (persist *persistence) SaveBulk(metadataMap map[string][]metadata.Metadata) gobol.Error {
+func (persist *persistence) AddMetadata(collection string, metadata *metadata.Metadata) gobol.Error {
 	start := time.Now()
 
-	for collection, metadatas := range metadataMap {
-		err := persist.metaStorage.AddDocuments(collection, metadatas)
-		if err != nil {
-			statsIndexError(collection, "all", "bulk")
-			return errPersist("SaveBulk", err)
-		}
-		statsIndex(collection, "all", "bulk", time.Since(start))
+	err := persist.metaStorage.AddDocument(collection, metadata)
+	if err != nil {
+		statsIndexError(collection, "document", "AddMetadata")
+		return errPersist("AddMetadata", err)
 	}
+	statsIndex(collection, "document", "AddMetadata", time.Since(start))
 
 	return nil
 }

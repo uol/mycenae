@@ -455,41 +455,34 @@ func (sb *SolrBackend) FilterMetadata(collection string, query *Query, from, max
 	return sb.fromDocuments(r.Results), r.Results.NumFound, nil
 }
 
-// toDocuments - changes the metadata to the document format
-func (sb *SolrBackend) toDocuments(metadatas []Metadata, collection string) (docs []solr.Document, ids []string) {
+// toDocument - changes the metadata to the document format
+func (sb *SolrBackend) toDocument(metadata *Metadata, collection string) (docs *solr.Document, id string) {
 
-	total := len(metadatas)
-	if total == 0 {
-		return nil, nil
+	if metadata == nil {
+		return nil, ""
 	}
 
-	docs = make([]solr.Document, total)
-	ids = make([]string, total)
-	for i, meta := range metadatas {
+	metadata.Keyset = collection
+	numTags := len(metadata.TagKey)
+	tagDocs := make([]solr.Document, numTags)
 
-		meta.Keyset = collection
-		numTags := len(meta.TagKey)
-		tagDocs := make([]solr.Document, numTags)
-		ids[i] = meta.ID
-
-		for j := 0; j < numTags; j++ {
-			tagDocs[j] = solr.Document{
-				"id":        fmt.Sprintf("%s-t%d", meta.ID, j),
-				"tag_key":   meta.TagKey[j],
-				"tag_value": meta.TagValue[j],
-			}
-		}
-
-		docs[i] = solr.Document{
-			"id":               meta.ID,
-			"metric":           meta.Metric,
-			"type":             meta.MetaType,
-			"parent_doc":       true,
-			"_childDocuments_": tagDocs,
+	for j := 0; j < numTags; j++ {
+		tagDocs[j] = solr.Document{
+			"id":        fmt.Sprintf("%s-t%d", metadata.ID, j),
+			"tag_key":   metadata.TagKey[j],
+			"tag_value": metadata.TagValue[j],
 		}
 	}
 
-	return docs, ids
+	doc := &solr.Document{
+		"id":               metadata.ID,
+		"metric":           metadata.Metric,
+		"type":             metadata.MetaType,
+		"parent_doc":       true,
+		"_childDocuments_": tagDocs,
+	}
+
+	return doc, metadata.ID
 }
 
 // getTagKeysAndValues - extracts the array from the document
@@ -564,30 +557,28 @@ func (sb *SolrBackend) fromDocuments(results *solr.Collection) []Metadata {
 	return metadatas
 }
 
-// AddDocuments - add/update a document or a series of documents
-func (sb *SolrBackend) AddDocuments(collection string, metadatas []Metadata) gobol.Error {
+// AddDocument - add/update a document
+func (sb *SolrBackend) AddDocument(collection string, metadata *Metadata) gobol.Error {
 
 	start := time.Now()
 
-	docs, ids := sb.toDocuments(metadatas, collection)
+	doc, id := sb.toDocument(metadata, collection)
 
 	lf := []zapcore.Field{
 		zap.String("package", "metadata"),
-		zap.String("func", "AddDocuments"),
+		zap.String("func", "AddDocument"),
 		zap.String("collection", collection),
 	}
 
-	sb.logger.Info(fmt.Sprintf("adding documents: %v", ids), lf...)
+	sb.logger.Info("adding document: %s"+id, lf...)
 
-	err := sb.solrService.AddDocuments(collection, true, docs...)
+	err := sb.solrService.AddDocument(collection, true, doc)
 	if err != nil {
 		sb.statsCollectionError(collection, "add_documents", "solr.collection.add")
-		return errInternalServer("AddDocuments", err)
+		return errInternalServer("AddDocument", err)
 	}
 
-	for i := 0; i < len(metadatas); i++ {
-		go sb.cacheID(collection, metadatas[i].MetaType, metadatas[i].ID)
-	}
+	go sb.cacheID(collection, metadata.MetaType, metadata.ID)
 
 	sb.statsCollectionAction(collection, "add_documents", "solr.collection.add", time.Since(start))
 

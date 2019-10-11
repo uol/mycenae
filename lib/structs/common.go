@@ -66,11 +66,7 @@ type Settings struct {
 	MaxTimeseries                   int
 	LogQueryTSthreshold             int
 	MaxConcurrentPoints             int
-	MaxConcurrentBulks              int
-	MaxMetaBulkSize                 int
-	MetaBufferSize                  int
 	DefaultPaginationSize           int
-	MetaSaveInterval                string
 	MaxBytesOnQueryProcessing       uint32
 	SilencePointValidationErrors    bool
 	GarbageCollectorPercentage      int

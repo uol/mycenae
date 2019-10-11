@@ -177,12 +177,6 @@ func (t *OpenTSDBTransport) writePayload(payload string, logFields []zapcore.Fie
 		return false
 	}
 
-	err = t.connection.SetDeadline(time.Time{})
-	if err != nil {
-		t.core.logger.Error("error setting connection's deadline", logFields...)
-		return false
-	}
-
 	return true
 }
 

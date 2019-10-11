@@ -5,10 +5,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
-	"sync"
 	"time"
-
-	"go.uber.org/zap/zapcore"
 
 	"github.com/gocql/gocql"
 	"github.com/uol/gobol"
@@ -37,11 +34,6 @@ func New(
 	ks *keyset.KeySet,
 ) (*Collector, error) {
 
-	d, err := time.ParseDuration(set.MetaSaveInterval)
-	if err != nil {
-		return nil, err
-	}
-
 	gblog = log.General
 	stats = sts
 
@@ -49,9 +41,6 @@ func New(
 		persist:        persistence{cassandra: cass, metaStorage: metaStorage},
 		validKey:       regexp.MustCompile(`^[0-9A-Za-z-\._\%\&\#\;\/]+$`),
 		settings:       set,
-		concBulk:       make(chan struct{}, set.MaxConcurrentBulks),
-		metaChan:       make(chan *Point, set.MetaBufferSize),
-		metadataMap:    sync.Map{},
 		jobChannel:     make(chan workerData, set.MaxConcurrentPoints),
 		keyspaceTTLMap: keyspaceTTLMap,
 		keySet:         ks,
@@ -61,8 +50,6 @@ func New(
 		go collect.worker(i, collect.jobChannel)
 	}
 
-	go collect.metaCoordinator(d)
-
 	return collect, nil
 }
 
@@ -71,10 +58,6 @@ type Collector struct {
 	persist  persistence
 	validKey *regexp.Regexp
 	settings *structs.Settings
-
-	concBulk    chan struct{}
-	metaChan    chan *Point
-	metadataMap sync.Map
 
 	shutdown       bool
 	jobChannel     chan workerData
@@ -129,20 +112,9 @@ func (collect *Collector) processPacket(point *Point) gobol.Error {
 		return gerr
 	}
 
-	if len(collect.metaChan) < collect.settings.MetaBufferSize {
-
-		collect.saveMeta(point)
-
-	} else {
-
-		lf := []zapcore.Field{
-			zap.String("package", "collector/collector"),
-			zap.String("func", "processPacket"),
-		}
-
-		gblog.Warn("discarding point, no space in the meta buffer", lf...)
-
-		statsLostMeta()
+	gerr = collect.saveMeta(point)
+	if gerr != nil {
+		return gerr
 	}
 
 	statsProcTime(point.Keyset, time.Since(start))

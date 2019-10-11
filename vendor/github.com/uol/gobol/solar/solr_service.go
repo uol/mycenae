@@ -74,6 +74,42 @@ func (ss *SolrService) getSolrInterface(collection string) (*solr.SolrInterface,
 	return si, err
 }
 
+// AddDocument - add one document to the solr collection
+func (ss *SolrService) AddDocument(collection string, commit bool, doc *solr.Document) error {
+
+	defer ss.recoverFromFailure("AddDocuments")
+
+	lf := []zapcore.Field{
+		zap.String("package", "solar"),
+		zap.String("func", "AddDocuments"),
+	}
+
+	if doc == nil {
+		return errors.New("document is null")
+	}
+
+	si, err := ss.getSolrInterface(collection)
+	if err != nil {
+		ss.logger.Error("error getting solr interface", lf...)
+		return err
+	}
+
+	params := &url.Values{}
+	if commit {
+		params.Add("commit", "true")
+	}
+
+	_, err = si.Add([]solr.Document{*doc}, 0, params)
+	if err != nil {
+		ss.logger.Error(fmt.Sprintf("error adding 1 document to the collection %s: %s", collection, err.Error()), lf...)
+		return err
+	}
+
+	ss.logger.Info(fmt.Sprintf("added 1 documents to the collection %s", collection), lf...)
+
+	return nil
+}
+
 // AddDocuments - add one or more documentos to the solr collection
 func (ss *SolrService) AddDocuments(collection string, commit bool, docs ...solr.Document) error {
 
@@ -100,7 +136,6 @@ func (ss *SolrService) AddDocuments(collection string, commit bool, docs ...solr
 	}
 
 	numDocs := len(docs)
-	ss.logger.Info(fmt.Sprintf("adding %d documents to the collection %s", numDocs, collection), lf...)
 
 	_, err = si.Add(docs, 0, params)
 	if err != nil {
