@@ -11,8 +11,6 @@ import (
 	"github.com/uol/gobol/rip"
 )
 
-const totalItemsPerDeletion int = 50000
-
 // getSizeParameter - return parameter 'size'
 func (plot *Plot) getSizeParameter(w http.ResponseWriter, q url.Values, function string) (int, bool) {
 
@@ -277,13 +275,20 @@ func (plot *Plot) deleteTS(w http.ResponseWriter, r *http.Request, ps httprouter
 		return
 	}
 
+	q := r.URL.Query()
+
+	size, fail := plot.getSizeParameter(w, q, "deleteTS")
+	if fail {
+		return
+	}
+
 	tags := map[string]string{}
 
 	for _, tag := range query.Tags {
 		tags[tag.Key] = tag.Value
 	}
 
-	keys, total, gerr := plot.ListMeta(*keyset, tsType, query.Metric, tags, false, totalItemsPerDeletion, 0)
+	keys, total, gerr := plot.ListMeta(*keyset, tsType, query.Metric, tags, false, size, 0)
 	if gerr != nil {
 		rip.Fail(w, gerr)
 		return
@@ -299,7 +304,6 @@ func (plot *Plot) deleteTS(w http.ResponseWriter, r *http.Request, ps httprouter
 		Payload:      keys,
 	}
 
-	q := r.URL.Query()
 	commit := q.Get("commit")
 
 	if commit != "true" {
