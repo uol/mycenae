@@ -39,7 +39,7 @@ func New(
 
 	collect := &Collector{
 		persist:        persistence{cassandra: cass, metaStorage: metaStorage},
-		validKey:       regexp.MustCompile(`^[0-9A-Za-z-\._\%\&\#\;\/]+$`),
+		validKey:       regexp.MustCompile(`^[^ ]+$`),
 		settings:       set,
 		jobChannel:     make(chan workerData, set.MaxConcurrentPoints),
 		keyspaceTTLMap: keyspaceTTLMap,

@@ -70,38 +70,6 @@ func assertMycenaeEmpty(t *testing.T, keyspace string, start int64, end int64, h
 	assert.Equal(t, tools.MycenaePoints{}, response)
 }
 
-// Asserts 1 error
-/*func assertRESTError(t *testing.T, err tools.RestErrors, payload *tools.Payload, keyspace, errMessage string, lenFailed, lenSuccess int) {
-
-	if assert.Equal(t, 1, len(err.Errors)) {
-
-		if payload.Metric == "" {
-			assert.Empty(t, err.Errors[0].Datapoint.Metric)
-		} else {
-			assert.Equal(t, payload.Metric, err.Errors[0].Datapoint.Metric)
-		}
-
-		if payload.Value != nil {
-			assert.Equal(t, *payload.Value, err.Errors[0].Datapoint.Value)
-		}
-
-		assert.Equal(t, len(payload.Tags), len(err.Errors[0].Datapoint.Tags))
-
-		for tagK, tagV := range err.Errors[0].Datapoint.Tags {
-
-			payTagV, ok := payload.Tags[tagK]
-			if assert.True(t, ok, "tag key was not sent in payload") {
-				assert.Equal(t, tagV, payTagV)
-			}
-		}
-
-		assert.Equal(t, keyspace, err.Errors[0].Datapoint.Tags["ksid"])
-		assert.Contains(t, err.Errors[0].Error, errMessage)
-	}
-	assert.Equal(t, lenFailed, err.Failed)
-	assert.Equal(t, lenSuccess, err.Success)
-}*/
-
 func TestRESTv2PayloadWithAllFields(t *testing.T) {
 	t.Parallel()
 
@@ -548,7 +516,7 @@ func TestRESTv2PayloadWithEmptyValues(t *testing.T) {
 func TestRESTv2PayloadWithInvalidChars(t *testing.T) {
 	t.Parallel()
 
-	invalidChars := []string{" ", "space between", "\\", "?", "!", "@", "$", "*", "(", ")", "{", "}", "[", "]", "|", "+", "=", "`", "^", "~", ",", ":", "<", ">", "ü"}
+	invalidChars := []string{" ", "space between"}
 
 	var wgOut sync.WaitGroup
 	wgOut.Add(len(invalidChars))
@@ -577,7 +545,7 @@ func TestRESTv2PayloadWithInvalidCharsAtOnce(t *testing.T) {
 
 	tests := make([]byte, 3)
 
-	invalidChars := []string{" ", "space between", "\\", "?", "!", "@", "$", "*", "(", ")", "{", "}", "[", "]", "|", "+", "=", "`", "^", "~", ",", ":", "<", ">", "ü"}
+	invalidChars := []string{" ", "space between"}
 
 	payload := []tools.Payload{}
 
@@ -998,26 +966,6 @@ func sendRESTPayloadStringAndAssertErrorAndEmpty(t *testing.T, errMessage, paylo
 	statusCode, _ := mycenaeTools.HTTP.POSTstring("api/put", payload)
 	assert.Equal(t, 400, statusCode)
 
-	/*var restError tools.RestErrors
-
-	err := json.Unmarshal(resp, &restError)
-	if err != nil {
-		t.Error(err)
-		t.SkipNow()
-	}
-
-	payStruct := tools.PayloadSlice{}.PS
-
-	err = json.Unmarshal([]byte(payload), &payStruct)
-	if err != nil {
-		t.Error(err)
-		t.SkipNow()
-	}
-
-	assert.Len(t, payStruct, 1)
-
-	assertRESTError(t, restError, &payStruct[0], keyspace, errMessage, 1, 0)*/
-
 	time.Sleep(tools.Sleep3)
 
 	hashID := tools.GetHashFromMetricAndTags(metric, tags)
@@ -1032,35 +980,11 @@ func sendRESTPayloadWithMoreThanAPointAndAssertError(t *testing.T, errMessage st
 	statusCode, _, _ := mycenaeTools.HTTP.POST("api/put", payload.Marshal())
 	assert.Equal(t, 400, statusCode)
 
-	/*var restError tools.RestErrors
-
-	err := json.Unmarshal(resp, &restError)
-	if err != nil {
-		t.Error(err)
-		t.SkipNow()
-	}*/
-
 	invalidPoint := &payload.PS[invalidPointPosition]
-
-	//assertRESTError(t, restError, invalidPoint, ksMycenae, errMessage, 1, len(payload.PS)-1)
 
 	hashID := tools.GetHashFromMetricAndTags(invalidPoint.Metric, invalidPoint.Tags)
 
 	assertMycenaeEmpty(t, ksMycenae, *invalidPoint.Timestamp, *invalidPoint.Timestamp, hashID)
 
 	assertElasticEmpty(t, ksMycenae, invalidPoint.Metric, invalidPoint.Tags, hashID)
-
-	/*time.Sleep(tools.Sleep3)
-
-	for index, point := range payload.PS {
-
-		if index != invalidPointPosition {
-
-			hashID := tools.GetHashFromMetricAndTags(point.Metric, point.Tags)
-
-			assertMycenae(t, ksMycenae, *point.Timestamp, *point.Timestamp, *point.Value, hashID)
-
-			assertElastic(t, ksMycenae, point.Metric, point.Tags, hashID)
-		}
-	}*/
 }

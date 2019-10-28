@@ -570,7 +570,7 @@ func (sb *SolrBackend) AddDocument(collection string, metadata *Metadata) gobol.
 		zap.String("collection", collection),
 	}
 
-	sb.logger.Info("adding document: %s"+id, lf...)
+	sb.logger.Info("adding document: "+id, lf...)
 
 	err := sb.solrService.AddDocument(collection, true, doc)
 	if err != nil {
