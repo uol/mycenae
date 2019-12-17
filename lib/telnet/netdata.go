@@ -1,18 +1,17 @@
 package telnet
 
 import (
-	"fmt"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
 
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
+	"github.com/uol/gobol/logh"
 
 	"github.com/buger/jsonparser"
-	"github.com/json-iterator/go"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/uol/mycenae/lib/collector"
+	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/structs"
 )
 
@@ -34,65 +33,77 @@ type netdataJSON struct {
 	Timestamp    int64   `json:"timestamp"`
 }
 
+const (
+	propHostName              string = "hostname"
+	propDefaultTags           string = "host_tags"
+	propChartID               string = "chart_id"
+	propChartFamily           string = "chart_family"
+	propChartContext          string = "chart_context"
+	propChartType             string = "chart_type"
+	propChartName             string = "chart_name"
+	propID                    string = "id"
+	propName                  string = "name"
+	propValue                 string = "value"
+	propTimestamp             string = "timestamp"
+	propHost                  string = "host"
+	specialCharReplacement    string = "_"
+	tagRegexp                 string = `([0-9A-Za-z-\._\%\&\#\;\/]+)=([0-9A-Za-z-\._\%\&\#\;\/\*\+\']+)`
+	tagValueReplacementRegexp string = `[^0-9A-Za-z-\._\%\&\#\;\/]+`
+	setMetricTag              string = "%set_metric%"
+	setPluginMetric           string = "%set_plugin_metric%"
+)
+
 // Parse - parses the json bytes to the object fields
 func (n *netdataJSON) Parse(data []byte) error {
 
 	var err error
 
-	if n.HostName, err = jsonparser.GetString(data, "hostname"); err != nil {
+	if n.HostName, err = jsonparser.GetString(data, propHostName); err != nil {
 		return err
 	}
 
-	if n.DefaultTags, err = jsonparser.GetString(data, "host_tags"); err != nil {
+	if n.DefaultTags, err = jsonparser.GetString(data, propDefaultTags); err != nil {
 		return err
 	}
 
-	if n.ChartID, err = jsonparser.GetString(data, "chart_id"); err != nil {
+	if n.ChartID, err = jsonparser.GetString(data, propChartID); err != nil {
 		return err
 	}
 
-	if n.ChartFamily, err = jsonparser.GetString(data, "chart_family"); err != nil {
+	if n.ChartFamily, err = jsonparser.GetString(data, propChartFamily); err != nil {
 		return err
 	}
 
-	if n.ChartContext, err = jsonparser.GetString(data, "chart_context"); err != nil {
+	if n.ChartContext, err = jsonparser.GetString(data, propChartContext); err != nil {
 		return err
 	}
 
-	if n.ChartType, err = jsonparser.GetString(data, "chart_type"); err != nil {
+	if n.ChartType, err = jsonparser.GetString(data, propChartType); err != nil {
 		return err
 	}
 
-	if n.ChartName, err = jsonparser.GetString(data, "chart_name"); err != nil {
+	if n.ChartName, err = jsonparser.GetString(data, propChartName); err != nil {
 		return err
 	}
 
-	if n.ID, err = jsonparser.GetString(data, "id"); err != nil {
+	if n.ID, err = jsonparser.GetString(data, propID); err != nil {
 		return err
 	}
 
-	if n.Units, err = jsonparser.GetString(data, "units"); err != nil {
+	if n.Name, err = jsonparser.GetString(data, propName); err != nil {
 		return err
 	}
 
-	if n.Name, err = jsonparser.GetString(data, "name"); err != nil {
+	if n.Value, err = jsonparser.GetFloat(data, propValue); err != nil {
 		return err
 	}
 
-	if n.Value, err = jsonparser.GetFloat(data, "value"); err != nil {
-		return err
-	}
-
-	if n.Timestamp, err = jsonparser.GetInt(data, "timestamp"); err != nil {
+	if n.Timestamp, err = jsonparser.GetInt(data, propTimestamp); err != nil {
 		return err
 	}
 
 	return nil
 }
-
-const tagRegexp string = `([0-9A-Za-z-\._\%\&\#\;\/]+)=([0-9A-Za-z-\._\%\&\#\;\/\*\+\']+)`
-const tagValueReplacementRegexp string = `[^0-9A-Za-z-\._\%\&\#\;\/]+`
-const specialCharReplacement string = "_"
 
 // NetdataHandler - handles netdata telnet format data
 type NetdataHandler struct {
@@ -103,23 +114,22 @@ type NetdataHandler struct {
 	mutex             *sync.Mutex
 	cacheDuration     time.Duration
 	collector         *collector.Collector
-	logger            *zap.Logger
-	loggerFields      []zapcore.Field
+	logger            *logh.ContextualLogger
 	sourceName        string
 	telnetConfig      *structs.GlobalTelnetServerConfiguration
 }
 
 // NewNetdataHandler - creates the new handler
-func NewNetdataHandler(regexpCacheDuration string, collector *collector.Collector, telnetConfig *structs.GlobalTelnetServerConfiguration, logger *zap.Logger) *NetdataHandler {
+func NewNetdataHandler(regexpCacheDuration string, collector *collector.Collector, telnetConfig *structs.GlobalTelnetServerConfiguration) *NetdataHandler {
 
 	netdataTags := map[string]struct{}{
-		"chart_id":      struct{}{},
-		"chart_family":  struct{}{},
-		"chart_context": struct{}{},
-		"chart_type":    struct{}{},
-		"chart_name":    struct{}{},
-		"id":            struct{}{},
-		"name":          struct{}{},
+		propChartID:      struct{}{},
+		propChartFamily:  struct{}{},
+		propChartContext: struct{}{},
+		propChartType:    struct{}{},
+		propChartName:    struct{}{},
+		propID:           struct{}{},
+		propName:         struct{}{},
 	}
 
 	cacheDuration, err := time.ParseDuration(regexpCacheDuration)
@@ -135,13 +145,9 @@ func NewNetdataHandler(regexpCacheDuration string, collector *collector.Collecto
 		collector:         collector,
 		regexpCache:       sync.Map{},
 		mutex:             &sync.Mutex{},
-		logger:            logger,
-		loggerFields: []zapcore.Field{
-			zap.String("package", "telnet"),
-			zap.String("func", "Handle"),
-		},
-		sourceName:   "telnet-netdata",
-		telnetConfig: telnetConfig,
+		logger:            logh.CreateContextualLogger(constants.StringsPKG, "telnet", constants.StringsFunc, "Handle"),
+		sourceName:        "telnet-netdata",
+		telnetConfig:      telnetConfig,
 	}
 }
 
@@ -149,14 +155,15 @@ func NewNetdataHandler(regexpCacheDuration string, collector *collector.Collecto
 func (nh *NetdataHandler) expireCachedRegexp(regexp string) {
 
 	go func() {
-
 		<-time.After(nh.cacheDuration)
 
 		nh.mutex.Lock()
 
 		nh.regexpCache.Delete(regexp)
 
-		nh.logger.Info(fmt.Sprintf("regular expression expired from cache: %s", regexp), nh.loggerFields...)
+		if logh.InfoEnabled {
+			nh.logger.Info().Msgf("regular expression expired from cache: %s", regexp)
+		}
 
 		nh.mutex.Unlock()
 	}()
@@ -165,15 +172,15 @@ func (nh *NetdataHandler) expireCachedRegexp(regexp string) {
 // Handle - extracts the points received by telnet
 func (nh *NetdataHandler) Handle(line string) {
 
-	if line == "" {
+	if line == constants.StringsEmpty {
 		return
 	}
 
 	pointJSON := netdataJSON{}
 	err := pointJSON.Parse([]byte(line))
 	if err != nil {
-		if !nh.telnetConfig.SilenceLogs {
-			nh.logger.Error("error unmarshalling line: "+line, nh.loggerFields...)
+		if !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
+			nh.logger.Error().Msgf("error unmarshalling line: %s", line)
 		}
 		return
 	}
@@ -187,23 +194,23 @@ func (nh *NetdataHandler) Handle(line string) {
 		}
 	}
 
-	metricProperty := "chart_id"
+	metricProperty := propChartID
 
-	if metricValue, switchMetric := tags["%set_metric%"]; switchMetric {
+	if metricValue, switchMetric := tags[setMetricTag]; switchMetric {
 
 		if _, ok := nh.netdataTags[metricValue]; !ok {
-			if !nh.telnetConfig.SilenceLogs {
-				nh.logger.Error("invalid netdata property to use set_metric: "+metricValue, nh.loggerFields...)
+			if !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
+				nh.logger.Error().Msgf("invalid netdata property to use set_metric: %s", metricValue)
 			}
 			return
 		}
 
 		metricProperty = metricValue
 
-		delete(tags, "%set_metric%")
+		delete(tags, setMetricTag)
 	}
 
-	if pluginMetricValue, switchPluginMetric := tags["%set_plugin_metric%"]; switchPluginMetric {
+	if pluginMetricValue, switchPluginMetric := tags[setPluginMetric]; switchPluginMetric {
 
 		list := strings.Split(strings.Trim(pluginMetricValue, "'"), "#")
 
@@ -212,15 +219,15 @@ func (nh *NetdataHandler) Handle(line string) {
 			array := strings.Split(list[i], ";")
 
 			if len(array) != 2 {
-				if !nh.telnetConfig.SilenceLogs {
-					nh.logger.Error("invalid set_plugin_metric value: "+pluginMetricValue, nh.loggerFields...)
+				if !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
+					nh.logger.Error().Msgf("invalid set_plugin_metric value: %s", pluginMetricValue)
 				}
 				return
 			}
 
 			if _, ok := nh.netdataTags[array[1]]; !ok {
-				if !nh.telnetConfig.SilenceLogs {
-					nh.logger.Error("invalid netdata property to use set_plugin_metric: "+pluginMetricValue, nh.loggerFields...)
+				if !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
+					nh.logger.Error().Msgf("invalid netdata property to use set_plugin_metric: %s", pluginMetricValue)
 				}
 				return
 			}
@@ -230,15 +237,17 @@ func (nh *NetdataHandler) Handle(line string) {
 
 				newCompiledRegex, err := regexp.Compile(array[0])
 				if err != nil {
-					if !nh.telnetConfig.SilenceLogs {
-						nh.logger.Error("invalid set_plugin_metric regular expression: "+pluginMetricValue, nh.loggerFields...)
+					if !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
+						nh.logger.Error().Msgf("invalid set_plugin_metric regular expression: %s", pluginMetricValue)
 					}
 					return
 				}
 
 				nh.regexpCache.Store(array[0], newCompiledRegex)
 
-				nh.logger.Info(fmt.Sprintf("new regular expression was cached: %s", array[0]), nh.loggerFields...)
+				if logh.InfoEnabled {
+					nh.logger.Info().Msgf("new regular expression was cached: %s", array[0])
+				}
 
 				nh.expireCachedRegexp(array[0])
 
@@ -255,37 +264,37 @@ func (nh *NetdataHandler) Handle(line string) {
 			}
 		}
 
-		delete(tags, "%set_plugin_metric%")
+		delete(tags, setPluginMetric)
 	}
 
-	tags["chart_id"] = pointJSON.ChartID
+	tags[propChartID] = pointJSON.ChartID
 
-	if pointJSON.ChartContext != "" {
-		tags["chart_context"] = pointJSON.ChartContext
+	if pointJSON.ChartContext != constants.StringsEmpty {
+		tags[propChartContext] = pointJSON.ChartContext
 	}
 
-	if pointJSON.ChartFamily != "" {
-		tags["chart_family"] = nh.specialCharRegexp.ReplaceAllString(pointJSON.ChartFamily, specialCharReplacement)
+	if pointJSON.ChartFamily != constants.StringsEmpty {
+		tags[propChartFamily] = nh.specialCharRegexp.ReplaceAllString(pointJSON.ChartFamily, specialCharReplacement)
 	}
 
-	if pointJSON.ChartType != "" {
-		tags["chart_type"] = pointJSON.ChartType
+	if pointJSON.ChartType != constants.StringsEmpty {
+		tags[propChartType] = pointJSON.ChartType
 	}
 
-	if pointJSON.ChartName != "" {
-		tags["chart_name"] = pointJSON.ChartName
+	if pointJSON.ChartName != constants.StringsEmpty {
+		tags[propChartName] = pointJSON.ChartName
 	}
 
-	if pointJSON.Name != "" {
-		tags["name"] = nh.specialCharRegexp.ReplaceAllString(pointJSON.Name, specialCharReplacement)
+	if pointJSON.Name != constants.StringsEmpty {
+		tags[propName] = nh.specialCharRegexp.ReplaceAllString(pointJSON.Name, specialCharReplacement)
 	}
 
-	if pointJSON.ID != "" {
-		tags["id"] = pointJSON.ID
+	if pointJSON.ID != constants.StringsEmpty {
+		tags[propID] = pointJSON.ID
 	}
 
-	if pointJSON.HostName != "" {
-		tags["host"] = pointJSON.HostName
+	if pointJSON.HostName != constants.StringsEmpty {
+		tags[propHost] = pointJSON.HostName
 	}
 
 	newMetric := tags[metricProperty]
@@ -301,8 +310,8 @@ func (nh *NetdataHandler) Handle(line string) {
 
 	validatedPoint, err := nh.collector.MakePacket(&point, true)
 	if err != nil {
-		if !nh.telnetConfig.SilenceLogs {
-			nh.logger.Error(fmt.Sprintf("point validation failure in line: %s (error: %s)", line, err.Error()), nh.loggerFields...)
+		if !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
+			nh.logger.Error().Err(err).Msgf("point validation failure in line: %s", line)
 		}
 		return
 	}

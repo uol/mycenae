@@ -1,13 +1,17 @@
 package persistence
 
-import "time"
+import (
+	"time"
+
+	"github.com/uol/mycenae/lib/constants"
+)
 
 func (backend *scylladb) statsQuery(
 	keyspace, column, operation string,
 	d time.Duration,
 ) {
 	tags := map[string]string{"keyspace": keyspace, "operation": operation}
-	if column != "" {
+	if column != constants.StringsEmpty {
 		tags["column_family"] = column
 	}
 	go backend.statsIncrement("scylla.query", tags)
@@ -22,7 +26,7 @@ func (backend *scylladb) statsQueryError(
 	keyspace, column, operation string,
 ) {
 	tags := map[string]string{"keyspace": keyspace, "operation": operation}
-	if column != "" {
+	if column != constants.StringsEmpty {
 		tags["column_family"] = column
 	}
 	go backend.statsIncrement(

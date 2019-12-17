@@ -10,7 +10,6 @@ import (
 	"github.com/uol/gobol/hashing"
 	"github.com/uol/gobol/timeline"
 	serializer "github.com/uol/serializer/opentsdb"
-	"go.uber.org/zap"
 )
 
 /**
@@ -21,24 +20,19 @@ import (
 // createTimelineManagerF - creates a new timeline manager
 func createTimelineManagerF(start bool, port int) *timeline.Manager {
 
-	logger, err := zap.NewDevelopment()
-	if err != nil {
-		panic(err)
-	}
-
 	backend := timeline.Backend{
 		Host: telnetHost,
 		Port: port,
 	}
 
-	transport := createOpenTSDBTransport(logger)
+	transport := createOpenTSDBTransport()
 
 	conf := &timeline.FlattenerConfig{
 		CycleDuration:    time.Millisecond * 900,
 		HashingAlgorithm: hashing.SHA256,
 	}
 
-	flattener, err := timeline.NewFlattener(transport, conf, logger)
+	flattener, err := timeline.NewFlattener(transport, conf)
 	if err != nil {
 		panic(err)
 	}

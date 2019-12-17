@@ -4,10 +4,10 @@ import (
 	"regexp"
 	"strconv"
 
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
+	"github.com/uol/gobol/logh"
 
 	"github.com/uol/mycenae/lib/collector"
+	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/structs"
 )
 
@@ -19,25 +19,20 @@ type OpenTSDBHandler struct {
 	formatRegexp *regexp.Regexp
 	tagsRegexp   *regexp.Regexp
 	collector    *collector.Collector
-	logger       *zap.Logger
-	loggerFields []zapcore.Field
+	logger       *logh.ContextualLogger
 	sourceName   string
 	telnetConfig *structs.GlobalTelnetServerConfiguration
 }
 
 // NewOpenTSDBHandler - creates the new handler
-func NewOpenTSDBHandler(collector *collector.Collector, telnetConfig *structs.GlobalTelnetServerConfiguration, logger *zap.Logger) *OpenTSDBHandler {
+func NewOpenTSDBHandler(collector *collector.Collector, telnetConfig *structs.GlobalTelnetServerConfiguration) *OpenTSDBHandler {
 
 	return &OpenTSDBHandler{
 		formatRegexp: regexp.MustCompile(`put ([0-9A-Za-z-\._\%\&\#\;\/]+) ([0-9]+) ([0-9E\.\-\,]+) ([0-9A-Za-z-\._\%\&\#\;\/ =]+)`),
 		tagsRegexp:   regexp.MustCompile(TelnetFormatTagsRegexp),
 		collector:    collector,
-		loggerFields: []zapcore.Field{
-			zap.String("package", "telnet"),
-			zap.String("func", "Handle"),
-		},
 		sourceName:   "telnet-opentsdb",
-		logger:       logger,
+		logger:       logh.CreateContextualLogger(constants.StringsPKG, "telnet", constants.StringsFunc, "Handle"),
 		telnetConfig: telnetConfig,
 	}
 }
@@ -45,21 +40,23 @@ func NewOpenTSDBHandler(collector *collector.Collector, telnetConfig *structs.Gl
 // Handle - extracts the points received by telnet
 func (otsdbh *OpenTSDBHandler) Handle(line string) {
 
-	if line == "" {
+	if line == constants.StringsEmpty {
 		return
 	}
 
 	matches := otsdbh.formatRegexp.FindStringSubmatch(line)
 	if len(matches) != 5 {
-		if !otsdbh.telnetConfig.SilenceLogs {
-			otsdbh.logger.Error("this line does not follows the accepted pattern: "+line, otsdbh.loggerFields...)
+		if !otsdbh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
+			otsdbh.logger.Error().Msgf("this line does not follows the accepted pattern: %s", line)
 		}
 		return
 	}
 
 	tagMatches := otsdbh.tagsRegexp.FindAllStringSubmatch(matches[4], -1)
 	if len(tagMatches) == 0 {
-		otsdbh.logger.Error("no parseable tags found in line: "+line, otsdbh.loggerFields...)
+		if !otsdbh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
+			otsdbh.logger.Error().Msgf("no parseable tags found in line: %s", line)
+		}
 		return
 	}
 
@@ -75,16 +72,16 @@ func (otsdbh *OpenTSDBHandler) Handle(line string) {
 
 	point.Timestamp, err = strconv.ParseInt(matches[2], 10, 64)
 	if err != nil {
-		if !otsdbh.telnetConfig.SilenceLogs {
-			otsdbh.logger.Error("no parseable timestamp found in line: "+line, otsdbh.loggerFields...)
+		if !otsdbh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
+			otsdbh.logger.Error().Msgf("no parseable timestamp found in line: %s", line)
 		}
 		return
 	}
 
 	value, err := strconv.ParseFloat(matches[3], 64)
 	if err != nil {
-		if !otsdbh.telnetConfig.SilenceLogs {
-			otsdbh.logger.Error("no parseable float number found in line: "+line, otsdbh.loggerFields...)
+		if !otsdbh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
+			otsdbh.logger.Error().Msgf("no parseable float number found in line: %s", line)
 		}
 		return
 	}
@@ -93,8 +90,8 @@ func (otsdbh *OpenTSDBHandler) Handle(line string) {
 
 	validatedPoint, err := otsdbh.collector.MakePacket(&point, true)
 	if err != nil {
-		if !otsdbh.telnetConfig.SilenceLogs {
-			otsdbh.logger.Error("point validation failure in line: "+line, otsdbh.loggerFields...)
+		if !otsdbh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
+			otsdbh.logger.Error().Msgf("point validation failure in line: %s", line)
 		}
 		return
 	}

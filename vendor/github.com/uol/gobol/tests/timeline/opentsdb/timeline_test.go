@@ -2,12 +2,12 @@ package timeline_opentsdb_test
 
 import (
 	"fmt"
+	"math/rand"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap"
 
 	"github.com/uol/gobol/timeline"
 	serializer "github.com/uol/serializer/opentsdb"
@@ -21,17 +21,12 @@ import (
 // createTimelineManager - creates a new timeline manager
 func createTimelineManager(start bool, port int) *timeline.Manager {
 
-	logger, err := zap.NewDevelopment()
-	if err != nil {
-		panic(err)
-	}
-
 	backend := timeline.Backend{
 		Host: telnetHost,
 		Port: port,
 	}
 
-	transport := createOpenTSDBTransport(logger)
+	transport := createOpenTSDBTransport()
 
 	manager, err := timeline.NewManager(transport, &backend)
 	if err != nil {
@@ -148,4 +143,34 @@ func TestMultiInput(t *testing.T) {
 			},
 		},
 	)
+}
+
+// TestSerialization - tests configuring the opentsdb variables
+func TestSerialization(t *testing.T) {
+
+	port := generatePort()
+
+	c := make(chan string, 3)
+	go listenTelnet(t, c, port)
+
+	m := createTimelineManager(false, port)
+	defer m.Shutdown()
+
+	value := rand.Float64()
+	timestamp := rand.Int63()
+	tags := fmt.Sprintf("tag1=val1 tagTime=%d ttl=1", timestamp)
+	metric := "serializationMetric"
+
+	expected := fmt.Sprintf("put %s %d %.17f %s\n", metric, timestamp, value, tags)
+
+	serialized, err := m.SerializeOpenTSDB(value, timestamp, metric,
+		"tag1", "val1",
+		"tagTime", timestamp,
+		"ttl", 1)
+
+	if !assert.NoError(t, err, "no error expected when serializing opentsdb") {
+		return
+	}
+
+	assert.Equal(t, expected, serialized, "serialization not matches")
 }

@@ -11,12 +11,13 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/uol/gobol/logh"
+
 	"github.com/uol/mycenae/lib/collector"
+	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/structs"
 	"github.com/uol/mycenae/lib/telnetsrv"
 	"github.com/uol/mycenae/lib/tsstats"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
 //
@@ -27,7 +28,7 @@ import (
 // Manager - controls the telnet servers
 type Manager struct {
 	collector                         *collector.Collector
-	logger                            *zap.Logger
+	logger                            *logh.ContextualLogger
 	stats                             *tsstats.StatsTS
 	terminate                         bool
 	connectionBalanceCheckTimeout     time.Duration
@@ -46,7 +47,7 @@ type Manager struct {
 }
 
 // New - creates a new manager instance
-func New(globalConfiguration *structs.GlobalTelnetServerConfiguration, httpListenPort int, collector *collector.Collector, stats *tsstats.StatsTS, logger *zap.Logger) (*Manager, error) {
+func New(globalConfiguration *structs.GlobalTelnetServerConfiguration, httpListenPort int, collector *collector.Collector, stats *tsstats.StatsTS) (*Manager, error) {
 
 	connectionBalanceCheckTimeoutDuration, err := time.ParseDuration(globalConfiguration.TelnetConnsBalanceCheckInterval)
 	if err != nil {
@@ -95,7 +96,7 @@ func New(globalConfiguration *structs.GlobalTelnetServerConfiguration, httpListe
 		maxWaitForOtherNodeConnsBalancing: maxWaitForOtherNodeConnsBalancingDuration,
 		connectionBalanceStarted:          false,
 		collector:                         collector,
-		logger:                            logger,
+		logger:                            logh.CreateContextualLogger(constants.StringsPKG, "telnetmgr"),
 		stats:                             stats,
 		terminate:                         false,
 		httpListenPort:                    httpListenPort,
@@ -121,7 +122,6 @@ func (manager *Manager) AddServer(serverConfiguration *structs.TelnetServerConfi
 		&manager.closeConnectionChannel,
 		manager.collector,
 		manager.stats,
-		manager.logger,
 		telnetHandler,
 	)
 
@@ -134,12 +134,9 @@ func (manager *Manager) AddServer(serverConfiguration *structs.TelnetServerConfi
 		return err
 	}
 
-	lf := []zapcore.Field{
-		zap.String("package", "telnetmgr"),
-		zap.String("func", "AddServer"),
+	if logh.InfoEnabled {
+		manager.logger.Info().Str(constants.StringsFunc, "AddServer").Msgf("server created and listening: %s", serverConfiguration.ServerName)
 	}
-
-	manager.logger.Info(fmt.Sprintf("server created and listening: %s", serverConfiguration.ServerName), lf...)
 
 	manager.servers = append(manager.servers, server)
 
@@ -159,40 +156,40 @@ func (manager *Manager) Shutdown() {
 	numServers := len(manager.servers)
 	if numServers > 0 {
 
-		lf := []zapcore.Field{
-			zap.String("package", "telnetmgr"),
-			zap.String("func", "Shutdown"),
-		}
-
 		for i := 0; i < numServers; i++ {
 
 			manager.servers[i].Shutdown()
 		}
 
-		manager.logger.Info("all telnet servers were shut down", lf...)
+		if logh.InfoEnabled {
+			manager.logger.Info().Str(constants.StringsFunc, "Shutdown").Msg("all telnet servers were shut down")
+		}
 	}
 }
+
+const cFuncStartConnectionBalancer string = "startConnectionBalancer"
 
 // startConnectionBalancer - starts the connection balancer
 func (manager *Manager) startConnectionBalancer() {
 
-	lf := []zapcore.Field{
-		zap.String("package", "telnetmgr"),
-		zap.String("func", "StartConnectionBalancer"),
+	if logh.InfoEnabled {
+		manager.logger.Info().Str(constants.StringsFunc, cFuncStartConnectionBalancer).Msg("starting the connection balance checks")
 	}
-
-	manager.logger.Info("starting the connection balance checks", lf...)
 
 	for {
 		<-time.After(manager.connectionBalanceCheckTimeout)
 
 		if manager.terminate {
-			manager.logger.Info("terminating the connection balance check", lf...)
+			if logh.InfoEnabled {
+				manager.logger.Info().Str(constants.StringsFunc, cFuncStartConnectionBalancer).Msg("terminating the connection balance check")
+			}
 			return
 		}
 
 		if manager.numOtherNodes == 0 {
-			manager.logger.Info("there are no other nodes to balance the connections", lf...)
+			if logh.InfoEnabled {
+				manager.logger.Info().Str(constants.StringsFunc, cFuncStartConnectionBalancer).Msg("there are no other nodes to balance the connections")
+			}
 			return
 		}
 
@@ -215,7 +212,9 @@ func (manager *Manager) startConnectionBalancer() {
 		for i := 0; i < manager.numOtherNodes; i++ {
 
 			if curConns < results[i] {
-				manager.logger.Info(fmt.Sprintf("there is another node with more connections: %s (%d)", manager.otherNodes[i], results[i]), lf...)
+				if logh.InfoEnabled {
+					manager.logger.Info().Str(constants.StringsFunc, cFuncStartConnectionBalancer).Msgf("there is another node with more connections: %s (%d)", manager.otherNodes[i], results[i])
+				}
 				stopBalancing = true
 				break
 			}
@@ -241,9 +240,11 @@ func (manager *Manager) startConnectionBalancer() {
 					<-time.After(manager.maxWaitForOtherNodeConnsBalancing)
 
 					if atomic.CompareAndSwapUint32(&manager.haltBalancingProcess, 1, 0) {
-						manager.logger.Info("resuming the balancing process", lf...)
-					} else {
-						manager.logger.Warn("balancing process is already running, something went wrong...", lf...)
+						if logh.InfoEnabled {
+							manager.logger.Info().Str(constants.StringsFunc, cFuncStartConnectionBalancer).Msg("resuming the balancing process")
+						}
+					} else if logh.WarnEnabled {
+						manager.logger.Warn().Str(constants.StringsFunc, cFuncStartConnectionBalancer).Msg("balancing process is already running, something went wrong...")
 					}
 				}
 			}
@@ -251,49 +252,61 @@ func (manager *Manager) startConnectionBalancer() {
 	}
 }
 
+const cFuncDropConnections string = "dropConnections"
+
 // dropConnections - add connections to be dropped and halt all new connections
 func (manager *Manager) dropConnections(excess uint32) bool {
 
-	lf := []zapcore.Field{
-		zap.String("package", "telnetmgr"),
-		zap.String("func", "dropConnections"),
-	}
-
 	if atomic.LoadUint32(&manager.haltBalancingProcess) > 0 {
-
-		manager.logger.Info("telnet balancing process is halted, waiting...", lf...)
-
+		if logh.InfoEnabled {
+			manager.logger.Info().Str(constants.StringsFunc, cFuncDropConnections).Msg("telnet balancing process is halted, waiting...")
+		}
 		return false
 	}
 
-	manager.logger.Info("halting connection balancing on other nodes", lf...)
+	if logh.InfoEnabled {
+		manager.logger.Info().Str(constants.StringsFunc, cFuncDropConnections).Msg("halting connection balancing on other nodes")
+	}
+
 	manager.haltBalancingOnOtherNodes()
 
-	manager.logger.Info(fmt.Sprintf("the number of telnet connections was exceeded by %d connections", excess), lf...)
+	if logh.InfoEnabled {
+		manager.logger.Info().Str(constants.StringsFunc, cFuncDropConnections).Msgf("the number of telnet connections was exceeded by %d connections", excess)
+	}
 
 	var j uint32
 	for j = 0; j < excess; j++ {
-		manager.logger.Debug("adding to close connection channel", lf...)
+		if logh.DebugEnabled {
+			manager.logger.Debug().Str(constants.StringsFunc, cFuncDropConnections).Msg("adding to close connection channel")
+		}
 		manager.closeConnectionChannel <- struct{}{}
 	}
 
-	manager.logger.Info(fmt.Sprintf("waiting for connections to drop: %s", manager.maxWaitForDropTelnetConnsInterval), lf...)
+	if logh.InfoEnabled {
+		manager.logger.Info().Str(constants.StringsFunc, cFuncDropConnections).Msgf("waiting for connections to drop: %s", manager.maxWaitForDropTelnetConnsInterval)
+	}
 
 	numServers := len(manager.servers)
 	for i := 0; i < numServers; i++ {
-		manager.logger.Info(fmt.Sprintf("halting new connections on server: %s", manager.servers[i].GetName()), lf...)
+		if logh.InfoEnabled {
+			manager.logger.Info().Str(constants.StringsFunc, cFuncDropConnections).Msgf("halting new connections on server: %s", manager.servers[i].GetName())
+		}
 		manager.servers[i].DenyNewConnections(true)
 	}
 
 	<-time.After(manager.maxWaitForDropTelnetConnsInterval)
 
-	manager.logger.Info("draining close connection channel...", lf...)
+	if logh.InfoEnabled {
+		manager.logger.Info().Str(constants.StringsFunc, cFuncDropConnections).Msg("draining close connection channel...")
+	}
 
 	breakLoop := false
 	for {
 		select {
 		case <-(manager.closeConnectionChannel):
-			manager.logger.Debug("close connection channel drained", lf...)
+			if logh.DebugEnabled {
+				manager.logger.Debug().Str(constants.StringsFunc, cFuncDropConnections).Msg("close connection channel drained")
+			}
 		default:
 			breakLoop = true
 		}
@@ -302,91 +315,115 @@ func (manager *Manager) dropConnections(excess uint32) bool {
 		}
 	}
 
-	manager.logger.Info(fmt.Sprintf("waiting time for dropping connections is done: %s", manager.maxWaitForDropTelnetConnsInterval), lf...)
+	if logh.InfoEnabled {
+		manager.logger.Info().Str(constants.StringsFunc, cFuncDropConnections).Msgf("waiting time for dropping connections is done: %s", manager.maxWaitForDropTelnetConnsInterval)
+	}
 
 	for i := 0; i < numServers; i++ {
-		manager.logger.Info(fmt.Sprintf("setting server to accept new connections: %s", manager.servers[i].GetName()), lf...)
+		if logh.InfoEnabled {
+			manager.logger.Info().Str(constants.StringsFunc, cFuncDropConnections).Msgf("setting server to accept new connections: %s", manager.servers[i].GetName())
+		}
 		manager.servers[i].DenyNewConnections(false)
 	}
 
 	return true
 }
 
+const (
+	cFuncGetNumConnectionsFromNode string = "getNumConnectionsFromNode"
+	cNode                          string = "node"
+)
+
 // getNumConnectionsFromNode - does a HEAD request to get number of connections from another node
 func (manager *Manager) getNumConnectionsFromNode(node string, result *uint32, wg *sync.WaitGroup) {
 
 	defer wg.Done()
 
-	lf := []zapcore.Field{
-		zap.String("package", "telnetmgr"),
-		zap.String("func", "getNumConnectionsFromNode"),
-		zap.String("node", node),
+	if logh.DebugEnabled {
+		manager.logger.Debug().Str(constants.StringsFunc, cFuncGetNumConnectionsFromNode).Str(cNode, node).Msg("asking node for the number of connections...")
 	}
-
-	manager.logger.Debug(fmt.Sprintf("asking node for the number of connections..."), lf...)
 
 	url := fmt.Sprintf("http://%s:%d/%s", node, manager.httpListenPort, CountConnsURI)
 
 	resp, err := manager.httpClient.Head(url)
 	if err != nil {
-		manager.logger.Error(err.Error(), lf...)
+		if logh.ErrorEnabled {
+			manager.logger.Error().Str(constants.StringsFunc, cFuncGetNumConnectionsFromNode).Str(cNode, node).Err(err).Send()
+		}
 		return
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		manager.logger.Error(fmt.Sprintf("error requesting node's header: %s", url), lf...)
+		if logh.ErrorEnabled {
+			manager.logger.Error().Str(constants.StringsFunc, cFuncGetNumConnectionsFromNode).Str(cNode, node).Msgf("error requesting node's header: %s", url)
+		}
 		return
 	}
 
 	if len(resp.Header[HTTPHeaderTotalConnections]) != 1 {
-		manager.logger.Error(fmt.Sprintf("unexpected array of values in header: '%s'", HTTPHeaderTotalConnections), lf...)
+		if logh.ErrorEnabled {
+			manager.logger.Error().Str(constants.StringsFunc, cFuncGetNumConnectionsFromNode).Str(cNode, node).Msgf("unexpected array of values in header: '%s'", HTTPHeaderTotalConnections)
+		}
 		return
 	}
 
 	r, err := strconv.ParseUint(resp.Header[HTTPHeaderTotalConnections][0], 10, 32)
 	if err != nil {
-		manager.logger.Error(err.Error(), lf...)
+		if logh.ErrorEnabled {
+			manager.logger.Error().Str(constants.StringsFunc, cFuncGetNumConnectionsFromNode).Str(cNode, node).Err(err).Send()
+		}
 		return
 	}
 
-	manager.logger.Debug(fmt.Sprintf("node has %d connections", r), lf...)
+	if logh.DebugEnabled {
+		manager.logger.Debug().Str(constants.StringsFunc, cFuncGetNumConnectionsFromNode).Str(cNode, node).Msgf("node has %d connections", r)
+	}
 
 	(*result) = uint32(r)
 
 	return
 }
 
+const (
+	cFuncHaltBalancingOnOtherNodes = "haltBalancingOnOtherNodes"
+)
+
 // haltBalancingOnOtherNodes - does a HEAD request to tell other nodes to halt the balancing
 func (manager *Manager) haltBalancingOnOtherNodes() {
 
-	lf := []zapcore.Field{
-		zap.String("package", "telnetmgr"),
-		zap.String("func", "haltBalancingOnOtherNodes"),
-	}
-
 	for _, node := range manager.otherNodes {
 
-		manager.logger.Info(fmt.Sprintf("notifying node to halt the balancing process: %s", node), lf...)
+		if logh.InfoEnabled {
+			manager.logger.Info().Str(constants.StringsFunc, cFuncHaltBalancingOnOtherNodes).Str(cNode, node).Msg("notifying node to halt the balancing process")
+		}
 
 		url := fmt.Sprintf("http://%s:%d/%s", node, manager.httpListenPort, HaltConnsURI)
 
 		resp, err := manager.httpClient.Head(url)
 		if err != nil {
-			manager.logger.Error(err.Error(), lf...)
+			if logh.ErrorEnabled {
+				manager.logger.Error().Str(constants.StringsFunc, cFuncHaltBalancingOnOtherNodes).Str(cNode, node).Err(err).Send()
+			}
 			return
 		}
 
 		if resp.StatusCode == http.StatusProcessing {
-			manager.logger.Info(fmt.Sprintf("node is already halting the balancing process: %s", node), lf...)
+			if logh.InfoEnabled {
+				manager.logger.Info().Str(constants.StringsFunc, cFuncHaltBalancingOnOtherNodes).Str(cNode, node).Msg("node is already halting the balancing process")
+			}
 			continue
 		}
 
 		if resp.StatusCode == http.StatusOK {
-			manager.logger.Info(fmt.Sprintf("node was notified to halt the connection balancing: %s", node), lf...)
+			if logh.InfoEnabled {
+				manager.logger.Info().Str(constants.StringsFunc, cFuncHaltBalancingOnOtherNodes).Str(cNode, node).Msg("node was notified to halt the connection balancing")
+			}
 			continue
 		}
 
-		manager.logger.Error(fmt.Sprintf("error requesting node's to halt the balancing process: %s", node), lf...)
+		if logh.ErrorEnabled {
+			manager.logger.Error().Str(constants.StringsFunc, cFuncHaltBalancingOnOtherNodes).Str(cNode, node).Msg("error requesting node's to halt the balancing process")
+		}
 	}
 
 	return

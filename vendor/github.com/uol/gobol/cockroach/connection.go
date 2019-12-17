@@ -7,11 +7,7 @@ import (
 	"strings"
 
 	"github.com/jinzhu/gorm"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
-
-	// postgres implementation
-	_ "github.com/jinzhu/gorm/dialects/postgres"
+	"github.com/uol/gobol/logh"
 )
 
 //
@@ -22,21 +18,20 @@ import (
 // Connection - the connection manager
 type Connection struct {
 	dbConnection *gorm.DB
-	logger       *zap.Logger
+	logger       *logh.ContextualLogger
 }
 
 // NewConnUsingCerts - creates a new connection instance using certificate
-func NewConnUsingCerts(host, database, user, certsPath string, logger *zap.Logger) (*Connection, error) {
+func NewConnUsingCerts(host, database, user, certsPath string) (*Connection, error) {
 
-	lf := []zapcore.Field{
-		zap.String("struct", "Connection"),
-		zap.String("func", "NewConnUsingCerts"),
-	}
+	logger := logh.CreateContextualLogger("pkg", "cockroach")
 
 	connectionURL := fmt.Sprintf("postgresql://%s@%s/%s?ssl=true&sslmode=require&sslrootcert=%s/ca.crt&sslkey=%s/client.%s.key&sslcert=%s/client.%s.crt",
 		user, host, database, certsPath, certsPath, user, certsPath, user)
 
-	logger.Info("connecting to \""+connectionURL+"\"...", lf...)
+	if logh.InfoEnabled {
+		logger.Info().Str("func", "NewConnUsingCerts").Msgf("connecting to \"%s\"...", connectionURL)
+	}
 
 	db, err := gorm.Open("postgres", connectionURL)
 	if err != nil {
@@ -50,17 +45,16 @@ func NewConnUsingCerts(host, database, user, certsPath string, logger *zap.Logge
 }
 
 // NewConnUsingPassword - creates a new connection instance using password
-func NewConnUsingPassword(host, database, user, password string, logger *zap.Logger) (*Connection, error) {
+func NewConnUsingPassword(host, database, user, password string) (*Connection, error) {
 
-	lf := []zapcore.Field{
-		zap.String("struct", "Connection"),
-		zap.String("func", "NewConnUsingPassword"),
-	}
+	logger := logh.CreateContextualLogger("pkg", "cockroach")
 
 	connectionURL := fmt.Sprintf("postgresql://%s:%s@%s/%s?ssl=true&sslmode=require",
 		user, password, host, database)
 
-	logger.Debug("connecting to \""+connectionURL+"\"...", lf...)
+	if logh.InfoEnabled {
+		logger.Info().Str("func", "NewConnUsingPassword").Msgf("connecting to \"%s\"...", connectionURL)
+	}
 
 	db, err := gorm.Open("postgres", connectionURL)
 	if err != nil {
@@ -74,16 +68,15 @@ func NewConnUsingPassword(host, database, user, password string, logger *zap.Log
 }
 
 // NewConnUsingDocker - creates a new connection instance to a local docker pod
-func NewConnUsingDocker(pod, network, database, user, password string, port int, logger *zap.Logger) (*Connection, error) {
+func NewConnUsingDocker(pod, network, database, user, password string, port int) (*Connection, error) {
 
-	lf := []zapcore.Field{
-		zap.String("struct", "Connection"),
-		zap.String("func", "NewConnUsingPassword"),
-	}
+	logger := logh.CreateContextualLogger("pkg", "cockroach")
 
 	output, err := exec.Command("docker", "inspect", "--format='{{ .NetworkSettings.Networks."+network+".IPAddress }}'", pod).Output()
 	if err != nil {
-		logger.Error(err.Error())
+		if logh.ErrorEnabled {
+			logger.Error().Str("func", "NewConnUsingDocker").Msgf("connecting to \"%s\"...", pod)
+		}
 		panic(err)
 	}
 
@@ -96,13 +89,15 @@ func NewConnUsingDocker(pod, network, database, user, password string, port int,
 
 	if !matches {
 		err := fmt.Errorf("'%s' is not a valid IP", firstLine)
-		logger.Error(err.Error(), lf...)
+		if logh.ErrorEnabled {
+			logger.Error().Str("func", "NewConnUsingDocker").Err(err).Msgf("error connecting to \"%s\"...", pod)
+		}
 		return nil, err
 	}
 
 	connectionURL := fmt.Sprintf("%s:%d", firstLine, port)
 
-	return NewConnUsingPassword(connectionURL, database, user, password, logger)
+	return NewConnUsingPassword(connectionURL, database, user, password)
 }
 
 // GetConnection - returns the active connection
@@ -113,16 +108,18 @@ func (c *Connection) GetConnection() *gorm.DB {
 // Close - closes the connection
 func (c *Connection) Close() {
 
-	lf := []zapcore.Field{
-		zap.String("struct", "Connection"),
-		zap.String("func", "Close"),
+	if logh.InfoEnabled {
+		c.logger.Info().Str("func", "Close").Msg("closing connection...")
 	}
 
-	c.logger.Info("closing connection...", lf...)
 	err := c.dbConnection.Close()
 	if err != nil {
-		c.logger.Error(err.Error(), lf...)
+		if logh.ErrorEnabled {
+			c.logger.Error().Str("func", "Close").Err(err).Send()
+		}
 	} else {
-		c.logger.Info("connection closed", lf...)
+		if logh.InfoEnabled {
+			c.logger.Info().Str("func", "Close").Msg("connection closed")
+		}
 	}
 }

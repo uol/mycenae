@@ -6,38 +6,38 @@ import (
 	"net/http"
 
 	"github.com/uol/gobol"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 
 	"github.com/uol/mycenae/lib/tserr"
 )
 
-func errBasic(f, s string, e error) gobol.Error {
+const (
+	cPackage string = "parser"
+)
+
+func errBasic(function, msg string, e error) gobol.Error {
 	if e != nil {
 		return tserr.New(
 			e,
-			s,
+			msg,
+			cPackage,
+			function,
 			http.StatusBadRequest,
-			[]zapcore.Field{
-				zap.String("package", "parse"),
-				zap.String("func", f),
-			},
 		)
 	}
 	return nil
 }
 
-func errParams(f, m string, e error) gobol.Error {
-	return errBasic(f, m, e)
+func errParams(function, msg string, e error) gobol.Error {
+	return errBasic(function, msg, e)
 }
 
-func errDoubleFunc(f, ef string) gobol.Error {
-	s := fmt.Sprintf("You can use only one %s function per expression", ef)
-	return errBasic(f, s, errors.New(s))
+func errDoubleFunc(function, msg string) gobol.Error {
+	s := fmt.Sprintf("You can use only one %s function per expression", msg)
+	return errBasic(function, s, errors.New(s))
 }
 
-func errGroup(s string) gobol.Error {
-	return errBasic("parseGroup", s, errors.New(s))
+func errGroup(msg string) gobol.Error {
+	return errBasic("parseGroup", msg, errors.New(msg))
 }
 
 func errBadUnit() gobol.Error {
@@ -53,8 +53,8 @@ func errGRT(e error) gobol.Error {
 	return errBasic("GetRelativeStart", es, e)
 }
 
-func errParseMap(s string) gobol.Error {
-	return errBasic("parseMap", s, errors.New(s))
+func errParseMap(msg string) gobol.Error {
+	return errBasic("parseMap", msg, errors.New(msg))
 }
 
 func errRateCounter(e error) gobol.Error {
@@ -69,6 +69,6 @@ func errRateResetValue(e error) gobol.Error {
 	return errBasic("parseRate", "rate resetValue, the 3rd parameter, needs to be an integer", e)
 }
 
-func errUnkFunc(s string) gobol.Error {
-	return errBasic("parseExpression", s, errors.New(s))
+func errUnkFunc(msg string) gobol.Error {
+	return errBasic("parseExpression", msg, errors.New(msg))
 }

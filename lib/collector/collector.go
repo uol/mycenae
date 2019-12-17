@@ -9,9 +9,10 @@ import (
 
 	"github.com/gocql/gocql"
 	"github.com/uol/gobol"
-	"go.uber.org/zap"
 
 	"github.com/uol/gobol/hashing"
+	"github.com/uol/gobol/logh"
+	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/keyset"
 	"github.com/uol/mycenae/lib/metadata"
 	"github.com/uol/mycenae/lib/structs"
@@ -19,13 +20,17 @@ import (
 )
 
 var (
-	gblog *zap.Logger
 	stats *tsstats.StatsTS
+)
+
+const (
+	cNumber          string = "number"
+	cText            string = "text"
+	cHandleJSONBytes string = "HandleJSONBytes"
 )
 
 // New - creates a new Collector
 func New(
-	log *structs.Loggers,
 	sts *tsstats.StatsTS,
 	cass *gocql.Session,
 	metaStorage *metadata.Storage,
@@ -34,16 +39,17 @@ func New(
 	ks *keyset.KeySet,
 ) (*Collector, error) {
 
-	gblog = log.General
 	stats = sts
 
 	collect := &Collector{
-		persist:        persistence{cassandra: cass, metaStorage: metaStorage},
-		validKey:       regexp.MustCompile(`^[^ ]+$`),
+		cassandra:      cass,
+		metaStorage:    metaStorage,
+		validKey:       regexp.MustCompile(`^[0-9A-Za-z-\._\%\&\#\;\/]+$`),
 		settings:       set,
 		jobChannel:     make(chan workerData, set.MaxConcurrentPoints),
 		keyspaceTTLMap: keyspaceTTLMap,
 		keySet:         ks,
+		logger:         logh.CreateContextualLogger(constants.StringsPKG, "collector"),
 	}
 
 	for i := 0; i < set.MaxConcurrentPoints; i++ {
@@ -55,14 +61,17 @@ func New(
 
 // Collector - implements a point collector structure
 type Collector struct {
-	persist  persistence
-	validKey *regexp.Regexp
-	settings *structs.Settings
+	cassandra   *gocql.Session
+	metaStorage *metadata.Storage
+	validKey    *regexp.Regexp
+	settings    *structs.Settings
 
 	shutdown       bool
 	jobChannel     chan workerData
 	keyspaceTTLMap map[int]string
 	keySet         *keyset.KeySet
+
+	logger *logh.ContextualLogger
 }
 
 type workerData struct {
@@ -72,9 +81,9 @@ type workerData struct {
 
 func (collect *Collector) getType(number bool) string {
 	if number {
-		return "number"
+		return cNumber
 	}
-	return "text"
+	return cText
 }
 
 func (collect *Collector) worker(id int, jobChannel <-chan workerData) {
@@ -84,7 +93,9 @@ func (collect *Collector) worker(id int, jobChannel <-chan workerData) {
 		err := collect.processPacket(j.validatedPoint)
 		if err != nil {
 			statsPointsError(j.validatedPoint.Keyset, collect.getType(j.validatedPoint.Number), j.source, strconv.Itoa(j.validatedPoint.TTL))
-			gblog.Error(err.Error(), zap.String("package", "collector"), zap.String("func", "worker"))
+			if logh.ErrorEnabled {
+				collect.logger.Error().Str(constants.StringsFunc, "worker").Err(err)
+			}
 		} else {
 			statsPoints(j.validatedPoint.Keyset, collect.getType(j.validatedPoint.Number), j.source, strconv.Itoa(j.validatedPoint.TTL))
 		}
@@ -125,7 +136,7 @@ func (collect *Collector) processPacket(point *Point) gobol.Error {
 // HandleJSONBytes - handles a point in byte format
 func (collect *Collector) HandleJSONBytes(data []byte, source string, isNumber bool) (int, gobol.Error) {
 
-	points, err := ParsePoints("HandleJSONBytes", isNumber, data)
+	points, err := ParsePoints(cHandleJSONBytes, isNumber, data)
 	if err != nil {
 		return 0, err
 	}
@@ -181,7 +192,7 @@ func (collect *Collector) GenerateID(rcvMsg *TSDBpoint) (string, error) {
 
 	hash, err := hashing.GenerateSHAKE128(collect.settings.TSIDKeySize, parameters...)
 	if err != nil {
-		return "", err
+		return constants.StringsEmpty, err
 	}
 
 	return hex.EncodeToString(hash), nil

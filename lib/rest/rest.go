@@ -6,14 +6,14 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/uol/mycenae/lib/telnetmgr"
+	"github.com/uol/gobol/logh"
 
-	"go.uber.org/zap/zapcore"
+	"github.com/uol/mycenae/lib/constants"
+	"github.com/uol/mycenae/lib/telnetmgr"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/uol/gobol/rip"
 	"github.com/uol/gobol/snitch"
-	"go.uber.org/zap"
 
 	"github.com/uol/mycenae/lib/collector"
 	"github.com/uol/mycenae/lib/config"
@@ -26,7 +26,6 @@ import (
 
 // New returns http handler to the endpoints
 func New(
-	log *structs.Loggers,
 	gbs *snitch.Stats,
 	p *plot.Plot,
 	keyspace *keyspace.Keyspace,
@@ -41,7 +40,7 @@ func New(
 	return &REST{
 		probeThreshold: probeThreshold,
 		probeStatus:    http.StatusOK,
-		gblog:          log.General,
+		logger:         logh.CreateContextualLogger(constants.StringsPKG, "rest"),
 		sts:            gbs,
 		reader:         p,
 		kspace:         keyspace,
@@ -58,7 +57,7 @@ type REST struct {
 	probeThreshold float64
 	probeStatus    int
 
-	gblog         *zap.Logger
+	logger        *logh.ContextualLogger
 	sts           *snitch.Stats
 	reader        *plot.Plot
 	kspace        *keyspace.Keyspace
@@ -79,12 +78,7 @@ func (trest *REST) Start() {
 
 func (trest *REST) asyncStart() {
 
-	lf := []zapcore.Field{
-		zap.String("package", "rest"),
-		zap.String("func", "asyncStart"),
-	}
-
-	rip.SetLogger(trest.gblog, trest.settings.ForceErrorAsDebug)
+	rip.SetLogger(trest.settings.ForceErrorAsDebug)
 
 	router := rip.NewCustomRouter()
 	//NODE TO NODE
@@ -150,7 +144,9 @@ func (trest *REST) asyncStart() {
 
 	if trest.settings.EnableProfiling {
 
-		trest.gblog.Info("WARNING - http profiling is enabled!!!", lf...)
+		if logh.WarnEnabled {
+			trest.logger.Warn().Msg("WARNING - http profiling is enabled!!!")
+		}
 
 		router.Handler(http.MethodGet, "/debug/pprof/:item", http.DefaultServeMux)
 	}
@@ -160,7 +156,6 @@ func (trest *REST) asyncStart() {
 		Handler: rip.NewLogMiddleware(
 			"mycenae",
 			"mycenae",
-			trest.gblog,
 			trest.sts,
 			router,
 			trest.settings.AllowCORS,
@@ -173,7 +168,9 @@ func (trest *REST) asyncStart() {
 
 	err := trest.server.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
-		trest.gblog.Error(err.Error(), lf...)
+		if logh.ErrorEnabled {
+			trest.logger.Error().Err(err).Send()
+		}
 	}
 }
 
@@ -184,13 +181,9 @@ func (trest *REST) check(w http.ResponseWriter, r *http.Request, _ httprouter.Pa
 
 // Stop - stops the rest server
 func (trest *REST) Stop() {
-
-	lf := []zapcore.Field{
-		zap.String("package", "rest"),
-		zap.String("func", "Stop"),
-	}
-
 	if err := trest.server.Shutdown(context.Background()); err != nil {
-		trest.gblog.Error(err.Error(), lf...)
+		if logh.ErrorEnabled {
+			trest.logger.Error().Err(err).Send()
+		}
 	}
 }

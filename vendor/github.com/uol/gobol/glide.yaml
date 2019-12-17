@@ -4,10 +4,6 @@ import:
   version: ~0.3.1
 - package: github.com/gocql/gocql
 - package: github.com/hailocab/go-hostpool
-- package: github.com/hashicorp/consul
-  version: ~1.4.0
-  subpackages:
-  - api
 - package: github.com/julienschmidt/httprouter
   version: ~1.2.0
 - package: github.com/pborman/uuid
@@ -23,20 +19,19 @@ import:
   version: ~0.9.0
   subpackages:
   - solr
-- package: go.uber.org/zap
-  version: ~1.9.1
-  subpackages:
-  - zapcore
 - package: gopkg.in/yaml.v2
-  version: ~2.2.2
+  version: ^2.2.7
 - package: github.com/jinzhu/gorm
-  version: ~1.9.2
+  version: ^1.9.11
 - package: github.com/lib/pq
   version: ~1.0.0
 - package: github.com/uol/serializer
   version: ^1.2.2
+- package: github.com/rs/zerolog
+  version: ^1.17.2
+  subpackages:
+  - log
 testImport:
 - package: github.com/stretchr/testify
-  version: ~1.2.2
   subpackages:
   - assert

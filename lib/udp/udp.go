@@ -1,15 +1,14 @@
 package udp
 
 import (
-	"fmt"
 	"net"
 	"strconv"
 
+	"github.com/uol/gobol/logh"
+	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/tsstats"
 
 	"github.com/uol/mycenae/lib/structs"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
 type udpHandler interface {
@@ -17,17 +16,13 @@ type udpHandler interface {
 	Stop()
 }
 
-func New(logger *zap.Logger, setUDP structs.SettingsUDP, handler udpHandler, stats *tsstats.StatsTS) *UDPserver {
+func New(setUDP structs.SettingsUDP, handler udpHandler, stats *tsstats.StatsTS) *UDPserver {
 
 	return &UDPserver{
 		handler:  handler,
 		settings: setUDP,
 		stats:    stats,
-		logger:   logger,
-		statsTags: map[string]string{
-			"type":   "udp",
-			"source": "udp-json",
-		},
+		logger:   logh.CreateContextualLogger(constants.StringsPKG, "udp", "source", "udp-json"),
 	}
 }
 
@@ -38,44 +33,53 @@ type UDPserver struct {
 	closed    chan struct{}
 	stats     *tsstats.StatsTS
 	statsTags map[string]string
-	logger    *zap.Logger
+	logger    *logh.ContextualLogger
 }
 
-func (us UDPserver) Start() {
+func (us *UDPserver) Start() {
 	go us.asyncStart()
 }
 
-func (us UDPserver) asyncStart() {
+const cFuncAsyncStart string = "asyncStart"
 
-	lf := []zapcore.Field{
-		zap.String("package", "udp"),
-		zap.String("func", "asyncStart"),
-	}
+func (us *UDPserver) asyncStart() {
 
 	port := ":" + strconv.Itoa(us.settings.Port)
 
 	addr, err := net.ResolveUDPAddr("udp", port)
 
 	if err != nil {
-		us.logger.Fatal(fmt.Sprintf("addr: %s", err.Error()), lf...)
+		if logh.FatalEnabled {
+			us.logger.Fatal().Str(constants.StringsFunc, cFuncAsyncStart).Err(err).Send()
+		}
 	} else {
-		us.logger.Info("addr: resolved", lf...)
+		if logh.InfoEnabled {
+			us.logger.Info().Str(constants.StringsFunc, cFuncAsyncStart).Msg("addr: resolved")
+		}
 	}
 	sock, err := net.ListenUDP("udp", addr)
 
 	if err != nil {
-		us.logger.Fatal(fmt.Sprintf("listen: %s", err.Error()), lf...)
+		if logh.FatalEnabled {
+			us.logger.Fatal().Str(constants.StringsFunc, cFuncAsyncStart).Err(err).Send()
+		}
 	} else {
-		us.logger.Info(fmt.Sprintf("listen: binded to port: %d", us.settings.Port), lf...)
+		if logh.InfoEnabled {
+			us.logger.Info().Str(constants.StringsFunc, cFuncAsyncStart).Msgf("listen: binded to port: %d", us.settings.Port)
+		}
 	}
 	defer sock.Close()
 
 	err = sock.SetReadBuffer(us.settings.ReadBuffer)
 
 	if err != nil {
-		us.logger.Fatal(fmt.Sprintf("set buffer: %s", err.Error()), lf...)
+		if logh.FatalEnabled {
+			us.logger.Fatal().Str(constants.StringsFunc, cFuncAsyncStart).Err(err).Send()
+		}
 	} else {
-		us.logger.Info("set buffer: setted", lf...)
+		if logh.InfoEnabled {
+			us.logger.Info().Str(constants.StringsFunc, cFuncAsyncStart).Msg("set buffer: setted")
+		}
 	}
 
 	for {
@@ -84,13 +88,15 @@ func (us UDPserver) asyncStart() {
 		rlen, addr, err := sock.ReadFromUDP(buf)
 		us.incConnectionStats()
 
-		saddr := ""
+		saddr := constants.StringsEmpty
 
 		if addr != nil {
 			saddr = addr.IP.String()
 		}
 		if err != nil {
-			us.logger.Error(fmt.Sprintf("read buffer from %s : %s", saddr, err), lf...)
+			if logh.ErrorEnabled {
+				us.logger.Error().Str(constants.StringsFunc, cFuncAsyncStart).Err(err).Msgf("read buffer from %s", saddr)
+			}
 		} else {
 			go us.handler.HandleUDPpacket(buf[0:rlen], saddr)
 		}

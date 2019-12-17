@@ -8,6 +8,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/uol/gobol"
 	"github.com/uol/gobol/rip"
+	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/metadata"
 	"github.com/uol/mycenae/lib/tsstats"
 )
@@ -73,7 +74,7 @@ func (ks *KeySet) deleteIndex(esIndex string) gobol.Error {
 // Check if a keyspace exists
 func (ks *KeySet) Check(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	keyset := ps.ByName("keyset")
-	if keyset == "" {
+	if keyset == constants.StringsEmpty {
 		rip.AddStatsMap(
 			r,
 			map[string]string{

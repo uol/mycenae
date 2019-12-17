@@ -4,6 +4,7 @@ import (
 	"regexp"
 
 	"github.com/uol/gobol"
+	"github.com/uol/mycenae/lib/constants"
 )
 
 var emailRegex = regexp.MustCompile("^[_A-Za-z0-9-\\+]+(\\.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(\\.[A-Za-z0-9]+)*(\\.[A-Za-z]{2,})$")
@@ -21,7 +22,7 @@ type Config struct {
 // Validate checks if config is valid
 func (c *Config) Validate() gobol.Error {
 
-	if c.Datacenter == "" {
+	if c.Datacenter == constants.StringsEmpty {
 		return errValidationS("CreateKeyspace", "Datacenter cannot be empty or nil")
 	}
 

@@ -5,12 +5,13 @@ import (
 	"os"
 	"time"
 
+	"github.com/uol/gobol/logh"
+
 	"github.com/uol/gobol/util"
 
 	"sync"
 
 	"github.com/samuel/go-zookeeper/zk"
-	"go.uber.org/zap"
 )
 
 //
@@ -26,7 +27,7 @@ type Manager struct {
 	config                         *Config
 	isMaster                       bool
 	defaultACL                     []zk.ACL
-	logger                         *zap.Logger
+	logger                         *logh.ContextualLogger
 	feedbackChannel                chan int
 	clusterConnectionEventChannel  <-chan zk.Event
 	sessionID                      int64
@@ -40,7 +41,7 @@ type Manager struct {
 }
 
 // New - creates a new instance
-func New(config *Config, logger *zap.Logger) (*Manager, error) {
+func New(config *Config) (*Manager, error) {
 
 	sessionTimeoutDuration, err := time.ParseDuration(config.SessionTimeout)
 	if err != nil {
@@ -66,7 +67,7 @@ func New(config *Config, logger *zap.Logger) (*Manager, error) {
 		zkConnection:                   nil,
 		config:                         config,
 		defaultACL:                     zk.WorldACL(zk.PermAll),
-		logger:                         logger,
+		logger:                         logh.CreateContextualLogger("pkg", "election"),
 		feedbackChannel:                make(chan int, defaultChannelSize),
 		clusterConnectionEventChannel:  nil,
 		clusterNodes:                   sync.Map{},
@@ -110,7 +111,9 @@ func (m *Manager) getZKMasterNode() (*string, error) {
 
 	data, err := m.getNodeData(m.config.ZKElectionNodeURI)
 	if err != nil {
-		m.logError("getZKMasterNode", "error retrieving ZK election node data")
+		if logh.ErrorEnabled {
+			m.logger.Error().Err(err).Str("func", "getZKMasterNode").Msg("error retrieving ZK election node data")
+		}
 		return nil, err
 	}
 
@@ -120,7 +123,9 @@ func (m *Manager) getZKMasterNode() (*string, error) {
 // connect - connects to the zookeeper
 func (m *Manager) connect() error {
 
-	m.logInfo("connect", "connecting to zookeeper...")
+	if logh.InfoEnabled {
+		m.logger.Info().Str("func", "connect").Msg("connecting to zookeeper...")
+	}
 
 	var err error
 
@@ -134,7 +139,9 @@ func (m *Manager) connect() error {
 		for {
 
 			if m.terminate {
-				m.logInfo("connect", "ending cluster connection event loop")
+				if logh.InfoEnabled {
+					m.logger.Info().Str("func", "connect").Msg("ending cluster connection event loop")
+				}
 				m.feedbackChannel <- Disconnected
 				return
 			}
@@ -143,25 +150,35 @@ func (m *Manager) connect() error {
 			if event.Type == zk.EventSession {
 				if event.State == zk.StateConnected ||
 					event.State == zk.StateConnectedReadOnly {
-					m.logInfo("connect", "connection established with zookeeper")
+					if logh.InfoEnabled {
+						m.logger.Info().Str("func", "connect").Msg("connection established with zookeeper")
+					}
 				} else if event.State == zk.StateSaslAuthenticated ||
 					event.State == zk.StateHasSession {
-					m.logInfo("connect", "session created in zookeeper")
+					if logh.InfoEnabled {
+						m.logger.Info().Str("func", "connect").Msg("session created in zookeeper")
+					}
 				} else if event.State == zk.StateAuthFailed ||
 					event.State == zk.StateDisconnected ||
 					event.State == zk.StateExpired {
-					m.logInfo("connect", "zookeeper connection was lost")
+					if logh.InfoEnabled {
+						m.logger.Info().Str("func", "connect").Msg("zookeeper connection was lost")
+					}
 					m.Disconnect()
 					m.feedbackChannel <- Disconnected
 					for {
 						<-time.After(m.reconnectionTimeoutDuration)
 						m.zkConnection, m.clusterConnectionEventChannel, err = zk.Connect(m.config.ZKURL, m.sessionTimeoutDuration)
 						if err != nil {
-							m.logError("connect", "error reconnecting to zookeeper: "+err.Error())
+							if logh.ErrorEnabled {
+								m.logger.Error().Str("func", "connect").Err(err).Msg("error reconnecting to zookeeper")
+							}
 						} else {
 							_, err := m.Start()
 							if err != nil {
-								m.logError("connect", "error starting election loop: "+err.Error())
+								if logh.ErrorEnabled {
+									m.logger.Error().Str("func", "connect").Err(err).Msg("error starting election loop")
+								}
 							} else {
 								return
 							}
@@ -182,31 +199,41 @@ func (m *Manager) Start() (*chan int, error) {
 
 	err := m.connect()
 	if err != nil {
-		m.logError("Start", "error connecting to zookeeper: "+err.Error())
+		if logh.ErrorEnabled {
+			m.logger.Error().Str("func", "Start").Err(err).Msg("error connecting to zookeeper")
+		}
 		return nil, err
 	}
 
 	err = m.electForMaster()
 	if err != nil {
-		m.logError("Start", "error electing this node for master: "+err.Error())
+		if logh.ErrorEnabled {
+			m.logger.Error().Str("func", "Start").Err(err).Msg("error electing this node for master")
+		}
 		return nil, err
 	}
 
 	err = m.createSlaveDir("Start")
 	if err != nil {
-		m.logError("Start", "error creating slave directory: "+err.Error())
+		if logh.ErrorEnabled {
+			m.logger.Error().Str("func", "Start").Err(err).Msg("error creating slave directory")
+		}
 		return nil, err
 	}
 
 	err = m.listenForElectionEvents()
 	if err != nil {
-		m.logError("Start", "error listening for zk election node events: "+err.Error())
+		if logh.ErrorEnabled {
+			m.logger.Error().Str("func", "Start").Err(err).Msg("error listening for zk election node events")
+		}
 		return nil, err
 	}
 
 	err = m.listenForNodeEvents()
 	if err != nil {
-		m.logError("Start", "error listening for zk slave node events: "+err.Error())
+		if logh.ErrorEnabled {
+			m.logger.Error().Str("func", "Start").Err(err).Msg("error listening for zk slave node events")
+		}
 		return nil, err
 	}
 
@@ -225,20 +252,28 @@ func (m *Manager) listenForElectionEvents() error {
 		for {
 
 			if m.terminate {
-				m.logInfo("listenForElectionEvents", "ending election events loop")
+				if logh.InfoEnabled {
+					m.logger.Info().Str("func", "listenForElectionEvents").Msg("ending election events loop")
+				}
 				m.feedbackChannel <- Disconnected
 				return
 			}
 
 			event := <-electionEventsChannel
 			if event.Type == zk.EventNodeDeleted {
-				m.logInfo("listenForElectionEvents", "master has quit, trying to be the new master...")
+				if logh.InfoEnabled {
+					m.logger.Info().Str("func", "listenForElectionEvents").Msg("master has quit, trying to be the new master...")
+				}
 				err := m.electForMaster()
 				if err != nil {
-					m.logError("listenForElectionEvents", "error trying to elect this node for master: "+err.Error())
+					if logh.ErrorEnabled {
+						m.logger.Error().Str("func", "listenForElectionEvents").Err(err).Msg("error trying to elect this node for master")
+					}
 				}
 			} else if event.Type == zk.EventNodeCreated {
-				m.logInfo("listenForElectionEvents", "a new master has been elected...")
+				if logh.InfoEnabled {
+					m.logger.Info().Str("func", "listenForElectionEvents").Msg("a new master has been elected...")
+				}
 			}
 		}
 	}()
@@ -263,7 +298,9 @@ func (m *Manager) listenForNodeEvents() error {
 		for {
 
 			if m.terminate {
-				m.logInfo("listenForNodeEvents", "ending node events loop")
+				if logh.InfoEnabled {
+					m.logger.Info().Str("func", "listenForNodeEvents").Msg("ending node events loop")
+				}
 				m.feedbackChannel <- Disconnected
 				return
 			}
@@ -272,7 +309,9 @@ func (m *Manager) listenForNodeEvents() error {
 
 			cluster, err := m.GetClusterInfo()
 			if err != nil {
-				m.logError("listenForNodeEvents", err.Error())
+				if logh.ErrorEnabled {
+					m.logger.Error().Str("func", "listenForNodeEvents").Err(err).Send()
+				}
 			} else {
 				changed := false
 				if len(cluster.Nodes) != util.GetSyncMapSize(&m.clusterNodes) {
@@ -287,7 +326,9 @@ func (m *Manager) listenForNodeEvents() error {
 				}
 
 				if changed {
-					m.logInfo("listenForNodeEvents", "cluster node configuration changed")
+					if logh.InfoEnabled {
+						m.logger.Info().Str("func", "listenForNodeEvents").Msg("cluster node configuration changed")
+					}
 					m.clusterNodes.Range(func(k, _ interface{}) bool {
 						m.clusterNodes.Delete(k)
 						return true
@@ -313,9 +354,13 @@ func (m *Manager) Disconnect() {
 		m.zkConnection.Close()
 		m.feedbackChannel <- Disconnected
 		time.Sleep(2 * time.Second)
-		m.logInfo("Disconnect", "zk connection closed")
+		if logh.InfoEnabled {
+			m.logger.Info().Str("func", "Disconnect").Msg("zk connection closed")
+		}
 	} else {
-		m.logInfo("Disconnect", "zk connection is already closed")
+		if logh.InfoEnabled {
+			m.logger.Info().Str("func", "Disconnect").Msg("zk connection is already closed")
+		}
 	}
 }
 
@@ -324,7 +369,9 @@ func (m *Manager) GetHostname() (string, error) {
 
 	name, err := os.Hostname()
 	if err != nil {
-		m.logError("GetHostname", "could not retrive this node hostname: "+err.Error())
+		if logh.ErrorEnabled {
+			m.logger.Error().Str("func", "GetHostname").Err(err).Msg("could not retrive this node hostname")
+		}
 		return "", err
 	}
 
@@ -342,10 +389,15 @@ func (m *Manager) createSlaveDir(funcName string) error {
 	if data == nil {
 		path, err := m.zkConnection.Create(m.config.ZKSlaveNodesURI, nil, int32(0), m.defaultACL)
 		if err != nil {
-			m.logError(funcName, "error creating slave node directory: "+err.Error())
+			if logh.ErrorEnabled {
+				m.logger.Error().Str("func", funcName).Err(err).Msg("error creating slave node directory")
+			}
 			return err
 		}
-		m.logInfo(funcName, "slave node directory created: "+path)
+
+		if logh.InfoEnabled {
+			m.logger.Info().Str("func", funcName).Msg("slave node directory created: " + path)
+		}
 	}
 
 	return nil
@@ -369,13 +421,19 @@ func (m *Manager) registerAsSlave(nodeName string) error {
 	if data == nil {
 		path, err := m.zkConnection.Create(slaveNode, []byte(nodeName), int32(zk.FlagEphemeral), m.defaultACL)
 		if err != nil {
-			m.logError("registerAsSlave", "error creating a slave node: "+err.Error())
+			if logh.ErrorEnabled {
+				m.logger.Error().Str("func", "registerAsSlave").Err(err).Msg("error creating a slave node")
+			}
 			return err
 		}
 
-		m.logInfo("registerAsSlave", "slave node created: "+path)
+		if logh.InfoEnabled {
+			m.logger.Info().Str("func", "registerAsSlave").Msg("slave node created: " + path)
+		}
 	} else {
-		m.logInfo("registerAsSlave", "slave node already exists: "+slaveNode)
+		if logh.InfoEnabled {
+			m.logger.Info().Str("func", "registerAsSlave").Msg("slave node already exists: " + slaveNode)
+		}
 	}
 
 	m.isMaster = false
@@ -399,10 +457,14 @@ func (m *Manager) electForMaster() error {
 
 	if zkMasterNode != nil {
 		if name == *zkMasterNode {
-			m.logInfo("electForMaster", "this node is the master: "+*zkMasterNode)
+			if logh.InfoEnabled {
+				m.logger.Info().Str("func", "electForMaster").Msg("this node is the master: " + *zkMasterNode)
+			}
 			m.isMaster = true
 		} else {
-			m.logInfo("electForMaster", "another node is the master: "+*zkMasterNode)
+			if logh.InfoEnabled {
+				m.logger.Info().Str("func", "electForMaster").Msg("another node is the master: " + *zkMasterNode)
+			}
 			return m.registerAsSlave(name)
 		}
 	}
@@ -410,31 +472,45 @@ func (m *Manager) electForMaster() error {
 	path, err := m.zkConnection.Create(m.config.ZKElectionNodeURI, []byte(name), int32(zk.FlagEphemeral), m.defaultACL)
 	if err != nil {
 		if err.Error() == "zk: node already exists" {
-			m.logInfo("electForMaster", "some node has became master before this node")
+			if logh.InfoEnabled {
+				m.logger.Info().Str("func", "electForMaster").Msg("some node has became master before this node")
+			}
 			return m.registerAsSlave(name)
 		}
 
-		m.logError("electForMaster", "error creating node: "+err.Error())
+		if logh.ErrorEnabled {
+			m.logger.Error().Str("func", "electForMaster").Err(err).Msg("error creating node")
+		}
+
 		return err
 	}
 
-	m.logInfo("electForMaster", "master node created: "+path)
+	if logh.InfoEnabled {
+		m.logger.Info().Str("func", "electForMaster").Msg("master node created: " + path)
+	}
+
 	m.isMaster = true
 	m.feedbackChannel <- Master
 
 	slaveNode := m.config.ZKSlaveNodesURI + "/" + name
 	slave, err := m.getNodeData(slaveNode)
 	if err != nil {
-		m.logError("electForMaster", fmt.Sprintf("error retrieving a slave node data '%s': %s\n", slaveNode, err.Error()))
+		if logh.ErrorEnabled {
+			m.logger.Error().Str("func", "electForMaster").Err(err).Msgf("error retrieving a slave node data '%s'", slaveNode)
+		}
 		return nil
 	}
 
 	if slave != nil {
 		err = m.zkConnection.Delete(slaveNode, 0)
 		if err != nil {
-			m.logError("electForMaster", fmt.Sprintf("error deleting slave node '%s': %s\n", slaveNode, err.Error()))
+			if logh.ErrorEnabled {
+				m.logger.Error().Str("func", "electForMaster").Err(err).Msgf("error deleting slave node '%s'", slaveNode)
+			}
 		} else {
-			m.logInfo("electForMaster", "slave node deleted: "+slaveNode)
+			if logh.InfoEnabled {
+				m.logger.Info().Str("func", "electForMaster").Msg("slave node deleted: " + slaveNode)
+			}
 		}
 	}
 
@@ -472,7 +548,9 @@ func (m *Manager) GetClusterInfo() (*Cluster, error) {
 	if slaveDir != nil {
 		children, _, err = m.zkConnection.Children(m.config.ZKSlaveNodesURI)
 		if err != nil {
-			m.logError("GetClusterInfo", "error getting slave nodes: "+err.Error())
+			if logh.ErrorEnabled {
+				m.logger.Error().Str("func", "GetClusterInfo").Err(err).Msg("error getting slave nodes")
+			}
 			return nil, err
 		}
 

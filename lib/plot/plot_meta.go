@@ -3,14 +3,14 @@ package plot
 import (
 	"fmt"
 
-	"github.com/uol/gobol"
-	"github.com/uol/mycenae/lib/metadata"
+	"github.com/uol/gobol/logh"
 
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
+	"github.com/uol/gobol"
+	"github.com/uol/mycenae/lib/constants"
+	"github.com/uol/mycenae/lib/metadata"
 )
 
-func (plot Plot) validateKeySet(keyset string) gobol.Error {
+func (plot *Plot) validateKeySet(keyset string) gobol.Error {
 
 	found, gerr := plot.persist.metaStorage.CheckKeySet(keyset)
 	if gerr != nil {
@@ -23,7 +23,7 @@ func (plot Plot) validateKeySet(keyset string) gobol.Error {
 	return nil
 }
 
-func (plot Plot) checkParams(from, size int) (int, int) {
+func (plot *Plot) checkParams(from, size int) (int, int) {
 
 	if from < 0 {
 		from = 0
@@ -36,32 +36,20 @@ func (plot Plot) checkParams(from, size int) (int, int) {
 	return from, size
 }
 
-func (plot Plot) checkTotalTSLimits(log, keyset, metric string, total int) gobol.Error {
+func (plot *Plot) checkTotalTSLimits(message, keyset, metric string, total int) gobol.Error {
 
 	if total > plot.LogQueryTSThreshold {
-		statsQueryTSThreshold(keyset, total)
-		lf := []zapcore.Field{
-			zap.String("package", "plot/plot_meta"),
-			zap.String("func", "checkTotalLimits"),
-			zap.String("keyset", keyset),
-			zap.String("metric", metric),
-			zap.String("total", fmt.Sprintf("%d", total)),
-			zap.String("config LogQueryTSthreshold", fmt.Sprintf("%d", plot.LogQueryTSThreshold)),
+		plot.statsQueryTSThreshold(keyset, total)
+		if logh.WarnEnabled {
+			plot.logger.Warn().Str(constants.StringsFunc, "checkTotalTSLimits").Str("keyset", keyset).Str("metric", metric).Int("total", total).Int("configured", plot.LogQueryTSThreshold).Msgf("reaching max timeseries: ", message)
 		}
-		gblog.Warn(log, lf...)
 	}
 
 	if total > plot.MaxTimeseries {
-		statsQueryTSLimit(keyset, total)
-		lf := []zapcore.Field{
-			zap.String("package", "plot/plot_meta"),
-			zap.String("func", "checkTotalLimits"),
-			zap.String("keyset", keyset),
-			zap.String("metric", metric),
-			zap.String("total", fmt.Sprintf("%d", total)),
-			zap.String("config MaxTimeseries", fmt.Sprintf("%d", plot.MaxTimeseries)),
+		plot.statsQueryTSLimit(keyset, total)
+		if logh.ErrorEnabled {
+			plot.logger.Error().Str(constants.StringsFunc, "checkTotalTSLimits").Str("keyset", keyset).Str("metric", metric).Int("total", total).Int("configured", plot.LogQueryTSThreshold).Msgf("max timeseries reached", message)
 		}
-		gblog.Warn(log, lf...)
 
 		return errValidationS(
 			"checkTotalLimits",
@@ -75,7 +63,7 @@ func (plot Plot) checkTotalTSLimits(log, keyset, metric string, total int) gobol
 	return nil
 }
 
-func (plot Plot) FilterMetrics(keyset, metricName string, size int) ([]string, int, gobol.Error) {
+func (plot *Plot) FilterMetrics(keyset, metricName string, size int) ([]string, int, gobol.Error) {
 
 	err := plot.validateKeySet(keyset)
 	if err != nil {
@@ -89,7 +77,7 @@ func (plot Plot) FilterMetrics(keyset, metricName string, size int) ([]string, i
 	return plot.persist.metaStorage.FilterMetrics(keyset, metricName, size)
 }
 
-func (plot Plot) FilterTagKeys(keyset, tagKname string, size int) ([]string, int, gobol.Error) {
+func (plot *Plot) FilterTagKeys(keyset, tagKname string, size int) ([]string, int, gobol.Error) {
 
 	err := plot.validateKeySet(keyset)
 	if err != nil {
@@ -103,7 +91,7 @@ func (plot Plot) FilterTagKeys(keyset, tagKname string, size int) ([]string, int
 	return plot.persist.metaStorage.FilterTagKeys(keyset, tagKname, size)
 }
 
-func (plot Plot) FilterTagValues(keyset, tagVname string, size int) ([]string, int, gobol.Error) {
+func (plot *Plot) FilterTagValues(keyset, tagVname string, size int) ([]string, int, gobol.Error) {
 
 	err := plot.validateKeySet(keyset)
 	if err != nil {
@@ -118,7 +106,7 @@ func (plot Plot) FilterTagValues(keyset, tagVname string, size int) ([]string, i
 }
 
 // toMetaParam - converts metric and tags to a Metadata struct to be used as query
-func (plot Plot) toMetaParam(metric, tsType string, tags map[string]string) *metadata.Query {
+func (plot *Plot) toMetaParam(metric, tsType string, tags map[string]string) *metadata.Query {
 
 	q := &metadata.Query{
 		Metric:   metric,
@@ -146,7 +134,7 @@ func (plot Plot) toMetaParam(metric, tsType string, tags map[string]string) *met
 }
 
 // toMetaParam - converts metric and tags to a Metadata struct to be used as query
-func (plot Plot) toMetaParamArray(metric, tsType string, tags map[string][]string) *metadata.Query {
+func (plot *Plot) toMetaParamArray(metric, tsType string, tags map[string][]string) *metadata.Query {
 
 	q := &metadata.Query{
 		Metric:   metric,
@@ -180,7 +168,7 @@ func (plot Plot) toMetaParamArray(metric, tsType string, tags map[string][]strin
 }
 
 // extractTagMap - extracts all tags and tag values to
-func (plot Plot) extractTagMap(metadata *metadata.Metadata) map[string]string {
+func (plot *Plot) extractTagMap(metadata *metadata.Metadata) map[string]string {
 
 	tagMap := map[string]string{}
 	for i := 0; i < len(metadata.TagKey); i++ {
@@ -190,7 +178,7 @@ func (plot Plot) extractTagMap(metadata *metadata.Metadata) map[string]string {
 	return tagMap
 }
 
-func (plot Plot) ListMeta(keySet, tsType, metric string, tags map[string]string, onlyids bool, size, from int) ([]TsMetaInfo, int, gobol.Error) {
+func (plot *Plot) ListMeta(keySet, tsType, metric string, tags map[string]string, onlyids bool, size, from int) ([]TsMetaInfo, int, gobol.Error) {
 
 	from, size = plot.checkParams(from, size)
 

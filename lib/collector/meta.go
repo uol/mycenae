@@ -5,6 +5,11 @@ import (
 	"github.com/uol/mycenae/lib/metadata"
 )
 
+const (
+	cMetaTypeNumber string = "meta"
+	cMetaTypeText   string = "metatext"
+)
+
 func (collect *Collector) saveMeta(packet *Point) gobol.Error {
 
 	found := false
@@ -12,9 +17,9 @@ func (collect *Collector) saveMeta(packet *Point) gobol.Error {
 	var gerr gobol.Error
 
 	if packet.Number {
-		found, gerr = collect.persist.CheckMetadata(packet.Keyset, "meta", packet.ID)
+		found, gerr = collect.CheckMetadata(packet.Keyset, cMetaTypeNumber, packet.ID)
 	} else {
-		found, gerr = collect.persist.CheckMetadata(packet.Keyset, "metatext", packet.ID)
+		found, gerr = collect.CheckMetadata(packet.Keyset, cMetaTypeText, packet.ID)
 	}
 
 	if gerr != nil {
@@ -24,9 +29,9 @@ func (collect *Collector) saveMeta(packet *Point) gobol.Error {
 
 	var metaType string
 	if packet.Number {
-		metaType = "meta"
+		metaType = cMetaTypeNumber
 	} else {
-		metaType = "metatext"
+		metaType = cMetaTypeText
 	}
 
 	if !found {
@@ -34,7 +39,7 @@ func (collect *Collector) saveMeta(packet *Point) gobol.Error {
 
 		var tagKeys, tagValues []string
 		for key, value := range packet.Message.Tags {
-			if key != "ksid" {
+			if key != cKSID {
 				tagKeys = append(tagKeys, key)
 				tagValues = append(tagValues, value)
 			}
@@ -48,7 +53,7 @@ func (collect *Collector) saveMeta(packet *Point) gobol.Error {
 			TagValue: tagValues,
 		}
 
-		collect.persist.AddMetadata(packet.Keyset, metadata)
+		collect.AddMetadata(packet.Keyset, metadata)
 	} else {
 		go statsCountOldTimeseries(packet.Keyset, metaType, packet.TTL)
 	}

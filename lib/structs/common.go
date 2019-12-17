@@ -2,22 +2,12 @@ package structs
 
 import (
 	"github.com/uol/gobol/cassandra"
+	"github.com/uol/gobol/logh"
 	"github.com/uol/gobol/snitch"
 	"github.com/uol/mycenae/lib/keyspace"
 	"github.com/uol/mycenae/lib/memcached"
 	"github.com/uol/mycenae/lib/metadata"
-	"go.uber.org/zap"
 )
-
-type LogSetting struct {
-	Level  string
-	Prefix string
-}
-
-type Loggers struct {
-	General *zap.Logger
-	Stats   *zap.Logger
-}
 
 type SettingsHTTP struct {
 	Port              int
@@ -45,9 +35,8 @@ type SettingsUDP struct {
 }
 
 type LoggerSettings struct {
-	Environment string
-	General     LogSetting
-	Stats       LogSetting
+	Level  logh.Level
+	Format logh.Format
 }
 
 type GlobalTelnetServerConfiguration struct {

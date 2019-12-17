@@ -5,6 +5,7 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/uol/gobol/rip"
+	"github.com/uol/mycenae/lib/constants"
 )
 
 // CreateKeySet - creates a new keyset
@@ -12,7 +13,7 @@ func (ks *KeySet) CreateKeySet(w http.ResponseWriter, r *http.Request, ps httpro
 
 	keySetParam := ps.ByName("keyset")
 
-	if keySetParam == "" {
+	if keySetParam == constants.StringsEmpty {
 		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset", "keyset": "empty"})
 		rip.Fail(w, errBadRequest("CreateKeySet", "parameter 'keyset' cannot be empty"))
 		return

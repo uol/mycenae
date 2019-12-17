@@ -5,14 +5,16 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/rs/zerolog"
+	"github.com/uol/gobol/logh"
+
+	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/memcached"
 
 	"github.com/uol/go-solr/solr"
 	"github.com/uol/gobol"
 	"github.com/uol/gobol/solar"
 	"github.com/uol/mycenae/lib/tsstats"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
 // SolrBackend - struct
@@ -22,7 +24,7 @@ type SolrBackend struct {
 	replicationFactor           int
 	regexPattern                *regexp.Regexp
 	stats                       *tsstats.StatsTS
-	logger                      *zap.Logger
+	logger                      *logh.ContextualLogger
 	memcached                   *memcached.Memcached
 	idCacheTTL                  int32
 	queryCacheTTL               int32
@@ -36,9 +38,9 @@ type SolrBackend struct {
 }
 
 // NewSolrBackend - creates a new instance
-func NewSolrBackend(settings *Settings, stats *tsstats.StatsTS, logger *zap.Logger, memcached *memcached.Memcached) (*SolrBackend, error) {
+func NewSolrBackend(settings *Settings, stats *tsstats.StatsTS, memcached *memcached.Memcached) (*SolrBackend, error) {
 
-	ss, err := solar.NewSolrService(settings.URL, logger)
+	ss, err := solar.NewSolrService(settings.URL)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +56,7 @@ func NewSolrBackend(settings *Settings, stats *tsstats.StatsTS, logger *zap.Logg
 	return &SolrBackend{
 		solrService:                 ss,
 		stats:                       stats,
-		logger:                      logger,
+		logger:                      logh.CreateContextualLogger(constants.StringsPKG, "metadata"),
 		replicationFactor:           settings.ReplicationFactor,
 		numShards:                   settings.NumShards,
 		regexPattern:                rp,
@@ -88,7 +90,7 @@ func (sb *SolrBackend) HasRegexPattern(value string) bool {
 }
 
 // extractFacets - extract facets from the solr.SolrResult
-func (sb *SolrBackend) extractFacets(r *solr.SolrResult, field, value string) []string {
+func (sb *SolrBackend) extractFacets(r *solr.SolrResult, field, value, collection string) []string {
 
 	facets := []string{}
 
@@ -114,12 +116,9 @@ func (sb *SolrBackend) extractFacets(r *solr.SolrResult, field, value string) []
 			var err error
 			regexValue, err = regexp.Compile(rawValue)
 			if err != nil {
-				lf := []zapcore.Field{
-					zap.String("package", "metadata"),
-					zap.String("func", "extractFacets"),
-					zap.String("regexp", rawValue),
+				if logh.ErrorEnabled {
+					sb.log(sb.logger.Error(), "extractFacets", collection).Err(err).Msg("error compiling regex")
 				}
-				sb.logger.Error("error compiling regex", lf...)
 			}
 		} else {
 			regexValue = regexp.MustCompile(".*")
@@ -189,7 +188,7 @@ func (sb *SolrBackend) filterFieldValues(collection, action, field, value string
 
 	facets, err := sb.getCachedFacets(collection, field, &query)
 	if err != nil {
-		sb.statsCollectionError(collection, action, "memcached.collection.search.error")
+		sb.statsCollectionError(collection, action, "solr.collection.search.error")
 		return nil, 0, errInternalServer("filterFieldValues", err)
 	}
 
@@ -200,17 +199,17 @@ func (sb *SolrBackend) filterFieldValues(collection, action, field, value string
 
 	q, _ := sb.buildMetadataQuery(&query, true)
 
-	r, e := sb.solrService.Facets(collection, q, "", 0, 0, nil, facetFields, childFacetFields, true, sb.maxReturnedMetadata, 1)
+	r, e := sb.solrService.Facets(collection, q, constants.StringsEmpty, 0, 0, nil, facetFields, childFacetFields, true, sb.maxReturnedMetadata, 1)
 	if e != nil {
 		sb.statsCollectionError(collection, action, "solr.collection.search")
 		return nil, 0, errInternalServer("filterFieldValues", e)
 	}
 
-	facets = sb.extractFacets(r, field, value)
+	facets = sb.extractFacets(r, field, value, collection)
 
 	err = sb.cacheFacets(facets, collection, field, &query)
 	if err != nil {
-		sb.statsCollectionError(collection, action, "memcached.collection.search.error")
+		sb.statsCollectionError(collection, action, "solr.collection.search.error")
 		return nil, 0, errInternalServer("filterFieldValues", err)
 	}
 
@@ -263,7 +262,7 @@ func (sb *SolrBackend) FilterMetrics(collection, prefix string, maxResults int) 
 // SetRegexValue - add slashes to the value
 func (sb *SolrBackend) SetRegexValue(value string) string {
 
-	if value == "" || value == "*" {
+	if value == constants.StringsEmpty || value == "*" {
 		return value
 	}
 
@@ -272,19 +271,19 @@ func (sb *SolrBackend) SetRegexValue(value string) string {
 
 // leaveEmpty - checks if the value is '*' or empty
 func (sb *SolrBackend) leaveEmpty(value string) bool {
-	return value == "" || value == "*" || value == ".*"
+	return value == constants.StringsEmpty || value == "*" || value == ".*"
 }
 
 // buildValuesGroup - builds a set of values to be searched
 func (sb *SolrBackend) buildValuesGroup(field string, values []string, regexp bool) string {
 
 	if values == nil {
-		return ""
+		return constants.StringsEmpty
 	}
 
 	size := len(values)
 	if size == 0 {
-		return ""
+		return constants.StringsEmpty
 	}
 
 	qp := "{!parent which=\"parent_doc:true\"}"
@@ -292,7 +291,7 @@ func (sb *SolrBackend) buildValuesGroup(field string, values []string, regexp bo
 	if size == 1 {
 
 		if sb.leaveEmpty(values[0]) {
-			return ""
+			return constants.StringsEmpty
 		}
 
 		if regexp {
@@ -328,7 +327,7 @@ func (sb *SolrBackend) buildValuesGroup(field string, values []string, regexp bo
 
 // escapeSolrSpecialChars - replaces all Solr special characters
 func (sb *SolrBackend) escapeSolrSpecialChars(value string) string {
-	if value == "" || value == "*" {
+	if value == constants.StringsEmpty || value == "*" {
 		return value
 	}
 	return sb.solrSpecialCharRegexp.ReplaceAllString(value, "\\$1")
@@ -339,7 +338,7 @@ func (sb *SolrBackend) buildMetadataQuery(query *Query, parentQueryOnly bool) (s
 
 	parentQuery := "{!parent which=\"parent_doc:true"
 
-	if query.MetaType != "" {
+	if query.MetaType != constants.StringsEmpty {
 		parentQuery += " AND type:" + query.MetaType
 	}
 
@@ -379,7 +378,7 @@ func (sb *SolrBackend) buildMetadataQuery(query *Query, parentQueryOnly bool) (s
 				parentQuery += ")"
 			}
 
-			if query.Tags[i].Key != "" {
+			if query.Tags[i].Key != constants.StringsEmpty {
 				if query.Tags[i].Regexp {
 					query.Tags[i].Key = sb.SetRegexValue(query.Tags[i].Key)
 				} else {
@@ -428,7 +427,7 @@ func (sb *SolrBackend) buildMetadataQuery(query *Query, parentQueryOnly bool) (s
 			}
 		} else {
 			qf := sb.buildValuesGroup("tag_value", query.Tags[i].Values, query.Tags[i].Regexp)
-			if qf != "" {
+			if qf != constants.StringsEmpty {
 				filterQueries = append(filterQueries, qf)
 			}
 		}
@@ -452,14 +451,14 @@ func (sb *SolrBackend) FilterMetadata(collection string, query *Query, from, max
 
 	sb.statsCollectionAction(collection, "list_metas", "solr.collection.search", time.Since(start))
 
-	return sb.fromDocuments(r.Results), r.Results.NumFound, nil
+	return sb.fromDocuments(r.Results, collection), r.Results.NumFound, nil
 }
 
 // toDocument - changes the metadata to the document format
 func (sb *SolrBackend) toDocument(metadata *Metadata, collection string) (docs *solr.Document, id string) {
 
 	if metadata == nil {
-		return nil, ""
+		return nil, constants.StringsEmpty
 	}
 
 	metadata.Keyset = collection
@@ -486,17 +485,13 @@ func (sb *SolrBackend) toDocument(metadata *Metadata, collection string) (docs *
 }
 
 // getTagKeysAndValues - extracts the array from the document
-func (sb *SolrBackend) getTagKeysAndValues(document *solr.Document) ([]string, []string) {
+func (sb *SolrBackend) getTagKeysAndValues(document *solr.Document, collection string) ([]string, []string) {
 
 	childDocs := document.Get("_childDocuments_")
 	if childDocs == nil {
-
-		lf := []zapcore.Field{
-			zap.String("package", "metadata"),
-			zap.String("func", "getTagKeysAndValues"),
+		if logh.ErrorEnabled {
+			sb.log(sb.logger.Error(), "getTagKeysAndValues", collection).Msgf("no \"_childDocuments_\": %v", document)
 		}
-
-		sb.logger.Error(fmt.Sprintf("no \"_childDocuments_\": %v", document), lf...)
 
 		return []string{}, []string{}
 	}
@@ -509,13 +504,9 @@ func (sb *SolrBackend) getTagKeysAndValues(document *solr.Document) ([]string, [
 	for i := 0; i < len(rawArray); i++ {
 		rawTags := rawArray[i]
 		if rawTags == nil {
-
-			lf := []zapcore.Field{
-				zap.String("package", "metadata"),
-				zap.String("func", "getTagKeysAndValues"),
+			if logh.ErrorEnabled {
+				sb.log(sb.logger.Error(), "getTagKeysAndValues", collection).Msgf("no \"raw tags\": %v", document)
 			}
-
-			sb.logger.Error(fmt.Sprintf("no \"raw tags\": %v", document), lf...)
 
 			continue
 		}
@@ -528,7 +519,7 @@ func (sb *SolrBackend) getTagKeysAndValues(document *solr.Document) ([]string, [
 }
 
 // fromDocuments - converts all documents to metadata format
-func (sb *SolrBackend) fromDocuments(results *solr.Collection) []Metadata {
+func (sb *SolrBackend) fromDocuments(results *solr.Collection, collection string) []Metadata {
 
 	if results == nil {
 		return nil
@@ -543,7 +534,7 @@ func (sb *SolrBackend) fromDocuments(results *solr.Collection) []Metadata {
 	metadatas := make([]Metadata, len(docs))
 	for i, doc := range docs {
 
-		keys, values := sb.getTagKeysAndValues(&doc)
+		keys, values := sb.getTagKeysAndValues(&doc, collection)
 
 		metadatas[i] = Metadata{
 			ID:       doc.Get("id").(string),
@@ -557,6 +548,11 @@ func (sb *SolrBackend) fromDocuments(results *solr.Collection) []Metadata {
 	return metadatas
 }
 
+// log - add the common log fields
+func (sb *SolrBackend) log(event *zerolog.Event, funcName, keyset string) *zerolog.Event {
+	return event.Str(constants.StringsFunc, funcName).Str("keyset", keyset)
+}
+
 // AddDocument - add/update a document
 func (sb *SolrBackend) AddDocument(collection string, metadata *Metadata) gobol.Error {
 
@@ -564,23 +560,19 @@ func (sb *SolrBackend) AddDocument(collection string, metadata *Metadata) gobol.
 
 	doc, id := sb.toDocument(metadata, collection)
 
-	lf := []zapcore.Field{
-		zap.String("package", "metadata"),
-		zap.String("func", "AddDocument"),
-		zap.String("collection", collection),
+	if logh.InfoEnabled {
+		sb.log(sb.logger.Info(), "AddDocument", collection).Msgf("adding document: %s", id)
 	}
-
-	sb.logger.Info("adding document: "+id, lf...)
 
 	err := sb.solrService.AddDocument(collection, true, doc)
 	if err != nil {
-		sb.statsCollectionError(collection, "add_documents", "solr.collection.add")
+		sb.statsCollectionError(collection, "add_documents", "solr.collection.error")
 		return errInternalServer("AddDocument", err)
 	}
 
 	go sb.cacheID(collection, metadata.MetaType, metadata.ID)
 
-	sb.statsCollectionAction(collection, "add_documents", "solr.collection.add", time.Since(start))
+	sb.statsCollectionAction(collection, "add_documents", "solr.collection", time.Since(start))
 
 	return nil
 }
@@ -600,14 +592,14 @@ func (sb *SolrBackend) CheckMetadata(collection, tsType, tsid string) (bool, gob
 	start := time.Now()
 
 	q := fmt.Sprintf("parent_doc:true AND id:%s AND type:%s", tsid, tsType)
-	r, e := sb.solrService.SimpleQuery(collection, q, "", 0, 0)
+	r, e := sb.solrService.SimpleQuery(collection, q, constants.StringsEmpty, 0, 0)
 
 	if e != nil {
-		sb.statsCollectionError(collection, "check_metadata", "solr.collection.search.error")
+		sb.statsCollectionError(collection, "check_metadata", "solr.collection.error")
 		return false, errInternalServer("CheckMetadata", err)
 	}
 
-	sb.statsCollectionAction(collection, "check_metadata", "solr.collection.search", time.Since(start))
+	sb.statsCollectionAction(collection, "check_metadata", "solr.collection", time.Since(start))
 
 	if r.Results.NumFound > 0 {
 		go sb.cacheID(collection, tsType, tsid)
@@ -626,13 +618,13 @@ func (sb *SolrBackend) DeleteDocumentByID(collection, tsType, id string) gobol.E
 
 	err := sb.solrService.DeleteDocumentByID(collection, true, queryID)
 	if err != nil {
-		sb.statsCollectionError(collection, "delete_document", "solr.collection.delete")
+		sb.statsCollectionError(collection, "delete_document", "solr.collection.error")
 		return errInternalServer("DeleteDocumentByID", err)
 	}
 
 	go sb.DeleteCachedIDifExist(collection, tsType, id)
 
-	sb.statsCollectionAction(collection, "delete_document", "solr.collection.delete", time.Since(start))
+	sb.statsCollectionAction(collection, "delete_document", "solr.collection", time.Since(start))
 
 	return nil
 }
@@ -640,28 +632,26 @@ func (sb *SolrBackend) DeleteDocumentByID(collection, tsType, id string) gobol.E
 // DeleteCachedIDifExist - check if ID is cached and delete it
 func (sb *SolrBackend) DeleteCachedIDifExist(collection, tsType, id string) gobol.Error {
 
-	lf := []zapcore.Field{
-		zap.String("package", "metadata"),
-		zap.String("func", "DeleteCachedIDifExist"),
-		zap.String("collection", collection),
-		zap.String("tsType", tsType),
-		zap.String("id", id),
-	}
-
-	isCached, er := sb.isIDCached(collection, tsType, id)
-	if er != nil {
-		sb.logger.Error("error getting tsid from the cache", lf...)
-		return errInternalServer("DeleteCachedIDifExist", er)
+	isCached, err := sb.isIDCached(collection, tsType, id)
+	if err != nil {
+		if logh.ErrorEnabled {
+			sb.log(sb.logger.Error(), "DeleteCachedIDifExist", collection).Err(err).Msg("error getting tsid from the cache")
+		}
+		return errInternalServer("DeleteCachedIDifExist", err)
 	}
 
 	if isCached {
-		er = sb.deleteCachedID(collection, tsType, id)
-		if er != nil {
-			sb.logger.Error("error deleting tsid from cache", lf...)
-			return errInternalServer("DeleteCachedIDifExist", er)
+		err = sb.deleteCachedID(collection, tsType, id)
+		if err != nil {
+			if logh.ErrorEnabled {
+				sb.log(sb.logger.Error(), "DeleteCachedIDifExist", collection).Err(err).Msg("error deleting tsid from cache")
+			}
+			return errInternalServer("DeleteCachedIDifExist", err)
 		}
 
-		sb.logger.Info("deleted cached tsid", lf...)
+		if logh.DebugEnabled {
+			sb.log(sb.logger.Debug(), "DeleteCachedIDifExist", collection).Msg("deleted cached tsid")
+		}
 	}
 
 	return nil
@@ -703,7 +693,7 @@ func (sb *SolrBackend) filterTagsByMetric(collection, tsType, metric, childrenQu
 
 	facets, gerr := sb.getCachedFacets(collection, field, cacheKey)
 	if gerr != nil {
-		sb.statsCollectionError(collection, action, "memcached.collection.search.error")
+		sb.statsCollectionError(collection, action, "solr.collection.error")
 		return nil, 0, errInternalServer(functionName, gerr)
 	}
 
@@ -712,23 +702,23 @@ func (sb *SolrBackend) filterTagsByMetric(collection, tsType, metric, childrenQu
 		return cropped, len(facets), nil
 	}
 
-	r, err := sb.solrService.Facets(collection, query, "", 0, 0, filterQueries, nil, []string{field}, true, maxResults, 0)
+	r, err := sb.solrService.Facets(collection, query, constants.StringsEmpty, 0, 0, filterQueries, nil, []string{field}, true, maxResults, 0)
 	if err != nil {
-		sb.statsCollectionError(collection, action, "solr.collection.search.error")
+		sb.statsCollectionError(collection, action, "solr.collection.error")
 		return nil, 0, errInternalServer(functionName, err)
 	}
 
-	facets = sb.extractFacets(r, field, prefix)
+	facets = sb.extractFacets(r, field, prefix, collection)
 
 	err = sb.cacheFacets(facets, collection, field, cacheKey)
 	if err != nil {
-		sb.statsCollectionError(collection, action, "memcached.collection.search.error")
+		sb.statsCollectionError(collection, action, "solr.collection.error")
 		return nil, 0, errInternalServer(functionName, err)
 	}
 
 	cropped := sb.cropFacets(facets, maxResults)
 
-	sb.statsCollectionAction(collection, action, "solr.collection.search", time.Since(start))
+	sb.statsCollectionAction(collection, action, "solr.collection", time.Since(start))
 
 	return cropped, len(facets), nil
 }

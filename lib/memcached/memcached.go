@@ -1,15 +1,23 @@
 package memcached
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/rainycape/memcache"
-	"github.com/uol/gobol"
+	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/tsstats"
 )
 
 // Manages the memcached operations
 // @author rnojiri
+
+const (
+	cGet    = "get"
+	cPut    = "put"
+	cDelete = "delete"
+	cBar    = "/"
+)
 
 // Configuration - memcached configuration
 type Configuration struct {
@@ -24,18 +32,18 @@ type Memcached struct {
 }
 
 // New - initializes
-func New(s *tsstats.StatsTS, c *Configuration) (*Memcached, gobol.Error) {
+func New(s *tsstats.StatsTS, c *Configuration) (*Memcached, error) {
 
 	stats = s
 
 	timeoutDuration, err := time.ParseDuration(c.Timeout)
 	if err != nil {
-		return nil, errInternalServerErrorM("New", "error parsing memcached timeout")
+		return nil, err
 	}
 
 	client, err := memcache.New(c.Pool...)
 	if err != nil {
-		return nil, errInternalServerErrorM("New", "error creating a new memcached client")
+		return nil, err
 	}
 
 	mc := &Memcached{
@@ -49,24 +57,24 @@ func New(s *tsstats.StatsTS, c *Configuration) (*Memcached, gobol.Error) {
 }
 
 // fqn - builds a new fully qualified name using the specified strings
-func (mc *Memcached) fqn(namespace string, fqnKeys ...string) (string, gobol.Error) {
+func (mc *Memcached) fqn(namespace string, fqnKeys ...string) (string, error) {
 
 	if fqnKeys == nil || len(fqnKeys) == 0 {
-		return "", errInternalServerErrorM("fqn", "no fqn composition keys found")
+		return constants.StringsEmpty, fmt.Errorf("no fqn composition keys found")
 	}
 
-	result := namespace + "/"
+	result := namespace + cBar
 
 	for _, item := range fqnKeys {
 		result += item
-		result += "/"
+		result += cBar
 	}
 
 	return result, nil
 }
 
 // Get - returns an object from the cache
-func (mc *Memcached) Get(namespace string, fqnKeys ...string) ([]byte, gobol.Error) {
+func (mc *Memcached) Get(namespace string, fqnKeys ...string) ([]byte, error) {
 
 	start := time.Now()
 
@@ -76,10 +84,9 @@ func (mc *Memcached) Get(namespace string, fqnKeys ...string) ([]byte, gobol.Err
 		return nil, err
 	}
 
-	item, error := mc.client.Get(fqn)
-
-	if error != nil && error != memcache.ErrCacheMiss {
-		return nil, errInternalServerError("get", "error retrieving value from "+fqn, error)
+	item, err := mc.client.Get(fqn)
+	if err != nil && err != memcache.ErrCacheMiss {
+		return nil, err
 	}
 
 	if item == nil || item.Value == nil {
@@ -87,13 +94,13 @@ func (mc *Memcached) Get(namespace string, fqnKeys ...string) ([]byte, gobol.Err
 		return nil, nil
 	}
 
-	statsSuccess("Get", namespace, time.Since(start))
+	statsSuccess(cGet, namespace, time.Since(start))
 
 	return item.Value, nil
 }
 
 // Put - puts an object in the cache
-func (mc *Memcached) Put(value []byte, ttl int32, namespace string, fqnKeys ...string) gobol.Error {
+func (mc *Memcached) Put(value []byte, ttl int32, namespace string, fqnKeys ...string) error {
 
 	start := time.Now()
 
@@ -109,20 +116,19 @@ func (mc *Memcached) Put(value []byte, ttl int32, namespace string, fqnKeys ...s
 		Expiration: ttl,
 	}
 
-	error := mc.client.Set(item)
-
-	if error != nil {
-		statsError("Put", namespace)
-		return errInternalServerError("put", "error adding data on "+fqn, err)
+	err = mc.client.Set(item)
+	if err != nil {
+		statsError(cPut, namespace)
+		return err
 	}
 
-	statsSuccess("put", namespace, time.Since(start))
+	statsSuccess(cPut, namespace, time.Since(start))
 
 	return nil
 }
 
 // Delete - deletes an object from the cache
-func (mc *Memcached) Delete(namespace string, fqnKeys ...string) gobol.Error {
+func (mc *Memcached) Delete(namespace string, fqnKeys ...string) error {
 
 	start := time.Now()
 
@@ -134,11 +140,11 @@ func (mc *Memcached) Delete(namespace string, fqnKeys ...string) gobol.Error {
 
 	error := mc.client.Delete(fqn)
 	if error != nil && error != memcache.ErrCacheMiss {
-		statsError("delete", namespace)
-		return errInternalServerError("delete", "error removing data on "+fqn, error)
+		statsError(cDelete, namespace)
+		return err
 	}
 
-	statsSuccess("delete", namespace, time.Since(start))
+	statsSuccess(cDelete, namespace, time.Since(start))
 
 	return nil
 }

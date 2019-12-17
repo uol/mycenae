@@ -4,17 +4,14 @@ import (
 	"errors"
 	"unsafe"
 
+	"github.com/uol/gobol/logh"
+
 	"github.com/gocql/gocql"
 	"github.com/uol/gobol"
-	"go.uber.org/zap"
 
+	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/metadata"
 	"github.com/uol/mycenae/lib/tsstats"
-)
-
-var (
-	gblog *zap.Logger
-	stats *tsstats.StatsTS
 )
 
 type persistence struct {
@@ -24,11 +21,11 @@ type persistence struct {
 	constPartBytesFromTextPoint   uintptr
 	stringSize                    uintptr
 	maxBytesErr                   error
+	stats                         *tsstats.StatsTS
+	logger                        *logh.ContextualLogger
 }
 
 func New(
-	gbl *zap.Logger,
-	sts *tsstats.StatsTS,
 	cass *gocql.Session,
 	metaStorage *metadata.Storage,
 	maxTimeseries int,
@@ -37,11 +34,8 @@ func New(
 	defaultTTL int,
 	defaultMaxResults int,
 	maxBytesLimit uint32,
-
+	stats *tsstats.StatsTS,
 ) (*Plot, gobol.Error) {
-
-	gblog = gbl
-	stats = sts
 
 	if maxTimeseries < 1 {
 		return nil, errInit("MaxTimeseries needs to be bigger than zero")
@@ -51,34 +45,40 @@ func New(
 		return nil, errInit("LogQueryTSthreshold needs to be bigger than zero")
 	}
 
-	stringSize := unsafe.Sizeof("")
+	stringSize := unsafe.Sizeof(constants.StringsEmpty)
 
 	return &Plot{
 		MaxTimeseries:       maxTimeseries,
 		LogQueryTSThreshold: logQueryTSthreshold,
-		persist: persistence{
+		persist: &persistence{
+			stats:                         stats,
 			cassandra:                     cass,
 			metaStorage:                   metaStorage,
 			stringSize:                    stringSize,
 			constPartBytesFromNumberPoint: unsafe.Sizeof(Pnt{}),                  //removing the tsid part because it's a string
 			constPartBytesFromTextPoint:   unsafe.Sizeof(TextPnt{}) - stringSize, //removing the tsid and value because they are all strings
 			maxBytesErr:                   errors.New("payload too large"),
+			logger:                        logh.CreateContextualLogger(constants.StringsPKG, "plot/persistence"),
 		},
 		keyspaceTTLMap:    keyspaceTTLMap,
 		defaultTTL:        defaultTTL,
 		defaultMaxResults: defaultMaxResults,
 		maxBytesLimit:     maxBytesLimit,
+		logger:            logh.CreateContextualLogger(constants.StringsPKG, "plot"),
+		stats:             stats,
 	}, nil
 }
 
 type Plot struct {
 	MaxTimeseries       int
 	LogQueryTSThreshold int
-	persist             persistence
+	persist             *persistence
 	keyspaceTTLMap      map[int]string
 	defaultTTL          int
 	defaultMaxResults   int
 	maxBytesLimit       uint32
+	stats               *tsstats.StatsTS
+	logger              *logh.ContextualLogger
 }
 
 // getStringSize - calculates the string size

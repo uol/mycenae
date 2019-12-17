@@ -6,6 +6,7 @@ import (
 
 	"github.com/uol/gobol"
 
+	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/structs"
 )
 
@@ -14,7 +15,7 @@ func parseDownsample(exp string, tsdb *structs.TSDBquery) (string, gobol.Error) 
 	params := parseParams(string(exp[10:]))
 
 	if len(params) != 4 {
-		return "", errParams(
+		return constants.StringsEmpty, errParams(
 			"parseDownsample",
 			"downsample needs 4 parameters: downsample operation, downsample period, fill option and a function",
 			fmt.Errorf("downsample expects 4 parameters but found %d: %v", len(params), params),
@@ -25,7 +26,7 @@ func parseDownsample(exp string, tsdb *structs.TSDBquery) (string, gobol.Error) 
 
 	for _, oper := range tsdb.Order {
 		if oper == "downsample" {
-			return "", errDoubleFunc("parseDownsample", "downsample")
+			return constants.StringsEmpty, errDoubleFunc("parseDownsample", "downsample")
 		}
 	}
 
@@ -35,7 +36,7 @@ func parseDownsample(exp string, tsdb *structs.TSDBquery) (string, gobol.Error) 
 }
 
 func writeDownsample(exp, dsInfo string) string {
-	if dsInfo != "" {
+	if dsInfo != constants.StringsEmpty {
 		info := strings.Split(dsInfo, "-")
 		if len(info) == 2 {
 			info = append(info, "none")

@@ -10,6 +10,7 @@ import (
 	"github.com/uol/gobol"
 	"github.com/uol/gobol/rip"
 
+	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/parser"
 	"github.com/uol/mycenae/lib/structs"
 )
@@ -38,7 +39,7 @@ func (plot *Plot) ExpressionCheckGET(w http.ResponseWriter, r *http.Request, _ h
 
 func (plot *Plot) ExpressionCheck(w http.ResponseWriter, expQuery ExpQuery) {
 
-	if expQuery.Expression == "" {
+	if expQuery.Expression == constants.StringsEmpty {
 		gerr := errEmptyExpression("ExpressionCheck")
 		rip.Fail(w, gerr)
 		return
@@ -73,7 +74,7 @@ func (plot *Plot) ExpressionCheck(w http.ResponseWriter, expQuery ExpQuery) {
 func (plot *Plot) ExpressionQueryPOST(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	keyset := ps.ByName("keyset")
-	if keyset == "" {
+	if keyset == constants.StringsEmpty {
 		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/query/expression", "keyset": "empty"})
 		rip.Fail(w, errNotFound("ExpressionQueryPOST"))
 		return
@@ -95,7 +96,7 @@ func (plot *Plot) ExpressionQueryPOST(w http.ResponseWriter, r *http.Request, ps
 func (plot *Plot) ExpressionQueryGET(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	keyset := ps.ByName("keyset")
-	if keyset == "" {
+	if keyset == constants.StringsEmpty {
 		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/query/expression", "keyset": "empty"})
 		rip.Fail(w, errNotFound("ExpressionQueryGET"))
 		return
@@ -112,7 +113,7 @@ func (plot *Plot) ExpressionQueryGET(w http.ResponseWriter, r *http.Request, ps 
 
 func (plot *Plot) expressionQuery(w http.ResponseWriter, r *http.Request, keyset string, expQuery ExpQuery) {
 
-	if expQuery.Expression == "" {
+	if expQuery.Expression == constants.StringsEmpty {
 		gerr := errEmptyExpression("expressionQuery")
 		rip.Fail(w, gerr)
 		return
@@ -128,7 +129,7 @@ func (plot *Plot) expressionQuery(w http.ResponseWriter, r *http.Request, keyset
 
 	tsuid := false
 	tsuidStr := r.URL.Query().Get("tsuid")
-	if tsuidStr != "" {
+	if tsuidStr != constants.StringsEmpty {
 		b, err := strconv.ParseBool(tsuidStr)
 		if err != nil {
 			gerr := errValidationE("expressionQuery", err)
@@ -179,7 +180,7 @@ func (plot *Plot) ExpressionParsePOST(w http.ResponseWriter, r *http.Request, ps
 		return
 	}
 
-	if expQuery.Keyset != "" {
+	if expQuery.Keyset != constants.StringsEmpty {
 		rip.AddStatsMap(r, map[string]string{"ksid": expQuery.Keyset})
 	}
 
@@ -195,12 +196,12 @@ func (plot *Plot) ExpressionParseGET(w http.ResponseWriter, r *http.Request, _ h
 		Keyset:     query.Get("ksid"),
 	}
 
-	if expQuery.Keyset != "" {
+	if expQuery.Keyset != constants.StringsEmpty {
 		rip.AddStatsMap(r, map[string]string{"ksid": expQuery.Keyset})
 	}
 
 	expandStr := query.Get("expand")
-	if expandStr == "" {
+	if expandStr == constants.StringsEmpty {
 		expandStr = "false"
 	}
 	expand, err := strconv.ParseBool(expandStr)
@@ -217,7 +218,7 @@ func (plot *Plot) ExpressionParseGET(w http.ResponseWriter, r *http.Request, _ h
 
 func (plot *Plot) expressionParse(w http.ResponseWriter, expQuery ExpParse) {
 
-	if expQuery.Expression == "" {
+	if expQuery.Expression == constants.StringsEmpty {
 		gerr := errEmptyExpression("expressionParse")
 		rip.Fail(w, gerr)
 		return
@@ -225,7 +226,7 @@ func (plot *Plot) expressionParse(w http.ResponseWriter, expQuery ExpParse) {
 
 	if expQuery.Expand {
 
-		if expQuery.Keyset == "" {
+		if expQuery.Keyset == constants.StringsEmpty {
 			gerr := errValidationS("expressionParse", `When expand true, ksid can not be empty`)
 			rip.Fail(w, gerr)
 			return
@@ -295,7 +296,7 @@ func (plot *Plot) ExpressionCompile(w http.ResponseWriter, r *http.Request, _ ht
 		return
 	}
 
-	if tsdb.Relative == "" {
+	if tsdb.Relative == constants.StringsEmpty {
 		gerr := errValidationS("ExpressionCompile", "field relative can not be empty")
 		rip.Fail(w, gerr)
 		return
@@ -317,7 +318,7 @@ func (plot *Plot) ExpressionExpandPOST(w http.ResponseWriter, r *http.Request, p
 	expQuery := ExpQuery{}
 
 	keyset := ps.ByName("keyset")
-	if keyset == "" {
+	if keyset == constants.StringsEmpty {
 		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/expression/expand", "keyset": "empty"})
 		rip.Fail(w, errNotFound("ExpressionExpandPOST"))
 		return
@@ -341,7 +342,7 @@ func (plot *Plot) ExpressionExpandGET(w http.ResponseWriter, r *http.Request, ps
 	}
 
 	keyset := ps.ByName("keyset")
-	if keyset == "" {
+	if keyset == constants.StringsEmpty {
 		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/expression/expand", "keyset": "empty"})
 		rip.Fail(w, errNotFound("ExpressionExpandGET"))
 		return
@@ -354,7 +355,7 @@ func (plot *Plot) ExpressionExpandGET(w http.ResponseWriter, r *http.Request, ps
 
 func (plot *Plot) expressionExpand(w http.ResponseWriter, keyset string, expQuery ExpQuery) {
 
-	if expQuery.Expression == "" {
+	if expQuery.Expression == constants.StringsEmpty {
 		gerr := errEmptyExpression("expressionExpand")
 		rip.Fail(w, gerr)
 		return
@@ -475,7 +476,7 @@ func (plot *Plot) expandStruct(
 
 					if !found {
 
-						if tsobjs[0].Tags[filter.Tagk] == "" {
+						if tsobjs[0].Tags[filter.Tagk] == constants.StringsEmpty {
 							breakOp = true
 							break
 						}

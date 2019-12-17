@@ -4,15 +4,17 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/uol/gobol/logh"
+
 	"github.com/gocql/gocql"
 	"github.com/uol/gobol"
+	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/tsstats"
-	"go.uber.org/zap"
 )
 
 type scylladb struct {
 	session       *gocql.Session
-	logger        *zap.Logger
+	logger        *logh.ContextualLogger
 	stats         *tsstats.StatsTS
 	ksMngr        string
 	grantUsername string
@@ -24,14 +26,13 @@ func newScyllaPersistence(
 	ksAdmin string,
 	grantUsername string,
 	session *gocql.Session,
-	logger *zap.Logger,
 	stats *tsstats.StatsTS,
 	devMode bool,
 	defaultTTL int,
 ) (Backend, error) {
 	return &scylladb{
 		session:       session,
-		logger:        logger,
+		logger:        logh.CreateContextualLogger(constants.StringsPKG, "persistence"),
 		stats:         stats,
 		ksMngr:        ksAdmin,
 		grantUsername: grantUsername,
@@ -86,7 +87,7 @@ func (backend *scylladb) CreateKeyspace(
 		return err
 	}
 
-	backend.statsQuery(keyspace.Name, "", "create", time.Since(start))
+	backend.statsQuery(keyspace.Name, constants.StringsEmpty, "create", time.Since(start))
 	return nil
 }
 
@@ -94,11 +95,11 @@ func (backend *scylladb) DeleteKeyspace(id string) gobol.Error {
 	start := time.Now()
 	query := fmt.Sprintf(formatDeleteKeyspace, id)
 	if err := backend.session.Query(query).Exec(); err != nil {
-		backend.statsQueryError(id, "", "drop")
+		backend.statsQueryError(id, constants.StringsEmpty, "drop")
 		return errPersist("DeleteKeyspace", "scylladb", err)
 	}
 
-	backend.statsQuery(id, "", "drop", time.Since(start))
+	backend.statsQuery(id, constants.StringsEmpty, "drop", time.Since(start))
 	return nil
 }
 
@@ -176,7 +177,7 @@ func (backend *scylladb) UpdateKeyspace(
 	if _, found, err := backend.GetKeyspace(ksid); err != nil {
 		return err
 	} else if !found {
-		return errNotFound("UpdateKeyspace", "scylladb", "")
+		return errNotFound("UpdateKeyspace", "scylladb", constants.StringsEmpty)
 	}
 
 	if err := backend.session.Query(

@@ -4,25 +4,29 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/uol/gobol/logh"
+
 	"github.com/uol/gobol"
+	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/utils"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
 var (
-	makePacketLogFields = []zapcore.Field{
-		zap.String("package", "collector"),
-		zap.String("func", "makePacket"),
-	}
-
 	errGenericValidation = errValidation("error in point validation")
+)
+
+const (
+	cTTL            string = "ttl"
+	cKSID           string = "ksid"
+	cTextTSIDFormat string = "T%v"
 )
 
 // logPointError - logs the point error
 func (collector *Collector) logPointError(point *TSDBpoint, err gobol.Error) {
 
-	gblog.Warn(fmt.Sprintf("point validation error: %+v (%s)", *point, err.Error()), makePacketLogFields...)
+	if logh.ErrorEnabled {
+		collector.logger.Error().Err(err).Msgf("point validation error: %+v", *point)
+	}
 }
 
 // MakePacket - validates a point and fills the packet
@@ -38,7 +42,7 @@ func (collector *Collector) MakePacket(rcvMsg *TSDBpoint, number bool) (*Point, 
 			return nil, err
 		}
 	} else {
-		if rcvMsg.Text == "" {
+		if rcvMsg.Text == constants.StringsEmpty {
 			if collector.settings.SilencePointValidationErrors {
 				return nil, errGenericValidation
 			}
@@ -85,7 +89,7 @@ func (collector *Collector) MakePacket(rcvMsg *TSDBpoint, number bool) (*Point, 
 	packet := &Point{}
 
 	var ok bool
-	if packet.Keyset, ok = rcvMsg.Tags["ksid"]; !ok {
+	if packet.Keyset, ok = rcvMsg.Tags[cKSID]; !ok {
 		if collector.settings.SilencePointValidationErrors {
 			return nil, errGenericValidation
 		}
@@ -108,7 +112,7 @@ func (collector *Collector) MakePacket(rcvMsg *TSDBpoint, number bool) (*Point, 
 		return nil, err
 	}
 
-	if strTTL, ok := rcvMsg.Tags["ttl"]; !ok {
+	if strTTL, ok := rcvMsg.Tags[cTTL]; !ok {
 		packet.TTL = collector.settings.DefaultTTL
 		lt++
 	} else {
@@ -126,7 +130,7 @@ func (collector *Collector) MakePacket(rcvMsg *TSDBpoint, number bool) (*Point, 
 		}
 		packet.TTL = ttl
 	}
-	rcvMsg.Tags["ttl"] = strconv.Itoa(packet.TTL)
+	rcvMsg.Tags[cTTL] = strconv.Itoa(packet.TTL)
 
 	if lt == 2 {
 		if collector.settings.SilencePointValidationErrors {
@@ -166,7 +170,7 @@ func (collector *Collector) MakePacket(rcvMsg *TSDBpoint, number bool) (*Point, 
 		}
 	}
 
-	keySetExists, gerr := collector.persist.metaStorage.CheckKeySet(packet.Keyset)
+	keySetExists, gerr := collector.metaStorage.CheckKeySet(packet.Keyset)
 	if gerr != nil {
 		if collector.settings.SilencePointValidationErrors {
 			return nil, errGenericValidation
@@ -208,7 +212,7 @@ func (collector *Collector) MakePacket(rcvMsg *TSDBpoint, number bool) (*Point, 
 	}
 
 	if !number {
-		packet.ID = fmt.Sprintf("T%v", packet.ID)
+		packet.ID = fmt.Sprintf(cTextTSIDFormat, packet.ID)
 	}
 
 	return packet, nil

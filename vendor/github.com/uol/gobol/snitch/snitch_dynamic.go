@@ -2,12 +2,11 @@ package snitch
 
 import (
 	"errors"
+	"github.com/uol/gobol/logh"
 	"sort"
 	"strings"
 
 	"github.com/robfig/cron"
-
-	"go.uber.org/zap"
 )
 
 func keyFromMetricID(metric string, tags map[string]string) string {
@@ -80,13 +79,9 @@ func (st *Stats) getPoint(
 		post: func(p *CustomPoint) {
 
 			if st.raiseDebugVerbosity {
-				st.logger.Debug(
-					"collected",
-					zap.String("metric", p.metric),
-					zap.String("interval", p.interval),
-					zap.Float64("value", p.GetValue()),
-					zap.Bool("null", p.IsValueNull()),
-				)
+				if logh.DebugEnabled {
+					st.logger.Debug().Str("func", "getPoint").Str("metric", p.metric).Str("interval", p.interval).Float64("value", p.GetValue()).Bool("null", p.IsValueNull()).Msg("collected")
+				}
 			}
 
 			if p.aggregation != "" || !p.keepValue {

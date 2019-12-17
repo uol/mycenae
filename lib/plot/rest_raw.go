@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/uol/gobol"
+	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/utils"
 
 	"github.com/uol/gobol/rip"
@@ -67,7 +68,7 @@ func (plot *Plot) RawDataQuery(w http.ResponseWriter, r *http.Request, ps httpro
 		return
 	}
 
-	if rawQuery.Until != "" {
+	if rawQuery.Until != constants.StringsEmpty {
 		qp.until, gerr = plot.getNowMinusDuration(rawQuery.Until)
 		if gerr != nil {
 			rip.Fail(w, gerr)

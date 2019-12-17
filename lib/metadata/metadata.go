@@ -2,9 +2,10 @@ package metadata
 
 import (
 	"github.com/uol/gobol"
+	"github.com/uol/gobol/logh"
+	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/memcached"
 	"github.com/uol/mycenae/lib/tsstats"
-	"go.uber.org/zap"
 )
 
 // Backend hides the underlying implementation of the metadata storage
@@ -58,7 +59,7 @@ type Backend interface {
 
 // Storage is a storage for metadata
 type Storage struct {
-	logger *zap.Logger
+	logger *logh.ContextualLogger
 
 	// Backend is the thing that actually does the specific work in the storage
 	Backend
@@ -104,15 +105,15 @@ type QueryTag struct {
 }
 
 // Create creates a metadata handler
-func Create(settings *Settings, logger *zap.Logger, stats *tsstats.StatsTS, memcached *memcached.Memcached) (*Storage, error) {
+func Create(settings *Settings, stats *tsstats.StatsTS, memcached *memcached.Memcached) (*Storage, error) {
 
-	backend, err := NewSolrBackend(settings, stats, logger, memcached)
+	backend, err := NewSolrBackend(settings, stats, memcached)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Storage{
-		logger:  logger,
+		logger:  logh.CreateContextualLogger(constants.StringsPKG, "metadata"),
 		Backend: backend,
 	}, nil
 }

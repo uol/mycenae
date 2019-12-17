@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/uol/gobol"
+	"github.com/uol/mycenae/lib/constants"
 )
 
 func (backend *scylladb) addKeyspaceMetadata(ks Keyspace) gobol.Error {
@@ -35,7 +36,7 @@ func (backend *scylladb) createKeyspace(ks Keyspace) gobol.Error {
 		ks.Name, ks.DC, ks.Replication,
 	)
 	if err := backend.session.Query(query).Exec(); err != nil {
-		backend.statsQueryError(ks.Name, "", "create")
+		backend.statsQueryError(ks.Name, constants.StringsEmpty, "create")
 		return errPersist("createKeyspace", "scylladb", err)
 	}
 	return nil
@@ -54,7 +55,7 @@ func (backend *scylladb) createTable(keySet, valueColumnType, tableName, functio
 	)
 
 	if err := backend.session.Query(query).Exec(); err != nil {
-		backend.statsQueryError(keySet, "", "create")
+		backend.statsQueryError(keySet, constants.StringsEmpty, "create")
 		return errPersist(functionName, "scylladb", err)
 	}
 
@@ -77,7 +78,7 @@ func (backend *scylladb) setPermissions(ks Keyspace) gobol.Error {
 	for _, format := range formatGrants {
 		query := fmt.Sprintf(format, ks.Name, backend.grantUsername)
 		if err := backend.session.Query(query).Exec(); err != nil {
-			backend.statsQueryError(ks.Name, "", "create")
+			backend.statsQueryError(ks.Name, constants.StringsEmpty, "create")
 			return errPersist("setPermissions", "scylladb", err)
 		}
 	}

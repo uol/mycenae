@@ -4,8 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
+	"github.com/uol/gobol/logh"
 )
 
 /**
@@ -46,6 +45,9 @@ type Transport interface {
 
 	// FlattenedPointToDataChannelItem - converts the flattened point to the data channel item one
 	FlattenedPointToDataChannelItem(point *FlattenerPoint) (interface{}, error)
+
+	// Serialize - renders the text using the configured serializer
+	Serialize(item interface{}) (string, error)
 }
 
 // transportCore - implements a default transport behaviour
@@ -53,7 +55,7 @@ type transportCore struct {
 	transport         Transport
 	batchSendInterval time.Duration
 	pointChannel      chan interface{}
-	logger            *zap.Logger
+	loggers           *logh.ContextualLogger
 }
 
 // DefaultTransportConfiguration - the default fields used by the transport configuration
@@ -89,13 +91,9 @@ func (c *DefaultTransportConfiguration) Validate() error {
 // Start - starts the transport
 func (t *transportCore) Start() error {
 
-	lf := []zapcore.Field{
-		zap.String("package", "timeline"),
-		zap.String("struct", "transportCore"),
-		zap.String("func", "Start"),
+	if logh.InfoEnabled {
+		t.loggers.Info().Msg("starting transport...")
 	}
-
-	t.logger.Info("starting transport...", lf...)
 
 	go t.transferDataLoop()
 
@@ -105,13 +103,9 @@ func (t *transportCore) Start() error {
 // transferDataLoop - transfers the data to the backend throught this transport
 func (t *transportCore) transferDataLoop() {
 
-	lf := []zapcore.Field{
-		zap.String("package", "timeline"),
-		zap.String("struct", "transportCore"),
-		zap.String("func", "transferDataLoop"),
+	if logh.InfoEnabled {
+		t.loggers.Info().Msg("initializing transfer data loop...")
 	}
-
-	t.logger.Info("initializing transfer data loop...", lf...)
 
 outterFor:
 	for {
@@ -126,7 +120,9 @@ outterFor:
 			case point, ok := <-t.pointChannel:
 
 				if !ok {
-					t.logger.Info("breaking data transfer loop", lf...)
+					if logh.InfoEnabled {
+						t.loggers.Info().Msg("breaking data transfer loop")
+					}
 					break outterFor
 				}
 
@@ -140,17 +136,25 @@ outterFor:
 		numPoints = len(points)
 
 		if numPoints == 0 {
-			t.logger.Info("buffer is empty, no data will be send", lf...)
+			if logh.InfoEnabled {
+				t.loggers.Info().Msg("buffer is empty, no data will be send")
+			}
 			continue
 		}
 
-		t.logger.Info(fmt.Sprintf("sending a batch of %d points...", numPoints), lf...)
+		if logh.InfoEnabled {
+			t.loggers.Info().Msg(fmt.Sprintf("sending a batch of %d points...", numPoints))
+		}
 
 		err := t.transport.TransferData(points)
 		if err != nil {
-			t.logger.Error(err.Error(), lf...)
+			if logh.ErrorEnabled {
+				t.loggers.Error().Msg(err.Error())
+			}
 		} else {
-			t.logger.Info(fmt.Sprintf("batch of %d points were sent!", numPoints), lf...)
+			if logh.InfoEnabled {
+				t.loggers.Info().Msg(fmt.Sprintf("batch of %d points were sent!", numPoints))
+			}
 		}
 
 	}
@@ -159,13 +163,9 @@ outterFor:
 // Close - closes the transport
 func (t *transportCore) Close() {
 
-	lf := []zapcore.Field{
-		zap.String("package", "timeline"),
-		zap.String("struct", "transportCore"),
-		zap.String("func", "Close"),
+	if logh.InfoEnabled {
+		t.loggers.Info().Msg("closing...")
 	}
-
-	t.logger.Info("closing...", lf...)
 
 	close(t.pointChannel)
 }

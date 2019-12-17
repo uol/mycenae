@@ -10,6 +10,7 @@ import (
 	"github.com/uol/gobol"
 
 	"github.com/uol/mycenae/lib/config"
+	"github.com/uol/mycenae/lib/constants"
 )
 
 var (
@@ -42,7 +43,7 @@ type TSDBqueryPayload struct {
 
 func (query TSDBqueryPayload) Validate() gobol.Error {
 
-	if query.Relative != "" {
+	if query.Relative != constants.StringsEmpty {
 		if err := query.checkDuration(query.Relative); err != nil {
 			return err
 		}
@@ -62,7 +63,7 @@ func (query TSDBqueryPayload) Validate() gobol.Error {
 			return err
 		}
 
-		if q.Downsample != "" {
+		if q.Downsample != constants.StringsEmpty {
 
 			ds := strings.Split(q.Downsample, "-")
 
@@ -92,8 +93,8 @@ func (query TSDBqueryPayload) Validate() gobol.Error {
 			}
 		}
 
-		if q.FilterValue != "" {
-			q.FilterValue = strings.Replace(q.FilterValue, " ", "", -1)
+		if q.FilterValue != constants.StringsEmpty {
+			q.FilterValue = strings.Replace(q.FilterValue, constants.StringsWhitespace, constants.StringsEmpty, -1)
 			query.Queries[i].FilterValue = q.FilterValue
 
 			if len(q.FilterValue) < 2 {
@@ -117,11 +118,11 @@ func (query TSDBqueryPayload) Validate() gobol.Error {
 
 		if len(q.Order) == 0 {
 
-			if q.FilterValue != "" {
+			if q.FilterValue != constants.StringsEmpty {
 				query.Queries[i].Order = append(query.Queries[i].Order, "filterValue")
 			}
 
-			if q.Downsample != "" {
+			if q.Downsample != constants.StringsEmpty {
 				query.Queries[i].Order = append(query.Queries[i].Order, "downsample")
 			}
 
@@ -173,7 +174,7 @@ func (query TSDBqueryPayload) Validate() gobol.Error {
 
 			}
 
-			if q.FilterValue != "" && occur == 0 {
+			if q.FilterValue != constants.StringsEmpty && occur == 0 {
 				return errValidation(
 					errors.New("filterValue configured but no filterValue found in order array"),
 				)
@@ -198,7 +199,7 @@ func (query TSDBqueryPayload) Validate() gobol.Error {
 
 			}
 
-			if q.Downsample != "" && occur == 0 {
+			if q.Downsample != constants.StringsEmpty && occur == 0 {
 				return errValidation(
 					errors.New(
 						"downsample configured but no downsample found in order array",

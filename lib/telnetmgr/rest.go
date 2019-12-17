@@ -5,9 +5,10 @@ import (
 	"net/http"
 	"sync/atomic"
 
+	"github.com/uol/gobol/logh"
+	"github.com/uol/mycenae/lib/constants"
+
 	"github.com/julienschmidt/httprouter"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
 //
@@ -33,23 +34,26 @@ func (manager *Manager) CountConnections(w http.ResponseWriter, r *http.Request,
 	return
 }
 
+const (
+	cFuncHaltTelnetBalancingProcess string = "HaltTelnetBalancingProcess"
+)
+
 // HaltTelnetBalancingProcess - tells to this node to halt any running balancing process
 func (manager *Manager) HaltTelnetBalancingProcess(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
-	lf := []zapcore.Field{
-		zap.String("package", "telnetmgr"),
-		zap.String("func", "HaltTelnetBalancingProcess"),
-	}
-
 	if atomic.CompareAndSwapUint32(&manager.haltBalancingProcess, 0, 1) {
 
-		manager.logger.Info("halting the telnet connections balancing process", lf...)
+		if logh.InfoEnabled {
+			manager.logger.Info().Str(constants.StringsFunc, cFuncHaltTelnetBalancingProcess).Msg("halting the telnet connections balancing process")
+		}
 
 		w.WriteHeader(http.StatusOK)
 		return
 	}
 
-	manager.logger.Info("telnet connections balancing process is already halted", lf...)
+	if logh.InfoEnabled {
+		manager.logger.Info().Str(constants.StringsFunc, cFuncHaltTelnetBalancingProcess).Msg("telnet connections balancing process is already halted")
+	}
 
 	w.WriteHeader(http.StatusProcessing)
 

@@ -6,6 +6,7 @@ import (
 
 	"github.com/uol/gobol"
 
+	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/structs"
 )
 
@@ -14,7 +15,7 @@ func parseRate(exp string, tsdb *structs.TSDBquery) (string, gobol.Error) {
 	params := parseParams(string(exp[4:]))
 
 	if len(params) != 4 {
-		return "", errParams(
+		return constants.StringsEmpty, errParams(
 			"parseRate",
 			"rate needs 4 parameters: counter, counterMax, resetValue and a function",
 			fmt.Errorf("rate expects 4 parameters but found %d: %v", len(params), params),
@@ -23,7 +24,7 @@ func parseRate(exp string, tsdb *structs.TSDBquery) (string, gobol.Error) {
 
 	b, err := strconv.ParseBool(params[0])
 	if err != nil {
-		return "", errRateCounter(err)
+		return constants.StringsEmpty, errRateCounter(err)
 	}
 
 	tsdb.RateOptions.Counter = b
@@ -31,21 +32,21 @@ func parseRate(exp string, tsdb *structs.TSDBquery) (string, gobol.Error) {
 	if params[1] != "null" {
 		counterMax, err := strconv.ParseInt(params[1], 10, 64)
 		if err != nil {
-			return "", errRateCounterMax(err)
+			return constants.StringsEmpty, errRateCounterMax(err)
 		}
 		tsdb.RateOptions.CounterMax = &counterMax
 	}
 
 	tsdb.RateOptions.ResetValue, err = strconv.ParseInt(params[2], 10, 64)
 	if err != nil {
-		return "", errRateResetValue(err)
+		return constants.StringsEmpty, errRateResetValue(err)
 	}
 
 	tsdb.Rate = true
 
 	for _, oper := range tsdb.Order {
 		if oper == "rate" {
-			return "", errDoubleFunc("parseRate", "rate")
+			return constants.StringsEmpty, errDoubleFunc("parseRate", "rate")
 		}
 	}
 

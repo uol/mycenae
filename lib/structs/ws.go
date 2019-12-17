@@ -4,6 +4,7 @@ import (
 	"regexp"
 
 	"github.com/uol/gobol"
+	"github.com/uol/mycenae/lib/constants"
 )
 
 type Downsample struct {
@@ -72,7 +73,7 @@ func (query *TsQuery) Validate() gobol.Error {
 			}
 			t := 0
 			for _, k := range ks.Keys {
-				if k.TSid == "" {
+				if k.TSid == constants.StringsEmpty {
 					return errValidationS("ListPoints", "tsid cannot be empty")
 				}
 				if k.TSid[:1] == "T" {
@@ -120,7 +121,7 @@ func (query *TsQuery) Validate() gobol.Error {
 		}
 	}
 
-	if query.TextSearch != "" {
+	if query.TextSearch != constants.StringsEmpty {
 		re, err := regexp.Compile(query.TextSearch)
 		if err != nil {
 			return errValidation(err)
