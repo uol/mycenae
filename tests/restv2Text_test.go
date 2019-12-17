@@ -606,7 +606,7 @@ func TestRESTv2TextPayloadWithEmptyValues(t *testing.T) {
 func TestRESTv2TextPayloadWithInvalidChars(t *testing.T) {
 	t.Parallel()
 
-	invalidChars := []string{" ", "space between"}
+	invalidChars := []string{" ", "space between", "\\", "?", "!", "@", "$", "*", "(", ")", "{", "}", "[", "]", "|", "+", "=", "`", "^", "~", ",", ":", "<", ">", "ü"}
 
 	var wgOut sync.WaitGroup
 	wgOut.Add(len(invalidChars))
@@ -635,7 +635,7 @@ func TestRESTv2TextPayloadWithInvalidCharsAtOnce(t *testing.T) {
 
 	tests := make([]byte, 3)
 
-	invalidChars := []string{" ", "space between"}
+	invalidChars := []string{" ", "space between", "\\", "?", "!", "@", "$", "*", "(", ")", "{", "}", "[", "]", "|", "+", "=", "`", "^", "~", ",", ":", "<", ">", "ü"}
 
 	payload := []tools.Payload{}
 

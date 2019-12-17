@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 
 	"github.com/BurntSushi/toml"
-	"github.com/hashicorp/consul/api"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -39,23 +38,6 @@ func ConfYaml(path string, settings interface{}) error {
 	}
 
 	return yaml.Unmarshal(confFile, settings)
-}
-
-func ConfConsul(path string, token string, settings interface{}) error {
-
-	config := api.DefaultConfig()
-
-	client, err := api.NewClient(config)
-	if err != nil {
-		return err
-	}
-
-	pair, _, err := client.KV().Get(path, nil)
-	if err != nil {
-		return err
-	}
-
-	return json.Unmarshal(pair.Value, settings)
 }
 
 func ConfToml(path string, settings interface{}) error {

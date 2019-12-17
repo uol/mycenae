@@ -7,7 +7,6 @@ import (
 	"github.com/uol/gobol/structs"
 	"github.com/uol/gobol/tester/httpserver"
 	"github.com/uol/gobol/timeline"
-	"go.uber.org/zap"
 )
 
 /**
@@ -39,7 +38,7 @@ const (
 )
 
 // createHTTPTransport - creates the http transport
-func createHTTPTransport(logger *zap.Logger) *timeline.HTTPTransport {
+func createHTTPTransport() *timeline.HTTPTransport {
 
 	transportConf := timeline.HTTPTransportConfig{
 		DefaultTransportConfiguration: timeline.DefaultTransportConfiguration{
@@ -55,7 +54,7 @@ func createHTTPTransport(logger *zap.Logger) *timeline.HTTPTransport {
 		ValueProperty:          "value",
 	}
 
-	transport, err := timeline.NewHTTPTransport(&transportConf, logger)
+	transport, err := timeline.NewHTTPTransport(&transportConf)
 	if err != nil {
 		panic(err)
 	}

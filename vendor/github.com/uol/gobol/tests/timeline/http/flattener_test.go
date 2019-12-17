@@ -8,7 +8,6 @@ import (
 	"github.com/uol/gobol/structs"
 	"github.com/uol/gobol/tester/httpserver"
 	"github.com/uol/gobol/timeline"
-	"go.uber.org/zap"
 )
 
 /**
@@ -19,24 +18,19 @@ import (
 // createTimelineManagerF - creates a new timeline manager
 func createTimelineManagerF(start bool) *timeline.Manager {
 
-	logger, err := zap.NewDevelopment()
-	if err != nil {
-		panic(err)
-	}
-
 	backend := timeline.Backend{
 		Host: httpserver.TestServerHost,
 		Port: httpserver.TestServerPort,
 	}
 
-	transport := createHTTPTransport(logger)
+	transport := createHTTPTransport()
 
 	conf := &timeline.FlattenerConfig{
 		CycleDuration:    time.Millisecond * 900,
 		HashingAlgorithm: hashing.SHA256,
 	}
 
-	flattener, err := timeline.NewFlattener(transport, conf, logger)
+	flattener, err := timeline.NewFlattener(transport, conf)
 	if err != nil {
 		panic(err)
 	}

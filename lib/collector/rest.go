@@ -2,16 +2,16 @@ package collector
 
 import (
 	"compress/gzip"
-	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"strings"
 
+	"github.com/uol/gobol/logh"
+	"github.com/uol/mycenae/lib/constants"
+
 	"github.com/julienschmidt/httprouter"
 	"github.com/uol/gobol/rip"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
 func (collect *Collector) handle(w http.ResponseWriter, r *http.Request, number bool) {
@@ -71,21 +71,23 @@ func (collect *Collector) HandleText(w http.ResponseWriter, r *http.Request, _ h
 	collect.handle(w, r, false)
 }
 
-var sendIPStatsLogFields = []zapcore.Field{
-	zap.String("package", "collect"),
-	zap.String("func", "sendIPStats"),
-}
+const (
+	cFuncIPStats   string = "sendIPStats"
+	cXForwardedFor string = "X-Forwarded-For"
+)
 
 func (collect *Collector) sendIPStats(r *http.Request) {
 
 	ip, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		gblog.Error(fmt.Sprintf("error parsing remote address: %s", err.Error()), sendIPStatsLogFields...)
+		if logh.ErrorEnabled {
+			collect.logger.Error().Str(constants.StringsFunc, cFuncIPStats).Err(err).Msg("error parsing remote address")
+		}
 		return
 	}
 
-	if ip == "" {
-		array := strings.Split(r.Header.Get("X-Forwarded-For"), ",")
+	if ip == constants.StringsEmpty {
+		array := strings.Split(r.Header.Get(cXForwardedFor), ",")
 		if len(array) > 0 {
 			ip = strings.TrimSpace(array[0])
 		}

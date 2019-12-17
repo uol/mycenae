@@ -8,35 +8,27 @@ import (
 	"runtime/debug"
 
 	"github.com/julienschmidt/httprouter"
+	"github.com/uol/gobol/logh"
 	"github.com/uol/gobol/rip"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
+	"github.com/uol/mycenae/lib/constants"
 )
 
 func (trest *REST) freeOSMemory(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
-	lf := []zapcore.Field{
-		zap.String("action", "ADMINISTRATIVE"),
-		zap.String("package", "rest"),
-		zap.String("func", "freeOSMemory"),
+	if logh.InfoEnabled {
+		trest.logger.Info().Str(constants.StringsFunc, "freeOSMemory").Msg("calling")
 	}
-
-	trest.gblog.Info("calling", lf...)
 
 	debug.FreeOSMemory()
 
-	trest.gblog.Info("done", lf...)
+	if logh.InfoEnabled {
+		trest.logger.Info().Str(constants.StringsFunc, "freeOSMemory").Msg("done")
+	}
 
 	w.WriteHeader(http.StatusOK)
 }
 
 func (trest *REST) setGCPercent(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-
-	lf := []zapcore.Field{
-		zap.String("action", "ADMINISTRATIVE"),
-		zap.String("package", "rest"),
-		zap.String("func", "setGCPercent"),
-	}
 
 	q := r.URL.Query()
 	percentageStr := q.Get("percentage")
@@ -47,38 +39,44 @@ func (trest *REST) setGCPercent(w http.ResponseWriter, r *http.Request, _ httpro
 
 	percentage, err := strconv.Atoi(percentageStr)
 	if err != nil {
-		trest.gblog.Error(err.Error(), lf...)
+		if logh.ErrorEnabled {
+			trest.logger.Error().Err(err).Str(constants.StringsFunc, "setGCPercent").Msg("calling")
+		}
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	trest.gblog.Info("calling", lf...)
+	if logh.InfoEnabled {
+		trest.logger.Info().Str(constants.StringsFunc, "setGCPercent").Msg("calling")
+	}
 
 	old := debug.SetGCPercent(percentage)
 
-	trest.gblog.Info("done", lf...)
+	if logh.InfoEnabled {
+		trest.logger.Info().Str(constants.StringsFunc, "setGCPercent").Msg("done")
+	}
 
 	rip.Success(w, http.StatusOK, ([]byte(strconv.Itoa(old))))
 }
 
 func (trest *REST) readGCStats(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
-	lf := []zapcore.Field{
-		zap.String("action", "ADMINISTRATIVE"),
-		zap.String("package", "rest"),
-		zap.String("func", "readGCStats"),
+	if logh.InfoEnabled {
+		trest.logger.Info().Str(constants.StringsFunc, "readGCStats").Msg("calling")
 	}
-
-	trest.gblog.Info("calling", lf...)
 
 	gcstats := debug.GCStats{}
 	debug.ReadGCStats(&gcstats)
 
-	trest.gblog.Info("done", lf...)
+	if logh.InfoEnabled {
+		trest.logger.Info().Str(constants.StringsFunc, "readGCStats").Msg("done")
+	}
 
-	prettyBytes, err := json.MarshalIndent(gcstats, "", "  ")
+	prettyBytes, err := json.MarshalIndent(gcstats, constants.StringsEmpty, "  ")
 	if err != nil {
-		trest.gblog.Error(err.Error(), lf...)
+		if logh.ErrorEnabled {
+			trest.logger.Error().Err(err).Str(constants.StringsFunc, "readGCStats").Msg("calling")
+		}
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

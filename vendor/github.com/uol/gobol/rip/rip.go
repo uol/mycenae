@@ -6,23 +6,32 @@ import (
 	"log"
 	"net/http"
 
-	"go.uber.org/zap/zapcore"
+	"github.com/rs/zerolog"
+
+	"github.com/uol/gobol/logh"
 
 	"github.com/uol/gobol"
-
-	"go.uber.org/zap"
 )
 
 var (
-	logger          *zap.Logger
 	logErrorAsDebug bool
+	logger          *logh.ContextualLogger
 )
 
 type customError struct {
 	error
 	msg      string
+	pkg      string
+	function string
 	httpCode int
-	lf       []zapcore.Field
+}
+
+func (e customError) Package() string {
+	return e.pkg
+}
+
+func (e customError) Function() string {
+	return e.function
 }
 
 func (e customError) Message() string {
@@ -31,10 +40,6 @@ func (e customError) Message() string {
 
 func (e customError) StatusCode() int {
 	return e.httpCode
-}
-
-func (e customError) LogFields() []zapcore.Field {
-	return e.lf
 }
 
 type Validator interface {
@@ -46,27 +51,49 @@ type errorJSON struct {
 	Message interface{} `json:"message,omitempty"`
 }
 
-func errBasic(f, s string, code int, e error) gobol.Error {
+func logError(gerr gobol.Error) *zerolog.Event {
+	if logger == nil {
+		return nil
+	}
+
+	var ev *zerolog.Event
+	if logErrorAsDebug {
+		if logh.DebugEnabled {
+			ev = logger.Debug()
+		}
+	} else {
+		if logh.ErrorEnabled {
+			ev = logger.Error()
+		}
+	}
+
+	if ev != nil {
+		ev.Str("pkg", gerr.Package()).Str("func", gerr.Function()).Err(gerr).Msg(gerr.Message())
+		return ev
+	}
+
+	return nil
+}
+
+func errBasic(pkg, function, message string, code int, e error) gobol.Error {
 	if e != nil {
 		return customError{
 			e,
-			s,
+			message,
+			pkg,
+			function,
 			code,
-			[]zapcore.Field{
-				zap.String("package", "rest"),
-				zap.String("func", f),
-			},
 		}
 	}
 	return nil
 }
 
-func errUnmarshal(f string, e error) gobol.Error {
-	return errBasic(f, "Wrong JSON format", http.StatusBadRequest, e)
+func errUnmarshal(pkg, function string, e error) gobol.Error {
+	return errBasic(pkg, function, "Wrong JSON format", http.StatusBadRequest, e)
 }
 
-func SetLogger(l *zap.Logger, forceErrorToDebugLog bool) {
-	logger = l
+func SetLogger(forceErrorToDebugLog bool) {
+	logger = logh.CreateContextualLogger("pkg", "rip")
 	logErrorAsDebug = forceErrorToDebugLog
 }
 
@@ -76,13 +103,13 @@ func FromJSON(r *http.Request, t Validator) gobol.Error {
 
 		reader, err := gzip.NewReader(r.Body)
 		if err != nil {
-			return errUnmarshal("", err)
+			return errUnmarshal("rip", "FromJSON", err)
 		}
 		defer reader.Close()
 		dec := json.NewDecoder(reader)
 		err = dec.Decode(t)
 		if err != nil {
-			return errUnmarshal("", err)
+			return errUnmarshal("rip", "FromJSON", err)
 		}
 		r.Body.Close()
 		return t.Validate()
@@ -91,7 +118,7 @@ func FromJSON(r *http.Request, t Validator) gobol.Error {
 	d := json.NewDecoder(r.Body)
 	err := d.Decode(t)
 	if err != nil {
-		return errUnmarshal("", err)
+		return errUnmarshal("rip", "FromJSON", err)
 	}
 	r.Body.Close()
 	return t.Validate()
@@ -129,13 +156,7 @@ func Fail(w http.ResponseWriter, gerr gobol.Error) {
 	defer func() {
 		if r := recover(); r != nil {
 
-			if logger != nil {
-				if logErrorAsDebug {
-					logger.Debug(gerr.Message(), gerr.LogFields()...)
-				} else {
-					logger.Error(gerr.Message(), gerr.LogFields()...)
-				}
-			} else {
+			if ev := logError(gerr); ev == nil {
 				log.Println(gerr.Message())
 			}
 
@@ -160,14 +181,8 @@ func Fail(w http.ResponseWriter, gerr gobol.Error) {
 		}
 	}()
 
-	if logger != nil {
-		if logErrorAsDebug {
-			logger.Debug(gerr.Error(), gerr.LogFields()...)
-		} else {
-			logger.Error(gerr.Error(), gerr.LogFields()...)
-		}
-	} else {
-		log.Println(gerr.Error())
+	if ev := logError(gerr); ev == nil {
+		log.Println(gerr.Message())
 	}
 
 	if gerr.StatusCode() < 500 && gerr.Error() == "" && gerr.Message() == "" {

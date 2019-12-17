@@ -6,6 +6,7 @@ import (
 
 	"github.com/uol/gobol"
 
+	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/structs"
 )
 
@@ -29,7 +30,7 @@ func parseExpression(exp string, tsdb *structs.TSDBquery) (relative string, err 
 
 	var name []rune
 
-	exp = strings.Replace(exp, " ", "", -1)
+	exp = strings.Replace(exp, constants.StringsWhitespace, constants.StringsEmpty, -1)
 
 	for _, s := range exp {
 		if string(s) == "(" {
@@ -41,7 +42,7 @@ func parseExpression(exp string, tsdb *structs.TSDBquery) (relative string, err 
 	switch string(name) {
 	case "query":
 		relative, err = parseQuery(exp, tsdb)
-		exp = ""
+		exp = constants.StringsEmpty
 	case "merge":
 		exp, err = parseMerge(exp, tsdb)
 	case "downsample":
@@ -53,12 +54,12 @@ func parseExpression(exp string, tsdb *structs.TSDBquery) (relative string, err 
 	case "filter":
 		exp, err = parseFilter(exp, tsdb)
 	default:
-		return "", errUnkFunc(fmt.Sprintf("unkown function %s", string(name)))
+		return constants.StringsEmpty, errUnkFunc(fmt.Sprintf("unkown function %s", string(name)))
 	}
 	if err != nil {
-		return "", err
+		return constants.StringsEmpty, err
 	}
-	if exp != "" {
+	if exp != constants.StringsEmpty {
 		relative, err = parseExpression(exp, tsdb)
 	}
 

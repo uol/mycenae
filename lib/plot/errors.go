@@ -6,34 +6,33 @@ import (
 	"net/http"
 
 	"github.com/uol/gobol"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 
+	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/tserr"
 )
 
-func errInit(s string) gobol.Error {
+const (
+	cPackage string = "plot"
+)
+
+func errInit(msg string) gobol.Error {
 	return tserr.New(
-		errors.New(s),
-		s,
+		errors.New(msg),
+		msg,
+		cPackage,
+		"New",
 		http.StatusInternalServerError,
-		[]zapcore.Field{
-			zap.String("package", "plot"),
-			zap.String("func", "New"),
-		},
 	)
 }
 
-func errBasic(f, s string, code int, e error) gobol.Error {
+func errBasic(function, msg string, code int, e error) gobol.Error {
 	if e != nil {
 		return tserr.New(
 			e,
-			s,
+			msg,
+			cPackage,
+			function,
 			code,
-			[]zapcore.Field{
-				zap.String("package", "plot"),
-				zap.String("func", f),
-			},
 		)
 	}
 	return nil
@@ -44,7 +43,7 @@ func errValidationS(f, s string) gobol.Error {
 }
 
 func errNotFound(f string) gobol.Error {
-	return errBasic(f, "", http.StatusNotFound, errors.New(""))
+	return errBasic(f, constants.StringsEmpty, http.StatusNotFound, errors.New(constants.StringsEmpty))
 }
 
 func errValidation(f, m string, e error) gobol.Error {
@@ -52,7 +51,7 @@ func errValidation(f, m string, e error) gobol.Error {
 }
 
 func errNoContent(f string) gobol.Error {
-	return errBasic(f, "", http.StatusNoContent, errors.New(""))
+	return errBasic(f, constants.StringsEmpty, http.StatusNoContent, errors.New(constants.StringsEmpty))
 }
 
 func errParamSize(f string, e error) gobol.Error {
@@ -76,7 +75,7 @@ func errEmptyExpression(f string) gobol.Error {
 }
 
 func errMandatoryParam(function string, parameter string) gobol.Error {
-	return errBasic(function, "query string parameter \""+parameter+"\" is mandatory", http.StatusBadRequest, errors.New(""))
+	return errBasic(function, "query string parameter \""+parameter+"\" is mandatory", http.StatusBadRequest, errors.New(constants.StringsEmpty))
 }
 
 func errMaxBytesLimitWrapper(function string, err error) gobol.Error {

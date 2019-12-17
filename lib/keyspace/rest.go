@@ -7,6 +7,7 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/uol/gobol/rip"
+	"github.com/uol/mycenae/lib/constants"
 	storage "github.com/uol/mycenae/lib/persistence"
 )
 
@@ -15,7 +16,7 @@ func (kspace *Keyspace) Create(
 	w http.ResponseWriter, r *http.Request, ps httprouter.Params,
 ) {
 	ks := ps.ByName("keyspace")
-	if ks == "" {
+	if ks == constants.StringsEmpty {
 		rip.AddStatsMap(r,
 			map[string]string{
 				"path":     "/keyspaces/#keyspace",
@@ -59,10 +60,10 @@ func (kspace *Keyspace) Create(
 	} else if ksc.TTL > kspace.maxAllowedTTL {
 		rip.Fail(w, errValidationS("CreateKeyspace", fmt.Sprintf("Max TTL allowed is %d", kspace.maxAllowedTTL)))
 		return
-	} else if ksc.Contact == "" {
+	} else if ksc.Contact == constants.StringsEmpty {
 		rip.Fail(w, errValidationS("CreateKeyspace", "'contact' is required"))
 		return
-	} else if ksc.Datacenter == "" {
+	} else if ksc.Datacenter == constants.StringsEmpty {
 		rip.Fail(w, errValidationS("CreateKeyspace", "'datacenter' is required"))
 		return
 	} else if ksc.ReplicationFactor <= 0 {
@@ -90,7 +91,7 @@ func (kspace *Keyspace) Create(
 func (kspace *Keyspace) Update(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	ks := ps.ByName("keyspace")
-	if ks == "" {
+	if ks == constants.StringsEmpty {
 		rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace", "keyspace": "empty"})
 		rip.Fail(w, errNotFound("Update"))
 		return
@@ -153,7 +154,7 @@ func (kspace *Keyspace) Check(
 	ps httprouter.Params,
 ) {
 	ks := ps.ByName("keyspace")
-	if ks == "" {
+	if ks == constants.StringsEmpty {
 		rip.AddStatsMap(
 			r,
 			map[string]string{

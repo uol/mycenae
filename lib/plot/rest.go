@@ -9,6 +9,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/uol/gobol"
 	"github.com/uol/gobol/rip"
+	"github.com/uol/mycenae/lib/constants"
 )
 
 // getSizeParameter - return parameter 'size'
@@ -18,14 +19,14 @@ func (plot *Plot) getSizeParameter(w http.ResponseWriter, q url.Values, function
 	var err error
 	size := plot.defaultMaxResults
 
-	if sizeStr != "" {
+	if sizeStr != constants.StringsEmpty {
 		size, err = strconv.Atoi(sizeStr)
 		if err != nil {
 			rip.Fail(w, errParamSize(function, err))
 			return size, true
 		}
 		if size <= 0 {
-			rip.Fail(w, errParamSize(function, errors.New("")))
+			rip.Fail(w, errParamSize(function, errors.New(constants.StringsEmpty)))
 			return size, true
 		}
 	}
@@ -44,7 +45,7 @@ func (plot *Plot) ListTagsText(w http.ResponseWriter, r *http.Request, ps httpro
 func (plot *Plot) listTags(w http.ResponseWriter, r *http.Request, ps httprouter.Params, tsType string, smap map[string]string) {
 
 	keyset := ps.ByName("keyset")
-	if keyset == "" {
+	if keyset == constants.StringsEmpty {
 		smap["keyset"] = "empty"
 		rip.AddStatsMap(r, smap)
 		rip.Fail(w, errNotFound("listTags"))
@@ -92,7 +93,7 @@ func (plot *Plot) ListMetricsText(w http.ResponseWriter, r *http.Request, ps htt
 func (plot *Plot) listMetrics(w http.ResponseWriter, r *http.Request, ps httprouter.Params, esType string, smap map[string]string) {
 
 	keyset := ps.ByName("keyset")
-	if keyset == "" {
+	if keyset == constants.StringsEmpty {
 		smap["keyset"] = "empty"
 		rip.AddStatsMap(r, smap)
 		rip.Fail(w, errNotFound("listMetrics"))
@@ -141,7 +142,7 @@ func (plot *Plot) ListMetaText(w http.ResponseWriter, r *http.Request, ps httpro
 func (plot *Plot) getKeysetParameter(w http.ResponseWriter, r *http.Request, ps httprouter.Params, functionName string, smap map[string]string) (*string, bool) {
 
 	keyset := ps.ByName("keyset")
-	if keyset == "" {
+	if keyset == constants.StringsEmpty {
 		smap["keyset"] = "empty"
 		rip.AddStatsMap(r, smap)
 		err := errNotFound(functionName)
@@ -187,7 +188,7 @@ func (plot *Plot) getFromParameter(w http.ResponseWriter, q url.Values, function
 	fromStr := q.Get("from")
 	from := 0
 
-	if fromStr != "" {
+	if fromStr != constants.StringsEmpty {
 		var err error
 		from, err = strconv.Atoi(fromStr)
 		if err != nil {
@@ -222,7 +223,7 @@ func (plot *Plot) listMeta(w http.ResponseWriter, r *http.Request, ps httprouter
 
 	var onlyids bool
 
-	if onlyidsStr != "" {
+	if onlyidsStr != constants.StringsEmpty {
 		var err error
 		onlyids, err = strconv.ParseBool(onlyidsStr)
 		if err != nil {
@@ -355,7 +356,7 @@ func (plot *Plot) listTagsByMetric(w http.ResponseWriter, r *http.Request, ps ht
 
 	q := r.URL.Query()
 	metric := q.Get("metric")
-	if metric == "" {
+	if metric == constants.StringsEmpty {
 		rip.Fail(w, errMandatoryParam(functionName, "metric"))
 		return
 	}
@@ -372,13 +373,13 @@ func (plot *Plot) listTagsByMetric(w http.ResponseWriter, r *http.Request, ps ht
 	if filterValues {
 
 		tag := q.Get("tag")
-		if tag == "" {
+		if tag == constants.StringsEmpty {
 			rip.Fail(w, errMandatoryParam(functionName, "tag"))
 			return
 		}
 
 		value := q.Get("value")
-		if value == "" {
+		if value == constants.StringsEmpty {
 			value = "*"
 		}
 
@@ -387,7 +388,7 @@ func (plot *Plot) listTagsByMetric(w http.ResponseWriter, r *http.Request, ps ht
 	} else {
 
 		tag := q.Get("tag")
-		if tag == "" {
+		if tag == constants.StringsEmpty {
 			tag = "*"
 		}
 

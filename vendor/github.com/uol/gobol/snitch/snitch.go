@@ -14,14 +14,14 @@ import (
 	"time"
 
 	"github.com/robfig/cron"
-	"go.uber.org/zap"
+	"github.com/uol/gobol/logh"
 )
 
 // Stats holds several informations.
 // The timeseries backend address and port. The POST interval. The default tags
 // to be added to all points and a map of all points.
 type Stats struct {
-	logger              *zap.Logger
+	logger              *logh.ContextualLogger
 	cron                *cron.Cron
 	address             string
 	port                int
@@ -39,7 +39,7 @@ type Stats struct {
 }
 
 // New creates a new stats
-func New(logger *zap.Logger, settings Settings) (*Stats, error) {
+func New(settings Settings) (*Stats, error) {
 
 	if settings.Address == "" {
 		return nil, errors.New("address is required")
@@ -87,7 +87,7 @@ func New(logger *zap.Logger, settings Settings) (*Stats, error) {
 		proto:               settings.Protocol,
 		timeout:             dur,
 		postInt:             postInt,
-		logger:              logger,
+		logger:              logh.CreateContextualLogger("pkg", "snitch"),
 		tags:                tags,
 		points:              sync.Map{},
 		hBuffer:             []message{},
@@ -136,7 +136,9 @@ func (st *Stats) runtimeLoop() {
 	for {
 		<-time.After(30 * time.Second)
 		if st.terminate {
-			st.logger.Info("terminating the runtime loop")
+			if logh.InfoEnabled {
+				st.logger.Info().Str("func", "runtimeLoop").Msg("terminating the runtime loop")
+			}
 			return
 		}
 		st.ValueAdd(
@@ -150,32 +152,42 @@ func (st *Stats) runtimeLoop() {
 func (st *Stats) clientUDP() {
 	conn, err := net.Dial("udp", fmt.Sprintf("%s:%d", st.address, st.port))
 	if err != nil {
-		st.logger.Error("connect", zap.Error(err))
+		if logh.ErrorEnabled {
+			st.logger.Error().Err(err).Str("func", "clientUDP").Msg("connect")
+		}
 	} else {
 		defer conn.Close()
 	}
 
 	for {
 		if st.terminate {
-			st.logger.Info("terminating the udp client loop")
+			if logh.InfoEnabled {
+				st.logger.Info().Str("func", "clientUDP").Msg("terminating the udp client loop")
+			}
 			return
 		}
 
 		messageData := <-st.receiver
 		payload, err := json.Marshal(messageData)
 		if err != nil {
-			st.logger.Error("marshal", zap.Error(err))
+			if logh.ErrorEnabled {
+				st.logger.Error().Err(err).Str("func", "clientUDP").Msg("marshal")
+			}
 		}
 
 		if conn != nil {
 			_, err = conn.Write(payload)
 			if err != nil {
-				st.logger.Error("write", zap.Error(err))
+				if logh.ErrorEnabled {
+					st.logger.Error().Err(err).Str("func", "clientUDP").Msg("write")
+				}
 			}
 		} else {
 			conn, err = net.Dial("udp", fmt.Sprintf("%s:%d", st.address, st.port))
 			if err != nil {
-				st.logger.Error("connect", zap.Error(err))
+				if logh.ErrorEnabled {
+					st.logger.Error().Err(err).Str("func", "clientUDP").Msg("connect")
+				}
 			} else {
 				defer conn.Close()
 			}
@@ -192,7 +204,9 @@ func (st *Stats) clientHTTP() {
 	ticker := time.NewTicker(st.postInt)
 	for {
 		if st.terminate {
-			st.logger.Info("terminating the http client loop")
+			if logh.InfoEnabled {
+				st.logger.Info().Str("func", "clientHTTP").Msg("terminating the http client loop")
+			}
 			return
 		}
 
@@ -202,26 +216,36 @@ func (st *Stats) clientHTTP() {
 		case <-ticker.C:
 			payload, err := json.Marshal(st.hBuffer)
 			if err != nil {
-				st.logger.Error("", zap.Error(err))
+				if logh.ErrorEnabled {
+					st.logger.Error().Err(err).Str("func", "clientHTTP").Msg("marshal")
+				}
 				break
 			}
 			req, err := http.NewRequest("POST", url, bytes.NewBuffer(payload))
 			if err != nil {
-				st.logger.Error("", zap.Error(err))
+				if logh.ErrorEnabled {
+					st.logger.Error().Err(err).Str("func", "clientHTTP").Msg("create request")
+				}
 				break
 			}
 			resp, err := client.Do(req)
 			if err != nil {
-				st.logger.Error("", zap.Error(err))
+				if logh.ErrorEnabled {
+					st.logger.Error().Err(err).Str("func", "clientHTTP").Msg("do request")
+				}
 				break
 			}
 			if resp.StatusCode != http.StatusNoContent {
 				reqResponse, err := ioutil.ReadAll(resp.Body)
 				if err != nil {
-					st.logger.Error("", zap.Error(err))
+					if logh.ErrorEnabled {
+						st.logger.Error().Err(err).Str("func", "clientHTTP").Msg("read body")
+					}
 				}
 				if st.raiseDebugVerbosity {
-					st.logger.Debug(string(reqResponse))
+					if logh.DebugEnabled {
+						st.logger.Debug().Str("func", "clientHTTP").Msg(string(reqResponse))
+					}
 				}
 			}
 			st.hBuffer = []message{}

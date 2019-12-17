@@ -10,11 +10,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/uol/gobol/logh"
+
 	"github.com/uol/mycenae/lib/collector"
+	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/structs"
 	"github.com/uol/mycenae/lib/tsstats"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
 //
@@ -23,23 +24,6 @@ import (
 //
 
 const lineSeparator byte = 10
-
-var (
-	closeConnectionLogFields = []zapcore.Field{
-		zap.String("package", "telnetsrv"),
-		zap.String("func", "closeConnection"),
-	}
-
-	collectStatsLogFields = []zapcore.Field{
-		zap.String("package", "telnetsrv"),
-		zap.String("func", "collectStats"),
-	}
-
-	handleConnectionLogFields = []zapcore.Field{
-		zap.String("package", "telnetsrv"),
-		zap.String("func", "handleConnection"),
-	}
-)
 
 // Server - the telnet server struct
 type Server struct {
@@ -50,7 +34,7 @@ type Server struct {
 	maxIdleConnectionTimeout time.Duration
 	maxBufferSize            int64
 	collector                *collector.Collector
-	logger                   *zap.Logger
+	logger                   *logh.ContextualLogger
 	stats                    *tsstats.StatsTS
 	telnetHandler            TelnetDataHandler
 	lineSplitter             []byte
@@ -68,7 +52,7 @@ type Server struct {
 }
 
 // New - creates a new telnet server
-func New(serverConfiguration *structs.TelnetServerConfiguration, globalTelnetConfigs *structs.GlobalTelnetServerConfiguration, sharedConnectionCounter *uint32, maxConnections uint32, closeConnectionChannel *chan struct{}, collector *collector.Collector, stats *tsstats.StatsTS, logger *zap.Logger, telnetHandler TelnetDataHandler) (*Server, error) {
+func New(serverConfiguration *structs.TelnetServerConfiguration, globalTelnetConfigs *structs.GlobalTelnetServerConfiguration, sharedConnectionCounter *uint32, maxConnections uint32, closeConnectionChannel *chan struct{}, collector *collector.Collector, stats *tsstats.StatsTS, telnetHandler TelnetDataHandler) (*Server, error) {
 
 	onErrorTimeoutDuration, err := time.ParseDuration(serverConfiguration.OnErrorTimeout)
 	if err != nil {
@@ -94,7 +78,7 @@ func New(serverConfiguration *structs.TelnetServerConfiguration, globalTelnetCon
 		maxIdleConnectionTimeout: maxIdleConnectionTimeoutDuration,
 		maxBufferSize:            serverConfiguration.MaxBufferSize,
 		collector:                collector,
-		logger:                   logger,
+		logger:                   logh.CreateContextualLogger(constants.StringsPKG, "telnetsrv"),
 		stats:                    stats,
 		telnetHandler:            telnetHandler,
 		lineSplitter:             []byte{lineSeparator},
@@ -128,6 +112,8 @@ func (server *Server) extractIP(conn net.Conn) string {
 	return remoteAddress
 }
 
+const cFuncListen string = "Listen"
+
 // Listen - starts to listen and to handle the incoming messages
 func (server *Server) Listen() error {
 
@@ -139,12 +125,9 @@ func (server *Server) Listen() error {
 
 	go server.collectStats()
 
-	lf := []zapcore.Field{
-		zap.String("package", "telnetsrv"),
-		zap.String("func", "Listen"),
+	if logh.InfoEnabled {
+		server.logger.Info().Str(constants.StringsFunc, cFuncListen).Msgf("listening telnet connections at %q...", server.listener.Addr())
 	}
-
-	server.logger.Info(fmt.Sprintf("listening telnet connections at %q...", server.listener.Addr()), lf...)
 
 	handlerSourceName := server.telnetHandler.SourceName()
 
@@ -154,7 +137,9 @@ func (server *Server) Listen() error {
 
 			conn, err := server.listener.Accept()
 			if err != nil {
-				server.logger.Error(err.Error(), lf...)
+				if logh.ErrorEnabled {
+					server.logger.Error().Str(constants.StringsFunc, cFuncListen).Err(err).Send()
+				}
 				<-time.After(server.onErrorTimeout)
 				continue
 			}
@@ -167,7 +152,9 @@ func (server *Server) Listen() error {
 
 			if _, stored := server.connectedIPMap.LoadOrStore(remoteAddressIP, struct{}{}); stored {
 
-				server.logger.Info(fmt.Sprintf("telnet server will not accept new connections from %s", remoteAddressIP), lf...)
+				if logh.InfoEnabled {
+					server.logger.Info().Str(constants.StringsFunc, cFuncListen).Msgf("telnet server will not accept new connections from %s", remoteAddressIP)
+				}
 				go server.closeConnection(conn, "multiple", false)
 
 				continue
@@ -175,7 +162,9 @@ func (server *Server) Listen() error {
 
 			if atomic.LoadUint32(&server.denyNewConnections) == 1 {
 
-				server.logger.Info(fmt.Sprintf("telnet server is not accepting new connections, denying connection from %s", remoteAddressIP), lf...)
+				if logh.InfoEnabled {
+					server.logger.Info().Str(constants.StringsFunc, cFuncListen).Msgf("telnet server is not accepting new connections, denying connection from %s", remoteAddressIP)
+				}
 				go server.closeConnection(conn, "deny", false)
 
 				continue
@@ -183,7 +172,9 @@ func (server *Server) Listen() error {
 
 			if atomic.LoadUint32(server.sharedConnectionCounter) >= server.maxConnections {
 
-				server.logger.Info(fmt.Sprintf("max number of telnet connections reached (%d), closing connection from %s", server.maxConnections, remoteAddressIP), lf...)
+				if logh.InfoEnabled {
+					server.logger.Info().Str(constants.StringsFunc, cFuncListen).Msgf("max number of telnet connections reached (%d), closing connection from %s", server.maxConnections, remoteAddressIP)
+				}
 				go server.closeConnection(conn, "limit", false)
 
 				continue
@@ -193,7 +184,9 @@ func (server *Server) Listen() error {
 			server.increaseCounter(&server.numLocalConnections)
 
 			if !server.globalTelnetConfigs.SilenceLogs {
-				server.logger.Info(fmt.Sprintf("received new connection from %s", remoteAddressIP), lf...)
+				if logh.InfoEnabled {
+					server.logger.Info().Str(constants.StringsFunc, cFuncListen).Msgf("received new connection from %s", remoteAddressIP)
+				}
 			}
 
 			err = conn.SetDeadline(time.Now().Add(server.maxIdleConnectionTimeout))
@@ -212,7 +205,7 @@ func (server *Server) Listen() error {
 // handleConnection - handles an incoming connection
 func (server *Server) handleConnection(conn net.Conn) {
 
-	defer server.recover(conn, handleConnectionLogFields)
+	defer server.recover(conn, "handleConnection")
 
 	startTime := time.Now()
 
@@ -302,9 +295,11 @@ ConnLoop:
 
 	if !server.globalTelnetConfigs.SilenceLogs {
 		if err != nil {
-			server.logger.Error(fmt.Sprintf("connection loop was broken under error: %s", err), handleConnectionLogFields...)
-		} else {
-			server.logger.Debug("connection loop was broken with no error", handleConnectionLogFields...)
+			if logh.ErrorEnabled {
+				server.logger.Error().Str(constants.StringsFunc, cFuncListen).Err(err).Msgf("connection loop was broken")
+			}
+		} else if logh.DebugEnabled {
+			server.logger.Debug().Str(constants.StringsFunc, cFuncListen).Msg("connection loop was broken with no error")
 		}
 	}
 }
@@ -321,6 +316,8 @@ func (server *Server) decreaseCounter(num *uint32) uint32 {
 	return atomic.AddUint32(num, ^uint32(0))
 }
 
+const cFuncCloseConnection string = "closeConnection"
+
 // closeConnection - closes an tcp connection
 func (server *Server) closeConnection(conn net.Conn, reason string, subtractCounter bool) {
 
@@ -329,8 +326,8 @@ func (server *Server) closeConnection(conn net.Conn, reason string, subtractCoun
 	remoteAddressIP := server.extractIP(conn)
 
 	err := conn.Close()
-	if err != nil && !server.globalTelnetConfigs.SilenceLogs {
-		server.logger.Error(fmt.Sprintf("error closing tcp telnet connection %s (%s): %s", remoteAddressIP, reason, err.Error()), closeConnectionLogFields...)
+	if err != nil && !server.globalTelnetConfigs.SilenceLogs && logh.ErrorEnabled {
+		server.logger.Error().Str(constants.StringsFunc, cFuncCloseConnection).Err(err).Msgf("error closing tcp telnet connection %s (%s): %s", remoteAddressIP, reason)
 	}
 
 	conn = nil
@@ -359,9 +356,10 @@ func (server *Server) closeConnection(conn net.Conn, reason string, subtractCoun
 
 	if !server.globalTelnetConfigs.SilenceLogs {
 
-		server.logger.Info(fmt.Sprintf("tcp telnet connection closed %s (%s) from %d connections)", remoteAddressIP, reason, localConns), closeConnectionLogFields...)
-
-		server.logger.Info(fmt.Sprintf("total telnet connections: %d / %d (local conns / total conns -> %s)", localConns, sharedConns, source), closeConnectionLogFields...)
+		if logh.InfoEnabled {
+			server.logger.Info().Str(constants.StringsFunc, cFuncCloseConnection).Msgf("tcp telnet connection closed %s (%s) from %d connections)", remoteAddressIP, reason, localConns)
+			server.logger.Info().Str(constants.StringsFunc, cFuncCloseConnection).Msgf("total telnet connections: %d / %d (local conns / total conns -> %s)", localConns, sharedConns, source)
+		}
 	}
 
 	go server.stats.ValueAdd("telnetsrv", "network.connection.close.time", statsCloseTags, float64(time.Since(startTime).Nanoseconds())/float64(time.Millisecond))
@@ -370,34 +368,42 @@ func (server *Server) closeConnection(conn net.Conn, reason string, subtractCoun
 // Shutdown - stops listening
 func (server *Server) Shutdown() error {
 
-	lf := []zapcore.Field{
-		zap.String("package", "telnetsrv"),
-		zap.String("func", "Shutdown"),
-	}
-
 	server.terminate = true
 
 	err := server.listener.Close()
 	if err != nil {
-		server.logger.Error(err.Error(), lf...)
+		if logh.ErrorEnabled {
+			server.logger.Error().Str(constants.StringsFunc, "Shutdown").Err(err).Send()
+		}
+
 		return err
 	}
 
-	server.logger.Info("telnet server have shutdown", lf...)
+	if logh.InfoEnabled {
+		server.logger.Info().Str(constants.StringsFunc, "Shutdown").Msg("telnet server have shutdown")
+	}
 
 	return nil
 }
 
+const (
+	cFuncCollectStats string = "collectStats"
+)
+
 // collectStats - send all TCP connection statistics
 func (server *Server) collectStats() {
 
-	server.logger.Info("starting telnet server stats", collectStatsLogFields...)
+	if logh.InfoEnabled {
+		server.logger.Info().Str(constants.StringsFunc, cFuncCollectStats).Msg("starting telnet server stats")
+	}
 
 	for {
 		<-time.After(server.sendStatsTimeout)
 
 		if server.terminate {
-			server.logger.Info("terminating telnet server stats", collectStatsLogFields...)
+			if logh.InfoEnabled {
+				server.logger.Info().Str(constants.StringsFunc, cFuncCollectStats).Msg("terminating telnet server stats")
+			}
 			return
 		}
 
@@ -406,10 +412,12 @@ func (server *Server) collectStats() {
 }
 
 // recover - recovers from panic
-func (server *Server) recover(conn net.Conn, lf []zapcore.Field) {
+func (server *Server) recover(conn net.Conn, function string) {
 
 	if r := recover(); r != nil {
-		server.logger.Error(fmt.Sprintf("recovered from: %s", r), lf...)
+		if logh.ErrorEnabled {
+			server.logger.Error().Msgf("panic recovery: %v", r)
+		}
 		server.decreaseCounter(&server.numLocalConnections)
 		server.decreaseCounter(server.sharedConnectionCounter)
 	}

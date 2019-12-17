@@ -7,7 +7,7 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/mitchellh/hashstructure"
-	"github.com/uol/gobol"
+	"github.com/uol/mycenae/lib/constants"
 )
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
@@ -15,13 +15,16 @@ var json = jsoniter.ConfigCompatibleWithStandardLibrary
 // Manages the the metadata cache
 // @author rnojiri
 
-const idNamespace = "tsid"
-const keysetNamespace = "ksid"
-const facetsNamespace = "fac"
-const keysetMapID = "map"
+const (
+	idNamespace     string = "tsid"
+	keysetNamespace string = "ksid"
+	facetsNamespace string = "fac"
+	keysetMapID     string = "map"
+	cEmptyArray     string = "[]"
+)
 
 // isIDCached - checks if a document id is cached
-func (sb *SolrBackend) isIDCached(collection, tsType, tsid string) (bool, gobol.Error) {
+func (sb *SolrBackend) isIDCached(collection, tsType, tsid string) (bool, error) {
 
 	r, err := sb.memcached.Get(idNamespace, collection, tsType, tsid)
 	if err != nil {
@@ -32,7 +35,7 @@ func (sb *SolrBackend) isIDCached(collection, tsType, tsid string) (bool, gobol.
 }
 
 // cacheID - caches an ID
-func (sb *SolrBackend) cacheID(collection, tsType, tsid string) gobol.Error {
+func (sb *SolrBackend) cacheID(collection, tsType, tsid string) error {
 
 	if sb.idCacheTTL < 0 {
 		return nil
@@ -47,7 +50,7 @@ func (sb *SolrBackend) cacheID(collection, tsType, tsid string) gobol.Error {
 }
 
 // deleteID - remove cached id
-func (sb *SolrBackend) deleteCachedID(collection, tsType, tsid string) gobol.Error {
+func (sb *SolrBackend) deleteCachedID(collection, tsType, tsid string) error {
 
 	err := sb.memcached.Delete(idNamespace, collection, tsType, tsid)
 	if err != nil {
@@ -58,7 +61,7 @@ func (sb *SolrBackend) deleteCachedID(collection, tsType, tsid string) gobol.Err
 }
 
 // getCachedKeysets - return the keysets
-func (sb *SolrBackend) getCachedKeysets() ([]string, gobol.Error) {
+func (sb *SolrBackend) getCachedKeysets() ([]string, error) {
 
 	data, gerr := sb.memcached.Get(keysetNamespace, keysetMapID)
 	if gerr != nil {
@@ -66,14 +69,14 @@ func (sb *SolrBackend) getCachedKeysets() ([]string, gobol.Error) {
 	}
 
 	if len(data) > 0 {
-		return strings.Split(string(data), " "), nil
+		return strings.Split(string(data), constants.StringsWhitespace), nil
 	}
 
 	return nil, nil
 }
 
 // cacheKeysets - caches the keyset map
-func (sb *SolrBackend) cacheKeysets(keysets []string) gobol.Error {
+func (sb *SolrBackend) cacheKeysets(keysets []string) error {
 
 	if keysets == nil || len(keysets) == 0 {
 		return nil
@@ -83,7 +86,7 @@ func (sb *SolrBackend) cacheKeysets(keysets []string) gobol.Error {
 		return nil
 	}
 
-	gerr := sb.memcached.Put([]byte(strings.Trim(fmt.Sprint(keysets), "[]")), sb.keysetCacheTTL, keysetNamespace, keysetMapID)
+	gerr := sb.memcached.Put([]byte(strings.Trim(fmt.Sprint(keysets), cEmptyArray)), sb.keysetCacheTTL, keysetNamespace, keysetMapID)
 	if gerr != nil {
 		return gerr
 	}
@@ -92,7 +95,7 @@ func (sb *SolrBackend) cacheKeysets(keysets []string) gobol.Error {
 }
 
 // deleteKeySetMap - deletes the cached keyset map
-func (sb *SolrBackend) deleteCachedKeySets() gobol.Error {
+func (sb *SolrBackend) deleteCachedKeySets() error {
 
 	gerr := sb.memcached.Delete(keysetNamespace, keysetMapID)
 	if gerr != nil {
@@ -103,16 +106,16 @@ func (sb *SolrBackend) deleteCachedKeySets() gobol.Error {
 }
 
 // hash - creates a new hash from a given string
-func (sb *SolrBackend) hash(v interface{}) (string, gobol.Error) {
+func (sb *SolrBackend) hash(v interface{}) (string, error) {
 	hash, err := hashstructure.Hash(v, nil)
 	if err != nil {
-		return "", errInternalServer("hash", err)
+		return constants.StringsEmpty, errInternalServer("hash", err)
 	}
 	return strconv.FormatUint(hash, 10), nil
 }
 
 // getCachedFacets - return all cached facets from the query
-func (sb *SolrBackend) getCachedFacets(collection, field string, v interface{}) ([]string, gobol.Error) {
+func (sb *SolrBackend) getCachedFacets(collection, field string, v interface{}) ([]string, error) {
 
 	hash, gerr := sb.hash(v)
 	if gerr != nil {
@@ -125,14 +128,14 @@ func (sb *SolrBackend) getCachedFacets(collection, field string, v interface{}) 
 	}
 
 	if len(data) > 0 {
-		return strings.Split(string(data), " "), nil
+		return strings.Split(string(data), constants.StringsWhitespace), nil
 	}
 
 	return nil, nil
 }
 
 // cacheFacets - caches the facets
-func (sb *SolrBackend) cacheFacets(facets []string, collection, field string, v interface{}) gobol.Error {
+func (sb *SolrBackend) cacheFacets(facets []string, collection, field string, v interface{}) error {
 
 	if sb.queryCacheTTL < 0 {
 		return nil
@@ -147,7 +150,7 @@ func (sb *SolrBackend) cacheFacets(facets []string, collection, field string, v 
 		return gerr
 	}
 
-	gerr = sb.memcached.Put([]byte(strings.Trim(fmt.Sprint(facets), "[]")), sb.queryCacheTTL, facetsNamespace, collection, field, hash)
+	gerr = sb.memcached.Put([]byte(strings.Trim(fmt.Sprint(facets), cEmptyArray)), sb.queryCacheTTL, facetsNamespace, collection, field, hash)
 	if gerr != nil {
 		return gerr
 	}

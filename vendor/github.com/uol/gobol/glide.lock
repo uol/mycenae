@@ -1,12 +1,10 @@
-hash: 6f08fe745794bf907bf4ade45018a30b3df592c91ed3b418a59fbf98edcf73d4
-updated: 2019-09-23T22:17:00.348511078-03:00
+hash: 9fad51e9fec1418e4d98ac79501f26874457d484ab5844d965492d41a4ec343a
+updated: 2019-12-16T20:07:54.180899514-03:00
 imports:
-- name: github.com/armon/go-metrics
-  version: f0300d1749da6fa982027e449ec0c7a145510c3c
 - name: github.com/BurntSushi/toml
   version: 3012a1dbe2e4bd1391d42b32f0577cb7bbc7f005
 - name: github.com/gocql/gocql
-  version: f6df8288f9b44e66f50c9a59aee53a705c788dbe
+  version: 1982a06ad6b987c24beec15336019914d71b2e31
   subpackages:
   - internal/lru
   - internal/murmur
@@ -14,52 +12,31 @@ imports:
 - name: github.com/golang/snappy
   version: 2a8bb927dd31d8daada140a5d09578521ce5c36a
 - name: github.com/google/uuid
-  version: 064e2069ce9c359c118179501254f67d7d37ba24
+  version: 0cd6bf5da1e1c83f8b45653022c74f71af0538a4
 - name: github.com/hailocab/go-hostpool
   version: e80d13ce29ede4452c43dea11e79b9bc8a15b478
-- name: github.com/hashicorp/consul
-  version: 501c22b5563935713596034d47a1cbdef1ec1904
-  subpackages:
-  - api
-- name: github.com/hashicorp/go-cleanhttp
-  version: e8ab9daed8d1ddd2d3c4efba338fe2eeae2e4f18
-- name: github.com/hashicorp/go-immutable-radix
-  version: 27df80928bb34bb1b0d6d0e01b9e679902e7a6b5
-- name: github.com/hashicorp/go-rootcerts
-  version: 63503fb4e1eca22f9ae0f90b49c5d5538a0e87eb
-- name: github.com/hashicorp/golang-lru
-  version: 7087cb70de9f7a8bc0a10c375cb0d2280a8edf9c
-  subpackages:
-  - simplelru
-- name: github.com/hashicorp/serf
-  version: b89a09ebd4b1b570e0076d5097272e67c10ac4f6
-  subpackages:
-  - coordinate
 - name: github.com/jinzhu/gorm
-  version: 836fb2c19d84dac7b0272958dfb9af7cf0d0ade4
-  subpackages:
-  - dialects/postgres
+  version: 81c17a7e2529c59efc4e74c5b32c1fb71fb12fa2
 - name: github.com/jinzhu/inflection
   version: f5c5f50e6090ae76a29240b61ae2a90dd810112e
 - name: github.com/julienschmidt/httprouter
   version: 348b672cd90d8190f8240323e372ecd1e66b59dc
 - name: github.com/lib/pq
   version: 4ded0e9383f75c197b3a2aaa6d590ac52df6fd79
-  subpackages:
-  - hstore
-  - oid
-- name: github.com/mitchellh/go-homedir
-  version: af06845cf3004701891bf4fdb884bfe4920b3727
-- name: github.com/mitchellh/mapstructure
-  version: 3536a929edddb9a5b34bd6861dc4a9647cb459fe
 - name: github.com/pborman/uuid
   version: adf5a7427709b9deb95d29d3fa8a2bf9cfd388f1
 - name: github.com/robfig/cron
   version: b41be1df696709bb6395fe435af20370037c0b4c
 - name: github.com/rs/cors
   version: 9a47f48565a795472d43519dd49aac781f3034fb
+- name: github.com/rs/zerolog
+  version: f1dd50b8c64d79be1392edf1d8fda5cedea4916d
+  subpackages:
+  - internal/cbor
+  - internal/json
+  - log
 - name: github.com/samuel/go-zookeeper
-  version: 3c104360edc8b46f85e0180ffaa01fdf3ff2c8a2
+  version: 2cc03de413da42869e2db7ce7965d3e978d917eb
   subpackages:
   - zk
 - name: github.com/uol/go-solr
@@ -72,22 +49,18 @@ imports:
   - json
   - opentsdb
   - serializer
-- name: go.uber.org/atomic
-  version: df976f2515e274675050de7b3f42545de80594fd
-- name: go.uber.org/multierr
-  version: 3c4937480c32f4c13a875a1829af76c98ca3d40a
-- name: go.uber.org/zap
-  version: ff33455a0e382e8a81d14dd7c922020b6b5e7982
+- name: golang.org/x/crypto
+  version: e9b2fee46413994441b28dfca259d911d963dfed
   subpackages:
-  - buffer
-  - internal/bufferpool
-  - internal/color
-  - internal/exit
-  - zapcore
+  - sha3
+- name: golang.org/x/sys
+  version: ac6580df4449443a05718fd7858c1f91ad5f8d20
+  subpackages:
+  - cpu
 - name: gopkg.in/inf.v0
   version: d2d2541c53f18d2a059457998ce2876cc8e67cbf
 - name: gopkg.in/yaml.v2
-  version: 51d6538a90f86fe93ac480b35f37b2be17fef232
+  version: 1f64d6156d11335c3f22d9330b0ad14fc1e789ce
 testImports:
 - name: github.com/davecgh/go-spew
   version: d8f796af33cc11cb798c1aaeb27a4ebc5099927d

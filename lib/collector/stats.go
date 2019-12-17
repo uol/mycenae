@@ -3,6 +3,8 @@ package collector
 import (
 	"strconv"
 	"time"
+
+	"github.com/uol/mycenae/lib/constants"
 )
 
 func statsProcTime(ksid string, d time.Duration) {
@@ -36,10 +38,10 @@ func statsInsertFBerror(ksid, cf string) {
 
 func statsIndexError(i, t, m string) {
 	tags := map[string]string{"method": m}
-	if i != "" {
+	if i != constants.StringsEmpty {
 		tags["index"] = i
 	}
-	if t != "" {
+	if t != constants.StringsEmpty {
 		tags["type"] = t
 	}
 	go statsIncrement("solr.request.error", tags)
@@ -47,10 +49,10 @@ func statsIndexError(i, t, m string) {
 
 func statsIndex(i, t, m string, d time.Duration) {
 	tags := map[string]string{"method": m}
-	if i != "" {
+	if i != constants.StringsEmpty {
 		tags["index"] = i
 	}
-	if t != "" {
+	if t != constants.StringsEmpty {
 		tags["type"] = t
 	}
 	go statsIncrement("solr.request", tags)
@@ -109,7 +111,7 @@ func statsCountOldTimeseries(ksid, vt string, ttl int) {
 }
 
 func validateTagValue(tag string) string {
-	if tag == "" {
+	if tag == constants.StringsEmpty {
 		return "unknown"
 	}
 	return tag

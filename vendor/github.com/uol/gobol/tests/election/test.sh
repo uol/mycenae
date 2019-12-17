@@ -16,7 +16,7 @@ function quit {
 
 function createSlave {
     docker run -it -d -h ${1} --name ${1} --add-host="zookeeper.intranet:${zkIP}" electiontest
-    sleep 5
+    sleep 10
     grepResult=$(docker logs ${1} | grep 'slave node created')
     if [ -z "$grepResult" ]; then
         echo "FAIL: expecting ${1} be a slave"

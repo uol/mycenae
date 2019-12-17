@@ -12,26 +12,10 @@ import (
 	"github.com/uol/go-solr/solr"
 
 	"github.com/stretchr/testify/assert"
-
-	"go.uber.org/zap"
-
-	"github.com/uol/gobol/saw"
 )
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 const solrURL = "http://172.17.0.3:8983/solr"
-
-// getLogger - creates the logger
-func getLogger(t *testing.T) (*zap.Logger, error) {
-
-	logger, err := saw.New("DEBUG", "QA")
-	if err != nil {
-		t.Errorf(err.Error())
-		t.Fail()
-	}
-
-	return logger, err
-}
 
 // RandStringBytes - generates random strings
 func randStringBytes(n int) string {
@@ -46,9 +30,7 @@ func randStringBytes(n int) string {
 // initSolrService - initializes the solr service
 func initSolrService(t *testing.T) *SolrService {
 
-	logger, _ := getLogger(t)
-
-	ss, err := NewSolrService(solrURL, logger)
+	ss, err := NewSolrService(solrURL)
 	if err != nil {
 		t.Errorf(err.Error())
 		panic(err)
@@ -356,7 +338,7 @@ func TestDeleteDocumentByQuery(t *testing.T) {
 	id := "1"
 	name := "test1"
 	doc := solr.Document{
-		"id": id,
+		"id":   id,
 		"name": name,
 	}
 	err = populateCollection(t, doc, ss, collection)
@@ -399,7 +381,7 @@ func TestDeleteDocumentByID(t *testing.T) {
 	id := "2"
 	name := "test2"
 	doc := solr.Document{
-		"id": id,
+		"id":   id,
 		"name": name,
 	}
 	err = populateCollection(t, doc, ss, collection)
@@ -441,7 +423,7 @@ func TestDeleteDocumentByIDCommitFalse(t *testing.T) {
 	id := "3"
 	name := "test3"
 	doc := solr.Document{
-		"id": id,
+		"id":   id,
 		"name": name,
 	}
 	err = populateCollection(t, doc, ss, collection)

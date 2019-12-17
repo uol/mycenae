@@ -11,7 +11,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/uol/gobol/timeline"
-	"go.uber.org/zap"
 )
 
 /**
@@ -36,7 +35,7 @@ func generatePort() int {
 }
 
 // createOpenTSDBTransport - creates the http transport
-func createOpenTSDBTransport(logger *zap.Logger) *timeline.OpenTSDBTransport {
+func createOpenTSDBTransport() *timeline.OpenTSDBTransport {
 
 	transportConf := timeline.OpenTSDBTransportConfig{
 		DefaultTransportConfiguration: timeline.DefaultTransportConfiguration{
@@ -49,7 +48,7 @@ func createOpenTSDBTransport(logger *zap.Logger) *timeline.OpenTSDBTransport {
 		ReconnectionTimeout: 1 * time.Second,
 	}
 
-	transport, err := timeline.NewOpenTSDBTransport(&transportConf, logger)
+	transport, err := timeline.NewOpenTSDBTransport(&transportConf)
 	if err != nil {
 		panic(err)
 	}

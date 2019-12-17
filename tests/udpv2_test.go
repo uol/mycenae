@@ -433,7 +433,7 @@ func TestUDPv2PayloadWithEmptyValues(t *testing.T) {
 func TestUDPv2PayloadWithInvalidChars(t *testing.T) {
 	t.Parallel()
 
-	invalidChars := []string{" ", "space between"}
+	invalidChars := []string{" ", "space between", "\\", "?", "!", "@", "$", "*", "(", ")", "{", "}", "[", "]", "|", "+", "=", "`", "^", "~", ",", ":", "<", ">", "ü"}
 
 	var wgOut sync.WaitGroup
 	wgOut.Add(len(invalidChars))

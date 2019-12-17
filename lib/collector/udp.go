@@ -1,11 +1,9 @@
 package collector
 
 import (
-	"fmt"
-
 	"github.com/uol/gobol"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
+	"github.com/uol/gobol/logh"
+	"github.com/uol/mycenae/lib/constants"
 )
 
 func sendIPStats(addr string) {
@@ -26,17 +24,15 @@ func (collector *Collector) HandleUDPpacket(buf []byte, addr string) {
 
 func (collector *Collector) fail(gerr gobol.Error, addr string) {
 
-	lf := []zapcore.Field{
-		zap.String("package", "Collector"),
-		zap.String("func", "fail"),
-		zap.String("addr", addr),
-	}
-
 	defer func() {
 		if r := recover(); r != nil {
-			gblog.Error(fmt.Sprintf("Panic: %v", r), lf...)
+			if logh.ErrorEnabled {
+				collector.logger.Error().Str(constants.StringsFunc, "fail").Str("addr", addr).Msgf("panic recovery: %v", r)
+			}
 		}
 	}()
 
-	gblog.Debug(gerr.Error(), lf...)
+	if logh.ErrorEnabled {
+		collector.logger.Error().Str(constants.StringsFunc, "fail").Str("addr", addr).Err(gerr)
+	}
 }

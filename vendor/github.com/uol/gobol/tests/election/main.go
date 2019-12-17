@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
 	"sync"
@@ -9,9 +8,7 @@ import (
 	"time"
 
 	"github.com/uol/gobol/election"
-	"github.com/uol/gobol/saw"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
+	"github.com/uol/gobol/logh"
 )
 
 //
@@ -21,16 +18,7 @@ import (
 
 func main() {
 
-	logger, err := saw.New("INFO", "QA")
-	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(0)
-	}
-
-	lf := []zapcore.Field{
-		zap.String("package", "main"),
-		zap.String("func", "main"),
-	}
+	logh.ConfigureGlobalLogger(logh.INFO, logh.CONSOLE)
 
 	cfg := election.Config{
 		ZKURL:                  []string{"zookeeper.intranet"},
@@ -39,12 +27,12 @@ func main() {
 		ReconnectionTimeout:    "3s",
 		SessionTimeout:         "5s",
 		ClusterChangeCheckTime: "1s",
-		ClusterChangeWaitTime:  "2s",
+		ClusterChangeWaitTime:  "1s",
 	}
 
-	manager, err := election.New(&cfg, logger)
+	manager, err := election.New(&cfg)
 	if err != nil {
-		logger.Error(err.Error(), lf...)
+		logh.Error().Err(err).Send()
 		os.Exit(0)
 	}
 
@@ -55,13 +43,13 @@ func main() {
 			select {
 			case signal := <-*feedbackChannel:
 				if signal == election.Master {
-					logger.Info("master signal received", lf...)
+					logh.Info().Msg("master signal received")
 				} else if signal == election.Slave {
-					logger.Info("slave signal received", lf...)
+					logh.Info().Msg("slave signal received")
 				} else if signal == election.ClusterChanged {
-					logger.Info("cluster changed signal received", lf...)
+					logh.Info().Msg("cluster changed signal received")
 				} else if signal == election.Disconnected {
-					logger.Info("disconnected signal received", lf...)
+					logh.Info().Msg("disconnected signal received")
 				}
 			}
 		}
@@ -69,11 +57,11 @@ func main() {
 
 	ci, err := manager.GetClusterInfo()
 	if err != nil {
-		logger.Error(err.Error(), lf...)
+		logh.Error().Err(err).Send()
 		os.Exit(0)
 	}
 
-	logger.Info(fmt.Sprintf("%+v", ci), lf...)
+	logh.Info().Msgf("%+v", ci)
 
 	var gracefulStop = make(chan os.Signal)
 	signal.Notify(gracefulStop, syscall.SIGTERM)
@@ -81,7 +69,7 @@ func main() {
 
 	go func() {
 		<-gracefulStop
-		logger.Error("exiting...", lf...)
+		logh.Error().Msg("exiting...")
 		manager.Disconnect()
 		time.Sleep(2 * time.Second)
 		os.Exit(0)

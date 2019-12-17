@@ -5,6 +5,7 @@ import (
 
 	"github.com/uol/gobol"
 
+	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/structs"
 )
 
@@ -13,7 +14,7 @@ func parseMerge(exp string, tsdb *structs.TSDBquery) (string, gobol.Error) {
 	params := parseParams(string(exp[5:]))
 
 	if len(params) != 2 {
-		return "", errParams(
+		return constants.StringsEmpty, errParams(
 			"parseMerge",
 			"merge needs 2 parameters: merge operation and a function",
 			fmt.Errorf("merge expects 2 parameters but found %d: %v", len(params), params),
@@ -24,7 +25,7 @@ func parseMerge(exp string, tsdb *structs.TSDBquery) (string, gobol.Error) {
 
 	for _, oper := range tsdb.Order {
 		if oper == "aggregation" {
-			return "", errDoubleFunc("parseMerge", "merge")
+			return constants.StringsEmpty, errDoubleFunc("parseMerge", "merge")
 		}
 	}
 

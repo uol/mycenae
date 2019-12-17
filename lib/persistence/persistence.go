@@ -3,12 +3,14 @@ package persistence
 import (
 	"strings"
 
+	"github.com/uol/gobol/logh"
+
 	"github.com/gocql/gocql"
 	"github.com/pborman/uuid"
 	"github.com/uol/gobol"
+	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/metadata"
 	"github.com/uol/mycenae/lib/tsstats"
-	"go.uber.org/zap"
 )
 
 // Backend hides the underlying implementation of the persistence
@@ -34,7 +36,7 @@ type Backend interface {
 
 // Storage is a storage for data
 type Storage struct {
-	logger   *zap.Logger
+	logger   *logh.ContextualLogger
 	metadata *metadata.Storage
 
 	// Backend is the thing that actually does the specific work in the storage
@@ -45,7 +47,6 @@ type Storage struct {
 func NewStorage(
 	ksAdmin string,
 	grantUser string,
-	logger *zap.Logger,
 	session *gocql.Session,
 	metadata *metadata.Storage,
 	stats *tsstats.StatsTS,
@@ -53,13 +54,13 @@ func NewStorage(
 	defaultTTL int,
 ) (*Storage, error) {
 	backend, err := newScyllaPersistence(
-		ksAdmin, grantUser, session, logger, stats, devMode, defaultTTL,
+		ksAdmin, grantUser, session, stats, devMode, defaultTTL,
 	)
 	if err != nil {
 		return nil, err
 	}
 	return &Storage{
-		logger:   logger,
+		logger:   logh.CreateContextualLogger(constants.StringsPKG, "persistence"),
 		metadata: metadata,
 		Backend:  backend,
 	}, nil

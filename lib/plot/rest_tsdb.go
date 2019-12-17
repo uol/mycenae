@@ -12,6 +12,7 @@ import (
 	"github.com/uol/gobol"
 	"github.com/uol/gobol/rip"
 
+	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/parser"
 	"github.com/uol/mycenae/lib/structs"
 )
@@ -19,7 +20,7 @@ import (
 func (plot *Plot) Lookup(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	keyset := ps.ByName("keyset")
-	if keyset == "" {
+	if keyset == constants.StringsEmpty {
 		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/search/lookup", "keyset": "empty"})
 		rip.Fail(w, errNotFound("Lookup"))
 		return
@@ -29,7 +30,7 @@ func (plot *Plot) Lookup(w http.ResponseWriter, r *http.Request, ps httprouter.P
 
 	m := r.URL.Query().Get("m")
 
-	if m == "" {
+	if m == constants.StringsEmpty {
 		gerr := errValidationS("Lookup", `missing query parameter "m"`)
 		rip.Fail(w, gerr)
 		return
@@ -77,7 +78,7 @@ func (plot *Plot) Lookup(w http.ResponseWriter, r *http.Request, ps httprouter.P
 func (plot *Plot) Suggest(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	keyset := ps.ByName("keyset")
-	if keyset == "" {
+	if keyset == constants.StringsEmpty {
 		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/suggest", "keyset": "empty"})
 		rip.Fail(w, errNotFound("Suggest"))
 		return
@@ -93,7 +94,7 @@ func (plot *Plot) Suggest(w http.ResponseWriter, r *http.Request, ps httprouter.
 
 	var err error
 
-	if maxStr != "" {
+	if maxStr != constants.StringsEmpty {
 
 		max, err = strconv.Atoi(maxStr)
 		if err != nil {
@@ -106,7 +107,7 @@ func (plot *Plot) Suggest(w http.ResponseWriter, r *http.Request, ps httprouter.
 	var gerr gobol.Error
 
 	switch queryString.Get("type") {
-	case "":
+	case constants.StringsEmpty:
 		gerr = errValidationS("Suggest", "type required")
 		rip.Fail(w, gerr)
 		return
@@ -138,7 +139,7 @@ func (plot *Plot) Suggest(w http.ResponseWriter, r *http.Request, ps httprouter.
 func (plot *Plot) Query(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	keyset := ps.ByName("keyset")
-	if keyset == "" {
+	if keyset == constants.StringsEmpty {
 		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/query", "keyset": "empty"})
 		rip.Fail(w, errNotFound("Query"))
 		return
@@ -182,7 +183,7 @@ func (plot *Plot) getTimeseries(
 	query structs.TSDBqueryPayload,
 ) (resps TSDBresponses, sumBytes uint32, gerr gobol.Error) {
 
-	if query.Relative != "" {
+	if query.Relative != constants.StringsEmpty {
 		now := time.Now()
 		start, gerr := parser.GetRelativeStart(now, query.Relative)
 		if gerr != nil {
@@ -211,7 +212,7 @@ func (plot *Plot) getTimeseries(
 
 	for _, q := range query.Queries {
 
-		if q.Downsample != "" {
+		if q.Downsample != constants.StringsEmpty {
 
 			ds := strings.Split(q.Downsample, "-")
 			var unit string
@@ -324,10 +325,10 @@ func (plot *Plot) getTimeseries(
 
 				for k, v := range tsd.Tags {
 					if _, ok := tagK[k]; ok {
-						tagK[k][v] = ""
+						tagK[k][v] = constants.StringsEmpty
 					} else {
 						tagK[k] = map[string]string{
-							v: "",
+							v: constants.StringsEmpty,
 						}
 					}
 				}
@@ -346,7 +347,7 @@ func (plot *Plot) getTimeseries(
 
 			filterV := structs.FilterValueOperation{}
 
-			if q.FilterValue != "" {
+			if q.FilterValue != constants.StringsEmpty {
 				filterV.Enabled = true
 				if q.FilterValue[:2] == ">=" || q.FilterValue[:2] == "<=" || q.FilterValue[:2] == "==" {
 					val, err := strconv.ParseFloat(q.FilterValue[2:], 64)
@@ -472,10 +473,10 @@ func (plot *Plot) getTimeseries(
 
 		}
 
-		statsConferMetric(keyset, q.Metric)
+		plot.statsConferMetric(keyset, q.Metric)
 	}
 
-	statsPlotSummaryPoints(sumCountPoints, sumTotalPoints, sumBytes, keyset)
+	plot.statsPlotSummaryPoints(sumCountPoints, sumTotalPoints, sumBytes, keyset)
 
 	sort.Sort(resps)
 
@@ -502,7 +503,7 @@ func getMetric(query string) (string, string) {
 		mr = append(mr, r)
 	}
 
-	return strings.TrimSpace(string(mr)), ""
+	return strings.TrimSpace(string(mr)), constants.StringsEmpty
 }
 
 func getTags(query string) ([]Tag, gobol.Error) {
@@ -532,7 +533,7 @@ func getTags(query string) ([]Tag, gobol.Error) {
 		}
 
 		if string(r) == "," || string(r) == "}" {
-			if key == "" {
+			if key == constants.StringsEmpty {
 				return []Tag{}, errValidationS("getTags", `invalid tag format`)
 			}
 

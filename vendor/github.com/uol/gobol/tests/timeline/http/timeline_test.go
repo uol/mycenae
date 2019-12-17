@@ -2,12 +2,12 @@ package timeline_http_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap"
 
 	"github.com/uol/gobol/structs"
 	"github.com/uol/gobol/tester/httpserver"
@@ -22,17 +22,12 @@ import (
 // createTimelineManager - creates a new timeline manager
 func createTimelineManager(start bool) *timeline.Manager {
 
-	logger, err := zap.NewDevelopment()
-	if err != nil {
-		panic(err)
-	}
-
 	backend := timeline.Backend{
 		Host: httpserver.TestServerHost,
 		Port: httpserver.TestServerPort,
 	}
 
-	transport := createHTTPTransport(logger)
+	transport := createHTTPTransport()
 
 	manager, err := timeline.NewManager(transport, &backend)
 	if err != nil {
@@ -49,6 +44,30 @@ func createTimelineManager(start bool) *timeline.Manager {
 	return manager
 }
 
+// testSerializeCompareNumber - compares a serialized json and a json struct
+func testSerializeCompareNumber(t *testing.T, text string, expected interface{}) bool {
+
+	var actual []structs.NumberPoint
+	err := json.Unmarshal([]byte(text), &actual)
+	if !assert.Nil(t, err, "error unmarshalling to number point") {
+		return false
+	}
+
+	return testNumberPoint(t, expected, actual)
+}
+
+// testSerializeCompareText - compares a serialized json and a json struct
+func testSerializeCompareText(t *testing.T, text string, expected interface{}) bool {
+
+	var actual []structs.TextPoint
+	err := json.Unmarshal([]byte(text), &actual)
+	if !assert.Nil(t, err, "error unmarshalling to text point") {
+		return false
+	}
+
+	return testTextPoint(t, expected, actual)
+}
+
 // testRequestData - tests the request data
 func testRequestData(t *testing.T, requestData *httpserver.RequestData, expected interface{}, isNumber bool) bool {
 
@@ -62,23 +81,10 @@ func testRequestData(t *testing.T, requestData *httpserver.RequestData, expected
 	if result {
 
 		if isNumber {
-
-			var actual []structs.NumberPoint
-			err := json.Unmarshal([]byte(requestData.Body), &actual)
-			if !assert.Nil(t, err, "error unmarshalling to number point") {
-				return false
-			}
-
-			return testNumberPoint(t, expected, actual)
+			return testSerializeCompareNumber(t, requestData.Body, expected)
 		}
 
-		var actual []structs.TextPoint
-		err := json.Unmarshal([]byte(requestData.Body), &actual)
-		if !assert.Nil(t, err, "error unmarshalling to text point") {
-			return false
-		}
-
-		return testTextPoint(t, expected, actual)
+		return testSerializeCompareText(t, requestData.Body, expected)
 	}
 
 	return result
@@ -346,4 +352,36 @@ func TestSendCustomText(t *testing.T) {
 
 	requestData := httpserver.WaitForHTTPServerRequest(s)
 	testRequestData(t, requestData, []*structs.TextPoint{text}, false)
+}
+
+// TestNumberSerialization - tests configuring the json variables
+func TestNumberSerialization(t *testing.T) {
+
+	m := createTimelineManager(false)
+	defer m.Shutdown()
+
+	number := newNumberPoint(15)
+
+	serialized, err := m.SerializeHTTP(numberPoint, toGenericParametersN(number)...)
+	if !assert.NoError(t, err, "no error expected when serializing number") {
+		return
+	}
+
+	testSerializeCompareNumber(t, fmt.Sprintf("[%s]", serialized), []*structs.NumberPoint{number})
+}
+
+// TestTextSerialization - tests configuring the json variables
+func TestTextSerialization(t *testing.T) {
+
+	m := createTimelineManager(false)
+	defer m.Shutdown()
+
+	text := newTextPoint("serialization")
+
+	serialized, err := m.SerializeHTTP(textPoint, toGenericParametersT(text)...)
+	if !assert.NoError(t, err, "no error expected when serializing text") {
+		return
+	}
+
+	testSerializeCompareText(t, fmt.Sprintf("[%s]", serialized), []*structs.TextPoint{text})
 }

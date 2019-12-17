@@ -7,6 +7,7 @@ import (
 
 	"github.com/uol/gobol"
 
+	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/structs"
 )
 
@@ -31,15 +32,15 @@ func parseGroup(exp string, tsdb *structs.TSDBquery) (string, gobol.Error) {
 				if f == 0 {
 					i = j + 1
 					if i == len(exp) {
-						return "", errGroup("groupBy cannot be used by itself")
+						return constants.StringsEmpty, errGroup("groupBy cannot be used by itself")
 					}
 
 					if string(exp[i]) != "|" {
-						return "", errGroup("groupBy should be followed by a |")
+						return constants.StringsEmpty, errGroup("groupBy should be followed by a |")
 					}
 
 					if i+1 == len(exp) {
-						return "", errGroup("groupBy should be followed by a | and a query expression")
+						return constants.StringsEmpty, errGroup("groupBy should be followed by a | and a query expression")
 					}
 
 					queryExp = exp[i+1:]
@@ -53,7 +54,7 @@ func parseGroup(exp string, tsdb *structs.TSDBquery) (string, gobol.Error) {
 	params := parseParams(string(exp[7:]))
 
 	if len(params) != 1 {
-		return "", errParams(
+		return constants.StringsEmpty, errParams(
 			"parseGroup",
 			"groupBy expects 1 parameter: a map of tags",
 			fmt.Errorf("groupBy expects 1 parameter but found %d: %v", len(params), params),
@@ -62,7 +63,7 @@ func parseGroup(exp string, tsdb *structs.TSDBquery) (string, gobol.Error) {
 
 	tags, err := parseMap(params[0])
 	if err != nil {
-		return "", err
+		return constants.StringsEmpty, err
 	}
 
 	for k, vs := range tags {
@@ -99,7 +100,7 @@ func parseGroup(exp string, tsdb *structs.TSDBquery) (string, gobol.Error) {
 
 	for _, oper := range tsdb.Order {
 		if oper == "groupBy" {
-			return "", errDoubleFunc("parseGroup", "groupBy")
+			return constants.StringsEmpty, errDoubleFunc("parseGroup", "groupBy")
 		}
 	}
 
@@ -110,7 +111,7 @@ func parseGroup(exp string, tsdb *structs.TSDBquery) (string, gobol.Error) {
 
 func writeGroup(exp string, filters []structs.TSDBfilter) string {
 
-	gExp := ""
+	gExp := constants.StringsEmpty
 
 	orderedTags := []string{}
 
@@ -153,7 +154,7 @@ func writeGroup(exp string, filters []structs.TSDBfilter) string {
 				case "literal_or":
 					joinFilters[filter.Tagk] = append(
 						joinFilters[filter.Tagk],
-						fmt.Sprintf("or(%s)", filter.Ftype, filter.Filter),
+						fmt.Sprintf("or(%s)", filter.Ftype),
 					)
 					joinFilters[filter.Tagk] = []string{
 						fmt.Sprintf("or(%s)", filter.Filter),
@@ -161,7 +162,7 @@ func writeGroup(exp string, filters []structs.TSDBfilter) string {
 				case "not_literal_or":
 					joinFilters[filter.Tagk] = append(
 						joinFilters[filter.Tagk],
-						fmt.Sprintf("notor(%s)", filter.Ftype, filter.Filter),
+						fmt.Sprintf("notor(%s)", filter.Ftype),
 					)
 				}
 			}

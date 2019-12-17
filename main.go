@@ -11,17 +11,16 @@ import (
 	"runtime/debug"
 	"syscall"
 
-	"go.uber.org/zap/zapcore"
+	"github.com/uol/gobol/logh"
 
 	"github.com/gocql/gocql"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/uol/gobol/cassandra"
 	"github.com/uol/gobol/loader"
-	"github.com/uol/gobol/saw"
 	"github.com/uol/gobol/snitch"
-	"go.uber.org/zap"
 
 	"github.com/uol/mycenae/lib/collector"
+	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/keyset"
 	"github.com/uol/mycenae/lib/keyspace"
 	"github.com/uol/mycenae/lib/memcached"
@@ -36,7 +35,10 @@ import (
 	"github.com/uol/mycenae/lib/udp"
 )
 
-var json = jsoniter.ConfigCompatibleWithStandardLibrary
+var (
+	json   = jsoniter.ConfigCompatibleWithStandardLibrary
+	logger *logh.ContextualLogger
+)
 
 func main() {
 
@@ -60,206 +62,212 @@ func main() {
 		fmt.Println("config file loaded: ", confPath)
 	}
 
-	lf := []zapcore.Field{
-		zap.String("package", "main"),
-		zap.String("func", "main"),
-	}
-
-	loggers := createLoggers(&settings.Logs)
+	logger = configureLogger(&settings.Logs)
 
 	if devMode {
-		loggers.General.Info("DEV MODE IS ENABLED!", lf...)
+		if logh.InfoEnabled {
+			logger.Info().Msg("DEV MODE IS ENABLED!")
+		}
 	}
 
 	if settings.GarbageCollectorPercentage > 0 {
 		debug.SetGCPercent(settings.GarbageCollectorPercentage)
-		loggers.General.Info(fmt.Sprintf("using garbage collector percentage from configuration: %d%%", settings.GarbageCollectorPercentage), lf...)
+		if logh.InfoEnabled {
+			logger.Info().Msgf("using garbage collector percentage from configuration: %d%%", settings.GarbageCollectorPercentage)
+		}
 	}
 
-	stats := createStatisticsService("stats", &settings.Stats, loggers.Stats)
-	analyticsStats := createStatisticsService("analytics-stats", &settings.StatsAnalytic, loggers.Stats)
-	timeseriesStats := createTimeseriesStatisticsService(stats, analyticsStats, settings, loggers.General)
-	scyllaConn := createScyllaConnection(&settings.Cassandra, loggers.General)
-	memcachedConn := createMemcachedConnection(&settings.Memcached, timeseriesStats, loggers.General)
-	metadataStorage := createMetadataStorageService(&settings.MetadataSettings, timeseriesStats, memcachedConn, loggers.General)
-	scyllaStorageService, keyspaceTTLMap := createScyllaStorageService(settings, devMode, timeseriesStats, scyllaConn, metadataStorage, loggers.General)
-	keyspaceManager := createKeyspaceManager(settings, devMode, timeseriesStats, scyllaStorageService, loggers.General)
-	keysetManager := createKeysetManager(settings, timeseriesStats, metadataStorage, loggers.General)
-	collectorService := createCollectorService(settings, timeseriesStats, metadataStorage, scyllaConn, keysetManager, keyspaceTTLMap, loggers)
-	plotService := createPlotService(settings, timeseriesStats, metadataStorage, scyllaConn, keyspaceTTLMap, loggers.General)
-	udpServer := createUDPServer(&settings.UDPserver, collectorService, timeseriesStats, loggers.General)
-	telnetManager := createTelnetManager(settings, collectorService, timeseriesStats, loggers.General)
-	restServer := createRESTserver(settings, stats, plotService, collectorService, keyspaceManager, keysetManager, memcachedConn, telnetManager, loggers)
+	stats := createStatisticsService("stats", &settings.Stats)
+	analyticsStats := createStatisticsService("analytics-stats", &settings.StatsAnalytic)
+	timeseriesStats := createTimeseriesStatisticsService(stats, analyticsStats, settings)
+	scyllaConn := createScyllaConnection(&settings.Cassandra)
+	memcachedConn := createMemcachedConnection(&settings.Memcached, timeseriesStats)
+	metadataStorage := createMetadataStorageService(&settings.MetadataSettings, timeseriesStats, memcachedConn)
+	scyllaStorageService, keyspaceTTLMap := createScyllaStorageService(settings, devMode, timeseriesStats, scyllaConn, metadataStorage)
+	keyspaceManager := createKeyspaceManager(settings, devMode, timeseriesStats, scyllaStorageService)
+	keysetManager := createKeysetManager(settings, timeseriesStats, metadataStorage)
+	collectorService := createCollectorService(settings, timeseriesStats, metadataStorage, scyllaConn, keysetManager, keyspaceTTLMap)
+	plotService := createPlotService(settings, timeseriesStats, metadataStorage, scyllaConn, keyspaceTTLMap)
+	udpServer := createUDPServer(&settings.UDPserver, collectorService, timeseriesStats)
+	telnetManager := createTelnetManager(settings, collectorService, timeseriesStats)
+	restServer := createRESTserver(settings, stats, plotService, collectorService, keyspaceManager, keysetManager, memcachedConn, telnetManager)
 
-	loggers.General.Info("mycenae started successfully", lf...)
+	if logh.InfoEnabled {
+		logger.Info().Msg("mycenae started successfully")
+	}
 
 	stopChannel := make(chan os.Signal, 1)
 	signal.Notify(stopChannel, os.Interrupt, syscall.SIGTERM)
 
 	<-stopChannel
 
-	loggers.General.Info("stopping mycenae...", lf...)
+	if logh.InfoEnabled {
+		logger.Info().Msg("stopping mycenae...")
+	}
 
-	loggers.General.Info("stopping rest server", lf...)
+	if logh.InfoEnabled {
+		logger.Info().Msg("stopping rest server")
+	}
+
 	restServer.Stop()
-	loggers.General.Info("rest server stopped", lf...)
 
-	loggers.General.Info("stopping udp server", lf...)
+	if logh.InfoEnabled {
+		logger.Info().Msg("rest server stopped")
+	}
+
+	if logh.InfoEnabled {
+		logger.Info().Msg("stopping udp server")
+	}
+
 	udpServer.Stop()
-	loggers.General.Info("udp server stopped", lf...)
 
-	loggers.General.Info("stopping telnet manager", lf...)
+	if logh.InfoEnabled {
+		logger.Info().Msg("udp server stopped")
+	}
+
+	if logh.InfoEnabled {
+		logger.Info().Msg("stopping telnet manager")
+	}
+
 	telnetManager.Shutdown()
-	loggers.General.Info("opentsdb telnet manager stopped", lf...)
 
-	loggers.General.Info("stopping statistics service", lf...)
+	if logh.InfoEnabled {
+		logger.Info().Msg("opentsdb telnet manager stopped")
+	}
+
+	if logh.InfoEnabled {
+		logger.Info().Msg("stopping statistics service")
+	}
+
 	stats.Terminate()
 	analyticsStats.Terminate()
-	loggers.General.Info("statistics service stopped", lf...)
 
-	loggers.General.Info("stopping mycenae is done")
+	if logh.InfoEnabled {
+		logger.Info().Msg("statistics service stopped")
+	}
+
+	if logh.InfoEnabled {
+		logger.Info().Msg("stopping mycenae is done")
+	}
 
 	os.Exit(0)
 }
 
-// createLoggers - create all loggers
-func createLoggers(conf *structs.LoggerSettings) *structs.Loggers {
+// configureLogger - configures all loggers
+func configureLogger(conf *structs.LoggerSettings) *logh.ContextualLogger {
 
-	var err error
-	loggers := &structs.Loggers{}
+	logh.ConfigureGlobalLogger(conf.Level, conf.Format)
 
-	loggers.General, err = saw.New(conf.General.Level, conf.Environment)
-	if err != nil {
-		log.Fatalln("error creating logger: ", err)
-		os.Exit(1)
-	}
-	loggers.General = loggers.General.With(zap.String("type", conf.General.Prefix))
+	cl := logh.CreateContextualLogger(constants.StringsPKG, "main")
 
-	loggers.Stats, err = saw.New(conf.Stats.Level, conf.Environment)
-	if err != nil {
-		log.Fatalln("error creating logger: ", err)
-		os.Exit(1)
-	}
-	loggers.Stats = loggers.Stats.With(zap.String("type", conf.Stats.Prefix))
-
-	lf := []zapcore.Field{
-		zap.String("package", "main"),
-		zap.String("func", "createLoggers"),
+	if logh.InfoEnabled {
+		cl.Info().Msg("log configured")
 	}
 
-	loggers.General.Info("loggers created", lf...)
-
-	return loggers
+	return cl
 }
 
 // createStatisticsService - creates the statistics service
-func createStatisticsService(name string, conf *snitch.Settings, logger *zap.Logger) *snitch.Stats {
+func createStatisticsService(name string, conf *snitch.Settings) *snitch.Stats {
 
-	lf := []zapcore.Field{
-		zap.String("package", "main"),
-		zap.String("func", "createStatisticsService"),
-	}
-
-	stats, err := snitch.New(logger, *conf)
+	stats, err := snitch.New(*conf)
 	if err != nil {
-		logger.Fatal(fmt.Sprintf("error creating statistics service: %s", err.Error()), lf...)
+		if logh.FatalEnabled {
+			logger.Fatal().Err(err).Msg("error creating statistics service")
+		}
 		os.Exit(1)
 	}
 
-	logger.Info(fmt.Sprintf("statistics service '%s' was created", name), lf...)
+	if logh.InfoEnabled {
+		logger.Info().Msgf("statistics service '%s' was created", name)
+	}
 
 	return stats
 }
 
 // createTimeseriesStatisticsService - create the timeseries statistics service
-func createTimeseriesStatisticsService(stats, analitycsStats *snitch.Stats, settings *structs.Settings, logger *zap.Logger) *tsstats.StatsTS {
+func createTimeseriesStatisticsService(stats, analitycsStats *snitch.Stats, settings *structs.Settings) *tsstats.StatsTS {
 
-	lf := []zapcore.Field{
-		zap.String("package", "main"),
-		zap.String("func", "createTimeseriesStatisticsService"),
-	}
-
-	tssts, err := tsstats.New(logger, stats, analitycsStats, settings.Stats.Interval, settings.StatsAnalytic.Interval)
+	tssts, err := tsstats.New(stats, analitycsStats, settings.Stats.Interval, settings.StatsAnalytic.Interval)
 	if err != nil {
-		logger.Error(err.Error(), lf...)
+		if logh.FatalEnabled {
+			logger.Fatal().Err(err).Msg("error creating timeseries statistics service")
+		}
 		os.Exit(1)
 	}
 
-	logger.Info("timeseries statistics service was created", lf...)
+	if logh.InfoEnabled {
+		logger.Info().Msg("timeseries statistics service was created")
+	}
 
 	return tssts
 }
 
 // createScyllaConnection - creates the scylla DB connection
-func createScyllaConnection(conf *cassandra.Settings, logger *zap.Logger) *gocql.Session {
-
-	lf := []zapcore.Field{
-		zap.String("package", "main"),
-		zap.String("func", "createScyllaConnection"),
-	}
+func createScyllaConnection(conf *cassandra.Settings) *gocql.Session {
 
 	conn, err := cassandra.New(*conf)
 	if err != nil {
-		logger.Fatal(fmt.Sprintf("error creating scylla connection: %s", err.Error()), lf...)
+		if logh.FatalEnabled {
+			logger.Fatal().Err(err).Msg("error creating scylla connection")
+		}
 		os.Exit(1)
 	}
 
-	logger.Info("scylla db connection was created", lf...)
+	if logh.InfoEnabled {
+		logger.Info().Msg("scylla db connection was created")
+	}
 
 	return conn
 }
 
 // createMemcachedConnection - creates the memcached connection
-func createMemcachedConnection(conf *memcached.Configuration, timeseriesStats *tsstats.StatsTS, logger *zap.Logger) *memcached.Memcached {
-
-	lf := []zapcore.Field{
-		zap.String("package", "main"),
-		zap.String("func", "createMemcachedConnection"),
-	}
+func createMemcachedConnection(conf *memcached.Configuration, timeseriesStats *tsstats.StatsTS) *memcached.Memcached {
 
 	mc, err := memcached.New(timeseriesStats, conf)
 	if err != nil {
-		logger.Fatal(fmt.Sprintf("error creating memcached connection: %s", err.Error()), lf...)
+		if logh.FatalEnabled {
+			logger.Fatal().Err(err).Msg("error creating memcached connection")
+		}
 		os.Exit(1)
 	}
 
-	logger.Info("memcached connection was created", lf...)
+	if logh.InfoEnabled {
+		logger.Info().Msg("memcached connection was created")
+	}
 
 	return mc
 }
 
 // createMetadataStorageService - creates a new metadata storage
-func createMetadataStorageService(conf *metadata.Settings, timeseriesStats *tsstats.StatsTS, memcachedConn *memcached.Memcached, logger *zap.Logger) *metadata.Storage {
+func createMetadataStorageService(conf *metadata.Settings, timeseriesStats *tsstats.StatsTS, memcachedConn *memcached.Memcached) *metadata.Storage {
 
 	metaStorage, err := metadata.Create(
 		conf,
-		logger,
 		timeseriesStats,
 		memcachedConn,
 	)
 
-	lf := []zapcore.Field{
-		zap.String("package", "main"),
-		zap.String("func", "createMetadataStorageService"),
-	}
-
 	if err != nil {
-		logger.Fatal(fmt.Sprintf("error creating metadata storage service: %s", err.Error()), lf...)
+		if logh.FatalEnabled {
+			logger.Fatal().Err(err).Msg("error creating metadata storage service")
+		}
 		os.Exit(1)
 	}
 
-	logger.Info("metadata storage service was created", lf...)
+	if logh.InfoEnabled {
+		logger.Info().Msg("metadata storage service was created")
+	}
 
 	return metaStorage
 }
 
 // createScyllaStorageService - creates the scylla storage service
-func createScyllaStorageService(conf *structs.Settings, devMode bool, timeseriesStats *tsstats.StatsTS, scyllaConn *gocql.Session, metadataStorage *metadata.Storage, logger *zap.Logger) (*persistence.Storage, map[int]string) {
+func createScyllaStorageService(conf *structs.Settings, devMode bool, timeseriesStats *tsstats.StatsTS, scyllaConn *gocql.Session, metadataStorage *metadata.Storage) (*persistence.Storage, map[int]string) {
 
 	storage, err := persistence.NewStorage(
 		conf.Cassandra.Keyspace,
 		conf.Cassandra.Username,
-		logger,
 		scyllaConn,
 		metadataStorage,
 		timeseriesStats,
@@ -267,19 +275,18 @@ func createScyllaStorageService(conf *structs.Settings, devMode bool, timeseries
 		conf.DefaultTTL,
 	)
 
-	lf := []zapcore.Field{
-		zap.String("package", "main"),
-		zap.String("func", "createScyllaStorageService"),
-	}
-
 	if err != nil {
-		logger.Fatal(fmt.Sprintf("error creating scylla storage service: %s", err.Error()), lf...)
+		if logh.FatalEnabled {
+			logger.Fatal().Err(err).Msg("error creating scylla storage service")
+		}
 		os.Exit(1)
 	}
 
 	jsonStr, _ := json.Marshal(conf.DefaultKeyspaces)
 
-	logger.Info(fmt.Sprintf("creating default keyspaces: %s", jsonStr), lf...)
+	if logh.InfoEnabled {
+		logger.Info().Msgf("creating default keyspaces: %s", jsonStr)
+	}
 
 	keyspaceTTLMap := map[int]string{}
 	for k, ttl := range conf.DefaultKeyspaces {
@@ -290,18 +297,22 @@ func createScyllaStorageService(conf *structs.Settings, devMode bool, timeseries
 			ttl)
 		keyspaceTTLMap[ttl] = k
 		if gerr != nil && gerr.StatusCode() != http.StatusConflict {
-			logger.Fatal(fmt.Sprintf("error creating keyspace '%s': %s", k, gerr.Message()), lf...)
+			if logh.FatalEnabled {
+				logger.Fatal().Err(err).Msgf("error creating keyspace '%s'", k)
+			}
 			os.Exit(1)
 		}
 	}
 
-	logger.Info("scylla storage service was created", lf...)
+	if logh.InfoEnabled {
+		logger.Info().Msg("scylla storage service was created")
+	}
 
 	return storage, keyspaceTTLMap
 }
 
 // createKeyspaceManager - creates the keyspace manager
-func createKeyspaceManager(conf *structs.Settings, devMode bool, timeseriesStats *tsstats.StatsTS, scyllaStorageService *persistence.Storage, logger *zap.Logger) *keyspace.Keyspace {
+func createKeyspaceManager(conf *structs.Settings, devMode bool, timeseriesStats *tsstats.StatsTS, scyllaStorageService *persistence.Storage) *keyspace.Keyspace {
 
 	keyspaceManager := keyspace.New(
 		timeseriesStats,
@@ -311,54 +322,56 @@ func createKeyspaceManager(conf *structs.Settings, devMode bool, timeseriesStats
 		conf.MaxAllowedTTL,
 	)
 
-	lf := []zapcore.Field{
-		zap.String("package", "main"),
-		zap.String("func", "createKeyspaceManager"),
+	if logh.InfoEnabled {
+		logger.Info().Msg("keyspace manager was created")
 	}
-
-	logger.Info("keyspace manager was created", lf...)
 
 	return keyspaceManager
 }
 
 // createKeysetManager - creates a new keyset manager
-func createKeysetManager(conf *structs.Settings, timeseriesStats *tsstats.StatsTS, metadataStorage *metadata.Storage, logger *zap.Logger) *keyset.KeySet {
+func createKeysetManager(conf *structs.Settings, timeseriesStats *tsstats.StatsTS, metadataStorage *metadata.Storage) *keyset.KeySet {
 
 	keySet := keyset.NewKeySet(metadataStorage, timeseriesStats)
 
-	lf := []zapcore.Field{
-		zap.String("package", "main"),
-		zap.String("func", "createKeysetManager"),
+	jsonStr, _ := json.Marshal(conf.DefaultKeysets)
+	if logh.InfoEnabled {
+		logger.Info().Msgf("creating default keysets: %s", jsonStr)
 	}
 
-	jsonStr, _ := json.Marshal(conf.DefaultKeysets)
-	logger.Info(fmt.Sprintf("creating default keysets: %s", jsonStr), lf...)
 	for _, v := range conf.DefaultKeysets {
 		exists, err := metadataStorage.CheckKeySet(v)
 		if err != nil {
-			logger.Fatal(fmt.Sprintf("error checking keyset '%s' existence: %s", v, err.Error()), lf...)
+			if logh.FatalEnabled {
+				logger.Fatal().Err(err).Msgf("error checking keyset '%s' existence", v)
+			}
 			os.Exit(1)
 		}
 		if !exists {
-			logger.Info(fmt.Sprintf("creating default keyset '%s'", v), lf...)
+			if logh.InfoEnabled {
+				logger.Info().Msgf("creating default keyset '%s'", v)
+			}
 			err = keySet.CreateIndex(v)
 			if err != nil {
-				logger.Fatal(fmt.Sprintf("error creating keyset '%s': %s", v, err.Error()), lf...)
+				if logh.FatalEnabled {
+					logger.Fatal().Err(err).Msgf("error creating keyset '%s'", v)
+				}
 				os.Exit(1)
 			}
 		}
 	}
 
-	logger.Info("keyset manager was created", lf...)
+	if logh.InfoEnabled {
+		logger.Info().Msg("keyset manager was created")
+	}
 
 	return keySet
 }
 
 // createCollectorService - creates a new collector service
-func createCollectorService(conf *structs.Settings, timeseriesStats *tsstats.StatsTS, metadataStorage *metadata.Storage, scyllaConn *gocql.Session, keysetManager *keyset.KeySet, keyspaceTTLMap map[int]string, loggers *structs.Loggers) *collector.Collector {
+func createCollectorService(conf *structs.Settings, timeseriesStats *tsstats.StatsTS, metadataStorage *metadata.Storage, scyllaConn *gocql.Session, keysetManager *keyset.KeySet, keyspaceTTLMap map[int]string) *collector.Collector {
 
 	collector, err := collector.New(
-		loggers,
 		timeseriesStats,
 		scyllaConn,
 		metadataStorage,
@@ -367,27 +380,24 @@ func createCollectorService(conf *structs.Settings, timeseriesStats *tsstats.Sta
 		keysetManager,
 	)
 
-	lf := []zapcore.Field{
-		zap.String("package", "main"),
-		zap.String("func", "createCollectorService"),
-	}
-
 	if err != nil {
-		loggers.General.Fatal(fmt.Sprintf("error creating collector service: %s", err.Error()), lf...)
+		if logh.FatalEnabled {
+			logger.Fatal().Err(err).Msg("error creating collector service")
+		}
 		os.Exit(1)
 	}
 
-	loggers.General.Info("collector service was created", lf...)
+	if logh.InfoEnabled {
+		logger.Info().Msg("collector service was created")
+	}
 
 	return collector
 }
 
 // createPlotService - creates the plot service
-func createPlotService(conf *structs.Settings, timeseriesStats *tsstats.StatsTS, metadataStorage *metadata.Storage, scyllaConn *gocql.Session, keyspaceTTLMap map[int]string, logger *zap.Logger) *plot.Plot {
+func createPlotService(conf *structs.Settings, timeseriesStats *tsstats.StatsTS, metadataStorage *metadata.Storage, scyllaConn *gocql.Session, keyspaceTTLMap map[int]string) *plot.Plot {
 
 	plotService, err := plot.New(
-		logger,
-		timeseriesStats,
 		scyllaConn,
 		metadataStorage,
 		conf.MaxTimeseries,
@@ -396,44 +406,40 @@ func createPlotService(conf *structs.Settings, timeseriesStats *tsstats.StatsTS,
 		conf.DefaultTTL,
 		conf.DefaultPaginationSize,
 		conf.MaxBytesOnQueryProcessing,
+		timeseriesStats,
 	)
 
-	lf := []zapcore.Field{
-		zap.String("package", "main"),
-		zap.String("func", "createPlotService"),
-	}
-
 	if err != nil {
-		logger.Fatal(fmt.Sprintf("error creating plot service: %s", err.Error()), lf...)
+		if logh.FatalEnabled {
+			logger.Fatal().Err(err).Msg("error creating plot service")
+		}
 		os.Exit(1)
 	}
 
-	logger.Info("plot service was created", lf...)
+	if logh.InfoEnabled {
+		logger.Info().Msg("plot service was created")
+	}
 
 	return plotService
 }
 
 // createUDPServer - creates the UDP server and starts it
-func createUDPServer(conf *structs.SettingsUDP, collectorService *collector.Collector, stats *tsstats.StatsTS, logger *zap.Logger) *udp.UDPserver {
+func createUDPServer(conf *structs.SettingsUDP, collectorService *collector.Collector, stats *tsstats.StatsTS) *udp.UDPserver {
 
-	udpServer := udp.New(logger, *conf, collectorService, stats)
+	udpServer := udp.New(*conf, collectorService, stats)
 	udpServer.Start()
 
-	lf := []zapcore.Field{
-		zap.String("package", "main"),
-		zap.String("func", "createUDPServer"),
+	if logh.InfoEnabled {
+		logger.Info().Msg("udp server was created")
 	}
-
-	logger.Info("udp server was created", lf...)
 
 	return udpServer
 }
 
 // createRESTserver - creates the REST server and starts it
-func createRESTserver(conf *structs.Settings, stats *snitch.Stats, plotService *plot.Plot, collectorService *collector.Collector, keyspaceManager *keyspace.Keyspace, keysetManager *keyset.KeySet, memcachedConn *memcached.Memcached, telnetManager *telnetmgr.Manager, loggers *structs.Loggers) *rest.REST {
+func createRESTserver(conf *structs.Settings, stats *snitch.Stats, plotService *plot.Plot, collectorService *collector.Collector, keyspaceManager *keyspace.Keyspace, keysetManager *keyset.KeySet, memcachedConn *memcached.Memcached, telnetManager *telnetmgr.Manager) *rest.REST {
 
 	restServer := rest.New(
-		loggers,
 		stats,
 		plotService,
 		keyspaceManager,
@@ -447,45 +453,42 @@ func createRESTserver(conf *structs.Settings, stats *snitch.Stats, plotService *
 
 	restServer.Start()
 
-	lf := []zapcore.Field{
-		zap.String("package", "main"),
-		zap.String("func", "createRESTserver"),
+	if logh.InfoEnabled {
+		logger.Info().Msg("rest server was created")
 	}
-
-	loggers.General.Info("rest server was created", lf...)
 
 	return restServer
 }
 
 // createTelnetManager - creates a new telnet manager
-func createTelnetManager(conf *structs.Settings, collectorService *collector.Collector, stats *tsstats.StatsTS, logger *zap.Logger) *telnetmgr.Manager {
+func createTelnetManager(conf *structs.Settings, collectorService *collector.Collector, stats *tsstats.StatsTS) *telnetmgr.Manager {
 
 	telnetManager, err := telnetmgr.New(
 		&conf.GlobalTelnetServerConfiguration,
 		conf.HTTPserver.Port,
 		collectorService,
 		stats,
-		logger,
 	)
 
-	lf := []zapcore.Field{
-		zap.String("package", "main"),
-		zap.String("func", "createTelnetManager"),
-	}
-
-	err = telnetManager.AddServer(&conf.NetdataServer, &conf.GlobalTelnetServerConfiguration, telnet.NewNetdataHandler(conf.NetdataServer.CacheDuration, collectorService, &conf.GlobalTelnetServerConfiguration, logger))
+	err = telnetManager.AddServer(&conf.NetdataServer, &conf.GlobalTelnetServerConfiguration, telnet.NewNetdataHandler(conf.NetdataServer.CacheDuration, collectorService, &conf.GlobalTelnetServerConfiguration))
 	if err != nil {
-		logger.Fatal(fmt.Sprintf("error creating telnet server '%s': %s", "netdata", err.Error()), lf...)
+		if logh.FatalEnabled {
+			logger.Fatal().Err(err).Msg("error creating telnet server 'netdata'")
+		}
 		os.Exit(1)
 	}
 
-	err = telnetManager.AddServer(&conf.TELNETserver, &conf.GlobalTelnetServerConfiguration, telnet.NewOpenTSDBHandler(collectorService, &conf.GlobalTelnetServerConfiguration, logger))
+	err = telnetManager.AddServer(&conf.TELNETserver, &conf.GlobalTelnetServerConfiguration, telnet.NewOpenTSDBHandler(collectorService, &conf.GlobalTelnetServerConfiguration))
 	if err != nil {
-		logger.Fatal(fmt.Sprintf("error creating telnet server '%s': %s", "opentsdb", err.Error()), lf...)
+		if logh.FatalEnabled {
+			logger.Fatal().Err(err).Msg("error creating telnet server 'telnet'")
+		}
 		os.Exit(1)
 	}
 
-	logger.Info("telnet manager was created", lf...)
+	if logh.InfoEnabled {
+		logger.Info().Msg("telnet manager was created")
+	}
 
 	return telnetManager
 }

@@ -8,9 +8,8 @@ import (
 	"github.com/buger/jsonparser"
 
 	"github.com/uol/gobol"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 
+	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/tserr"
 )
 
@@ -118,7 +117,7 @@ func ParsePoint(function string, isNumber bool, data []byte) (*TSDBpoint, gobol.
 			return nil, errUnmarshal(function, err)
 		}
 
-		if p.Text == "" {
+		if p.Text == constants.StringsEmpty {
 			return nil, errBadRequest(function, "text cannot be empty", fmt.Errorf("point's text cannot be empty"))
 		}
 	}
@@ -142,17 +141,24 @@ func ParsePoint(function string, isNumber bool, data []byte) (*TSDBpoint, gobol.
 	return p, errUnmarshal(function, err)
 }
 
+const (
+	cNoPointsMsg  string = "no points"
+	cFuncValidate string = "Validate"
+)
+
+var (
+	errNoPoints = errors.New(cNoPointsMsg)
+)
+
 // Validate - validates the array of points
 func (p TSDBpoints) Validate() gobol.Error {
 	if len(p) == 0 {
 		return tserr.New(
-			errors.New("no points"),
-			"no points",
+			errNoPoints,
+			cNoPointsMsg,
+			cPackage,
+			cFuncValidate,
 			http.StatusBadRequest,
-			[]zapcore.Field{
-				zap.String("package", "collector"),
-				zap.String("struct", "TSDBpoint"),
-			},
 		)
 	}
 	return nil

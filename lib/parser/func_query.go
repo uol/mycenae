@@ -7,6 +7,7 @@ import (
 
 	"github.com/uol/gobol"
 
+	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/structs"
 )
 
@@ -15,7 +16,7 @@ func parseQuery(exp string, tsdb *structs.TSDBquery) (e string, err gobol.Error)
 	params := parseParams(string(exp[5:]))
 
 	if len(params) != 3 {
-		return "", errParams(
+		return constants.StringsEmpty, errParams(
 			"parseQuery",
 			"query needs 3 parameters: metric, map or null and a time interval",
 			fmt.Errorf("query expects 3 parameters but found %d: %v", len(params), params),
@@ -27,7 +28,7 @@ func parseQuery(exp string, tsdb *structs.TSDBquery) (e string, err gobol.Error)
 	if params[1] != "null" {
 		tags, err = parseMap(params[1])
 		if err != nil {
-			return "", err
+			return constants.StringsEmpty, err
 		}
 	}
 
@@ -69,7 +70,7 @@ func parseQuery(exp string, tsdb *structs.TSDBquery) (e string, err gobol.Error)
 
 	for _, oper := range tsdb.Order {
 		if oper == "query" {
-			return "", errDoubleFunc("parseQuery", "query")
+			return constants.StringsEmpty, errDoubleFunc("parseQuery", "query")
 		}
 	}
 
@@ -127,7 +128,7 @@ func writeQuery(metric, relative string, filters []structs.TSDBfilter) string {
 					case "literal_or":
 						joinFilters[filter.Tagk] = append(
 							joinFilters[filter.Tagk],
-							fmt.Sprintf("or(%s)", filter.Ftype, filter.Filter),
+							fmt.Sprintf("or(%s)", filter.Ftype),
 						)
 						joinFilters[filter.Tagk] = []string{
 							fmt.Sprintf("or(%s)", filter.Filter),
@@ -135,7 +136,7 @@ func writeQuery(metric, relative string, filters []structs.TSDBfilter) string {
 					case "not_literal_or":
 						joinFilters[filter.Tagk] = append(
 							joinFilters[filter.Tagk],
-							fmt.Sprintf("notor(%s)", filter.Ftype, filter.Filter),
+							fmt.Sprintf("notor(%s)", filter.Ftype),
 						)
 					}
 				}

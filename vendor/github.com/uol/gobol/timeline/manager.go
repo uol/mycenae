@@ -83,6 +83,15 @@ func (m *Manager) SendHTTP(schemaName string, parameters ...interface{}) error {
 	return nil
 }
 
+// SerializeHTTP - serializes a point using the json serializer
+func (m *Manager) SerializeHTTP(schemaName string, parameters ...interface{}) (string, error) {
+
+	return m.transport.Serialize(jsonSerializer.ArrayItem{
+		Name:       schemaName,
+		Parameters: parameters,
+	})
+}
+
 // FlattenHTTP - flatten a point
 func (m *Manager) FlattenHTTP(operation FlatOperation, name string, parameters ...interface{}) error {
 
@@ -120,6 +129,17 @@ func (m *Manager) SendOpenTSDB(value float64, timestamp int64, metric string, ta
 	}
 
 	return nil
+}
+
+// SerializeOpenTSDB - serializes a point using the opentsdb serializer
+func (m *Manager) SerializeOpenTSDB(value float64, timestamp int64, metric string, tags ...interface{}) (string, error) {
+
+	return m.transport.Serialize(openTSDBSerializer.ArrayItem{
+		Metric:    metric,
+		Tags:      tags,
+		Timestamp: timestamp,
+		Value:     value,
+	})
 }
 
 // FlattenOpenTSDB - flatten a point

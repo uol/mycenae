@@ -6,7 +6,7 @@ import (
 
 func (collector *Collector) saveValue(packet *Point) gobol.Error {
 	ksid := collector.keyspaceTTLMap[packet.TTL]
-	return collector.persist.InsertPoint(
+	return collector.InsertPoint(
 		ksid,
 		packet.ID,
 		packet.Timestamp,
@@ -16,7 +16,7 @@ func (collector *Collector) saveValue(packet *Point) gobol.Error {
 
 func (collector *Collector) saveText(packet *Point) gobol.Error {
 	ksid := collector.keyspaceTTLMap[packet.TTL]
-	return collector.persist.InsertText(
+	return collector.InsertText(
 		ksid,
 		packet.ID,
 		packet.Timestamp,

@@ -6,6 +6,7 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/uol/gobol/rip"
+	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/structs"
 )
 
@@ -13,7 +14,7 @@ import (
 func (plot *Plot) ListPoints(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	keyset := ps.ByName("keyset")
-	if keyset == "" {
+	if keyset == constants.StringsEmpty {
 		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/points", "keyset": "empty"})
 		rip.Fail(w, errNotFound("ListPoints"))
 		return

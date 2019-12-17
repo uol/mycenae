@@ -7,8 +7,8 @@ import (
 
 	"github.com/gocql/gocql"
 	"github.com/uol/gobol"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
+	"github.com/uol/gobol/logh"
+	"github.com/uol/mycenae/lib/constants"
 )
 
 func (persist *persistence) GetTST(keyspace string, keys []string, start, end int64, search *regexp.Regexp, allowFullFetch bool, maxBytesLimit uint32, keyset string) (map[string][]TextPnt, uint32, gobol.Error) {
@@ -68,7 +68,7 @@ func (persist *persistence) GetTST(keyspace string, keys []string, start, end in
 		}
 	}
 
-	statsValueAdd(
+	go persist.statsValueAdd(
 		"scylla.query.bytes",
 		map[string]string{
 			"keyset":   keyset,
@@ -79,21 +79,19 @@ func (persist *persistence) GetTST(keyspace string, keys []string, start, end in
 	)
 
 	if err = iter.Close(); err != nil {
-		fields := []zapcore.Field{
-			zap.String("package", "plot/persistence"),
-			zap.String("func", "getTST"),
+		if logh.ErrorEnabled {
+			logh.Error().Str(constants.StringsFunc, "getTST").Err(err).Send()
 		}
-		gblog.Error(err.Error(), fields...)
 
 		if err == gocql.ErrNotFound {
 			return map[string][]TextPnt{}, 0, errNoContent("getTST")
 		}
 
-		statsSelectFerror(keyspace, "ts_text_stamp")
+		persist.statsSelectFerror(keyspace, "ts_text_stamp")
 		return map[string][]TextPnt{}, 0, errPersist("getTST", err)
 	}
 
-	statsSelect(keyspace, "ts_text_stamp", time.Since(track), countRows)
+	persist.statsSelect(keyspace, "ts_text_stamp", time.Since(track), countRows)
 
 	if limitReached && !allowFullFetch {
 		return map[string][]TextPnt{}, numBytes, errMaxBytesLimitWrapper("GetTS", persist.maxBytesErr)

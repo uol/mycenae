@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/uol/gobol/logh"
+	"github.com/uol/mycenae/lib/constants"
+
 	"github.com/gocql/gocql"
 	"github.com/uol/gobol"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
 func (persist *persistence) GetTS(keyspace string, keys []string, start, end int64, ms, allowFullFetch bool, maxBytesLimit uint32, keyset string) (map[string][]Pnt, uint32, gobol.Error) {
@@ -64,7 +65,7 @@ func (persist *persistence) GetTS(keyspace string, keys []string, start, end int
 		countRows++
 	}
 
-	statsValueAdd(
+	go persist.statsValueAdd(
 		"scylla.query.bytes",
 		map[string]string{
 			"keyset":   keyset,
@@ -75,22 +76,20 @@ func (persist *persistence) GetTS(keyspace string, keys []string, start, end int
 	)
 
 	if err = iter.Close(); err != nil {
-		fields := []zapcore.Field{
-			zap.String("package", "plot/persistence"),
-			zap.String("func", "getTS"),
+		if logh.ErrorEnabled {
+			logh.Error().Str(constants.StringsFunc, "getTS").Err(err).Send()
 		}
-		gblog.Error(err.Error(), fields...)
 
 		if err == gocql.ErrNotFound {
-			statsSelect(keyspace, "ts_number_stamp", time.Since(track), countRows)
+			persist.statsSelect(keyspace, "ts_number_stamp", time.Since(track), countRows)
 			return map[string][]Pnt{}, 0, errNoContent("getTS")
 		}
 
-		statsSelectQerror(keyspace, "ts_number_stamp")
+		persist.statsSelectQerror(keyspace, "ts_number_stamp")
 		return map[string][]Pnt{}, 0, errPersist("getTS", err)
 	}
 
-	statsSelect(keyspace, "ts_number_stamp", time.Since(track), countRows)
+	persist.statsSelect(keyspace, "ts_number_stamp", time.Since(track), countRows)
 
 	if limitReached && !allowFullFetch {
 		return map[string][]Pnt{}, numBytes, errMaxBytesLimitWrapper("GetTS", persist.maxBytesErr)

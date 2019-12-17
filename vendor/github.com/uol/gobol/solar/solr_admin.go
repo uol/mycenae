@@ -7,8 +7,7 @@ import (
 	"strconv"
 
 	"github.com/uol/go-solr/solr"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
+	"github.com/uol/gobol/logh"
 )
 
 /**
@@ -34,11 +33,6 @@ type AddField struct {
 // AddNewField - adds a new field to solr schema
 func (ss *SolrService) AddNewField(collection, name, fieldType string, multiValued, stored, indexed, docValues bool) error {
 
-	lf := []zapcore.Field{
-		zap.String("package", "solar"),
-		zap.String("func", "AddNewField"),
-	}
-
 	schema, err := ss.getSchema(collection)
 	if err != nil {
 		return err
@@ -55,12 +49,17 @@ func (ss *SolrService) AddNewField(collection, name, fieldType string, multiValu
 		},
 	}
 
-	ss.logger.Info(fmt.Sprintf("adding new field to %s: %s", collection, name), lf...)
+	if logh.InfoEnabled {
+		ss.loggers.Info().Msg(fmt.Sprintf("adding new field to %s: %s", collection, name))
+	}
 
 	_, err = schema.Post("", data)
 	if err != nil {
 		msg := fmt.Sprintf("error adding field %s", name)
-		ss.logger.Error(msg, lf...)
+
+		if logh.ErrorEnabled {
+			ss.loggers.Error().Msg(msg)
+		}
 
 		if err != nil {
 			return err
@@ -69,7 +68,9 @@ func (ss *SolrService) AddNewField(collection, name, fieldType string, multiValu
 		return errors.New(msg)
 	}
 
-	ss.logger.Info(fmt.Sprintf("new field added to collection %s: %s", collection, name), lf...)
+	if logh.InfoEnabled {
+		ss.loggers.Info().Msg(fmt.Sprintf("new field added to collection %s: %s", collection, name))
+	}
 
 	return nil
 }
@@ -84,11 +85,9 @@ func (ss *SolrService) getSchema(collection string) (*solr.Schema, error) {
 
 	schema, err := si.Schema()
 	if err != nil {
-		lf := []zapcore.Field{
-			zap.String("package", "solar"),
-			zap.String("func", "getSchema"),
+		if logh.ErrorEnabled {
+			ss.loggers.Error().Msg("error retrieving a schema instance")
 		}
-		ss.logger.Error("error creating a new schema instance", lf...)
 		return nil, err
 	}
 
@@ -97,11 +96,6 @@ func (ss *SolrService) getSchema(collection string) (*solr.Schema, error) {
 
 // CreateCollection - creates a new collection
 func (ss *SolrService) CreateCollection(collection, configSet string, numShards, replicationFactor int) error {
-
-	lf := []zapcore.Field{
-		zap.String("package", "solar"),
-		zap.String("func", "CreateCollection"),
-	}
 
 	params := &url.Values{}
 	params.Add("name", collection)
@@ -113,18 +107,24 @@ func (ss *SolrService) CreateCollection(collection, configSet string, numShards,
 		params.Add("collection.configName", configSet)
 	}
 
-	ss.logger.Info(fmt.Sprintf("creating collection: %s", collection), lf...)
+	if logh.InfoEnabled {
+		ss.loggers.Info().Msg(fmt.Sprintf("creating collection: %s", collection))
+	}
 
 	r, err := ss.solrCollectionsAdmin.Action("CREATE", params)
 	if err != nil {
 		return err
 	}
 	if r.Status != 0 {
-		ss.logger.Error(fmt.Sprintf("received a non ok status: %d", r.Status), lf...)
+		if logh.ErrorEnabled {
+			ss.loggers.Error().Msg(fmt.Sprintf("received a non ok status: %d", r.Status))
+		}
 		return errors.New("collection creation failed")
 	}
 
-	ss.logger.Info(fmt.Sprintf("collection created: %s", collection), lf...)
+	if logh.InfoEnabled {
+		ss.loggers.Info().Msg(fmt.Sprintf("collection created: %s", collection))
+	}
 
 	return nil
 }
@@ -132,12 +132,9 @@ func (ss *SolrService) CreateCollection(collection, configSet string, numShards,
 // DeleteCollection - deletes a collection
 func (ss *SolrService) DeleteCollection(collection string) error {
 
-	lf := []zapcore.Field{
-		zap.String("package", "solar"),
-		zap.String("func", "DeleteCollection"),
+	if logh.InfoEnabled {
+		ss.loggers.Info().Msg(fmt.Sprintf("deleting collection: %s", collection))
 	}
-
-	ss.logger.Info(fmt.Sprintf("deleting collection: %s", collection), lf...)
 
 	params := &url.Values{}
 	params.Add("name", collection)
@@ -146,11 +143,15 @@ func (ss *SolrService) DeleteCollection(collection string) error {
 		return err
 	}
 	if r.Status != 0 {
-		ss.logger.Error(fmt.Sprintf("received a non ok status: %d", r.Status), lf...)
+		if logh.ErrorEnabled {
+			ss.loggers.Error().Msg(fmt.Sprintf("received a non ok status: %d", r.Status))
+		}
 		return errors.New("collection remove failed")
 	}
 
-	ss.logger.Info(fmt.Sprintf("collection deleted: %s", collection), lf...)
+	if logh.InfoEnabled {
+		ss.loggers.Info().Msg(fmt.Sprintf("collection deleted: %s", collection))
+	}
 
 	return nil
 }
@@ -163,12 +164,9 @@ func (ss *SolrService) ListCollections() ([]string, error) {
 		return nil, err
 	}
 	if r.Status != 0 {
-		lf := []zapcore.Field{
-			zap.String("package", "solar"),
-			zap.String("func", "ListCollections"),
-			zap.String("step", "Action"),
+		if logh.ErrorEnabled {
+			ss.loggers.Error().Msg(fmt.Sprintf("received a non ok status: %d", r.Status))
 		}
-		ss.logger.Error(fmt.Sprintf("received a non ok status: %d", r.Status), lf...)
 		return nil, errors.New("list collections failed")
 	}
 
