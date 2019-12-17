@@ -131,13 +131,8 @@ TSIDKeySize = 16
   ServerName = "OpenTSDB Telnet Server"
 
 [logs]
-  environment = "PROD"
-  [logs.general]
-    level = "DEBUG"
-    prefix = "general"
-  [logs.stats]
-    level = "DEBUG"
-    prefix = "stats"
+  level = "info"
+  format = "json"
 
 [stats]
   address = "loghost"
