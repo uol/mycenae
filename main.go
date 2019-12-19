@@ -290,18 +290,22 @@ func createScyllaStorageService(conf *structs.Settings, devMode bool, timeseries
 
 	keyspaceTTLMap := map[int]string{}
 	for k, ttl := range conf.DefaultKeyspaces {
-		gerr := storage.CreateKeyspace(k,
-			conf.DefaultKeyspaceData.Datacenter,
-			conf.DefaultKeyspaceData.Contact,
-			conf.DefaultKeyspaceData.ReplicationFactor,
-			ttl)
-		keyspaceTTLMap[ttl] = k
-		if gerr != nil && gerr.StatusCode() != http.StatusConflict {
-			if logh.FatalEnabled {
-				logger.Fatal().Err(err).Msgf("error creating keyspace '%s'", k)
+		if conf.EnableAutoKeyspaceCreation {
+			gerr := storage.CreateKeyspace(k,
+				conf.DefaultKeyspaceData.Datacenter,
+				conf.DefaultKeyspaceData.Contact,
+				conf.DefaultKeyspaceData.ReplicationFactor,
+				ttl)
+
+			if gerr != nil && gerr.StatusCode() != http.StatusConflict {
+				if logh.FatalEnabled {
+					logger.Fatal().Err(err).Msgf("error creating keyspace '%s'", k)
+				}
+				os.Exit(1)
 			}
-			os.Exit(1)
 		}
+
+		keyspaceTTLMap[ttl] = k
 	}
 
 	if logh.InfoEnabled {
