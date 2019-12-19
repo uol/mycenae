@@ -79,6 +79,7 @@ type Settings struct {
 	BlacklistedKeysets              []string
 	DefaultKeyspaceData             keyspace.Config
 	DefaultKeyspaces                map[string]int
+	EnableAutoKeyspaceCreation      bool
 	Cassandra                       cassandra.Settings
 	Memcached                       memcached.Configuration
 	Logs                            LoggerSettings

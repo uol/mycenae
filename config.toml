@@ -40,6 +40,9 @@ GarbageCollectorPercentage = 75
 # SHAKE hashing algorithm output size
 TSIDKeySize = 16
 
+# When starting up enables the automatic keyspace creation for the default keyspaces bellow
+EnableAutoKeyspaceCreation = true
+
 # All default keyspaces
 [DefaultKeyspaces]
   one_day = 1
