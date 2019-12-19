@@ -42,20 +42,20 @@ func (backend *scylladb) createKeyspace(ks Keyspace) gobol.Error {
 	return nil
 }
 
-func (backend *scylladb) createTable(keySet, valueColumnType, tableName, functionName string, ttl int) gobol.Error {
+func (backend *scylladb) createTable(keyset, valueColumnType, tableName, functionName string, ttl int) gobol.Error {
 
 	tableTTL := uint64(ttl) * 86400
 
 	query := fmt.Sprintf(
 		formatCreateTable,
-		keySet,
+		keyset,
 		tableName,
 		valueColumnType,
 		tableTTL,
 	)
 
 	if err := backend.session.Query(query).Exec(); err != nil {
-		backend.statsQueryError(keySet, constants.StringsEmpty, "create")
+		backend.statsQueryError(keyset, constants.StringsEmpty, "create")
 		return errPersist(functionName, "scylladb", err)
 	}
 

@@ -301,11 +301,21 @@ func (nh *NetdataHandler) Handle(line string) {
 
 	delete(tags, metricProperty)
 
-	point := collector.TSDBpoint{
+	tsdbTags := make([]structs.TSDBTag, len(tags))
+	i := 0
+	for key, value := range tags {
+		tsdbTags[i] = structs.TSDBTag{
+			Name:  key,
+			Value: value,
+		}
+		i++
+	}
+
+	point := structs.TSDBpoint{
 		Metric:    newMetric,
 		Timestamp: pointJSON.Timestamp,
 		Value:     &pointJSON.Value,
-		Tags:      tags,
+		Tags:      tsdbTags,
 	}
 
 	validatedPoint, err := nh.collector.MakePacket(&point, true)

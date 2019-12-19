@@ -12,7 +12,7 @@ import (
 	"github.com/uol/mycenae/tests/tools"
 )
 
-func sendPointsExpandExp(keySet string) {
+func sendPointsExpandExp(keyset string) {
 
 	fmt.Println("Setting up expandExpression_test.go tests...")
 
@@ -33,7 +33,7 @@ func sendPointsExpandExp(keySet string) {
 		"value": 36.5,
 		"metric": "` + metric1 + `",
 		"tags": {
-		  "ksid": "` + keySet + `",
+		  "ksid": "` + keyset + `",
 		  "` + tagHost + `":"` + tagHost1 + `"
 		}
 	  },
@@ -41,7 +41,7 @@ func sendPointsExpandExp(keySet string) {
 		"value": 54.5,
 		"metric": "` + metric1 + `",
 		"tags": {
-		  "ksid": "` + keySet + `",
+		  "ksid": "` + keyset + `",
 	      "` + tagHost + `":"` + tagHost2 + `"
 		},
 		"timestamp": 1444166564000
@@ -50,7 +50,7 @@ func sendPointsExpandExp(keySet string) {
 		"value": 5.4,
 		"metric": "` + metric1 + `",
 		"tags": {
-		  "ksid": "` + keySet + `",
+		  "ksid": "` + keyset + `",
 	      "` + tagHost + `":"` + tagHost3 + `"
 		},
 		"timestamp": 1444166564000
@@ -59,7 +59,7 @@ func sendPointsExpandExp(keySet string) {
 		"value": 1.1,
 		"metric": "` + metric2 + `",
 		"tags": {
-		  "ksid": "` + keySet + `",
+		  "ksid": "` + keyset + `",
 	      "` + tagHost2 + `":"` + tagHost1 + `",
 	      "` + tagApp + `":"` + tagApp1 + `"
 		},
@@ -69,7 +69,7 @@ func sendPointsExpandExp(keySet string) {
 		"value": 50.1,
 		"metric": "` + metric2 + `",
 		"tags": {
-		  "ksid": "` + keySet + `",
+		  "ksid": "` + keyset + `",
 	      "` + tagHost2 + `":"` + tagHost2 + `",
 	      "` + tagApp + `":"` + tagApp1 + `"
 		}
@@ -78,7 +78,7 @@ func sendPointsExpandExp(keySet string) {
 		"value": 1.1,
 		"metric": "` + metric2 + `",
 		"tags": {
-		  "ksid": "` + keySet + `",
+		  "ksid": "` + keyset + `",
 	      "` + tagHost2 + `":"` + tagHost3 + `",
 	      "` + tagApp + `":"` + tagApp1 + `"
 		},
@@ -88,7 +88,7 @@ func sendPointsExpandExp(keySet string) {
 		"value": 50.1,
 		"metric": "` + metric2 + `",
 		"tags": {
-		  "ksid": "` + keySet + `",
+		  "ksid": "` + keyset + `",
 	      "` + tagHost2 + `":"` + tagHost1 + `",
 	      "` + tagService + `":"` + tagService1 + `"
 		}
@@ -97,7 +97,7 @@ func sendPointsExpandExp(keySet string) {
 		"value": 1.1,
 		"metric": "` + metric2 + `",
 		"tags": {
-		  "ksid": "` + keySet + `",
+		  "ksid": "` + keyset + `",
 	      "` + tagHost2 + `":"` + tagHost2 + `",
 	      "` + tagService + `":"` + tagService1 + `"
 		},
@@ -107,7 +107,7 @@ func sendPointsExpandExp(keySet string) {
 		"value": 50.1,
 		"metric": "` + metric2 + `",
 		"tags": {
-		  "ksid": "` + keySet + `",
+		  "ksid": "` + keyset + `",
 	      "` + tagHost2 + `":"` + tagHost3 + `",
 	      "` + tagService + `":"` + tagService1 + `"
 		}
@@ -116,7 +116,7 @@ func sendPointsExpandExp(keySet string) {
 		"value": 1.1,
 		"metric": "` + metric2 + `",
 		"tags": {
-		  "ksid": "` + keySet + `",
+		  "ksid": "` + keyset + `",
 	      "` + tagHost2 + `":"` + tagHost1 + `",
 	      "` + tagService + `":"` + tagService2 + `"
 		},
@@ -126,7 +126,7 @@ func sendPointsExpandExp(keySet string) {
 		"value": 50.1,
 		"metric": "` + metric2 + `",
 		"tags": {
-		  "ksid": "` + keySet + `",
+		  "ksid": "` + keyset + `",
 	      "` + tagHost2 + `":"` + tagHost2 + `",
 	      "` + tagService + `":"` + tagService2 + `"
 		}
@@ -135,7 +135,7 @@ func sendPointsExpandExp(keySet string) {
 		"value": 50.1,
 		"metric": "` + metric2 + `",
 		"tags": {
-		  "ksid": "` + keySet + `",
+		  "ksid": "` + keyset + `",
 	      "` + tagHost2 + `":"` + tagHost3 + `",
 	      "` + tagService + `":"` + tagService2 + `"
 		}

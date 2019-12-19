@@ -33,6 +33,7 @@ import (
 	"github.com/uol/mycenae/lib/telnetmgr"
 	"github.com/uol/mycenae/lib/tsstats"
 	"github.com/uol/mycenae/lib/udp"
+	"github.com/uol/mycenae/lib/validation"
 )
 
 var (
@@ -86,7 +87,8 @@ func main() {
 	scyllaStorageService, keyspaceTTLMap := createScyllaStorageService(settings, devMode, timeseriesStats, scyllaConn, metadataStorage)
 	keyspaceManager := createKeyspaceManager(settings, devMode, timeseriesStats, scyllaStorageService)
 	keysetManager := createKeysetManager(settings, timeseriesStats, metadataStorage)
-	collectorService := createCollectorService(settings, timeseriesStats, metadataStorage, scyllaConn, keysetManager, keyspaceTTLMap)
+	validationService := createValidation(settings, metadataStorage, keyspaceTTLMap)
+	collectorService := createCollectorService(settings, timeseriesStats, metadataStorage, scyllaConn, validationService, keyspaceTTLMap)
 	plotService := createPlotService(settings, timeseriesStats, metadataStorage, scyllaConn, keyspaceTTLMap)
 	udpServer := createUDPServer(&settings.UDPserver, collectorService, timeseriesStats)
 	telnetManager := createTelnetManager(settings, collectorService, timeseriesStats)
@@ -272,7 +274,7 @@ func createScyllaStorageService(conf *structs.Settings, devMode bool, timeseries
 		metadataStorage,
 		timeseriesStats,
 		devMode,
-		conf.DefaultTTL,
+		conf.Validation.DefaultTTL,
 	)
 
 	if err != nil {
@@ -318,7 +320,7 @@ func createKeyspaceManager(conf *structs.Settings, devMode bool, timeseriesStats
 		timeseriesStats,
 		scyllaStorageService,
 		devMode,
-		conf.DefaultTTL,
+		conf.Validation.DefaultTTL,
 		conf.MaxAllowedTTL,
 	)
 
@@ -330,9 +332,9 @@ func createKeyspaceManager(conf *structs.Settings, devMode bool, timeseriesStats
 }
 
 // createKeysetManager - creates a new keyset manager
-func createKeysetManager(conf *structs.Settings, timeseriesStats *tsstats.StatsTS, metadataStorage *metadata.Storage) *keyset.KeySet {
+func createKeysetManager(conf *structs.Settings, timeseriesStats *tsstats.StatsTS, metadataStorage *metadata.Storage) *keyset.Manager {
 
-	keySet := keyset.NewKeySet(metadataStorage, timeseriesStats)
+	keyset := keyset.New(metadataStorage, timeseriesStats, conf.Validation.KeysetNameRegexp)
 
 	jsonStr, _ := json.Marshal(conf.DefaultKeysets)
 	if logh.InfoEnabled {
@@ -340,7 +342,7 @@ func createKeysetManager(conf *structs.Settings, timeseriesStats *tsstats.StatsT
 	}
 
 	for _, v := range conf.DefaultKeysets {
-		exists, err := metadataStorage.CheckKeySet(v)
+		exists, err := metadataStorage.CheckKeyset(v)
 		if err != nil {
 			if logh.FatalEnabled {
 				logger.Fatal().Err(err).Msgf("error checking keyset '%s' existence", v)
@@ -351,7 +353,7 @@ func createKeysetManager(conf *structs.Settings, timeseriesStats *tsstats.StatsT
 			if logh.InfoEnabled {
 				logger.Info().Msgf("creating default keyset '%s'", v)
 			}
-			err = keySet.CreateIndex(v)
+			err = keyset.Create(v)
 			if err != nil {
 				if logh.FatalEnabled {
 					logger.Fatal().Err(err).Msgf("error creating keyset '%s'", v)
@@ -365,11 +367,11 @@ func createKeysetManager(conf *structs.Settings, timeseriesStats *tsstats.StatsT
 		logger.Info().Msg("keyset manager was created")
 	}
 
-	return keySet
+	return keyset
 }
 
 // createCollectorService - creates a new collector service
-func createCollectorService(conf *structs.Settings, timeseriesStats *tsstats.StatsTS, metadataStorage *metadata.Storage, scyllaConn *gocql.Session, keysetManager *keyset.KeySet, keyspaceTTLMap map[int]string) *collector.Collector {
+func createCollectorService(conf *structs.Settings, timeseriesStats *tsstats.StatsTS, metadataStorage *metadata.Storage, scyllaConn *gocql.Session, validationService *validation.Service, keyspaceTTLMap map[int]string) *collector.Collector {
 
 	collector, err := collector.New(
 		timeseriesStats,
@@ -377,7 +379,7 @@ func createCollectorService(conf *structs.Settings, timeseriesStats *tsstats.Sta
 		metadataStorage,
 		conf,
 		keyspaceTTLMap,
-		keysetManager,
+		validationService,
 	)
 
 	if err != nil {
@@ -403,7 +405,7 @@ func createPlotService(conf *structs.Settings, timeseriesStats *tsstats.StatsTS,
 		conf.MaxTimeseries,
 		conf.LogQueryTSthreshold,
 		keyspaceTTLMap,
-		conf.DefaultTTL,
+		conf.Validation.DefaultTTL,
 		conf.DefaultPaginationSize,
 		conf.MaxBytesOnQueryProcessing,
 		timeseriesStats,
@@ -437,7 +439,7 @@ func createUDPServer(conf *structs.SettingsUDP, collectorService *collector.Coll
 }
 
 // createRESTserver - creates the REST server and starts it
-func createRESTserver(conf *structs.Settings, stats *snitch.Stats, plotService *plot.Plot, collectorService *collector.Collector, keyspaceManager *keyspace.Keyspace, keysetManager *keyset.KeySet, memcachedConn *memcached.Memcached, telnetManager *telnetmgr.Manager) *rest.REST {
+func createRESTserver(conf *structs.Settings, stats *snitch.Stats, plotService *plot.Plot, collectorService *collector.Collector, keyspaceManager *keyspace.Keyspace, keysetManager *keyset.Manager, memcachedConn *memcached.Memcached, telnetManager *telnetmgr.Manager) *rest.REST {
 
 	restServer := rest.New(
 		stats,
@@ -446,7 +448,6 @@ func createRESTserver(conf *structs.Settings, stats *snitch.Stats, plotService *
 		memcachedConn,
 		collectorService,
 		conf.HTTPserver,
-		conf.Probe.Threshold,
 		keysetManager,
 		telnetManager,
 	)
@@ -491,4 +492,27 @@ func createTelnetManager(conf *structs.Settings, collectorService *collector.Col
 	}
 
 	return telnetManager
+}
+
+// createValidation - creates a new validation service
+func createValidation(conf *structs.Settings, metadataStorage *metadata.Storage, keyspaceTTLMap map[int]string) *validation.Service {
+
+	service, err := validation.New(
+		&conf.Validation,
+		metadataStorage,
+		keyspaceTTLMap,
+	)
+
+	if err != nil {
+		if logh.FatalEnabled {
+			logger.Fatal().Err(err).Msg("error creating validation service")
+		}
+		os.Exit(1)
+	}
+
+	if logh.InfoEnabled {
+		logger.Info().Msg("validation service was created")
+	}
+
+	return service
 }

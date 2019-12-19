@@ -13,14 +13,14 @@ import (
 // ListPoints - only used on unit tests... must be removed
 func (plot *Plot) ListPoints(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
-	keyset := ps.ByName("keyset")
+	keyset := ps.ByName(constants.StringsKeyset)
 	if keyset == constants.StringsEmpty {
-		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/points", "keyset": "empty"})
+		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/points", constants.StringsKeyset: "empty"})
 		rip.Fail(w, errNotFound("ListPoints"))
 		return
 	}
 
-	rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/points", "keyset": keyset})
+	rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/points", constants.StringsKeyset: keyset})
 
 	query := structs.TsQuery{}
 

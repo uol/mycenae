@@ -61,11 +61,14 @@ func (otsdbh *OpenTSDBHandler) Handle(line string) {
 	}
 
 	var err error
-	point := collector.TSDBpoint{}
-	point.Tags = map[string]string{}
+	point := structs.TSDBpoint{}
+	point.Tags = make([]structs.TSDBTag, len(tagMatches))
 
 	for i := 0; i < len(tagMatches); i++ {
-		point.Tags[tagMatches[i][1]] = tagMatches[i][2]
+		point.Tags[i] = structs.TSDBTag{
+			Name:  tagMatches[i][1],
+			Value: tagMatches[i][2],
+		}
 	}
 
 	point.Metric = matches[1]

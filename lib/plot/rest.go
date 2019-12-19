@@ -44,15 +44,15 @@ func (plot *Plot) ListTagsText(w http.ResponseWriter, r *http.Request, ps httpro
 
 func (plot *Plot) listTags(w http.ResponseWriter, r *http.Request, ps httprouter.Params, tsType string, smap map[string]string) {
 
-	keyset := ps.ByName("keyset")
+	keyset := ps.ByName(constants.StringsKeyset)
 	if keyset == constants.StringsEmpty {
-		smap["keyset"] = "empty"
+		smap[constants.StringsKeyset] = "empty"
 		rip.AddStatsMap(r, smap)
 		rip.Fail(w, errNotFound("listTags"))
 		return
 	}
 
-	smap["keyset"] = keyset
+	smap[constants.StringsKeyset] = keyset
 	rip.AddStatsMap(r, smap)
 
 	q := r.URL.Query()
@@ -92,15 +92,15 @@ func (plot *Plot) ListMetricsText(w http.ResponseWriter, r *http.Request, ps htt
 
 func (plot *Plot) listMetrics(w http.ResponseWriter, r *http.Request, ps httprouter.Params, esType string, smap map[string]string) {
 
-	keyset := ps.ByName("keyset")
+	keyset := ps.ByName(constants.StringsKeyset)
 	if keyset == constants.StringsEmpty {
-		smap["keyset"] = "empty"
+		smap[constants.StringsKeyset] = "empty"
 		rip.AddStatsMap(r, smap)
 		rip.Fail(w, errNotFound("listMetrics"))
 		return
 	}
 
-	smap["keyset"] = keyset
+	smap[constants.StringsKeyset] = keyset
 	rip.AddStatsMap(r, smap)
 
 	q := r.URL.Query()
@@ -141,9 +141,9 @@ func (plot *Plot) ListMetaText(w http.ResponseWriter, r *http.Request, ps httpro
 // getKeysetParameter - returns the keyset parameter
 func (plot *Plot) getKeysetParameter(w http.ResponseWriter, r *http.Request, ps httprouter.Params, functionName string, smap map[string]string) (*string, bool) {
 
-	keyset := ps.ByName("keyset")
+	keyset := ps.ByName(constants.StringsKeyset)
 	if keyset == constants.StringsEmpty {
-		smap["keyset"] = "empty"
+		smap[constants.StringsKeyset] = "empty"
 		rip.AddStatsMap(r, smap)
 		err := errNotFound(functionName)
 		rip.Fail(w, err)
@@ -161,10 +161,10 @@ func (plot *Plot) getQueryParameter(w http.ResponseWriter, r *http.Request, ps h
 		return nil, nil, true
 	}
 
-	smap["keyset"] = *keyset
+	smap[constants.StringsKeyset] = *keyset
 	rip.AddStatsMap(r, smap)
 
-	err := plot.validateKeySet(*keyset)
+	err := plot.validateKeyset(*keyset)
 	if err != nil {
 		err := errNotFound(functionName)
 		rip.Fail(w, err)

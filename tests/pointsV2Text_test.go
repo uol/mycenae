@@ -191,13 +191,13 @@ func tsText6(keyspace string) bool {
 	return true
 }
 
-func sendPointsV2Text(keySet string) {
+func sendPointsV2Text(keyset string) {
 
 	fmt.Println("Setting up pointsV2Text_test.go tests...")
 
-	tsPointsV2Text(keySet)
-	tsText4(keySet)
-	tsText6(keySet)
+	tsPointsV2Text(keyset)
+	tsText4(keyset)
+	tsText6(keyset)
 }
 
 func postPointsTextAndCheck(t *testing.T, payload, id string, code, count, total, ts int) tools.MycenaePointsText {

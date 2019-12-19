@@ -14,67 +14,67 @@ import (
 // @author rnojiri
 //
 
-// CreateKeySet - creates a new collection
-func (sb *SolrBackend) CreateKeySet(collection string) gobol.Error {
+// CreateKeyset - creates a new collection
+func (sb *SolrBackend) CreateKeyset(collection string) gobol.Error {
 
 	start := time.Now()
 	err := sb.solrService.CreateCollection(collection, sb.zookeeperConfig, sb.numShards, sb.replicationFactor)
 	if err != nil {
 		if logh.ErrorEnabled {
-			sb.logger.Error().Err(err).Str(constants.StringsFunc, "CreateKeySet").Msg("error on creating collection")
+			sb.logger.Error().Err(err).Str(constants.StringsFunc, "CreateKeyset").Msg("error on creating collection")
 		}
 		sb.statsCollectionError(collection, "create", "solr.collection.adm.error")
-		return errInternalServer("CreateKeySet", err)
+		return errInternalServer("CreateKeyset", err)
 	}
 
-	err = sb.deleteCachedKeySets()
+	err = sb.deleteCachedKeysets()
 	if err != nil {
 		if logh.ErrorEnabled {
-			sb.logger.Error().Err(err).Str(constants.StringsFunc, "CreateKeySet").Msg("error deleting cached keyset map")
+			sb.logger.Error().Err(err).Str(constants.StringsFunc, "CreateKeyset").Msg("error deleting cached keyset map")
 		}
 		sb.statsCollectionError(collection, "create", "solr.collection.adm.error")
-		return errInternalServer("CreateKeySet", err)
+		return errInternalServer("CreateKeyset", err)
 	}
 
 	sb.statsCollectionAction(collection, "create", "solr.collection.adm", time.Since(start))
 	return nil
 }
 
-// DeleteKeySet - deletes a collection
-func (sb *SolrBackend) DeleteKeySet(collection string) gobol.Error {
+// DeleteKeyset - deletes a collection
+func (sb *SolrBackend) DeleteKeyset(collection string) gobol.Error {
 
 	start := time.Now()
 	err := sb.solrService.DeleteCollection(collection)
 	if err != nil {
 		if logh.ErrorEnabled {
-			sb.logger.Error().Err(err).Str(constants.StringsFunc, "DeleteKeySet").Msg("error deleting collection")
+			sb.logger.Error().Err(err).Str(constants.StringsFunc, "DeleteKeyset").Msg("error deleting collection")
 		}
 		sb.statsCollectionError(collection, "delete", "solr.collection.adm.error")
-		return errInternalServer("DeleteKeySet", err)
+		return errInternalServer("DeleteKeyset", err)
 	}
 
-	err = sb.deleteCachedKeySets()
+	err = sb.deleteCachedKeysets()
 	if err != nil {
 		if logh.ErrorEnabled {
-			sb.logger.Error().Err(err).Str(constants.StringsFunc, "DeleteKeySet").Msg("error deleting cached keyset map")
+			sb.logger.Error().Err(err).Str(constants.StringsFunc, "DeleteKeyset").Msg("error deleting cached keyset map")
 		}
 		sb.statsCollectionError(collection, "delete", "solr.collection.adm.error")
-		return errInternalServer("DeleteKeySet", err)
+		return errInternalServer("DeleteKeyset", err)
 	}
 
 	sb.statsCollectionAction(collection, "delete", "solr.collection.adm", time.Since(start))
 	return nil
 }
 
-// ListKeySets - list all keysets
-func (sb *SolrBackend) ListKeySets() ([]string, gobol.Error) {
+// ListKeysets - list all keysets
+func (sb *SolrBackend) ListKeysets() ([]string, gobol.Error) {
 
 	start := time.Now()
 
 	cachedKeysets, err := sb.getCachedKeysets()
 	if err != nil {
 		sb.statsCollectionError("all", "list", "solr.collection.adm.error")
-		return nil, errInternalServer("ListKeySets", err)
+		return nil, errInternalServer("ListKeysets", err)
 	}
 
 	if cachedKeysets != nil && len(cachedKeysets) > 0 {
@@ -85,7 +85,7 @@ func (sb *SolrBackend) ListKeySets() ([]string, gobol.Error) {
 	keysets, e := sb.solrService.ListCollections()
 	if e != nil {
 		sb.statsCollectionError("all", "list", "solr.collection.adm.error")
-		return nil, errInternalServer("ListKeySets", e)
+		return nil, errInternalServer("ListKeysets", e)
 	}
 
 	filteredKeysets := []string{}
@@ -98,22 +98,20 @@ func (sb *SolrBackend) ListKeySets() ([]string, gobol.Error) {
 	err = sb.cacheKeysets(filteredKeysets)
 	if err != nil {
 		sb.statsCollectionError("all", "list", "solr.collection.adm.error")
-		return nil, errInternalServer("ListKeySets", e)
+		return nil, errInternalServer("ListKeysets", e)
 	}
 
 	sb.statsCollectionAction("all", "list", "solr.collection.adm", time.Since(start))
 	return filteredKeysets, nil
 }
 
-// CheckKeySet - verifies if an index exists
-func (sb *SolrBackend) CheckKeySet(keyset string) (bool, gobol.Error) {
-
-	start := time.Now()
+// CheckKeyset - verifies if an index exists
+func (sb *SolrBackend) CheckKeyset(keyset string) (bool, gobol.Error) {
 
 	keysets, err := sb.getCachedKeysets()
 	if err != nil {
 		sb.statsCollectionError("all", "list", "solr.collection.adm.error")
-		return false, errInternalServer("CheckKeySet", err)
+		return false, errInternalServer("CheckKeyset", err)
 	}
 
 	if len(keysets) > 0 {
@@ -126,11 +124,15 @@ func (sb *SolrBackend) CheckKeySet(keyset string) (bool, gobol.Error) {
 		return false, nil
 	}
 
+	start := time.Now()
+
 	keysets, e := sb.solrService.ListCollections()
 	if e != nil {
 		sb.statsCollectionError("all", "list", "solr.collection.adm.error")
-		return false, errInternalServer("CheckKeySet", e)
+		return false, errInternalServer("CheckKeyset", e)
 	}
+
+	sb.statsCollectionAction("all", "list", "solr.collection.adm", time.Since(start))
 
 	filteredKeysets := []string{}
 	for i := 0; i < len(keysets); i++ {
@@ -142,10 +144,9 @@ func (sb *SolrBackend) CheckKeySet(keyset string) (bool, gobol.Error) {
 	err = sb.cacheKeysets(filteredKeysets)
 	if err != nil {
 		sb.statsCollectionError("all", "list", "solr.collection.adm.error")
-		return false, errInternalServer("CheckKeySet", e)
+		return false, errInternalServer("CheckKeyset", e)
 	}
 
-	sb.statsCollectionAction("all", "list", "solr.collection.adm", time.Since(start))
 	for _, k := range keysets {
 		if k == keyset {
 			return true, nil

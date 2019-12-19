@@ -19,14 +19,14 @@ import (
 
 func (plot *Plot) Lookup(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
-	keyset := ps.ByName("keyset")
+	keyset := ps.ByName(constants.StringsKeyset)
 	if keyset == constants.StringsEmpty {
-		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/search/lookup", "keyset": "empty"})
+		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/search/lookup", constants.StringsKeyset: "empty"})
 		rip.Fail(w, errNotFound("Lookup"))
 		return
 	}
 
-	rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/search/lookup", "keyset": keyset})
+	rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/search/lookup", constants.StringsKeyset: keyset})
 
 	m := r.URL.Query().Get("m")
 
@@ -77,14 +77,14 @@ func (plot *Plot) Lookup(w http.ResponseWriter, r *http.Request, ps httprouter.P
 
 func (plot *Plot) Suggest(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
-	keyset := ps.ByName("keyset")
+	keyset := ps.ByName(constants.StringsKeyset)
 	if keyset == constants.StringsEmpty {
-		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/suggest", "keyset": "empty"})
+		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/suggest", constants.StringsKeyset: "empty"})
 		rip.Fail(w, errNotFound("Suggest"))
 		return
 	}
 
-	rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/suggest", "keyset": keyset})
+	rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/suggest", constants.StringsKeyset: keyset})
 
 	queryString := r.URL.Query()
 
@@ -138,14 +138,14 @@ func (plot *Plot) Suggest(w http.ResponseWriter, r *http.Request, ps httprouter.
 
 func (plot *Plot) Query(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
-	keyset := ps.ByName("keyset")
+	keyset := ps.ByName(constants.StringsKeyset)
 	if keyset == constants.StringsEmpty {
-		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/query", "keyset": "empty"})
+		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/query", constants.StringsKeyset: "empty"})
 		rip.Fail(w, errNotFound("Query"))
 		return
 	}
 
-	rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/query", "keyset": keyset})
+	rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/query", constants.StringsKeyset: keyset})
 
 	query := structs.TSDBqueryPayload{}
 

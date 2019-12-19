@@ -1,8 +1,6 @@
 package plot
 
 import (
-	"fmt"
-
 	"github.com/uol/gobol/logh"
 
 	"github.com/uol/gobol"
@@ -10,14 +8,14 @@ import (
 	"github.com/uol/mycenae/lib/metadata"
 )
 
-func (plot *Plot) validateKeySet(keyset string) gobol.Error {
+func (plot *Plot) validateKeyset(keyset string) gobol.Error {
 
-	found, gerr := plot.persist.metaStorage.CheckKeySet(keyset)
+	found, gerr := plot.persist.metaStorage.CheckKeyset(keyset)
 	if gerr != nil {
 		return gerr
 	}
 	if !found {
-		return errNotFound("validateKeySet")
+		return errNotFound("validateKeyset")
 	}
 
 	return nil
@@ -36,28 +34,29 @@ func (plot *Plot) checkParams(from, size int) (int, int) {
 	return from, size
 }
 
+const (
+	cFuncCheckTotalTSLimits string = "checkTotalTSLimits"
+	cMsgCheckTotalTSLimits  string = "maximum allowed number of timeseries"
+)
+
 func (plot *Plot) checkTotalTSLimits(message, keyset, metric string, total int) gobol.Error {
 
 	if total > plot.LogQueryTSThreshold {
 		plot.statsQueryTSThreshold(keyset, total)
 		if logh.WarnEnabled {
-			plot.logger.Warn().Str(constants.StringsFunc, "checkTotalTSLimits").Str("keyset", keyset).Str("metric", metric).Int("total", total).Int("configured", plot.LogQueryTSThreshold).Msgf("reaching max timeseries: ", message)
+			plot.logger.Warn().Str(constants.StringsFunc, cFuncCheckTotalTSLimits).Str("type", "q").Str(constants.StringsKeyset, keyset).Str("metric", metric).Msg(message)
 		}
 	}
 
 	if total > plot.MaxTimeseries {
 		plot.statsQueryTSLimit(keyset, total)
-		if logh.ErrorEnabled {
-			plot.logger.Error().Str(constants.StringsFunc, "checkTotalTSLimits").Str("keyset", keyset).Str("metric", metric).Int("total", total).Int("configured", plot.LogQueryTSThreshold).Msgf("max timeseries reached", message)
+		if logh.WarnEnabled {
+			plot.logger.Warn().Str(constants.StringsFunc, cFuncCheckTotalTSLimits).Str("type", "ts").Str(constants.StringsKeyset, keyset).Str("metric", metric).Msg(message)
 		}
 
 		return errValidationS(
-			"checkTotalLimits",
-			fmt.Sprintf(
-				"query exceeded the maximum allowed number of timeseries. max is %d and the query returned %d",
-				plot.MaxTimeseries,
-				total,
-			),
+			cFuncCheckTotalTSLimits,
+			cMsgCheckTotalTSLimits,
 		)
 	}
 	return nil
@@ -65,7 +64,7 @@ func (plot *Plot) checkTotalTSLimits(message, keyset, metric string, total int) 
 
 func (plot *Plot) FilterMetrics(keyset, metricName string, size int) ([]string, int, gobol.Error) {
 
-	err := plot.validateKeySet(keyset)
+	err := plot.validateKeyset(keyset)
 	if err != nil {
 		return nil, 0, errNotFound("FilterMetrics")
 	}
@@ -79,7 +78,7 @@ func (plot *Plot) FilterMetrics(keyset, metricName string, size int) ([]string, 
 
 func (plot *Plot) FilterTagKeys(keyset, tagKname string, size int) ([]string, int, gobol.Error) {
 
-	err := plot.validateKeySet(keyset)
+	err := plot.validateKeyset(keyset)
 	if err != nil {
 		return nil, 0, errNotFound("FilterTagKeys")
 	}
@@ -93,7 +92,7 @@ func (plot *Plot) FilterTagKeys(keyset, tagKname string, size int) ([]string, in
 
 func (plot *Plot) FilterTagValues(keyset, tagVname string, size int) ([]string, int, gobol.Error) {
 
-	err := plot.validateKeySet(keyset)
+	err := plot.validateKeyset(keyset)
 	if err != nil {
 		return nil, 0, errNotFound("FilterTagValues")
 	}
@@ -178,11 +177,11 @@ func (plot *Plot) extractTagMap(metadata *metadata.Metadata) map[string]string {
 	return tagMap
 }
 
-func (plot *Plot) ListMeta(keySet, tsType, metric string, tags map[string]string, onlyids bool, size, from int) ([]TsMetaInfo, int, gobol.Error) {
+func (plot *Plot) ListMeta(keyset, tsType, metric string, tags map[string]string, onlyids bool, size, from int) ([]TsMetaInfo, int, gobol.Error) {
 
 	from, size = plot.checkParams(from, size)
 
-	metadatas, total, gerr := plot.persist.metaStorage.FilterMetadata(keySet, plot.toMetaParam(metric, tsType, tags), from, size)
+	metadatas, total, gerr := plot.persist.metaStorage.FilterMetadata(keyset, plot.toMetaParam(metric, tsType, tags), from, size)
 
 	var tsMetaInfos []TsMetaInfo
 

@@ -430,3 +430,23 @@ type TSDBfilter struct {
 	Filter  string `json:"filter"`
 	GroupBy bool   `json:"groupBy"`
 }
+
+// TSDBpoints - an array of point
+type TSDBpoints []*TSDBpoint
+
+// TSDBTag - a tag from the opentsdb point
+type TSDBTag struct {
+	Name  string
+	Value string
+}
+
+// TSDBpoint - an opentsdb point
+type TSDBpoint struct {
+	Metric    string
+	Timestamp int64
+	Value     *float64
+	Text      string
+	Tags      []TSDBTag
+	TTL       int
+	Keyset    string
+}

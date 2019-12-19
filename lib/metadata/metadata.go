@@ -10,17 +10,17 @@ import (
 
 // Backend hides the underlying implementation of the metadata storage
 type Backend interface {
-	// CreateKeySet creates a keyset in the metadata storage
-	CreateKeySet(name string) gobol.Error
+	// CreateKeyset creates a keyset in the metadata storage
+	CreateKeyset(name string) gobol.Error
 
-	// DeleteKeySet deletes a keyset in the metadata storage
-	DeleteKeySet(name string) gobol.Error
+	// DeleteKeyset deletes a keyset in the metadata storage
+	DeleteKeyset(name string) gobol.Error
 
-	// ListKeySet - list all keyset
-	ListKeySets() ([]string, gobol.Error)
+	// ListKeyset - list all keyset
+	ListKeysets() ([]string, gobol.Error)
 
-	// CheckKeySet - verifies if a keyset exists
-	CheckKeySet(keyset string) (bool, gobol.Error)
+	// CheckKeyset - verifies if a keyset exists
+	CheckKeyset(keyset string) (bool, gobol.Error)
 
 	// FilterTagValues - filter tag values from a collection
 	FilterTagValues(collection, prefix string, maxResults int) ([]string, int, gobol.Error)

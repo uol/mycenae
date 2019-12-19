@@ -230,7 +230,7 @@ func (m *mycenaeTool) CreateKeyspace(dc, name, contact string, repFactor int) st
 	return resp.KSID
 }
 
-func (m *mycenaeTool) CreateKeySet(name string) string {
+func (m *mycenaeTool) CreateKeyset(name string) string {
 
 	status, _, err := m.client.POST(fmt.Sprintf("keysets/%s", name), nil)
 
@@ -242,7 +242,7 @@ func (m *mycenaeTool) CreateKeySet(name string) string {
 		panic("keyset creation failed with status: " + string(status))
 	}
 
-	fmt.Println("KeySet created:", name)
+	fmt.Println("Keyset created:", name)
 
 	return name
 }

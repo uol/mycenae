@@ -16,12 +16,12 @@ var ts10ID string
 
 var hashMapPV2 map[string]string
 
-func sendPointsV2(keySet string) {
+func sendPointsV2(keyset string) {
 
 	fmt.Println("Setting up pointsV2_test.go tests...")
 
-	tsPointsV2(keySet)
-	ts10(keySet)
+	tsPointsV2(keyset)
+	ts10(keyset)
 }
 
 func tsPointsV2(keyspace string) {

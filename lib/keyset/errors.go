@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	cPackage string = "keyset"
+	cPackage string = constants.StringsKeyset
 )
 
 func errBasic(function, message string, code int, e error) gobol.Error {

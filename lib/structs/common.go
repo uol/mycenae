@@ -51,6 +51,15 @@ type GlobalTelnetServerConfiguration struct {
 	SilenceLogs                       bool
 }
 
+// ValidationConfiguration - validation configurations
+type ValidationConfiguration struct {
+	MaxTextValueSize int
+	MaxNumTags       int
+	PropertyRegexp   string
+	KeysetNameRegexp string
+	DefaultTTL       int
+}
+
 type Settings struct {
 	MaxTimeseries                   int
 	LogQueryTSthreshold             int
@@ -65,7 +74,6 @@ type Settings struct {
 	UDPserver                       SettingsUDP
 	TELNETserver                    TelnetServerConfiguration
 	NetdataServer                   TelnetServerConfiguration
-	DefaultTTL                      int
 	MaxAllowedTTL                   int
 	DefaultKeysets                  []string
 	BlacklistedKeysets              []string
@@ -77,6 +85,7 @@ type Settings struct {
 	Stats                           snitch.Settings
 	StatsAnalytic                   snitch.Settings
 	MetadataSettings                metadata.Settings
+	Validation                      ValidationConfiguration
 	Probe                           struct {
 		Threshold float64
 	}

@@ -19,9 +19,6 @@ LogQueryTSthreshold = 5000
 # Max number of concurrent points being processed
 MaxConcurrentPoints = 1000
 
-# The default TTL to use if not specified
-DefaultTTL = 1
-
 # Tha max TTL allowed to be specified
 MaxAllowedTTL = 90
 
@@ -61,7 +58,7 @@ TSIDKeySize = 16
 [cassandra]
   keyspace = "mycenae"
   consistency = "one"
-  nodes = ["182.168.0.5","182.168.0.6","182.168.0.7"]
+  nodes = ["182.168.0.2","182.168.0.3","182.168.0.4"]
   username = "cassandra"
   password = "cassandra"
   connections = 3
@@ -131,8 +128,8 @@ TSIDKeySize = 16
   ServerName = "OpenTSDB Telnet Server"
 
 [logs]
-  level = "info"
-  format = "json"
+  level = "debug"
+  format = "console"
 
 [stats]
   address = "loghost"
@@ -166,7 +163,7 @@ TSIDKeySize = 16
 [metadataSettings]
   numShards = 1
   replicationFactor = 1
-  url = "http://182.168.0.3:8983/solr"
+  url = "http://182.168.0.6:8983/solr"
   IDCacheTTL = -1
   QueryCacheTTL = -1
   KeysetCacheTTL = -1
@@ -178,3 +175,10 @@ TSIDKeySize = 16
   pool = ["182.168.0.10:11211","182.168.0.11:11211","182.168.0.12:11211"]
   timeout = "10s"
   maxIdleConns = 5
+
+[validation]
+  maxTextValueSize = 10000
+	maxNumTags       = 20
+	propertyRegexp   = "^[0-9A-Za-z-\\._\\%\\&\\#\\;\\/]+$"
+  keysetNameRegexp = "^[a-z_]{1}[a-z0-9_\\-]+[a-z0-9]{1}$"
+	defaultTTL       = 1

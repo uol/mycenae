@@ -550,7 +550,7 @@ func (sb *SolrBackend) fromDocuments(results *solr.Collection, collection string
 
 // log - add the common log fields
 func (sb *SolrBackend) log(event *zerolog.Event, funcName, keyset string) *zerolog.Event {
-	return event.Str(constants.StringsFunc, funcName).Str("keyset", keyset)
+	return event.Str(constants.StringsFunc, funcName).Str(constants.StringsKeyset, keyset)
 }
 
 // AddDocument - add/update a document
