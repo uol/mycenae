@@ -40,7 +40,7 @@ func (collect *Collector) saveMeta(packet *Point) gobol.Error {
 
 		var tagKeys, tagValues []string
 		for _, tag := range packet.Message.Tags {
-			if tag.Name != constants.StringsKeyset {
+			if tag.Name != constants.StringsKSID {
 				tagKeys = append(tagKeys, tag.Name)
 				tagValues = append(tagValues, tag.Value)
 			}

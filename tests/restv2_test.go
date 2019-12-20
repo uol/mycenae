@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"math"
 	"net/http"
@@ -803,23 +802,8 @@ func TestRESTv2EmptyPayload(t *testing.T) {
 
 	payload := fmt.Sprintf(`[]`)
 
-	statusCode, resp := mycenaeTools.HTTP.POSTstring("api/put", payload)
-	assert.Equal(t, 400, statusCode)
-
-	expectedErr := tools.Error{
-		Error:   "no points",
-		Message: "no points",
-	}
-
-	receivedErr := tools.Error{}
-
-	err := json.Unmarshal(resp, &receivedErr)
-	if err != nil {
-		t.Error(err, t)
-		t.SkipNow()
-	}
-
-	assert.Equal(t, expectedErr, receivedErr)
+	statusCode, _ := mycenaeTools.HTTP.POSTstring("api/put", payload)
+	assert.Equal(t, 204, statusCode)
 }
 
 func testMetric(t *testing.T, value string, wg *sync.WaitGroup, udp bool) {

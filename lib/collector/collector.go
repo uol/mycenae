@@ -136,8 +136,11 @@ func (collect *Collector) processPacket(point *Point) gobol.Error {
 // HandleJSONBytes - handles a point in byte format
 func (collect *Collector) HandleJSONBytes(data []byte, source string, isNumber bool) (int, gobol.Error) {
 
-	points, gerrs := collect.validation.ParsePoints(cFuncHandleJSONBytes, isNumber, data)
-	if gerrs != nil {
+	points := structs.TSDBpoints{}
+	gerrs := []gobol.Error{}
+
+	collect.validation.ParsePoints(cFuncHandleJSONBytes, isNumber, data, &points, &gerrs)
+	if gerrs != nil && len(gerrs) > 0 {
 		return 0, errMultipleErrors(cFuncHandleJSONBytes, gerrs)
 	}
 
@@ -165,18 +168,11 @@ func (collect *Collector) MakePacket(rcvMsg *structs.TSDBpoint, number bool) (*P
 
 	packet := &Point{}
 
-	ksid := "not found"
-	for _, t := range rcvMsg.Tags {
-		if t.Name == constants.StringsKSID {
-			ksid = t.Value
-		}
-	}
-
 	var err error
 	packet.Number = number
 	packet.Message = rcvMsg
 	packet.ID, err = collect.GenerateID(rcvMsg)
-	collect.logger.Debug().Str("keyset", rcvMsg.Keyset).Str("ksid", ksid).Str("tsid", packet.ID).Send()
+
 	if err != nil {
 		return nil, errInternalServerError("makePacket", "error creating the tsid hash", err)
 	}

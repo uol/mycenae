@@ -56,4 +56,5 @@ var (
 	errInvalidPropertyType = errSimpleBadRequest("ValidateProperty", `Property type is not mapped`)
 	errInvalidTTLValue     = errSimpleBadRequest("ParseTTL", `Wrong Format: Tag "ttl" must be a positive number.`)
 	errInexistentKeyset    = errSimpleBadRequest("ValidateKeyset", `Keyset not exists.`)
+	errMalformedJSON       = errSimpleBadRequest("ParsePoint", `JSON is malformed.`)
 )

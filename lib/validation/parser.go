@@ -6,6 +6,7 @@ import (
 	"github.com/uol/gobol/logh"
 	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/structs"
+	"strings"
 )
 
 const (
@@ -15,10 +16,7 @@ const (
 )
 
 // ParsePoints - parses an array of points
-func (v *Service) ParsePoints(function string, isNumber bool, data []byte) (structs.TSDBpoints, []gobol.Error) {
-
-	finalGerrs := []gobol.Error{}
-	points := structs.TSDBpoints{}
+func (v *Service) ParsePoints(function string, isNumber bool, data []byte, outPoints *structs.TSDBpoints, outErrs *[]gobol.Error) {
 
 	defer func() {
 		if err := recover(); err != nil {
@@ -28,15 +26,37 @@ func (v *Service) ParsePoints(function string, isNumber bool, data []byte) (stru
 		}
 	}()
 
+	_, dtype, _, err := jsonparser.Get(data)
+	if err != nil {
+		(*outErrs) = append((*outErrs), errMalformedJSON)
+		return
+	}
+
+	if dtype == jsonparser.Array {
+		v.ParsePointArray(function, isNumber, data, outPoints, outErrs)
+	} else {
+		point, gerr := v.ParsePoint(function, isNumber, data)
+		if gerr != nil {
+			(*outErrs) = append((*outErrs), gerr)
+		}
+
+		(*outPoints) = append((*outPoints), point)
+	}
+}
+
+// ParsePointArray - parses an array of points
+func (v *Service) ParsePointArray(function string, isNumber bool, data []byte, outPoints *structs.TSDBpoints, outErrs *[]gobol.Error) {
+
 	_, err := jsonparser.ArrayEach(data, func(value []byte, dataType jsonparser.ValueType, offset int, inErr error) {
 
 		if inErr != nil {
+			(*outErrs) = append((*outErrs), errMalformedJSON)
 			return
 		}
 
 		point, gerr := v.ParsePoint(function, isNumber, value)
 		if gerr != nil {
-			finalGerrs = append(finalGerrs, gerr)
+			(*outErrs) = append((*outErrs), gerr)
 			if gerr == errInvalidTTLValue || gerr == errInexistentKeyset || gerr == errInvalidKeysetFormat {
 				panic(gerr)
 			}
@@ -44,18 +64,12 @@ func (v *Service) ParsePoints(function string, isNumber bool, data []byte) (stru
 			return
 		}
 
-		points = append(points, point)
+		(*outPoints) = append((*outPoints), point)
 	})
 
 	if err != nil {
-		finalGerrs = append(finalGerrs, errBadRequest(cFuncParsePoints, cMsgParsePoints, err))
+		(*outErrs) = append((*outErrs), errBadRequest(cFuncParsePoints, cMsgParsePoints, err))
 	}
-
-	if len(finalGerrs) > 0 {
-		return points, finalGerrs
-	}
-
-	return points, nil
 }
 
 // ParsePoint - parses the json bytes to the object fields
@@ -107,6 +121,8 @@ func (v *Service) ParsePoint(function string, isNumber bool, data []byte) (*stru
 		if p.Text, err = jsonparser.GetString(data, constants.StringsText); err != nil && err != jsonparser.KeyPathNotFoundError {
 			return nil, errParsingText
 		}
+
+		p.Text = strings.TrimSpace(p.Text)
 	}
 
 	gerr = v.ValidateType(&p, isNumber)
@@ -116,6 +132,7 @@ func (v *Service) ParsePoint(function string, isNumber bool, data []byte) (*stru
 
 	p.Tags = []structs.TSDBTag{}
 	ttlFound := false
+	ksidFound := false
 	err = jsonparser.ObjectEach(data, func(key, value []byte, dataType jsonparser.ValueType, offset int) error {
 
 		tag := structs.TSDBTag{}
@@ -145,6 +162,7 @@ func (v *Service) ParsePoint(function string, isNumber bool, data []byte) (*stru
 				return gerr
 			}
 			p.Keyset = tag.Value
+			ksidFound = true
 		default:
 			gerr = v.ValidateProperty(tag.Name, tagKeyType)
 			if gerr != nil {
@@ -157,18 +175,38 @@ func (v *Service) ParsePoint(function string, isNumber bool, data []byte) (*stru
 			}
 		}
 
-		p.Tags = append(p.Tags, tag)
+		dup := false
+		for i, k := range p.Tags {
+			if k.Name == tag.Name {
+				p.Tags[i].Value = tag.Value
+				dup = true
+				break
+			}
+		}
+
+		if !dup {
+			p.Tags = append(p.Tags, tag)
+		}
 
 		return nil
 
 	}, constants.StringsTags)
 
 	if err != nil {
-		return nil, err.(gobol.Error)
+		if gerr, ok := err.(gobol.Error); ok {
+			return nil, gerr
+		}
+
+		return nil, errMalformedJSON
 	}
 
 	if !ttlFound {
 		p.Tags = append(p.Tags, v.defaultTTLTag)
+		p.TTL = v.configuration.DefaultTTL
+	}
+
+	if !ksidFound {
+		return nil, errNoKeysetTag
 	}
 
 	gerr = v.ValidateTags(&p)

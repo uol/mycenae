@@ -62,6 +62,7 @@ func sendPointsToTTLKeyspace(keyset string) {
 	countRegex = regexp.MustCompile("\"count\":([0-9]+)")
 	ttlTSUIDMap = map[int]node{}
 	ttlTSUIDTextMap = map[int]node{}
+	ttlKeyspaceKeyset = keyset
 
 	startTime = time.Now()
 	currentTime := startTime

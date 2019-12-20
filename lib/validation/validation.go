@@ -54,7 +54,7 @@ func New(configuration *structs.ValidationConfiguration, metadataStorage *metada
 		metadataStorage: metadataStorage,
 		logger:          logh.CreateContextualLogger(constants.StringsPKG, "validation"),
 		defaultTTLStr:   defaultTTLStr,
-		defaultTTLTag:   structs.TSDBTag{Name: constants.StringsKSID, Value: defaultTTLStr},
+		defaultTTLTag:   structs.TSDBTag{Name: constants.StringsTTL, Value: defaultTTLStr},
 	}, nil
 }
 
