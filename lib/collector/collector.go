@@ -94,7 +94,7 @@ func (collect *Collector) worker(id int, jobChannel <-chan workerData) {
 		if err != nil {
 			statsPointsError(j.validatedPoint.Message.Keyset, collect.getType(j.validatedPoint.Number), j.source, strconv.Itoa(j.validatedPoint.Message.TTL))
 			if logh.ErrorEnabled {
-				collect.logger.Error().Str(constants.StringsFunc, "worker").Err(err)
+				collect.logger.Error().Str(constants.StringsFunc, "worker").Err(err).Send()
 			}
 		} else {
 			statsPoints(j.validatedPoint.Message.Keyset, collect.getType(j.validatedPoint.Number), j.source, strconv.Itoa(j.validatedPoint.Message.TTL))

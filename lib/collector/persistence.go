@@ -23,8 +23,7 @@ func (collect *Collector) InsertPoint(ksid, tsid string, timestamp int64, value 
 	).Exec(); err != nil {
 		statsInsertQerror(ksid, "ts_number_stamp")
 		if logh.ErrorEnabled {
-			collect.logger.Error().Str(constants.StringsFunc, "InsertPoint").Err(err).Send()
-			collect.logger.Error().Str(constants.StringsFunc, "InsertPoint").Str("tsid", tsid).Int64("timestamp", timestamp).Float64("value", value).Str("ksid", ksid).Send()
+			collect.logger.Error().Err(err).Str(constants.StringsFunc, "InsertPoint").Str("tsid", tsid).Int64("timestamp", timestamp).Float64("value", value).Str("ksid", ksid).Send()
 		}
 
 		statsInsertFBerror(ksid, "ts_number_stamp")
@@ -46,8 +45,7 @@ func (collect *Collector) InsertText(ksid, tsid string, timestamp int64, text st
 	).Exec(); err != nil {
 		statsInsertQerror(ksid, "ts_text_stamp")
 		if logh.ErrorEnabled {
-			collect.logger.Error().Str(constants.StringsFunc, "InsertText").Err(err).Send()
-			collect.logger.Error().Str(constants.StringsFunc, "InsertText").Str("tsid", tsid).Int64("timestamp", timestamp).Str("text", text).Str("ksid", ksid).Send()
+			collect.logger.Error().Err(err).Str(constants.StringsFunc, "InsertText").Str("tsid", tsid).Int64("timestamp", timestamp).Str("text", text).Str("ksid", ksid).Send()
 		}
 		statsInsertFBerror(ksid, "ts_text_stamp")
 		return errPersist("InsertText", err)
