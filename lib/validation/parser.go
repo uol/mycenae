@@ -83,7 +83,7 @@ func (v *Service) ParsePoint(function string, isNumber bool, data []byte) (*stru
 		return nil, errParsingMetric
 	}
 
-	gerr = v.ValidateProperty(p.Metric, metricType)
+	gerr = v.ValidateProperty(p.Metric, MetricType)
 	if gerr != nil {
 		return nil, gerr
 	}
@@ -164,12 +164,12 @@ func (v *Service) ParsePoint(function string, isNumber bool, data []byte) (*stru
 			p.Keyset = tag.Value
 			ksidFound = true
 		default:
-			gerr = v.ValidateProperty(tag.Name, tagKeyType)
+			gerr = v.ValidateProperty(tag.Name, TagKeyType)
 			if gerr != nil {
 				return gerr
 			}
 
-			gerr = v.ValidateProperty(tag.Value, tagValueType)
+			gerr = v.ValidateProperty(tag.Value, TagValueType)
 			if gerr != nil {
 				return gerr
 			}

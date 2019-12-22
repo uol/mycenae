@@ -91,7 +91,7 @@ func main() {
 	collectorService := createCollectorService(settings, timeseriesStats, metadataStorage, scyllaConn, validationService, keyspaceTTLMap)
 	plotService := createPlotService(settings, timeseriesStats, metadataStorage, scyllaConn, keyspaceTTLMap)
 	udpServer := createUDPServer(&settings.UDPserver, collectorService, timeseriesStats)
-	telnetManager := createTelnetManager(settings, collectorService, timeseriesStats)
+	telnetManager := createTelnetManager(settings, collectorService, timeseriesStats, validationService)
 	restServer := createRESTserver(settings, stats, plotService, collectorService, keyspaceManager, keysetManager, memcachedConn, telnetManager)
 
 	if logh.InfoEnabled {
@@ -466,7 +466,7 @@ func createRESTserver(conf *structs.Settings, stats *snitch.Stats, plotService *
 }
 
 // createTelnetManager - creates a new telnet manager
-func createTelnetManager(conf *structs.Settings, collectorService *collector.Collector, stats *tsstats.StatsTS) *telnetmgr.Manager {
+func createTelnetManager(conf *structs.Settings, collectorService *collector.Collector, stats *tsstats.StatsTS, validationService *validation.Service) *telnetmgr.Manager {
 
 	telnetManager, err := telnetmgr.New(
 		&conf.GlobalTelnetServerConfiguration,
@@ -475,7 +475,7 @@ func createTelnetManager(conf *structs.Settings, collectorService *collector.Col
 		stats,
 	)
 
-	err = telnetManager.AddServer(&conf.NetdataServer, &conf.GlobalTelnetServerConfiguration, telnet.NewNetdataHandler(conf.NetdataServer.CacheDuration, collectorService, &conf.GlobalTelnetServerConfiguration))
+	err = telnetManager.AddServer(&conf.NetdataServer, &conf.GlobalTelnetServerConfiguration, telnet.NewNetdataHandler(conf.NetdataServer.CacheDuration, collectorService, &conf.GlobalTelnetServerConfiguration, validationService))
 	if err != nil {
 		if logh.FatalEnabled {
 			logger.Fatal().Err(err).Msg("error creating telnet server 'netdata'")
@@ -483,7 +483,7 @@ func createTelnetManager(conf *structs.Settings, collectorService *collector.Col
 		os.Exit(1)
 	}
 
-	err = telnetManager.AddServer(&conf.TELNETserver, &conf.GlobalTelnetServerConfiguration, telnet.NewOpenTSDBHandler(collectorService, &conf.GlobalTelnetServerConfiguration))
+	err = telnetManager.AddServer(&conf.TELNETserver, &conf.GlobalTelnetServerConfiguration, telnet.NewOpenTSDBHandler(collectorService, &conf.GlobalTelnetServerConfiguration, validationService))
 	if err != nil {
 		if logh.FatalEnabled {
 			logger.Fatal().Err(err).Msg("error creating telnet server 'telnet'")

@@ -13,16 +13,16 @@ import (
 	"github.com/uol/mycenae/lib/utils"
 )
 
-// propertyType - type
-type propertyType uint8
+// PropertyType - type
+type PropertyType uint8
 
 const (
 	// TagKeyType - the tag identifier
-	tagKeyType propertyType = 1
+	TagKeyType PropertyType = 1
 	// TagValueType - the tag identifier
-	tagValueType propertyType = 2
+	TagValueType PropertyType = 2
 	// MetricType - the metric identifier
-	metricType propertyType = 3
+	MetricType PropertyType = 3
 )
 
 // Service - the validation structure
@@ -79,18 +79,18 @@ func (v *Service) ValidateType(p *structs.TSDBpoint, number bool) gobol.Error {
 }
 
 // ValidateProperty - validates the property value
-func (v *Service) ValidateProperty(value string, propertyType propertyType) gobol.Error {
+func (v *Service) ValidateProperty(value string, propertyType PropertyType) gobol.Error {
 
 	if v.propertyRegexp.MatchString(value) {
 		return nil
 	}
 
 	switch propertyType {
-	case tagKeyType:
+	case TagKeyType:
 		return errInvalidTagKey
-	case tagValueType:
+	case TagValueType:
 		return errInvalidTagValue
-	case metricType:
+	case MetricType:
 		return errInvalidMetric
 	default:
 		if logh.ErrorEnabled {
@@ -174,4 +174,10 @@ func (v *Service) ValidateTimestamp(timestamp int64) (int64, gobol.Error) {
 	}
 
 	return truncated, nil
+}
+
+// GetDefaultTTLTag - returns the default TTL tag and its integer value
+func (v *Service) GetDefaultTTLTag() (*structs.TSDBTag, int) {
+
+	return &v.defaultTTLTag, v.configuration.DefaultTTL
 }
