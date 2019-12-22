@@ -65,3 +65,7 @@ func errFilter(s string) gobol.Error {
 func errValidationS(function, msg string) gobol.Error {
 	return errBasic(function, msg, errors.New(msg))
 }
+
+func errUnmarshal(function string, err error) gobol.Error {
+	return errBasic(function, "error unmarshalling json", err)
+}

@@ -2,10 +2,10 @@ package telnet
 
 import (
 	"regexp"
-	"strings"
 	"sync"
 	"time"
 
+	"github.com/uol/gobol"
 	"github.com/uol/gobol/logh"
 
 	"github.com/buger/jsonparser"
@@ -13,6 +13,7 @@ import (
 	"github.com/uol/mycenae/lib/collector"
 	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/structs"
+	"github.com/uol/mycenae/lib/validation"
 )
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
@@ -50,7 +51,6 @@ const (
 	tagRegexp                 string = `([0-9A-Za-z-\._\%\&\#\;\/]+)=([0-9A-Za-z-\._\%\&\#\;\/\*\+\']+)`
 	tagValueReplacementRegexp string = `[^0-9A-Za-z-\._\%\&\#\;\/]+`
 	setMetricTag              string = "%set_metric%"
-	setPluginMetric           string = "%set_plugin_metric%"
 )
 
 // Parse - parses the json bytes to the object fields
@@ -117,10 +117,11 @@ type NetdataHandler struct {
 	logger            *logh.ContextualLogger
 	sourceName        string
 	telnetConfig      *structs.GlobalTelnetServerConfiguration
+	validationService *validation.Service
 }
 
 // NewNetdataHandler - creates the new handler
-func NewNetdataHandler(regexpCacheDuration string, collector *collector.Collector, telnetConfig *structs.GlobalTelnetServerConfiguration) *NetdataHandler {
+func NewNetdataHandler(regexpCacheDuration string, collector *collector.Collector, telnetConfig *structs.GlobalTelnetServerConfiguration, validationService *validation.Service) *NetdataHandler {
 
 	netdataTags := map[string]struct{}{
 		propChartID:      struct{}{},
@@ -148,6 +149,7 @@ func NewNetdataHandler(regexpCacheDuration string, collector *collector.Collecto
 		logger:            logh.CreateContextualLogger(constants.StringsPKG, "telnet", constants.StringsFunc, "Handle"),
 		sourceName:        "telnet-netdata",
 		telnetConfig:      telnetConfig,
+		validationService: validationService,
 	}
 }
 
@@ -177,6 +179,7 @@ func (nh *NetdataHandler) Handle(line string) {
 	}
 
 	pointJSON := netdataJSON{}
+
 	err := pointJSON.Parse([]byte(line))
 	if err != nil {
 		if !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
@@ -185,138 +188,181 @@ func (nh *NetdataHandler) Handle(line string) {
 		return
 	}
 
-	tags := map[string]string{}
+	var gerr gobol.Error
 
-	tagMatches := nh.tagsRegexp.FindAllStringSubmatch(pointJSON.DefaultTags, -1)
-	if len(tagMatches) > 0 {
-		for i := 0; i < len(tagMatches); i++ {
-			tags[tagMatches[i][1]] = tagMatches[i][2]
-		}
+	point := structs.TSDBpoint{
+		Value: &pointJSON.Value,
+		Tags:  []structs.TSDBTag{},
 	}
 
-	metricProperty := propChartID
-
-	if metricValue, switchMetric := tags[setMetricTag]; switchMetric {
-
-		if _, ok := nh.netdataTags[metricValue]; !ok {
-			if !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-				nh.logger.Error().Msgf("invalid netdata property to use set_metric: %s", metricValue)
-			}
-			return
-		}
-
-		metricProperty = metricValue
-
-		delete(tags, setMetricTag)
-	}
-
-	if pluginMetricValue, switchPluginMetric := tags[setPluginMetric]; switchPluginMetric {
-
-		list := strings.Split(strings.Trim(pluginMetricValue, "'"), "#")
-
-		for i := 0; i < len(list); i++ {
-
-			array := strings.Split(list[i], ";")
-
-			if len(array) != 2 {
-				if !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-					nh.logger.Error().Msgf("invalid set_plugin_metric value: %s", pluginMetricValue)
-				}
-				return
-			}
-
-			if _, ok := nh.netdataTags[array[1]]; !ok {
-				if !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-					nh.logger.Error().Msgf("invalid netdata property to use set_plugin_metric: %s", pluginMetricValue)
-				}
-				return
-			}
-
-			var pluginMetricRegex *regexp.Regexp
-			if compiledRegex, ok := nh.regexpCache.Load(array[0]); !ok {
-
-				newCompiledRegex, err := regexp.Compile(array[0])
-				if err != nil {
-					if !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-						nh.logger.Error().Msgf("invalid set_plugin_metric regular expression: %s", pluginMetricValue)
-					}
-					return
-				}
-
-				nh.regexpCache.Store(array[0], newCompiledRegex)
-
-				if logh.InfoEnabled {
-					nh.logger.Info().Msgf("new regular expression was cached: %s", array[0])
-				}
-
-				nh.expireCachedRegexp(array[0])
-
-				pluginMetricRegex = newCompiledRegex
-
-			} else {
-
-				pluginMetricRegex = compiledRegex.(*regexp.Regexp)
-			}
-
-			if pluginMetricRegex.MatchString(pointJSON.ChartID) {
-
-				metricProperty = array[1]
-			}
-		}
-
-		delete(tags, setPluginMetric)
-	}
-
-	tags[propChartID] = pointJSON.ChartID
-
-	if pointJSON.ChartContext != constants.StringsEmpty {
-		tags[propChartContext] = pointJSON.ChartContext
-	}
-
-	if pointJSON.ChartFamily != constants.StringsEmpty {
-		tags[propChartFamily] = nh.specialCharRegexp.ReplaceAllString(pointJSON.ChartFamily, specialCharReplacement)
-	}
-
-	if pointJSON.ChartType != constants.StringsEmpty {
-		tags[propChartType] = pointJSON.ChartType
-	}
-
-	if pointJSON.ChartName != constants.StringsEmpty {
-		tags[propChartName] = pointJSON.ChartName
-	}
-
-	if pointJSON.Name != constants.StringsEmpty {
-		tags[propName] = nh.specialCharRegexp.ReplaceAllString(pointJSON.Name, specialCharReplacement)
-	}
-
-	if pointJSON.ID != constants.StringsEmpty {
-		tags[propID] = pointJSON.ID
-	}
-
-	if pointJSON.HostName != constants.StringsEmpty {
-		tags[propHost] = pointJSON.HostName
-	}
-
-	newMetric := tags[metricProperty]
-
-	delete(tags, metricProperty)
-
-	point := collector.TSDBpoint{
-		Metric:    newMetric,
-		Timestamp: pointJSON.Timestamp,
-		Value:     &pointJSON.Value,
-		Tags:      tags,
-	}
-
-	validatedPoint, err := nh.collector.MakePacket(&point, true)
-	if err != nil {
+	point.Timestamp, gerr = nh.validationService.ValidateTimestamp(pointJSON.Timestamp)
+	if gerr != nil {
 		if !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-			nh.logger.Error().Err(err).Msgf("point validation failure in line: %s", line)
+			nh.logger.Error().Msgf("invalid timestamp: %s", point.Timestamp)
 		}
 		return
 	}
 
-	nh.collector.HandlePacket(validatedPoint, nh.sourceName)
+	ttlFound := false
+	ksidFound := false
+	tagMatches := nh.tagsRegexp.FindAllStringSubmatch(pointJSON.DefaultTags, -1)
+	metricPropertyReplacement := propChartID
+
+	if len(tagMatches) > 0 {
+		for i := 0; i < len(tagMatches); i++ {
+
+			if setMetricTag == tagMatches[i][1] {
+
+				if _, ok := nh.netdataTags[tagMatches[i][2]]; !ok {
+					if !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
+						nh.logger.Error().Msgf("invalid netdata property to use set_metric: %s", tagMatches[i][2])
+					}
+					return
+				}
+
+				metricPropertyReplacement = tagMatches[i][2]
+
+			} else {
+
+				switch tagMatches[i][1] {
+				case constants.StringsTTL:
+					ttl, ttlStr, gerr := nh.validationService.ParseTTL(tagMatches[i][2])
+					if gerr != nil && !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
+						nh.logger.Error().Err(gerr).Msgf("invalid ttl: %s", line)
+						return
+					}
+					point.TTL = ttl
+					tagMatches[i][2] = ttlStr
+					ttlFound = true
+				case constants.StringsKSID:
+					gerr = nh.validationService.ValidateKeyset(tagMatches[i][2])
+					if gerr != nil && !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
+						nh.logger.Error().Err(gerr).Msgf("invalid ksid: %s", line)
+						return
+					}
+					point.Keyset = tagMatches[i][2]
+					ksidFound = true
+				default:
+					gerr = nh.validationService.ValidateProperty(tagMatches[i][1], validation.TagKeyType)
+					if gerr != nil && !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
+						nh.logger.Error().Err(gerr).Msgf("invalid key: %s", line)
+						return
+					}
+
+					gerr = nh.validationService.ValidateProperty(tagMatches[i][2], validation.TagValueType)
+					if gerr != nil && !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
+						nh.logger.Error().Err(gerr).Msgf("invalid value: %s", line)
+						return
+					}
+				}
+
+				tag := structs.TSDBTag{
+					Name:  tagMatches[i][1],
+					Value: tagMatches[i][2],
+				}
+
+				dup := false
+				for i, k := range point.Tags {
+					if k.Name == tag.Name {
+						point.Tags[i].Value = tag.Value
+						dup = true
+						break
+					}
+				}
+
+				if !dup {
+					point.Tags = append(point.Tags, tag)
+				}
+			}
+		}
+	}
+
+	if !ksidFound && !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
+		nh.logger.Error().Err(gerr).Msgf("no ksid tag found: %s", line)
+		return
+	}
+
+	if !ttlFound {
+		ttlTag, ttl := nh.validationService.GetDefaultTTLTag()
+		point.Tags = append(point.Tags, *ttlTag)
+		point.TTL = ttl
+	}
+
+	point.Tags = append(point.Tags, structs.TSDBTag{Name: propChartID, Value: pointJSON.ChartID})
+
+	if pointJSON.ChartContext != constants.StringsEmpty {
+		point.Tags = append(point.Tags, structs.TSDBTag{Name: propChartContext, Value: pointJSON.ChartContext})
+	}
+
+	if pointJSON.ChartFamily != constants.StringsEmpty {
+		pointJSON.ChartFamily = nh.specialCharRegexp.ReplaceAllString(pointJSON.ChartFamily, specialCharReplacement)
+		point.Tags = append(point.Tags, structs.TSDBTag{Name: propChartFamily, Value: pointJSON.ChartFamily})
+	}
+
+	if pointJSON.ChartType != constants.StringsEmpty {
+		point.Tags = append(point.Tags, structs.TSDBTag{Name: propChartType, Value: pointJSON.ChartType})
+	}
+
+	if pointJSON.ChartName != constants.StringsEmpty {
+		point.Tags = append(point.Tags, structs.TSDBTag{Name: propChartName, Value: pointJSON.ChartName})
+	}
+
+	if pointJSON.Name != constants.StringsEmpty {
+		pointJSON.Name = nh.specialCharRegexp.ReplaceAllString(pointJSON.Name, specialCharReplacement)
+		point.Tags = append(point.Tags, structs.TSDBTag{Name: propName, Value: pointJSON.Name})
+	}
+
+	if pointJSON.ID != constants.StringsEmpty {
+		point.Tags = append(point.Tags, structs.TSDBTag{Name: propID, Value: pointJSON.ID})
+	}
+
+	if pointJSON.HostName != constants.StringsEmpty {
+		point.Tags = append(point.Tags, structs.TSDBTag{Name: propHost, Value: pointJSON.HostName})
+	}
+
+	gerr = nh.validationService.ValidateTags(&point)
+	if gerr != nil && !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
+		nh.logger.Error().Err(gerr).Msgf("tags validation failure: %s", line)
+		return
+	}
+
+	metric := ""
+	switch metricPropertyReplacement {
+	case propChartID:
+		metric = pointJSON.ChartID
+	case propChartContext:
+		metric = pointJSON.ChartContext
+	case propChartFamily:
+		metric = pointJSON.ChartFamily
+	case propChartType:
+		metric = pointJSON.ChartType
+	case propChartName:
+		metric = pointJSON.Name
+	case propID:
+		metric = pointJSON.ID
+	case propHost:
+		metric = pointJSON.HostName
+	default:
+		metric = pointJSON.ChartID
+	}
+
+	point.Metric = metric
+
+	gerr = nh.validationService.ValidateProperty(point.Metric, validation.MetricType)
+	if gerr != nil && !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
+		nh.logger.Error().Err(gerr).Msgf("invalid metric: %s", line)
+		return
+	}
+
+	packet, err := nh.collector.MakePacket(&point, true)
+	if err != nil {
+		if !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
+			nh.logger.Error().Err(err).Msgf("point validation failure: %s", line)
+		}
+		return
+	}
+
+	nh.collector.HandlePacket(packet, nh.sourceName)
 }
 
 // SourceName - returns the connection type name

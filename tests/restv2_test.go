@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"math"
 	"net/http"
@@ -385,7 +384,7 @@ func TestRESTv2PayloadWithValueNotSent(t *testing.T) {
 	p := mycenaeTools.Mycenae.GetPayload(ksMycenae)
 	p.Value = nil
 
-	errMessage := "Wrong Format: Field \"value\" is required. NO information will be saved"
+	errMessage := "Wrong Format: Field \"value\" is required."
 
 	sendRESTPayloadStringAndAssertErrorAndEmpty(t, errMessage, p.StringArray(), ksMycenae, p.Metric, p.Tags, *p.Timestamp, *p.Timestamp)
 }
@@ -617,7 +616,7 @@ func TestRESTv2PayloadWithAKsidTag(t *testing.T) {
 	p := mycenaeTools.Mycenae.GetPayload(ksMycenae)
 	delete(p.Tags, p.TagKey)
 
-	errMessage := `At least one tag other than "ksid" is required. NO information will be saved`
+	errMessage := `At least one tag other than "ksid" is required.`
 	sendRESTPayloadStringAndAssertErrorAndEmpty(t, errMessage, p.StringArray(), p.Tags["ksid"], p.Metric, p.Tags, *p.Timestamp, *p.Timestamp)
 }
 
@@ -627,7 +626,7 @@ func TestRESTv2PayloadWithoutKsid(t *testing.T) {
 	p := mycenaeTools.Mycenae.GetPayload(ksMycenae)
 	delete(p.Tags, "ksid")
 
-	errMessage := `Wrong Format: Tag "ksid" is required. NO information will be saved`
+	errMessage := `Wrong Format: Tag "ksid" is required.`
 	sendRESTPayloadStringAndAssertErrorAndEmpty(t, errMessage, p.StringArray(), "", p.Metric, p.Tags, *p.Timestamp, *p.Timestamp)
 }
 
@@ -770,17 +769,17 @@ func TestRESTv2PayloadWithTwoPointsAndAWrongFormatEmptyString(t *testing.T) {
 				pInvalid.TagKey2 = fmt.Sprint("testTagKey2-", pInvalid.Random)
 				pInvalid.TagValue2 = fmt.Sprint("testTagValue2-", pInvalid.Random)
 				pInvalid.Tags[pInvalid.TagKey2] = pInvalid.TagValue2
-				errMessage = "Wrong Format: Field \"metric\" () is not well formed. NO information will be saved"
+				errMessage = "Wrong Format: Field \"metric\" has a invalid format."
 			case 1:
 				pInvalid.TagKey2 = ""
 				pInvalid.TagValue2 = fmt.Sprint("testTagValue2-", pInvalid.Random)
 				pInvalid.Tags[pInvalid.TagKey2] = pInvalid.TagValue2
-				errMessage = "Wrong Format: Tag key () is not well formed. NO information will be saved"
+				errMessage = "Wrong Format: Tag key has a invalid format."
 			case 2:
 				pInvalid.TagValue2 = ""
 				pInvalid.TagKey2 = fmt.Sprint("testTagKey2-", pInvalid.Random)
 				pInvalid.Tags[pInvalid.TagKey2] = pInvalid.TagValue2
-				errMessage = "Wrong Format: Tag value () is not well formed. NO information will be saved"
+				errMessage = "Wrong Format: Tag value has a invalid format."
 			}
 
 			p2 := mycenaeTools.Mycenae.GetPayload(ksMycenae)
@@ -803,23 +802,8 @@ func TestRESTv2EmptyPayload(t *testing.T) {
 
 	payload := fmt.Sprintf(`[]`)
 
-	statusCode, resp := mycenaeTools.HTTP.POSTstring("api/put", payload)
-	assert.Equal(t, 400, statusCode)
-
-	expectedErr := tools.Error{
-		Error:   "no points",
-		Message: "no points",
-	}
-
-	receivedErr := tools.Error{}
-
-	err := json.Unmarshal(resp, &receivedErr)
-	if err != nil {
-		t.Error(err, t)
-		t.SkipNow()
-	}
-
-	assert.Equal(t, expectedErr, receivedErr)
+	statusCode, _ := mycenaeTools.HTTP.POSTstring("api/put", payload)
+	assert.Equal(t, 204, statusCode)
 }
 
 func testMetric(t *testing.T, value string, wg *sync.WaitGroup, udp bool) {
@@ -873,7 +857,7 @@ func testInvalidMetric(t *testing.T, value string, wg *sync.WaitGroup, udp bool)
 	if udp {
 		sendUDPPayloadStringAndAssertEmpty(t, string(p.Marshal()), p.Metric, p.Tags, *p.Timestamp, *p.Timestamp)
 	} else {
-		errMessage := fmt.Sprintf("Wrong Format: Field \"metric\" (%s) is not well formed. NO information will be saved", value)
+		errMessage := "Wrong Format: Field \"metric\" has a invalid format."
 		sendRESTPayloadStringAndAssertErrorAndEmpty(t, errMessage, p.StringArray(), ksMycenae, p.Metric, p.Tags, *p.Timestamp, *p.Timestamp)
 	}
 	wg.Done()
@@ -888,7 +872,7 @@ func testInvalidTagKey(t *testing.T, value string, wg *sync.WaitGroup, udp bool)
 	if udp {
 		sendUDPPayloadStringAndAssertEmpty(t, string(p.Marshal()), p.Metric, p.Tags, *p.Timestamp, *p.Timestamp)
 	} else {
-		errMessage := fmt.Sprintf("Wrong Format: Tag key (%s) is not well formed. NO information will be saved", value)
+		errMessage := "Wrong Format: Tag key has a invalid format."
 		sendRESTPayloadStringAndAssertErrorAndEmpty(t, errMessage, p.StringArray(), ksMycenae, p.Metric, p.Tags, *p.Timestamp, *p.Timestamp)
 	}
 	wg.Done()
@@ -903,7 +887,7 @@ func testInvalidTagValue(t *testing.T, value string, wg *sync.WaitGroup, udp boo
 	if udp {
 		sendUDPPayloadStringAndAssertEmpty(t, string(p.Marshal()), p.Metric, p.Tags, *p.Timestamp, *p.Timestamp)
 	} else {
-		errMessage := fmt.Sprintf("Wrong Format: Tag value (%s) is not well formed. NO information will be saved", value)
+		errMessage := "Wrong Format: Tag value has a invalid format."
 		sendRESTPayloadStringAndAssertErrorAndEmpty(t, errMessage, p.StringArray(), ksMycenae, p.Metric, p.Tags, *p.Timestamp, *p.Timestamp)
 	}
 	wg.Done()

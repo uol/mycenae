@@ -17,7 +17,6 @@ var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 const (
 	idNamespace     string = "tsid"
-	keysetNamespace string = "ksid"
 	facetsNamespace string = "fac"
 	keysetMapID     string = "map"
 	cEmptyArray     string = "[]"
@@ -63,7 +62,7 @@ func (sb *SolrBackend) deleteCachedID(collection, tsType, tsid string) error {
 // getCachedKeysets - return the keysets
 func (sb *SolrBackend) getCachedKeysets() ([]string, error) {
 
-	data, gerr := sb.memcached.Get(keysetNamespace, keysetMapID)
+	data, gerr := sb.memcached.Get(constants.StringsKSID, keysetMapID)
 	if gerr != nil {
 		return nil, gerr
 	}
@@ -86,7 +85,7 @@ func (sb *SolrBackend) cacheKeysets(keysets []string) error {
 		return nil
 	}
 
-	gerr := sb.memcached.Put([]byte(strings.Trim(fmt.Sprint(keysets), cEmptyArray)), sb.keysetCacheTTL, keysetNamespace, keysetMapID)
+	gerr := sb.memcached.Put([]byte(strings.Trim(fmt.Sprint(keysets), cEmptyArray)), sb.keysetCacheTTL, constants.StringsKSID, keysetMapID)
 	if gerr != nil {
 		return gerr
 	}
@@ -94,10 +93,10 @@ func (sb *SolrBackend) cacheKeysets(keysets []string) error {
 	return nil
 }
 
-// deleteKeySetMap - deletes the cached keyset map
-func (sb *SolrBackend) deleteCachedKeySets() error {
+// deleteKeysetMap - deletes the cached keyset map
+func (sb *SolrBackend) deleteCachedKeysets() error {
 
-	gerr := sb.memcached.Delete(keysetNamespace, keysetMapID)
+	gerr := sb.memcached.Delete(constants.StringsKSID, keysetMapID)
 	if gerr != nil {
 		return gerr
 	}

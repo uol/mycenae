@@ -2,6 +2,9 @@ package collector
 
 import (
 	"encoding/hex"
+	"fmt"
+	"github.com/uol/mycenae/lib/structs"
+	"github.com/uol/mycenae/lib/validation"
 	"regexp"
 	"sort"
 	"strconv"
@@ -13,9 +16,7 @@ import (
 	"github.com/uol/gobol/hashing"
 	"github.com/uol/gobol/logh"
 	"github.com/uol/mycenae/lib/constants"
-	"github.com/uol/mycenae/lib/keyset"
 	"github.com/uol/mycenae/lib/metadata"
-	"github.com/uol/mycenae/lib/structs"
 	"github.com/uol/mycenae/lib/tsstats"
 )
 
@@ -24,9 +25,9 @@ var (
 )
 
 const (
-	cNumber          string = "number"
-	cText            string = "text"
-	cHandleJSONBytes string = "HandleJSONBytes"
+	cNumber              string = "number"
+	cText                string = "text"
+	cFuncHandleJSONBytes string = "HandleJSONBytes"
 )
 
 // New - creates a new Collector
@@ -36,7 +37,7 @@ func New(
 	metaStorage *metadata.Storage,
 	set *structs.Settings,
 	keyspaceTTLMap map[int]string,
-	ks *keyset.KeySet,
+	validation *validation.Service,
 ) (*Collector, error) {
 
 	stats = sts
@@ -44,12 +45,11 @@ func New(
 	collect := &Collector{
 		cassandra:      cass,
 		metaStorage:    metaStorage,
-		validKey:       regexp.MustCompile(`^[0-9A-Za-z-\._\%\&\#\;\/]+$`),
 		settings:       set,
 		jobChannel:     make(chan workerData, set.MaxConcurrentPoints),
 		keyspaceTTLMap: keyspaceTTLMap,
-		keySet:         ks,
 		logger:         logh.CreateContextualLogger(constants.StringsPKG, "collector"),
+		validation:     validation,
 	}
 
 	for i := 0; i < set.MaxConcurrentPoints; i++ {
@@ -69,9 +69,9 @@ type Collector struct {
 	shutdown       bool
 	jobChannel     chan workerData
 	keyspaceTTLMap map[int]string
-	keySet         *keyset.KeySet
 
-	logger *logh.ContextualLogger
+	validation *validation.Service
+	logger     *logh.ContextualLogger
 }
 
 type workerData struct {
@@ -92,12 +92,12 @@ func (collect *Collector) worker(id int, jobChannel <-chan workerData) {
 
 		err := collect.processPacket(j.validatedPoint)
 		if err != nil {
-			statsPointsError(j.validatedPoint.Keyset, collect.getType(j.validatedPoint.Number), j.source, strconv.Itoa(j.validatedPoint.TTL))
+			statsPointsError(j.validatedPoint.Message.Keyset, collect.getType(j.validatedPoint.Number), j.source, strconv.Itoa(j.validatedPoint.Message.TTL))
 			if logh.ErrorEnabled {
-				collect.logger.Error().Str(constants.StringsFunc, "worker").Err(err)
+				collect.logger.Error().Str(constants.StringsFunc, "worker").Err(err).Send()
 			}
 		} else {
-			statsPoints(j.validatedPoint.Keyset, collect.getType(j.validatedPoint.Number), j.source, strconv.Itoa(j.validatedPoint.TTL))
+			statsPoints(j.validatedPoint.Message.Keyset, collect.getType(j.validatedPoint.Number), j.source, strconv.Itoa(j.validatedPoint.Message.TTL))
 		}
 	}
 }
@@ -128,7 +128,7 @@ func (collect *Collector) processPacket(point *Point) gobol.Error {
 		return gerr
 	}
 
-	statsProcTime(point.Keyset, time.Since(start))
+	statsProcTime(point.Message.Keyset, time.Since(start))
 
 	return nil
 }
@@ -136,14 +136,16 @@ func (collect *Collector) processPacket(point *Point) gobol.Error {
 // HandleJSONBytes - handles a point in byte format
 func (collect *Collector) HandleJSONBytes(data []byte, source string, isNumber bool) (int, gobol.Error) {
 
-	points, err := ParsePoints(cHandleJSONBytes, isNumber, data)
-	if err != nil {
-		return 0, err
+	points := structs.TSDBpoints{}
+	gerrs := []gobol.Error{}
+
+	collect.validation.ParsePoints(cFuncHandleJSONBytes, isNumber, data, &points, &gerrs)
+	if gerrs != nil && len(gerrs) > 0 {
+		return 0, errMultipleErrors(cFuncHandleJSONBytes, gerrs)
 	}
 
-	err = points.Validate()
-	if err != nil {
-		return 0, err
+	if len(points) == 0 {
+		return 0, nil
 	}
 
 	for _, p := range points {
@@ -159,6 +161,29 @@ func (collect *Collector) HandleJSONBytes(data []byte, source string, isNumber b
 	return len(points), nil
 }
 
+const cTextTSIDFormat string = "T%v"
+
+// MakePacket - validates a point and fills the packet
+func (collect *Collector) MakePacket(rcvMsg *structs.TSDBpoint, number bool) (*Point, gobol.Error) {
+
+	packet := &Point{}
+
+	var err error
+	packet.Number = number
+	packet.Message = rcvMsg
+	packet.ID, err = collect.GenerateID(rcvMsg)
+
+	if err != nil {
+		return nil, errInternalServerError("makePacket", "error creating the tsid hash", err)
+	}
+
+	if !number {
+		packet.ID = fmt.Sprintf(cTextTSIDFormat, packet.ID)
+	}
+
+	return packet, nil
+}
+
 // HandlePacket - handles a point in struct format
 func (collect *Collector) HandlePacket(vp *Point, source string) {
 
@@ -169,17 +194,17 @@ func (collect *Collector) HandlePacket(vp *Point, source string) {
 }
 
 // GenerateID - generates the unique ID from a point
-func (collect *Collector) GenerateID(rcvMsg *TSDBpoint) (string, error) {
+func (collect *Collector) GenerateID(rcvMsg *structs.TSDBpoint) (string, error) {
 
 	numParameters := (len(rcvMsg.Tags) * 2) + 1
 	strParameters := make([]string, numParameters)
 	strParameters[0] = rcvMsg.Metric
 
 	i := 1
-	for k, v := range rcvMsg.Tags {
-		strParameters[i] = k
+	for _, tag := range rcvMsg.Tags {
+		strParameters[i] = tag.Name
 		i++
-		strParameters[i] = v
+		strParameters[i] = tag.Value
 		i++
 	}
 

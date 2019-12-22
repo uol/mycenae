@@ -17,7 +17,7 @@ var ksMycenae, ksMycenaeMeta, ksMycenaeTsdb, ksTTLKeyspace string
 
 const datacenter = "dc_gt_a1"
 
-func createKeySetName() string {
+func createKeysetName() string {
 	return fmt.Sprintf("ts_%d", time.Now().Nanosecond())
 }
 
@@ -61,10 +61,10 @@ func TestMain(m *testing.M) {
 	if !skipSetup {
 
 		var wg sync.WaitGroup
-		ksMycenae = mycenaeTools.Mycenae.CreateKeySet(createKeySetName())
-		ksMycenaeMeta = mycenaeTools.Mycenae.CreateKeySet(createKeySetName())
-		ksMycenaeTsdb = mycenaeTools.Mycenae.CreateKeySet(createKeySetName())
-		ksTTLKeyspace = mycenaeTools.Mycenae.CreateKeySet(createKeySetName())
+		ksMycenae = mycenaeTools.Mycenae.CreateKeyset(createKeysetName())
+		ksMycenaeMeta = mycenaeTools.Mycenae.CreateKeyset(createKeysetName())
+		ksMycenaeTsdb = mycenaeTools.Mycenae.CreateKeyset(createKeysetName())
+		ksTTLKeyspace = mycenaeTools.Mycenae.CreateKeyset(createKeysetName())
 
 		wg.Add(8)
 
@@ -72,7 +72,7 @@ func TestMain(m *testing.M) {
 		go func() { sendPointsMetadata(ksMycenaeMeta); wg.Done() }()
 		go func() { sendPointsParseExp(ksMycenae); wg.Done() }()
 		go func() { sendPointsPointsGrafana(ksMycenae); wg.Done() }()
-		// go func() { sendPointsPointsGrafanaMem(ksMycenae); wg.Done() }()
+		// ** go func() { sendPointsPointsGrafanaMem(ksMycenae); wg.Done() }()
 		go func() { sendPointsTsdbAggAndSugAndLookup(ksMycenaeTsdb); wg.Done() }()
 		go func() { sendPointsV2(ksMycenae); wg.Done() }()
 		go func() { sendPointsV2Text(ksMycenae); wg.Done() }()
@@ -80,7 +80,7 @@ func TestMain(m *testing.M) {
 
 		wg.Wait()
 
-		time.Sleep(time.Second * 30)
+		time.Sleep(time.Second * 10)
 	}
 
 	os.Exit(m.Run())

@@ -73,15 +73,15 @@ func postAPIQueryAndCheck(t *testing.T, payload string, metric string, p, dps, t
 	return keys, payloadPoints
 }
 
-func sendPointsPointsGrafana(keySet string) {
+func sendPointsPointsGrafana(keyset string) {
 
 	fmt.Println("Setting up pointsGrafana_test.go tests...")
 
-	tsInsert(keySet)
-	ts10TsdbQuery(keySet)
-	ts12TsdbQuery(keySet)
-	ts13TsdbQuery(keySet)
-	ts16TsdbQuery(keySet)
+	tsInsert(keyset)
+	ts10TsdbQuery(keyset)
+	ts12TsdbQuery(keyset)
+	ts13TsdbQuery(keyset)
+	ts16TsdbQuery(keyset)
 }
 
 func round(val float64, roundOn float64, places int) float64 {
@@ -150,7 +150,7 @@ func roundValue(price float64) float64 {
 //
 //}
 
-func tsInsert(keySet string) {
+func tsInsert(keyset string) {
 
 	hashMap = map[string]string{}
 	cases := map[string]struct {
@@ -219,7 +219,7 @@ func tsInsert(keySet string) {
 			Points[i].Value = float32(data.value)
 			Points[i].Metric = data.metric
 			Points[i].Tags = map[string]string{
-				"ksid": keySet,
+				"ksid": keyset,
 				"ttl":  "1",
 				"host": data.tagValue,
 			}
@@ -231,7 +231,7 @@ func tsInsert(keySet string) {
 		sendPointsGrafana(test, Points)
 		time.Sleep(20 * time.Millisecond)
 
-		hashMap[test] = tools.GetHashFromMetricAndTags(data.metric, map[string]string{"host": data.tagValue, "ksid": keySet, "ttl": "1"})
+		hashMap[test] = tools.GetHashFromMetricAndTags(data.metric, map[string]string{"host": data.tagValue, "ksid": keyset, "ttl": "1"})
 	}
 }
 
@@ -248,7 +248,7 @@ func sendPointsGrafana(msg string, points interface{}) {
 	}
 }
 
-func ts10TsdbQuery(keySet string) {
+func ts10TsdbQuery(keyset string) {
 
 	metric := "ts10tsdb"
 	tagKey := "host"
@@ -265,7 +265,7 @@ func ts10TsdbQuery(keySet string) {
 		Points[i].Value = float32(value)
 		Points[i].Metric = metric
 		Points[i].Tags = map[string]string{
-			"ksid": keySet,
+			"ksid": keyset,
 			"ttl":  "1",
 			tagKey: tagValue,
 		}
@@ -275,7 +275,7 @@ func ts10TsdbQuery(keySet string) {
 		Points[i].Value = float32(value2)
 		Points[i].Metric = metric
 		Points[i].Tags = map[string]string{
-			"ksid":  keySet,
+			"ksid":  keyset,
 			"ttl":   "1",
 			tagKey:  tagValue2,
 			tagKey2: tagValue3,
@@ -289,12 +289,12 @@ func ts10TsdbQuery(keySet string) {
 
 	sendPointsGrafana("ts10tsdb:", Points)
 
-	ts10IDTsdbQuery = tools.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, "ksid": keySet, "ttl": "1"})
+	ts10IDTsdbQuery = tools.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, "ksid": keyset, "ttl": "1"})
 
 }
 
 // serie: 1, 10, 100, 1000, 1000, 1,..,10000, 3000.
-func ts12TsdbQuery(keySet string) {
+func ts12TsdbQuery(keyset string) {
 
 	metric := "ts12tsdb"
 	tagKey := "host"
@@ -310,7 +310,7 @@ func ts12TsdbQuery(keySet string) {
 			Points[i].Value = float32(value)
 			Points[i].Metric = metric
 			Points[i].Tags = map[string]string{
-				"ksid": keySet,
+				"ksid": keyset,
 				"ttl":  "1",
 				tagKey: tagValue,
 			}
@@ -321,7 +321,7 @@ func ts12TsdbQuery(keySet string) {
 			Points[i].Value = 1000.0
 			Points[i].Metric = metric
 			Points[i].Tags = map[string]string{
-				"ksid": keySet,
+				"ksid": keyset,
 				"ttl":  "1",
 				tagKey: tagValue,
 			}
@@ -332,7 +332,7 @@ func ts12TsdbQuery(keySet string) {
 			Points[i].Value = float32(value)
 			Points[i].Metric = metric
 			Points[i].Tags = map[string]string{
-				"ksid": keySet,
+				"ksid": keyset,
 				"ttl":  "1",
 				tagKey: tagValue,
 			}
@@ -343,7 +343,7 @@ func ts12TsdbQuery(keySet string) {
 			Points[i].Value = 3000.0
 			Points[i].Metric = metric
 			Points[i].Tags = map[string]string{
-				"ksid": keySet,
+				"ksid": keyset,
 				"ttl":  "1",
 				tagKey: tagValue,
 			}
@@ -356,11 +356,11 @@ func ts12TsdbQuery(keySet string) {
 
 	sendPointsGrafana("ts12tsdb:", Points)
 
-	ts12IDTsdbQuery = tools.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, "ksid": keySet, "ttl": "1"})
+	ts12IDTsdbQuery = tools.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, "ksid": keyset, "ttl": "1"})
 
 }
 
-func ts13TsdbQuery(keySet string) {
+func ts13TsdbQuery(keyset string) {
 
 	metric := "ts13tsdb"
 	tagKey := "host"
@@ -379,7 +379,7 @@ func ts13TsdbQuery(keySet string) {
 		Points[i].Value = float32(value)
 		Points[i].Metric = metric
 		Points[i].Tags = map[string]string{
-			"ksid":  keySet,
+			"ksid":  keyset,
 			"ttl":   "1",
 			tagKey:  tagValue,
 			tagKey2: tagValue2,
@@ -391,7 +391,7 @@ func ts13TsdbQuery(keySet string) {
 		Points[i].Value = float32(value * 2)
 		Points[i].Metric = metric
 		Points[i].Tags = map[string]string{
-			"ksid":  keySet,
+			"ksid":  keyset,
 			"ttl":   "1",
 			tagKey:  tagValue,
 			tagKey2: tagValue4,
@@ -404,8 +404,8 @@ func ts13TsdbQuery(keySet string) {
 
 	sendPointsGrafana("ts13tsdb1:", Points)
 
-	ts13IDTsdbQuery = tools.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, tagKey2: tagValue2, tagKey3: tagValue3, "ksid": keySet, "ttl": "1"})
-	ts13IDTsdbQuery2 = tools.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, tagKey2: tagValue4, "ksid": keySet, "ttl": "1"})
+	ts13IDTsdbQuery = tools.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, tagKey2: tagValue2, tagKey3: tagValue3, "ksid": keyset, "ttl": "1"})
+	ts13IDTsdbQuery2 = tools.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, tagKey2: tagValue4, "ksid": keyset, "ttl": "1"})
 
 	tagValue = "host2"
 	tagValue3 = "type2"
@@ -417,7 +417,7 @@ func ts13TsdbQuery(keySet string) {
 		Points[i].Value = float32(value * 3)
 		Points[i].Metric = metric
 		Points[i].Tags = map[string]string{
-			"ksid":  keySet,
+			"ksid":  keyset,
 			"ttl":   "1",
 			tagKey:  tagValue,
 			tagKey2: tagValue2,
@@ -429,7 +429,7 @@ func ts13TsdbQuery(keySet string) {
 		Points[i].Value = float32(value * 4)
 		Points[i].Metric = metric
 		Points[i].Tags = map[string]string{
-			"ksid":  keySet,
+			"ksid":  keyset,
 			"ttl":   "1",
 			tagKey:  tagValue,
 			tagKey2: tagValue4,
@@ -441,8 +441,8 @@ func ts13TsdbQuery(keySet string) {
 
 	sendPointsGrafana("ts13tsdb2:", Points)
 
-	ts13IDTsdbQuery3 = tools.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, tagKey2: tagValue2, tagKey3: tagValue3, "ksid": keySet, "ttl": "1"})
-	ts13IDTsdbQuery4 = tools.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, tagKey2: tagValue4, "ksid": keySet, "ttl": "1"})
+	ts13IDTsdbQuery3 = tools.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, tagKey2: tagValue2, tagKey3: tagValue3, "ksid": keyset, "ttl": "1"})
+	ts13IDTsdbQuery4 = tools.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, tagKey2: tagValue4, "ksid": keyset, "ttl": "1"})
 
 	tagValue = "host3"
 	tagValue3 = "type3"
@@ -454,7 +454,7 @@ func ts13TsdbQuery(keySet string) {
 		Points[i].Value = float32(value * 5)
 		Points[i].Metric = metric
 		Points[i].Tags = map[string]string{
-			"ksid":  keySet,
+			"ksid":  keyset,
 			"ttl":   "1",
 			tagKey:  tagValue,
 			tagKey2: tagValue2,
@@ -466,7 +466,7 @@ func ts13TsdbQuery(keySet string) {
 		Points[i].Value = float32(value * 6)
 		Points[i].Metric = metric
 		Points[i].Tags = map[string]string{
-			"ksid":  keySet,
+			"ksid":  keyset,
 			"ttl":   "1",
 			tagKey:  tagValue,
 			tagKey2: tagValue4,
@@ -478,8 +478,8 @@ func ts13TsdbQuery(keySet string) {
 
 	sendPointsGrafana("ts13tsdb3:", Points)
 
-	ts13IDTsdbQuery5 = tools.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, tagKey2: tagValue2, tagKey3: tagValue3, "ksid": keySet, "ttl": "1"})
-	ts13IDTsdbQuery6 = tools.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, tagKey2: tagValue4, "ksid": keySet, "ttl": "1"})
+	ts13IDTsdbQuery5 = tools.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, tagKey2: tagValue2, tagKey3: tagValue3, "ksid": keyset, "ttl": "1"})
+	ts13IDTsdbQuery6 = tools.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, tagKey2: tagValue4, "ksid": keyset, "ttl": "1"})
 
 	startTime = 1448452800
 	value = 1.0
@@ -492,7 +492,7 @@ func ts13TsdbQuery(keySet string) {
 		Points[i].Value = float32(value * 7)
 		Points[i].Metric = metric
 		Points[i].Tags = map[string]string{
-			"ksid":  keySet,
+			"ksid":  keyset,
 			"ttl":   "1",
 			tagKey:  tagValue,
 			tagKey3: tagValue3,
@@ -503,7 +503,7 @@ func ts13TsdbQuery(keySet string) {
 		Points[i].Value = float32(value * 8)
 		Points[i].Metric = metric
 		Points[i].Tags = map[string]string{
-			"ksid":  keySet,
+			"ksid":  keyset,
 			"ttl":   "1",
 			tagKey:  tagValue,
 			tagKey3: tagValue5,
@@ -515,12 +515,12 @@ func ts13TsdbQuery(keySet string) {
 
 	sendPointsGrafana("ts13tsdb4:", Points)
 
-	ts13IDTsdbQuery7 = tools.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, tagKey3: tagValue3, "ksid": keySet, "ttl": "1"})
-	ts13IDTsdbQuery8 = tools.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, tagKey3: tagValue5, "ksid": keySet, "ttl": "1"})
+	ts13IDTsdbQuery7 = tools.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, tagKey3: tagValue3, "ksid": keyset, "ttl": "1"})
+	ts13IDTsdbQuery8 = tools.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, tagKey3: tagValue5, "ksid": keyset, "ttl": "1"})
 
 }
 
-func ts16TsdbQuery(keySet string) {
+func ts16TsdbQuery(keyset string) {
 
 	startTime := int64(1448452800)
 	var start, end sync.WaitGroup
@@ -537,7 +537,7 @@ func ts16TsdbQuery(keySet string) {
 					Value:  float32(i),
 					Metric: "ts16tsdb",
 					Tags: map[string]string{
-						"ksid": keySet,
+						"ksid": keyset,
 						"ttl":  "1",
 						"host": "test",
 					},
@@ -547,7 +547,7 @@ func ts16TsdbQuery(keySet string) {
 					Value:  float32(i + 9),
 					Metric: "ts16tsdb",
 					Tags: map[string]string{
-						"ksid": keySet,
+						"ksid": keyset,
 						"ttl":  "1",
 						"host": "test",
 					},
@@ -557,7 +557,7 @@ func ts16TsdbQuery(keySet string) {
 					Value:  float32(i + 18),
 					Metric: "ts16tsdb",
 					Tags: map[string]string{
-						"ksid": keySet,
+						"ksid": keyset,
 						"ttl":  "1",
 						"host": "test",
 					},
@@ -574,7 +574,7 @@ func ts16TsdbQuery(keySet string) {
 	start.Done()
 	end.Wait()
 
-	hashMap["ts16TsdbQuery"] = tools.GetHashFromMetricAndTags("ts16tsdb", map[string]string{"host": "test", "ksid": keySet, "ttl": "1"})
+	hashMap["ts16TsdbQuery"] = tools.GetHashFromMetricAndTags("ts16tsdb", map[string]string{"host": "test", "ksid": keyset, "ttl": "1"})
 }
 
 // Concurrency

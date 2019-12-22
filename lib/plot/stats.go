@@ -9,7 +9,7 @@ import (
 func (plot *Plot) statsQueryTSThreshold(ksid string, total int) {
 	go plot.statsValueMax(
 		"mycenae.query.threshold",
-		map[string]string{"keyset": ksid},
+		map[string]string{constants.StringsKeyset: ksid},
 		float64(total),
 	)
 }
@@ -17,7 +17,7 @@ func (plot *Plot) statsQueryTSThreshold(ksid string, total int) {
 func (plot *Plot) statsQueryTSLimit(ksid string, total int) {
 	go plot.statsValueMax(
 		"mycenae.query.limit",
-		map[string]string{"keyset": ksid},
+		map[string]string{constants.StringsKeyset: ksid},
 		float64(total),
 	)
 }
@@ -69,13 +69,13 @@ func (plot *Plot) statsSelect(ks, cf string, d time.Duration, countRows int) {
 }
 
 func (plot *Plot) statsPlotSummaryPoints(count, total int, bytes uint32, keyset string) {
-	go plot.statsValueMax("plot.count.points", map[string]string{"keyset": keyset}, float64(count))
-	go plot.statsValueMax("plot.total.points", map[string]string{"keyset": keyset}, float64(total))
-	go plot.statsValueMax("plot.bytes.points", map[string]string{"keyset": keyset}, float64(bytes))
+	go plot.statsValueMax("plot.count.points", map[string]string{constants.StringsKeyset: keyset}, float64(count))
+	go plot.statsValueMax("plot.total.points", map[string]string{constants.StringsKeyset: keyset}, float64(total))
+	go plot.statsValueMax("plot.bytes.points", map[string]string{constants.StringsKeyset: keyset}, float64(bytes))
 }
 
 func (plot *Plot) statsConferMetric(keyset, metric string) {
-	go plot.statsAnalyticIncrement("good.metric", map[string]string{"keyset": keyset, "metric": metric})
+	go plot.statsAnalyticIncrement("good.metric", map[string]string{constants.StringsKeyset: keyset, "metric": metric})
 }
 
 func (plot *Plot) statsIncrement(metric string, tags map[string]string) {

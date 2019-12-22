@@ -2,6 +2,7 @@ package collector
 
 import (
 	"github.com/uol/gobol"
+	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/metadata"
 )
 
@@ -17,9 +18,9 @@ func (collect *Collector) saveMeta(packet *Point) gobol.Error {
 	var gerr gobol.Error
 
 	if packet.Number {
-		found, gerr = collect.CheckMetadata(packet.Keyset, cMetaTypeNumber, packet.ID)
+		found, gerr = collect.CheckMetadata(packet.Message.Keyset, cMetaTypeNumber, packet.ID)
 	} else {
-		found, gerr = collect.CheckMetadata(packet.Keyset, cMetaTypeText, packet.ID)
+		found, gerr = collect.CheckMetadata(packet.Message.Keyset, cMetaTypeText, packet.ID)
 	}
 
 	if gerr != nil {
@@ -35,13 +36,13 @@ func (collect *Collector) saveMeta(packet *Point) gobol.Error {
 	}
 
 	if !found {
-		go statsCountNewTimeseries(packet.Keyset, metaType, packet.TTL)
+		go statsCountNewTimeseries(packet.Message.Keyset, metaType, packet.Message.TTL)
 
 		var tagKeys, tagValues []string
-		for key, value := range packet.Message.Tags {
-			if key != cKSID {
-				tagKeys = append(tagKeys, key)
-				tagValues = append(tagValues, value)
+		for _, tag := range packet.Message.Tags {
+			if tag.Name != constants.StringsKSID {
+				tagKeys = append(tagKeys, tag.Name)
+				tagValues = append(tagValues, tag.Value)
 			}
 		}
 
@@ -53,9 +54,9 @@ func (collect *Collector) saveMeta(packet *Point) gobol.Error {
 			TagValue: tagValues,
 		}
 
-		collect.AddMetadata(packet.Keyset, metadata)
+		collect.AddMetadata(packet.Message.Keyset, metadata)
 	} else {
-		go statsCountOldTimeseries(packet.Keyset, metaType, packet.TTL)
+		go statsCountOldTimeseries(packet.Message.Keyset, metaType, packet.Message.TTL)
 	}
 
 	return nil

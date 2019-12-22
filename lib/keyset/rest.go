@@ -8,26 +8,26 @@ import (
 	"github.com/uol/mycenae/lib/constants"
 )
 
-// CreateKeySet - creates a new keyset
-func (ks *KeySet) CreateKeySet(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+// CreateKeyset - creates a new keyset
+func (ks *Manager) CreateKeyset(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
-	keySetParam := ps.ByName("keyset")
+	keysetParam := ps.ByName(constants.StringsKeyset)
 
-	if keySetParam == constants.StringsEmpty {
-		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset", "keyset": "empty"})
-		rip.Fail(w, errBadRequest("CreateKeySet", "parameter 'keyset' cannot be empty"))
+	if keysetParam == constants.StringsEmpty {
+		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset", constants.StringsKeyset: "empty"})
+		rip.Fail(w, errBadRequest("CreateKeyset", "parameter 'keyset' cannot be empty"))
 		return
 	}
 
-	if !ks.keySetRegexp.MatchString(keySetParam) {
+	if !ks.keysetRegexp.MatchString(keysetParam) {
 		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset"})
-		rip.Fail(w, errBadRequest("CreateKeySet", "parameter 'keyset' has an invalid format"))
+		rip.Fail(w, errBadRequest("CreateKeyset", "parameter 'keyset' has an invalid format"))
 		return
 	}
 
-	rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset", "keyset": keySetParam})
+	rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset", constants.StringsKeyset: keysetParam})
 
-	exists, gerr := ks.storage.CheckKeySet(keySetParam)
+	exists, gerr := ks.storage.CheckKeyset(keysetParam)
 	if gerr != nil {
 		rip.Fail(w, gerr)
 		return
@@ -36,7 +36,7 @@ func (ks *KeySet) CreateKeySet(w http.ResponseWriter, r *http.Request, ps httpro
 	if exists {
 		rip.Success(w, http.StatusConflict, nil)
 	} else {
-		gerr := ks.CreateIndex(keySetParam)
+		gerr := ks.Create(keysetParam)
 		if gerr != nil {
 			rip.Fail(w, gerr)
 			return
@@ -47,14 +47,14 @@ func (ks *KeySet) CreateKeySet(w http.ResponseWriter, r *http.Request, ps httpro
 	return
 }
 
-// GetKeySets - returns all stored keysets
-func (ks *KeySet) GetKeySets(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+// GetKeysets - returns all stored keysets
+func (ks *Manager) GetKeysets(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
-	keysets, gerr := ks.storage.ListKeySets()
+	keysets, gerr := ks.storage.ListKeysets()
 
 	if gerr != nil {
 		rip.AddStatsMap(r, map[string]string{"path": "/keysets"})
-		rip.Fail(w, errInternalServerError("GetKeySets", gerr))
+		rip.Fail(w, errInternalServerError("GetKeysets", gerr))
 		return
 	}
 
@@ -65,4 +65,88 @@ func (ks *KeySet) GetKeySets(w http.ResponseWriter, r *http.Request, ps httprout
 	}
 
 	return
+}
+
+// DeleteKeysets - deletes a keyset
+func (ks *Manager) DeleteKeysets(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+
+	keysetParam := ps.ByName(constants.StringsKeyset)
+
+	if keysetParam == constants.StringsEmpty {
+		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset", constants.StringsKeyset: "empty"})
+		rip.Fail(w, errBadRequest("DeleteKeysets", "parameter 'keyset' cannot be empty"))
+		return
+	}
+
+	if !ks.keysetRegexp.MatchString(keysetParam) {
+		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset"})
+		rip.Fail(w, errBadRequest("DeleteKeysets", "parameter 'keyset' has an invalid format"))
+		return
+	}
+
+	rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset", constants.StringsKeyset: keysetParam})
+
+	exists, gerr := ks.storage.CheckKeyset(keysetParam)
+	if gerr != nil {
+		rip.Fail(w, gerr)
+		return
+	}
+
+	if exists {
+		gerr := ks.storage.DeleteKeyset(keysetParam)
+		if gerr != nil {
+			rip.Fail(w, gerr)
+		} else {
+			rip.Success(w, http.StatusOK, nil)
+		}
+	} else {
+		rip.Fail(w, errNotFound("DeleteKeysets"))
+	}
+
+	return
+}
+
+// Check if a keyspace exists
+func (ks *Manager) Check(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	keyset := ps.ByName(constants.StringsKeyset)
+	if keyset == constants.StringsEmpty {
+		rip.AddStatsMap(
+			r,
+			map[string]string{
+				"path":                  "/keysets/#keyset",
+				constants.StringsKeyset: "empty",
+			},
+		)
+		rip.Fail(w, errNotFound("Check"))
+		return
+	}
+
+	found, err := ks.storage.CheckKeyset(keyset)
+	if err != nil {
+		rip.AddStatsMap(
+			r,
+			map[string]string{
+				"path": "/keysets/#keyset",
+			},
+		)
+		rip.Fail(w, err)
+		return
+	}
+
+	if !found {
+		rip.Fail(w, errNotFound(
+			"Check",
+		))
+		return
+	}
+
+	rip.AddStatsMap(
+		r,
+		map[string]string{
+			"path":                  "/keysets/#keyset",
+			constants.StringsKeyset: keyset,
+		},
+	)
+
+	rip.Success(w, http.StatusOK, nil)
 }

@@ -18,17 +18,17 @@ var (
 	payloadArray []tools.Payload
 )
 
-func sendPointsTsdbAggAndSugAndLookup(keySet string) {
+func sendPointsTsdbAggAndSugAndLookup(keyset string) {
 
 	fmt.Println("Setting up tsdbAggAndSugAndLookup_test.go tests...")
 
 	payloadArray = []tools.Payload{
-		tools.CreatePayload(float32(36.5), "os.cpu", map[string]string{"ksid": keySet, "ttl": "1", "host": "a1-testTsdbMeta"}),
-		tools.CreatePayloadTS(float32(54.5), "os.cpuTest", map[string]string{"ksid": keySet, "ttl": "1", "host": "a2-testTsdbMeta"}, int64(1444166564000)),
-		tools.CreatePayloadTS(float32(5.4), "execution.time", map[string]string{"ksid": keySet, "ttl": "1", "host": "a1-testTsdbMeta"}, int64(1444166564000)),
-		tools.CreatePayloadTS(float32(1.1), "os.cpu", map[string]string{"ksid": keySet, "ttl": "1", "host": "a2-testTsdbMeta"}, int64(1448315804000)),
-		tools.CreatePayload(float32(50.1), "os.cpu", map[string]string{"ksid": keySet, "ttl": "1", "host": "a1-testTsdbMeta"}),
-		tools.CreatePayload(float32(1), "os.cpu", map[string]string{"ksid": keySet, "ttl": "1", "host": "a1-testTsdbMeta", "cpu": "1"}),
+		tools.CreatePayload(float32(36.5), "os.cpu", map[string]string{"ksid": keyset, "ttl": "1", "host": "a1-testTsdbMeta"}),
+		tools.CreatePayloadTS(float32(54.5), "os.cpuTest", map[string]string{"ksid": keyset, "ttl": "1", "host": "a2-testTsdbMeta"}, int64(1444166564000)),
+		tools.CreatePayloadTS(float32(5.4), "execution.time", map[string]string{"ksid": keyset, "ttl": "1", "host": "a1-testTsdbMeta"}, int64(1444166564000)),
+		tools.CreatePayloadTS(float32(1.1), "os.cpu", map[string]string{"ksid": keyset, "ttl": "1", "host": "a2-testTsdbMeta"}, int64(1448315804000)),
+		tools.CreatePayload(float32(50.1), "os.cpu", map[string]string{"ksid": keyset, "ttl": "1", "host": "a1-testTsdbMeta"}),
+		tools.CreatePayload(float32(1), "os.cpu", map[string]string{"ksid": keyset, "ttl": "1", "host": "a1-testTsdbMeta", "cpu": "1"}),
 	}
 
 	jsonBytes, err := json.Marshal(payloadArray)

@@ -32,30 +32,27 @@ func New(
 	mc *memcached.Memcached,
 	collector *collector.Collector,
 	set structs.SettingsHTTP,
-	probeThreshold float64,
-	ks *keyset.KeySet,
+	ks *keyset.Manager,
 	telnetManager *telnetmgr.Manager,
 ) *REST {
 
 	return &REST{
-		probeThreshold: probeThreshold,
-		probeStatus:    http.StatusOK,
-		logger:         logh.CreateContextualLogger(constants.StringsPKG, "rest"),
-		sts:            gbs,
-		reader:         p,
-		kspace:         keyspace,
-		memcached:      mc,
-		writer:         collector,
-		settings:       set,
-		keyset:         ks,
-		telnetManager:  telnetManager,
+		probeStatus:   http.StatusOK,
+		logger:        logh.CreateContextualLogger(constants.StringsPKG, "rest"),
+		sts:           gbs,
+		reader:        p,
+		kspace:        keyspace,
+		memcached:     mc,
+		writer:        collector,
+		settings:      set,
+		keyset:        ks,
+		telnetManager: telnetManager,
 	}
 }
 
 // REST is the http handler
 type REST struct {
-	probeThreshold float64
-	probeStatus    int
+	probeStatus int
 
 	logger        *logh.ContextualLogger
 	sts           *snitch.Stats
@@ -65,7 +62,7 @@ type REST struct {
 	writer        *collector.Collector
 	settings      structs.SettingsHTTP
 	server        *http.Server
-	keyset        *keyset.KeySet
+	keyset        *keyset.Manager
 	telnetManager *telnetmgr.Manager
 }
 
@@ -129,9 +126,9 @@ func (trest *REST) asyncStart() {
 	//RAW POINTS API
 	router.POST("/api/query/raw", trest.reader.RawDataQuery)
 	//KEYSETS
-	router.POST("/keysets/:keyset", trest.keyset.CreateKeySet)
+	router.POST("/keysets/:keyset", trest.keyset.CreateKeyset)
 	router.HEAD("/keysets/:keyset", trest.keyset.Check)
-	router.GET("/keysets", trest.keyset.GetKeySets)
+	router.GET("/keysets", trest.keyset.GetKeysets)
 	//DELETE
 	router.POST("/keysets/:keyset/delete/meta", trest.reader.DeleteNumberTS)
 	router.POST("/keysets/:keyset/delete/text/meta", trest.reader.DeleteTextTS)

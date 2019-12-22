@@ -35,7 +35,7 @@ func (kspace *Keyspace) Create(
 		)
 		rip.Fail(w, errValidationS(
 			"CreateKeyspace",
-			`Wrong Format: Field "keyspaceName" is not well formed. NO information will be saved`,
+			`Wrong Format: Field "keyspaceName" is not well formed.`,
 		))
 		return
 	}

@@ -4,19 +4,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"regexp"
 	"strconv"
 	"testing"
 	"time"
-	"math/rand"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/uol/mycenae/tests/tools"
 )
 
 var (
-	ttlKeyspaceKeySet            string
+	ttlKeyspaceKeyset            string
 	ttlTSUIDMap, ttlTSUIDTextMap map[int]node
 	startTime, endTime           time.Time
 	countRegex                   *regexp.Regexp
@@ -55,14 +55,14 @@ func mapPoints(ttl int, idMap map[int]node, payloads []tools.Payload, ids []stri
 	}
 }
 
-func sendPointsToTTLKeyspace(keySet string) {
+func sendPointsToTTLKeyspace(keyset string) {
 
 	fmt.Println("Setting up ttlKeyspace_test.go tests...")
 
 	countRegex = regexp.MustCompile("\"count\":([0-9]+)")
-	ttlKeyspaceKeySet = keySet
 	ttlTSUIDMap = map[int]node{}
 	ttlTSUIDTextMap = map[int]node{}
+	ttlKeyspaceKeyset = keyset
 
 	startTime = time.Now()
 	currentTime := startTime
@@ -93,7 +93,7 @@ func sendRandomPoints(num int, ttl int, metric string, isNumber bool, lastSentPo
 		value := rand.Intn(100)
 		tags := map[string]string{
 			"ttl":        strconv.Itoa(int(ttl)),
-			"ksid":       ttlKeyspaceKeySet,
+			"ksid":       ttlKeyspaceKeyset,
 			HOST_TAG_KEY: HOST_TAG_VALUE,
 		}
 
@@ -187,7 +187,7 @@ func queryByTTL(t *testing.T, ttl int, tsid string, isNumber bool, date time.Tim
 		date.Unix()*1000,
 		date.Add(time.Hour*time.Duration(1)).Unix()*1000)
 
-	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ttlKeyspaceKeySet+"/points", []byte(payload))
+	code, response, err := mycenaeTools.HTTP.POST("keysets/"+ttlKeyspaceKeyset+"/points", []byte(payload))
 	if err != nil {
 		t.Error(err)
 		t.SkipNow()
@@ -273,6 +273,6 @@ func TestTTLKeyspaceMetadata(t *testing.T) {
 
 	t.Parallel()
 
-	checkMetadata(t, fmt.Sprintf("keysets/%s/meta", ttlKeyspaceKeySet))
-	checkMetadata(t, fmt.Sprintf("keysets/%s/text/meta", ttlKeyspaceKeySet))
+	checkMetadata(t, fmt.Sprintf("keysets/%s/meta", ttlKeyspaceKeyset))
+	checkMetadata(t, fmt.Sprintf("keysets/%s/text/meta", ttlKeyspaceKeyset))
 }

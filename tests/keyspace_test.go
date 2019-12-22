@@ -12,7 +12,7 @@ import (
 	"github.com/uol/mycenae/tests/tools"
 )
 
-var errKsName = "Wrong Format: Field \"keyspaceName\" is not well formed. NO information will be saved"
+var errKsName = "Wrong Format: Field \"keyspaceName\" is not well formed."
 var errKsRF = "Replication factor cannot be less than or equal to 0 or greater than 3"
 var errKsDC = "Cannot create because datacenter \"dc_error\" not exists"
 var errKsDCNil = "Datacenter cannot be empty or nil"

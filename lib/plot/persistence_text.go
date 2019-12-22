@@ -71,9 +71,9 @@ func (persist *persistence) GetTST(keyspace string, keys []string, start, end in
 	go persist.statsValueAdd(
 		"scylla.query.bytes",
 		map[string]string{
-			"keyset":   keyset,
-			"keyspace": keyspace,
-			"type":     "number",
+			constants.StringsKeyset: keyset,
+			"keyspace":              keyspace,
+			"type":                  "number",
 		},
 		float64(numBytes),
 	)

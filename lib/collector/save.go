@@ -5,21 +5,21 @@ import (
 )
 
 func (collector *Collector) saveValue(packet *Point) gobol.Error {
-	ksid := collector.keyspaceTTLMap[packet.TTL]
+	ksid := collector.keyspaceTTLMap[packet.Message.TTL]
 	return collector.InsertPoint(
 		ksid,
 		packet.ID,
-		packet.Timestamp,
-		*packet.Message.Value,
+		packet.Message.Timestamp,
+		*(packet.Message.Value),
 	)
 }
 
 func (collector *Collector) saveText(packet *Point) gobol.Error {
-	ksid := collector.keyspaceTTLMap[packet.TTL]
+	ksid := collector.keyspaceTTLMap[packet.Message.TTL]
 	return collector.InsertText(
 		ksid,
 		packet.ID,
-		packet.Timestamp,
+		packet.Message.Timestamp,
 		packet.Message.Text,
 	)
 }

@@ -15,7 +15,7 @@ import (
 var lookupMetaIDs []string
 var lookupMetas map[string]tools.TsMeta
 
-func sendPointsMetadata(keySet string) {
+func sendPointsMetadata(keyset string) {
 
 	fmt.Println("Setting up metadata_test.go tests...")
 
@@ -42,7 +42,7 @@ func sendPointsMetadata(keySet string) {
 		"value": 36.5,
 		"metric": "` + metricZ + `",
 		"tags": {
-		  "ksid": "` + keySet + `",
+		  "ksid": "` + keyset + `",
 		  "` + tagKx + `":"` + tagVx + `",
           "testid": "` + lookupMetaIDs[2] + `"
 		}
@@ -51,7 +51,7 @@ func sendPointsMetadata(keySet string) {
 		"value": 54.5,
 		"metric": "` + metricX + `",
 		"tags": {
-		  "ksid": "` + keySet + `",
+		  "ksid": "` + keyset + `",
 	      "` + tagKx + `":"` + tagVz + `",
           "testid": "` + lookupMetaIDs[0] + `"
 		},
@@ -61,7 +61,7 @@ func sendPointsMetadata(keySet string) {
 		"value": 5.4,
 		"metric": "` + metricY + `",
 		"tags": {
-		  "ksid": "` + keySet + `",
+		  "ksid": "` + keyset + `",
 	      "` + tagKy + `":"` + tagVx + `",
           "testid": "` + lookupMetaIDs[1] + `"
 		},
@@ -71,7 +71,7 @@ func sendPointsMetadata(keySet string) {
 		"value": 1.1,
 		"metric": "` + metricZ + `",
 		"tags": {
-		  "ksid": "` + keySet + `",
+		  "ksid": "` + keyset + `",
 	      "` + tagKx + `":"` + tagVz + `",
           "testid": "` + lookupMetaIDs[3] + `"
 		},
@@ -81,7 +81,7 @@ func sendPointsMetadata(keySet string) {
 		"value": 50.1,
 		"metric": "` + metricZ + `",
 		"tags": {
-		  "ksid": "` + keySet + `",
+		  "ksid": "` + keyset + `",
 	      "` + tagKx + `":"` + tagVx + `",
 		  "testid": "` + lookupMetaIDs[2] + `"
 		}
@@ -98,7 +98,7 @@ func sendPointsMetadata(keySet string) {
 		"text": "test1",
 		"metric": "` + metricZ + `",
 		"tags": {
-		  "ksid": "` + keySet + `",
+		  "ksid": "` + keyset + `",
 	      "` + tagKx + `":"` + tagVx + `",
 		  "testid": "` + lookupMetaIDs[2] + `"
 		}
@@ -107,7 +107,7 @@ func sendPointsMetadata(keySet string) {
 		"text": "test2",
 		"metric": "` + metricX + `",
 		"tags": {
-		  "ksid": "` + keySet + `",
+		  "ksid": "` + keyset + `",
 	      "` + tagKx + `":"` + tagVz + `",
           "testid": "` + lookupMetaIDs[0] + `"
 		},
@@ -117,7 +117,7 @@ func sendPointsMetadata(keySet string) {
 		"text": "test3",
 		"metric": "` + metricY + `",
 		"tags": {
-		  "ksid": "` + keySet + `",
+		  "ksid": "` + keyset + `",
 	      "` + tagKy + `":"` + tagVx + `",
           "testid": "` + lookupMetaIDs[1] + `"
 		},
@@ -127,7 +127,7 @@ func sendPointsMetadata(keySet string) {
 		"text": "test4",
 		"metric": "` + metricZ + `",
 		"tags": {
-		  "ksid": "` + keySet + `",
+		  "ksid": "` + keyset + `",
 	      "` + tagKx + `":"` + tagVz + `",
           "testid": "` + lookupMetaIDs[3] + `"
 		},
@@ -137,7 +137,7 @@ func sendPointsMetadata(keySet string) {
 		"text": "test5",
 		"metric": "` + metricZ + `",
 		"tags": {
-		  "ksid": "` + keySet + `",
+		  "ksid": "` + keyset + `",
 	      "` + tagKx + `":"` + tagVx + `",
           "testid": "` + lookupMetaIDs[2] + `"
 		}

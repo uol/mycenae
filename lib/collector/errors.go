@@ -52,3 +52,7 @@ func errUnmarshal(function string, e error) gobol.Error {
 func errPersist(function string, e error) gobol.Error {
 	return errInternalServerError(function, e.Error(), e)
 }
+
+func errMultipleErrors(function string, gerrs []gobol.Error) gobol.Error {
+	return gerrs[0]
+}
