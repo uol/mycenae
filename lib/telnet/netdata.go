@@ -227,8 +227,10 @@ func (nh *NetdataHandler) Handle(line string) {
 				switch tagMatches[i][1] {
 				case constants.StringsTTL:
 					ttl, ttlStr, gerr := nh.validationService.ParseTTL(tagMatches[i][2])
-					if gerr != nil && !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-						nh.logger.Error().Err(gerr).Msgf("invalid ttl: %s", line)
+					if gerr != nil {
+						if !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
+							nh.logger.Error().Err(gerr).Msgf("invalid ttl: %s", line)
+						}
 						return
 					}
 					point.TTL = ttl
@@ -236,22 +238,28 @@ func (nh *NetdataHandler) Handle(line string) {
 					ttlFound = true
 				case constants.StringsKSID:
 					gerr = nh.validationService.ValidateKeyset(tagMatches[i][2])
-					if gerr != nil && !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-						nh.logger.Error().Err(gerr).Msgf("invalid ksid: %s", line)
+					if gerr != nil {
+						if !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
+							nh.logger.Error().Err(gerr).Msgf("invalid ksid: %s", line)
+						}
 						return
 					}
 					point.Keyset = tagMatches[i][2]
 					ksidFound = true
 				default:
 					gerr = nh.validationService.ValidateProperty(tagMatches[i][1], validation.TagKeyType)
-					if gerr != nil && !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-						nh.logger.Error().Err(gerr).Msgf("invalid key: %s", line)
+					if gerr != nil {
+						if !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
+							nh.logger.Error().Err(gerr).Msgf("invalid key: %s", line)
+						}
 						return
 					}
 
 					gerr = nh.validationService.ValidateProperty(tagMatches[i][2], validation.TagValueType)
-					if gerr != nil && !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-						nh.logger.Error().Err(gerr).Msgf("invalid value: %s", line)
+					if gerr != nil {
+						if !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
+							nh.logger.Error().Err(gerr).Msgf("invalid value: %s", line)
+						}
 						return
 					}
 				}
@@ -277,8 +285,10 @@ func (nh *NetdataHandler) Handle(line string) {
 		}
 	}
 
-	if !ksidFound && !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-		nh.logger.Error().Err(gerr).Msgf("no ksid tag found: %s", line)
+	if !ksidFound {
+		if !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
+			nh.logger.Error().Err(gerr).Msgf("no ksid tag found: %s", line)
+		}
 		return
 	}
 
@@ -321,8 +331,10 @@ func (nh *NetdataHandler) Handle(line string) {
 	}
 
 	gerr = nh.validationService.ValidateTags(&point)
-	if gerr != nil && !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-		nh.logger.Error().Err(gerr).Msgf("tags validation failure: %s", line)
+	if gerr != nil {
+		if !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
+			nh.logger.Error().Err(gerr).Msgf("tags validation failure: %s", line)
+		}
 		return
 	}
 
@@ -349,8 +361,10 @@ func (nh *NetdataHandler) Handle(line string) {
 	point.Metric = metric
 
 	gerr = nh.validationService.ValidateProperty(point.Metric, validation.MetricType)
-	if gerr != nil && !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-		nh.logger.Error().Err(gerr).Msgf("invalid metric: %s", line)
+	if gerr != nil {
+		if !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
+			nh.logger.Error().Err(gerr).Msgf("invalid metric: %s", line)
+		}
 		return
 	}
 

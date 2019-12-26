@@ -116,8 +116,10 @@ func (otsdbh *OpenTSDBHandler) Handle(line string) {
 		switch tagMatches[i][1] {
 		case constants.StringsTTL:
 			ttl, ttlStr, gerr := otsdbh.validationService.ParseTTL(tagMatches[i][2])
-			if gerr != nil && !otsdbh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-				otsdbh.logger.Error().Err(gerr).Msgf("invalid ttl: %s", line)
+			if gerr != nil {
+				if !otsdbh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
+					otsdbh.logger.Error().Err(gerr).Msgf("invalid ttl: %s", line)
+				}
 				return
 			}
 			point.TTL = ttl
@@ -125,22 +127,28 @@ func (otsdbh *OpenTSDBHandler) Handle(line string) {
 			ttlFound = true
 		case constants.StringsKSID:
 			gerr = otsdbh.validationService.ValidateKeyset(tagMatches[i][2])
-			if gerr != nil && !otsdbh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-				otsdbh.logger.Error().Err(gerr).Msgf("invalid ksid: %s", line)
+			if gerr != nil {
+				if !otsdbh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
+					otsdbh.logger.Error().Err(gerr).Msgf("invalid ksid: %s", line)
+				}
 				return
 			}
 			point.Keyset = tagMatches[i][2]
 			ksidFound = true
 		default:
 			gerr = otsdbh.validationService.ValidateProperty(tagMatches[i][1], validation.TagKeyType)
-			if gerr != nil && !otsdbh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-				otsdbh.logger.Error().Err(gerr).Msgf("invalid key: %s", line)
+			if gerr != nil {
+				if !otsdbh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
+					otsdbh.logger.Error().Err(gerr).Msgf("invalid key: %s", line)
+				}
 				return
 			}
 
 			gerr = otsdbh.validationService.ValidateProperty(tagMatches[i][2], validation.TagValueType)
-			if gerr != nil && !otsdbh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-				otsdbh.logger.Error().Err(gerr).Msgf("invalid value: %s", line)
+			if gerr != nil {
+				if !otsdbh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
+					otsdbh.logger.Error().Err(gerr).Msgf("invalid value: %s", line)
+				}
 				return
 			}
 		}
@@ -164,8 +172,10 @@ func (otsdbh *OpenTSDBHandler) Handle(line string) {
 		}
 	}
 
-	if !ksidFound && !otsdbh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-		otsdbh.logger.Error().Err(gerr).Msgf("no ksid tag found: %s", line)
+	if !ksidFound {
+		if !otsdbh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
+			otsdbh.logger.Error().Err(gerr).Msgf("no ksid tag found: %s", line)
+		}
 		return
 	}
 
