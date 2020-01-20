@@ -67,20 +67,20 @@ func (ks *Manager) GetKeysets(w http.ResponseWriter, r *http.Request, ps httprou
 	return
 }
 
-// DeleteKeysets - deletes a keyset
-func (ks *Manager) DeleteKeysets(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+// DeleteKeyset - deletes a keyset
+func (ks *Manager) DeleteKeyset(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	keysetParam := ps.ByName(constants.StringsKeyset)
 
 	if keysetParam == constants.StringsEmpty {
 		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset", constants.StringsKeyset: "empty"})
-		rip.Fail(w, errBadRequest("DeleteKeysets", "parameter 'keyset' cannot be empty"))
+		rip.Fail(w, errBadRequest("DeleteKeyset", "parameter 'keyset' cannot be empty"))
 		return
 	}
 
 	if !ks.keysetRegexp.MatchString(keysetParam) {
 		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset"})
-		rip.Fail(w, errBadRequest("DeleteKeysets", "parameter 'keyset' has an invalid format"))
+		rip.Fail(w, errBadRequest("DeleteKeyset", "parameter 'keyset' has an invalid format"))
 		return
 	}
 
@@ -100,7 +100,7 @@ func (ks *Manager) DeleteKeysets(w http.ResponseWriter, r *http.Request, ps http
 			rip.Success(w, http.StatusOK, nil)
 		}
 	} else {
-		rip.Fail(w, errNotFound("DeleteKeysets"))
+		rip.Fail(w, errNotFound("DeleteKeyset"))
 	}
 
 	return

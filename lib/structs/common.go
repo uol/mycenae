@@ -87,7 +87,4 @@ type Settings struct {
 	StatsAnalytic                   snitch.Settings
 	MetadataSettings                metadata.Settings
 	Validation                      ValidationConfiguration
-	Probe                           struct {
-		Threshold float64
-	}
 }
