@@ -128,6 +128,7 @@ func (trest *REST) asyncStart() {
 	//KEYSETS
 	router.POST("/keysets/:keyset", trest.keyset.CreateKeyset)
 	router.HEAD("/keysets/:keyset", trest.keyset.Check)
+	router.DELETE("/keysets/:keyset", trest.keyset.DeleteKeyset)
 	router.GET("/keysets", trest.keyset.GetKeysets)
 	//DELETE
 	router.POST("/keysets/:keyset/delete/meta", trest.reader.DeleteNumberTS)
