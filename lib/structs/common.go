@@ -58,6 +58,7 @@ type ValidationConfiguration struct {
 	PropertyRegexp   string
 	KeysetNameRegexp string
 	DefaultTTL       int
+	MaxPropertySize  int
 }
 
 type Settings struct {
