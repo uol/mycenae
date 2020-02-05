@@ -81,23 +81,26 @@ func (v *Service) ValidateType(p *structs.TSDBpoint, number bool) gobol.Error {
 // ValidateProperty - validates the property value
 func (v *Service) ValidateProperty(value string, propertyType PropertyType) gobol.Error {
 
-	if v.propertyRegexp.MatchString(value) {
-		return nil
+	isValid := len(value) < v.configuration.MaxPropertySize
+	isValid = isValid && v.propertyRegexp.MatchString(value)
+
+	if !isValid {
+		switch propertyType {
+		case TagKeyType:
+			return errInvalidTagKey
+		case TagValueType:
+			return errInvalidTagValue
+		case MetricType:
+			return errInvalidMetric
+		default:
+			if logh.ErrorEnabled {
+				v.logger.Error().Msgf("no property type of value %d is mapped", propertyType)
+			}
+			return errInvalidPropertyType
+		}
 	}
 
-	switch propertyType {
-	case TagKeyType:
-		return errInvalidTagKey
-	case TagValueType:
-		return errInvalidTagValue
-	case MetricType:
-		return errInvalidMetric
-	default:
-		if logh.ErrorEnabled {
-			v.logger.Error().Msgf("no property type of value %d is mapped", propertyType)
-		}
-		return errInvalidPropertyType
-	}
+	return nil
 }
 
 // ValidateTags - validates the tags from the point

@@ -185,3 +185,4 @@ EnableAutoKeyspaceCreation = true
 	propertyRegexp   = "^[0-9A-Za-z-\\._\\%\\&\\#\\;\\/]+$"
   keysetNameRegexp = "^[a-z_]{1}[a-z0-9_\\-]+[a-z0-9]{1}$"
 	defaultTTL       = 1
+  MaxPropertySize  = 64

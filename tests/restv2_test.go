@@ -972,3 +972,13 @@ func sendRESTPayloadWithMoreThanAPointAndAssertError(t *testing.T, errMessage st
 
 	assertElasticEmpty(t, ksMycenae, invalidPoint.Metric, invalidPoint.Tags, hashID)
 }
+
+func sendRESTPayloadWithLargeTags(t *testing.T) {
+
+	var r interface{}
+	p := mycenaeTools.Mycenae.GetPayload(ksMycenae)
+	p.Tags["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"] = "a"
+
+	statusCode := mycenaeTools.HTTP.POSTjson("/api/put", p, r)
+	assert.Equal(t, 400, statusCode)
+}
