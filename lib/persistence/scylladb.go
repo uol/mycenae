@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/uol/gobol/logh"
+	"github.com/uol/logh"
 
 	"github.com/gocql/gocql"
 	"github.com/uol/gobol"

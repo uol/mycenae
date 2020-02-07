@@ -2,7 +2,7 @@ package structs
 
 import (
 	"github.com/uol/gobol/cassandra"
-	"github.com/uol/gobol/logh"
+	"github.com/uol/logh"
 	"github.com/uol/gobol/snitch"
 	"github.com/uol/mycenae/lib/keyspace"
 	"github.com/uol/mycenae/lib/memcached"
@@ -62,30 +62,31 @@ type ValidationConfiguration struct {
 }
 
 type Settings struct {
-	MaxTimeseries                   int
-	LogQueryTSthreshold             int
-	MaxConcurrentPoints             int
-	DefaultPaginationSize           int
-	MaxBytesOnQueryProcessing       uint32
-	SilencePointValidationErrors    bool
-	GarbageCollectorPercentage      int
-	TSIDKeySize                     int
-	GlobalTelnetServerConfiguration GlobalTelnetServerConfiguration
-	HTTPserver                      SettingsHTTP
-	UDPserver                       SettingsUDP
-	TELNETserver                    TelnetServerConfiguration
-	NetdataServer                   TelnetServerConfiguration
-	MaxAllowedTTL                   int
-	DefaultKeysets                  []string
-	BlacklistedKeysets              []string
-	DefaultKeyspaceData             keyspace.Config
-	DefaultKeyspaces                map[string]int
-	EnableAutoKeyspaceCreation      bool
-	Cassandra                       cassandra.Settings
-	Memcached                       memcached.Configuration
-	Logs                            LoggerSettings
-	Stats                           snitch.Settings
-	StatsAnalytic                   snitch.Settings
-	MetadataSettings                metadata.Settings
-	Validation                      ValidationConfiguration
+	MaxTimeseries                      int
+	LogQueryTSthreshold                int
+	MaxConcurrentPoints                int
+	DefaultPaginationSize              int
+	MaxBytesOnQueryProcessing          uint32
+	UnlimitedQueryBytesKeysetWhiteList []string
+	SilencePointValidationErrors       bool
+	GarbageCollectorPercentage         int
+	TSIDKeySize                        int
+	GlobalTelnetServerConfiguration    GlobalTelnetServerConfiguration
+	HTTPserver                         SettingsHTTP
+	UDPserver                          SettingsUDP
+	TELNETserver                       TelnetServerConfiguration
+	NetdataServer                      TelnetServerConfiguration
+	MaxAllowedTTL                      int
+	DefaultKeysets                     []string
+	BlacklistedKeysets                 []string
+	DefaultKeyspaceData                keyspace.Config
+	DefaultKeyspaces                   map[string]int
+	EnableAutoKeyspaceCreation         bool
+	Cassandra                          cassandra.Settings
+	Memcached                          memcached.Configuration
+	Logs                               LoggerSettings
+	Stats                              snitch.Settings
+	StatsAnalytic                      snitch.Settings
+	MetadataSettings                   metadata.Settings
+	Validation                         ValidationConfiguration
 }

@@ -1,12 +1,12 @@
-hash: 8c765c13ff4b744f9031926c8d2766c592da72ddd57bb75c617044a817d499da
-updated: 2019-12-16T21:18:42.895113671-03:00
+hash: 95fe6bc47ff8b46ba70ba2af278eddca0f4248806cce37e3d0fcf90a562c0fab
+updated: 2020-02-07T18:23:15.767132698-03:00
 imports:
 - name: github.com/buger/jsonparser
   version: 1a29609e0929ccd5666069e2e7213c2c69fa4ac2
 - name: github.com/BurntSushi/toml
   version: 3012a1dbe2e4bd1391d42b32f0577cb7bbc7f005
 - name: github.com/gocql/gocql
-  version: 1982a06ad6b987c24beec15336019914d71b2e31
+  version: 81b8263d9fe526782a588ef94d3fa5c6148e5d67
   subpackages:
   - internal/lru
   - internal/murmur
@@ -18,19 +18,15 @@ imports:
 - name: github.com/hailocab/go-hostpool
   version: e80d13ce29ede4452c43dea11e79b9bc8a15b478
 - name: github.com/json-iterator/go
-  version: 44a7e7340d23d2e5d5d942966eb683436c027da0
+  version: acfec88f7a0d5140ace3dcdbee10184e3684a9e1
 - name: github.com/julienschmidt/httprouter
   version: 348b672cd90d8190f8240323e372ecd1e66b59dc
-- name: github.com/mitchellh/hashstructure
-  version: a38c50148365edc8df43c1580c48fb2b3a1e9cd7
 - name: github.com/modern-go/concurrent
   version: bacd9c7ef1dd9b15be4a9909b8ac7a4e313eec94
 - name: github.com/modern-go/reflect2
   version: 94122c33edd36123c84d5368cfb2b69df93a0ec8
 - name: github.com/pborman/uuid
   version: 8b1b92947f46224e3b97bb1a3a5b0382be00d31e
-- name: github.com/rainycape/memcache
-  version: 1031fa0ce2f20c1c0e1e1b51951d8ea02c84fa05
 - name: github.com/robfig/cron
   version: b41be1df696709bb6395fe435af20370037c0b4c
 - name: github.com/rs/cors
@@ -48,22 +44,27 @@ imports:
   version: e134dda8d05ee24e7616d21b3e65b07093a62b2c
   subpackages:
   - cassandra
-  - hashing
   - loader
   - logh
   - rip
   - snitch
   - solar
+- name: github.com/uol/hashing
+  version: 520f9fe195e130976599e3a495044b6b9aabfcd4
+- name: github.com/uol/logh
+  version: 04611a676395e92babe6a4e3f5d0aa517ec0b0d5
+- name: github.com/uol/zencached
+  version: d489aeb7eb9f27e9b5bcc88dd6dd20cf77603cd8
 - name: golang.org/x/crypto
-  version: e9b2fee46413994441b28dfca259d911d963dfed
+  version: c9f3fb736b729628ec1e9c1a6b4313e883f452f9
   subpackages:
   - sha3
 - name: golang.org/x/net
-  version: c0dbc17a35534bf2e581d7a942408dc936316da4
+  version: 16171245cfb220d5317888b716d69c1fb4e7992b
   subpackages:
   - context
 - name: golang.org/x/sys
-  version: ac6580df4449443a05718fd7858c1f91ad5f8d20
+  version: d101bd2416d505c0448a6ce8a282482678040a89
   subpackages:
   - cpu
 - name: gopkg.in/inf.v0
@@ -71,7 +72,7 @@ imports:
 - name: gopkg.in/robfig/cron.v2
   version: b024fc5ea0e34bc3f83d9941c8d60b0622bfaca4
 - name: gopkg.in/yaml.v2
-  version: 1f64d6156d11335c3f22d9330b0ad14fc1e789ce
+  version: 53403b58ad1b561927d19068c655246f2db79d48
 testImports:
 - name: github.com/davecgh/go-spew
   version: d8f796af33cc11cb798c1aaeb27a4ebc5099927d

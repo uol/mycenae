@@ -1,0 +1,13 @@
+package: github.com/uol/logh
+import:
+- package: github.com/rs/zerolog
+  version: ~1.17.2
+testImport:
+- package: github.com/stretchr/testify
+  version: ~1.4.0
+  subpackages:
+  - assert
+- package: github.com/uol/gobol
+  version: ~1.30.0
+  subpackages:
+  - logh

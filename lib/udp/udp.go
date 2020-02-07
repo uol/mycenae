@@ -4,9 +4,10 @@ import (
 	"net"
 	"strconv"
 
-	"github.com/uol/gobol/logh"
+	"github.com/uol/logh"
 	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/tsstats"
+	"github.com/uol/mycenae/lib/utils"
 
 	"github.com/uol/mycenae/lib/structs"
 )
@@ -16,6 +17,7 @@ type udpHandler interface {
 	Stop()
 }
 
+// New - creates a new udp server instance
 func New(setUDP structs.SettingsUDP, handler udpHandler, stats *tsstats.StatsTS) *UDPserver {
 
 	return &UDPserver{
@@ -26,16 +28,17 @@ func New(setUDP structs.SettingsUDP, handler udpHandler, stats *tsstats.StatsTS)
 	}
 }
 
+// UDPserver - the server struct
 type UDPserver struct {
 	handler   udpHandler
 	settings  structs.SettingsUDP
-	shutdown  bool
-	closed    chan struct{}
+	sock      *net.UDPConn
 	stats     *tsstats.StatsTS
 	statsTags map[string]string
 	logger    *logh.ContextualLogger
 }
 
+// Start - starts the udp server
 func (us *UDPserver) Start() {
 	go us.asyncStart()
 }
@@ -57,7 +60,7 @@ func (us *UDPserver) asyncStart() {
 			us.logger.Info().Str(constants.StringsFunc, cFuncAsyncStart).Msg("addr: resolved")
 		}
 	}
-	sock, err := net.ListenUDP("udp", addr)
+	us.sock, err = net.ListenUDP("udp", addr)
 
 	if err != nil {
 		if logh.FatalEnabled {
@@ -68,9 +71,9 @@ func (us *UDPserver) asyncStart() {
 			us.logger.Info().Str(constants.StringsFunc, cFuncAsyncStart).Msgf("listen: binded to port: %d", us.settings.Port)
 		}
 	}
-	defer sock.Close()
+	defer us.sock.Close()
 
-	err = sock.SetReadBuffer(us.settings.ReadBuffer)
+	err = us.sock.SetReadBuffer(us.settings.ReadBuffer)
 
 	if err != nil {
 		if logh.FatalEnabled {
@@ -85,7 +88,7 @@ func (us *UDPserver) asyncStart() {
 	for {
 		buf := make([]byte, 1024)
 
-		rlen, addr, err := sock.ReadFromUDP(buf)
+		rlen, addr, err := us.sock.ReadFromUDP(buf)
 		us.incConnectionStats()
 
 		saddr := constants.StringsEmpty
@@ -94,26 +97,30 @@ func (us *UDPserver) asyncStart() {
 			saddr = addr.IP.String()
 		}
 		if err != nil {
+			if utils.IsConnectionClosedError(err) {
+				break
+			}
+
 			if logh.ErrorEnabled {
 				us.logger.Error().Str(constants.StringsFunc, cFuncAsyncStart).Err(err).Msgf("read buffer from %s", saddr)
 			}
 		} else {
 			go us.handler.HandleUDPpacket(buf[0:rlen], saddr)
 		}
+	}
 
-		if us.shutdown {
-			us.closed <- struct{}{}
-			return
-		}
+	if logh.InfoEnabled {
+		us.logger.Info().Str(constants.StringsFunc, cFuncAsyncStart).Msg("stopping to listen udp packets")
 	}
 }
 
+// Stop - stops the udp server
 func (us *UDPserver) Stop() {
-	us.shutdown = true
-	select {
-	case <-us.closed:
-		us.handler.Stop()
-		return
+	err := us.sock.Close()
+	if err != nil {
+		if logh.ErrorEnabled {
+			us.logger.Error().Str(constants.StringsFunc, "Stop").Err(err).Send()
+		}
 	}
 }
 

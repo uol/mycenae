@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/uol/gobol"
-	"github.com/uol/gobol/logh"
+	"github.com/uol/logh"
 
 	"github.com/buger/jsonparser"
 	jsoniter "github.com/json-iterator/go"

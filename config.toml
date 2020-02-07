@@ -31,6 +31,9 @@ DefaultKeysets = ["pdeng_stats", "pdeng_collectd", "pdeng_analytics"]
 # Maximum size of bytes for each query processing
 MaxBytesOnQueryProcessing = 104857600
 
+# Allows these keysets to do queries with more than "MaxBytesOnQueryProcessing" bytes
+UnlimitedQueryBytesKeysetWhiteList = ["pdeng_stats", "pdeng_collectd", "pdeng_analytics"]
+
 # Silences all point validation errors from the logs
 SilencePointValidationErrors = true
 
@@ -173,11 +176,26 @@ EnableAutoKeyspaceCreation = true
   MaxReturnedMetadata = 10000
   ZookeeperConfig = "mycenae"
   BlacklistedKeysets = ["chimera", "blacklist"]
+  CacheKeyHashSize = 16
 
 [memcached]
-  pool = ["182.168.0.10:11211","182.168.0.11:11211","182.168.0.12:11211"]
-  timeout = "10s"
-  maxIdleConns = 5
+  # the nodes
+  Nodes = ["182.168.0.10:11211","182.168.0.11:11211","182.168.0.12:11211"]
+	
+  # the number of idle connections per host
+  NumConnectionsPerNode = 5
+  
+  # the time duration between connection retries
+	ReconnectionTimeout = "1s"
+
+	# the max time duration to wait a read or write operation
+	ReadWriteTimeout = "3s"
+
+	# the maximum number of write retries
+	MaxWriteRetries = 3
+
+	# the size of the read buffer in bytes
+	ReadBufferSize = 2048
 
 [validation]
   maxTextValueSize = 10000

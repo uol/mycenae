@@ -3,10 +3,12 @@ package metadata
 import (
 	"fmt"
 	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/rs/zerolog"
-	"github.com/uol/gobol/logh"
+	"github.com/uol/logh"
 
 	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/memcached"
@@ -35,6 +37,7 @@ type SolrBackend struct {
 	blacklistedKeysetMap        map[string]bool
 	solrSpecialCharRegexp       *regexp.Regexp
 	solrRegexpSpecialCharRegexp *regexp.Regexp
+	cacheKeyHashSize            int
 }
 
 // NewSolrBackend - creates a new instance
@@ -70,6 +73,7 @@ func NewSolrBackend(settings *Settings, stats *tsstats.StatsTS, memcached *memca
 		blacklistedKeysetMap:        blacklistedKeysetMap,
 		solrSpecialCharRegexp:       regexp.MustCompile(`(\+|\-|\&|\||\!|\(|\)|\{|\}|\[|\]|\^|"|\~|\*|\?|\:|\/|\\)`),
 		solrRegexpSpecialCharRegexp: regexp.MustCompile(`(\/)`),
+		cacheKeyHashSize:            settings.CacheKeyHashSize,
 	}, nil
 }
 
@@ -186,7 +190,9 @@ func (sb *SolrBackend) filterFieldValues(collection, action, field, value string
 		}
 	}
 
-	facets, err := sb.getCachedFacets(collection, field, &query)
+	q, _ := sb.buildMetadataQuery(&query, true)
+
+	facets, err := sb.getCachedFacets(collection, q)
 	if err != nil {
 		sb.statsCollectionError(collection, action, "solr.collection.search.error")
 		return nil, 0, errInternalServer("filterFieldValues", err)
@@ -197,8 +203,6 @@ func (sb *SolrBackend) filterFieldValues(collection, action, field, value string
 		return cropped, len(facets), nil
 	}
 
-	q, _ := sb.buildMetadataQuery(&query, true)
-
 	r, e := sb.solrService.Facets(collection, q, constants.StringsEmpty, 0, 0, nil, facetFields, childFacetFields, true, sb.maxReturnedMetadata, 1)
 	if e != nil {
 		sb.statsCollectionError(collection, action, "solr.collection.search")
@@ -207,7 +211,7 @@ func (sb *SolrBackend) filterFieldValues(collection, action, field, value string
 
 	facets = sb.extractFacets(r, field, value, collection)
 
-	err = sb.cacheFacets(facets, collection, field, &query)
+	err = sb.cacheFacets(facets, collection, q)
 	if err != nil {
 		sb.statsCollectionError(collection, action, "solr.collection.search.error")
 		return nil, 0, errInternalServer("filterFieldValues", err)
@@ -688,10 +692,20 @@ func (sb *SolrBackend) filterTagsByMetric(collection, tsType, metric, childrenQu
 		"metric:" + metric,
 	}
 
-	start := time.Now()
-	cacheKey := query + prefix
+	maxResultsStr := strconv.Itoa(maxResults)
+	strBuilder := strings.Builder{}
+	strBuilder.Grow(len(query) + len(filterQueries[0]) + len(filterQueries[1]) + len(maxResultsStr) + 3)
+	strBuilder.WriteString(query)
+	strBuilder.WriteString(constants.StringsBar)
+	strBuilder.WriteString(filterQueries[0])
+	strBuilder.WriteString(constants.StringsBar)
+	strBuilder.WriteString(filterQueries[1])
+	strBuilder.WriteString(constants.StringsBar)
+	strBuilder.WriteString(strconv.Itoa(maxResults))
 
-	facets, gerr := sb.getCachedFacets(collection, field, cacheKey)
+	start := time.Now()
+
+	facets, gerr := sb.getCachedFacets(collection, strBuilder.String())
 	if gerr != nil {
 		sb.statsCollectionError(collection, action, "solr.collection.error")
 		return nil, 0, errInternalServer(functionName, gerr)
@@ -710,7 +724,7 @@ func (sb *SolrBackend) filterTagsByMetric(collection, tsType, metric, childrenQu
 
 	facets = sb.extractFacets(r, field, prefix, collection)
 
-	err = sb.cacheFacets(facets, collection, field, cacheKey)
+	err = sb.cacheFacets(facets, collection, strBuilder.String())
 	if err != nil {
 		sb.statsCollectionError(collection, action, "solr.collection.error")
 		return nil, 0, errInternalServer(functionName, err)

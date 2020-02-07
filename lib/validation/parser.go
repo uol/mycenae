@@ -3,7 +3,7 @@ package validation
 import (
 	"github.com/buger/jsonparser"
 	"github.com/uol/gobol"
-	"github.com/uol/gobol/logh"
+	"github.com/uol/logh"
 	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/structs"
 	"strings"

@@ -2,38 +2,41 @@ package constants
 
 const (
 	// StringsEmpty - a empty space
-	StringsEmpty = ""
+	StringsEmpty string = ""
 
 	// StringsWhitespace - a white space
-	StringsWhitespace = " "
+	StringsWhitespace string = " "
 
 	// StringsPKG - the package abbreviation
-	StringsPKG = "pkg"
+	StringsPKG string = "pkg"
 
 	// StringsFunc - the function abbreviation
-	StringsFunc = "func"
+	StringsFunc string = "func"
 
 	// StringsMetric - metric word
-	StringsMetric = "metric"
+	StringsMetric string = "metric"
 
 	// StringsTimestamp - timestamp word
-	StringsTimestamp = "timestamp"
+	StringsTimestamp string = "timestamp"
 
 	// StringsValue - value word
-	StringsValue = "value"
+	StringsValue string = "value"
 
 	// StringsTags - tags word
-	StringsTags = "tags"
+	StringsTags string = "tags"
 
 	// StringsText - text word
-	StringsText = "text"
+	StringsText string = "text"
 
 	// StringsKeyset - keyset word
-	StringsKeyset = "keyset"
+	StringsKeyset string = "keyset"
 
 	// StringsTTL - ttl word
-	StringsTTL = "ttl"
+	StringsTTL string = "ttl"
 
 	// StringsKSID - ksid word
-	StringsKSID = "ksid"
+	StringsKSID string = "ksid"
+
+	// StringsBar - bar character
+	StringsBar string = "/"
 )

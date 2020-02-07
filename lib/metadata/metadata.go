@@ -2,7 +2,7 @@ package metadata
 
 import (
 	"github.com/uol/gobol"
-	"github.com/uol/gobol/logh"
+	"github.com/uol/logh"
 	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/memcached"
 	"github.com/uol/mycenae/lib/tsstats"
@@ -76,6 +76,7 @@ type Settings struct {
 	MaxReturnedMetadata int
 	ZookeeperConfig     string
 	BlacklistedKeysets  []string
+	CacheKeyHashSize    int
 }
 
 // Metadata document

@@ -13,8 +13,6 @@ import:
   - rip
   - snitch
   - solar
-  - hashing
-  - logh
 - package: golang.org/x/net
   subpackages:
   - context
@@ -22,7 +20,6 @@ import:
   version: ~v1.0.0
 - package: github.com/uol/go-solr
   version: ^v0.9.3
-- package: github.com/rainycape/memcache
 - package: github.com/BurntSushi/toml
   version: ~v0.3.1
 - package: github.com/rs/cors
@@ -35,6 +32,14 @@ import:
 - package: github.com/google/uuid
   version: ~1.1.1
 - package: github.com/hailocab/go-hostpool
+- package: github.com/uol/zencached
+  version: ~1.1.0
+- package: github.com/json-iterator/go
+  version: ~1.1.9
+- package: github.com/uol/logh
+  version: ~1.0.1
+- package: github.com/uol/hashing
+  version: ~1.0.0
 testImport:
 - package: github.com/stretchr/testify
   version: ~v1.2.1

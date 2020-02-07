@@ -4,7 +4,7 @@ import (
 	"errors"
 	"unsafe"
 
-	"github.com/uol/gobol/logh"
+	"github.com/uol/logh"
 
 	"github.com/gocql/gocql"
 	"github.com/uol/gobol"
@@ -22,6 +22,7 @@ type persistence struct {
 	stringSize                    uintptr
 	maxBytesErr                   error
 	stats                         *tsstats.StatsTS
+	unlimitedBytesKeysetWhiteList map[string]bool
 	logger                        *logh.ContextualLogger
 }
 
@@ -34,6 +35,7 @@ func New(
 	defaultTTL int,
 	defaultMaxResults int,
 	maxBytesLimit uint32,
+	unlimitedBytesKeysetWhiteList []string,
 	stats *tsstats.StatsTS,
 ) (*Plot, gobol.Error) {
 
@@ -47,6 +49,11 @@ func New(
 
 	stringSize := unsafe.Sizeof(constants.StringsEmpty)
 
+	unlimitedBytesKeysetWhiteMap := map[string]bool{}
+	for _, keyset := range unlimitedBytesKeysetWhiteList {
+		unlimitedBytesKeysetWhiteMap[keyset] = true
+	}
+
 	return &Plot{
 		MaxTimeseries:       maxTimeseries,
 		LogQueryTSThreshold: logQueryTSthreshold,
@@ -58,6 +65,7 @@ func New(
 			constPartBytesFromNumberPoint: unsafe.Sizeof(Pnt{}),                  //removing the tsid part because it's a string
 			constPartBytesFromTextPoint:   unsafe.Sizeof(TextPnt{}) - stringSize, //removing the tsid and value because they are all strings
 			maxBytesErr:                   errors.New("payload too large"),
+			unlimitedBytesKeysetWhiteList: unlimitedBytesKeysetWhiteMap,
 			logger:                        logh.CreateContextualLogger(constants.StringsPKG, "plot/persistence"),
 		},
 		keyspaceTTLMap:    keyspaceTTLMap,

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"sync/atomic"
 
-	"github.com/uol/gobol/logh"
+	"github.com/uol/logh"
 	"github.com/uol/mycenae/lib/constants"
 
 	"github.com/julienschmidt/httprouter"

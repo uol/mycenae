@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"github.com/uol/gobol"
-	"github.com/uol/gobol/logh"
+	"github.com/uol/logh"
 
 	"github.com/uol/mycenae/lib/collector"
 	"github.com/uol/mycenae/lib/constants"
@@ -31,7 +31,7 @@ type OpenTSDBHandler struct {
 func NewOpenTSDBHandler(collector *collector.Collector, telnetConfig *structs.GlobalTelnetServerConfiguration, validationService *validation.Service) *OpenTSDBHandler {
 
 	return &OpenTSDBHandler{
-		formatRegexp:      regexp.MustCompile(`put ([0-9A-Za-z-\._\%\&\#\;\/]+) ([0-9]+) ([0-9E\.\-\,]+) ([0-9A-Za-z-\._\%\&\#\;\/ =]+)`),
+		formatRegexp:      regexp.MustCompile(`put ([0-9A-Za-z-\._\%\&\#\;\/]+) ([0-9]+) ([0-9Ee\.\-\,]+) ([0-9A-Za-z-\._\%\&\#\;\/ =]+)`),
 		tagsRegexp:        regexp.MustCompile(TelnetFormatTagsRegexp),
 		collector:         collector,
 		sourceName:        "telnet-opentsdb",

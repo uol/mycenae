@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/uol/gobol/logh"
+	"github.com/uol/logh"
 	"github.com/uol/mycenae/lib/constants"
 
 	"github.com/gocql/gocql"
@@ -23,6 +23,8 @@ func (persist *persistence) GetTS(keyspace string, keys []string, start, end int
 	var err error
 	var numBytes uint32
 	idsGroup := persist.buildInGroup(keys)
+	_, unlimitedBytes := persist.unlimitedBytesKeysetWhiteList[keyset]
+	allowFullFetch = allowFullFetch || unlimitedBytes
 
 	iter := persist.cassandra.Query(
 		fmt.Sprintf(

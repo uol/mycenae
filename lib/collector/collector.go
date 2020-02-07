@@ -3,18 +3,19 @@ package collector
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/uol/mycenae/lib/structs"
-	"github.com/uol/mycenae/lib/validation"
 	"regexp"
 	"sort"
 	"strconv"
 	"time"
 
+	"github.com/uol/mycenae/lib/structs"
+	"github.com/uol/mycenae/lib/validation"
+
 	"github.com/gocql/gocql"
 	"github.com/uol/gobol"
 
-	"github.com/uol/gobol/hashing"
-	"github.com/uol/gobol/logh"
+	"github.com/uol/hashing"
+	"github.com/uol/logh"
 	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/metadata"
 	"github.com/uol/mycenae/lib/tsstats"

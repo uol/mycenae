@@ -1,0 +1,10 @@
+package: github.com/uol/hashing
+import:
+- package: golang.org/x/crypto
+  subpackages:
+  - sha3
+testImport:
+- package: github.com/stretchr/testify
+  version: ~1.4.0
+  subpackages:
+  - assert
