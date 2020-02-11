@@ -21,12 +21,14 @@ func (mc *MetricsCollector) send(operation, metric string, value float64, tags .
 		tagMap[tags[i]] = tags[i+1]
 	}
 
-	err := mc.stats.ValueAdd(metric, tagMap, operation, "@every 10s", false, false, value)
-	if err != nil {
-		if logh.ErrorEnabled {
-			logh.Error().Str(constants.StringsPKG, "memcached").Str(constants.StringsFunc, "Maximum").Str("metric", metric).Err(err).Send()
+	go func() {
+		err := mc.stats.ValueAdd(metric, tagMap, operation, "@every 10s", false, false, value)
+		if err != nil {
+			if logh.ErrorEnabled {
+				logh.Error().Str(constants.StringsPKG, "memcached").Str(constants.StringsFunc, "Maximum").Str("metric", metric).Err(err).Send()
+			}
 		}
-	}
+	}()
 }
 
 // Count - does the count operation

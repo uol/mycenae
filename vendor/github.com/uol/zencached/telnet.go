@@ -1,6 +1,7 @@
 package zencached
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net"
@@ -38,8 +39,11 @@ type TelnetConfiguration struct {
 	// ReconnectionTimeout - the time duration between connection retries
 	ReconnectionTimeout time.Duration
 
-	// ReadWriteTimeout - the max time duration to wait a read or write operation
-	ReadWriteTimeout time.Duration
+	// MaxWriteTimeout - the max time duration to wait a write operation
+	MaxWriteTimeout time.Duration
+
+	// MaxReadTimeout - the max time duration to wait a read operation
+	MaxReadTimeout time.Duration
 
 	// MaxWriteRetries - the maximum number of write retries
 	MaxWriteRetries int
@@ -185,14 +189,67 @@ func (t *Telnet) Send(command ...string) error {
 }
 
 // Read - read the bytes from the connection, if any
-func (t *Telnet) Read() ([]byte, error) {
+func (t *Telnet) Read(endConnInput [][]byte) ([][]byte, error) {
 
-	payload, err := t.readPayload()
+	err := t.connection.SetReadDeadline(time.Now().Add(t.configuration.MaxReadTimeout))
 	if err != nil {
+		if logh.ErrorEnabled {
+			t.logger.Error().Msg(fmt.Sprintf("error setting read deadline: %s", err.Error()))
+		}
 		return nil, err
 	}
 
-	return payload, nil
+	buffer := make([]byte, t.configuration.ReadBufferSize)
+	lineBuffer := make([][]byte, 0)
+	var bytesRead int
+	line := -1
+	addLine := true
+
+mainLoop:
+	for {
+		bytesRead, err = t.connection.Read(buffer)
+		if bytesRead == 0 || err != nil {
+			break mainLoop
+		}
+
+		// bufferLoop:
+		for i := 0; i < bytesRead; i++ {
+
+			if addLine {
+				lineBuffer = append(lineBuffer, make([]byte, 0))
+				addLine = false
+				line++
+
+				if line > 0 {
+					for j := 0; j < len(endConnInput); j++ {
+						if bytes.Equal(lineBuffer[line-1], endConnInput[j]) {
+							break mainLoop
+						}
+					}
+				}
+			}
+
+			if buffer[i] == lineBreaks[0] || buffer[i] == lineBreaks[1] {
+
+				if i < bytesRead-2 && (buffer[i+1] == lineBreaks[0] || buffer[i+1] == lineBreaks[1]) {
+					i++
+				}
+
+				addLine = true
+
+			} else {
+
+				lineBuffer[line] = append(lineBuffer[line], buffer[i])
+			}
+		}
+	}
+
+	if err != nil && err != io.EOF {
+		t.logConnectionError(err, read)
+		return nil, err
+	}
+
+	return lineBuffer, nil
 }
 
 // writePayload - writes the payload
@@ -202,7 +259,7 @@ func (t *Telnet) writePayload(payload string) bool {
 		return false
 	}
 
-	err := t.connection.SetWriteDeadline(time.Now().Add(t.configuration.ReadWriteTimeout))
+	err := t.connection.SetWriteDeadline(time.Now().Add(t.configuration.MaxWriteTimeout))
 	if err != nil {
 		if logh.ErrorEnabled {
 			t.logger.Error().Err(err).Msg("error setting write deadline")
@@ -212,34 +269,11 @@ func (t *Telnet) writePayload(payload string) bool {
 
 	_, err = t.connection.Write([]byte(payload))
 	if err != nil {
-		t.logConnectionError(err, read)
+		t.logConnectionError(err, write)
 		return false
 	}
 
 	return true
-}
-
-// readPayload - reads the payload from the connection
-func (t *Telnet) readPayload() ([]byte, error) {
-
-	err := t.connection.SetReadDeadline(time.Now().Add(t.configuration.ReadWriteTimeout))
-	if err != nil {
-		if logh.ErrorEnabled {
-			t.logger.Error().Msg(fmt.Sprintf("error setting read deadline: %s", err.Error()))
-		}
-		return nil, err
-	}
-
-	readBuffer := make([]byte, t.configuration.ReadBufferSize)
-	_, err = t.connection.Read(readBuffer)
-	if err != nil {
-		if castedErr, ok := err.(net.Error); ok && !castedErr.Timeout() {
-			t.logConnectionError(err, read)
-		}
-		return nil, err
-	}
-
-	return readBuffer, nil
 }
 
 // logConnectionError - logs the connection error

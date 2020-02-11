@@ -23,13 +23,20 @@ const (
 
 // memcached responses
 var (
+	lineBreaks []byte = []byte{[]byte("\r")[0], []byte("\n")[0]}
+
+	// responses
+	mcrValue     []byte = []byte("VALUE") // the only prefix
 	mcrStored    []byte = []byte("STORED")
 	mcrNotStored []byte = []byte("NOT_STORED")
-	mcrValue     []byte = []byte("VALUE")
 	mcrEnd       []byte = []byte("END")
 	mcrNotFound  []byte = []byte("NOT_FOUND")
 	mcrDeleted   []byte = []byte("DELETED")
-	lineBreaks   []byte = []byte{[]byte("\r")[0], []byte("\n")[0]}
+
+	// response set
+	mcrResponseSetStored  [][]byte = [][]byte{mcrStored, mcrNotStored}
+	mcrResponseSetGet     [][]byte = [][]byte{mcrValue, mcrEnd}
+	mcrResponseSetDeleted [][]byte = [][]byte{mcrDeleted, mcrNotFound}
 )
 
 // memcachedCommand type
@@ -52,7 +59,7 @@ const (
 // countOperation - send the operation count metric
 func (z *Zencached) countOperation(host string, operation memcachedCommand) {
 
-	go z.metricsCollector.Count(
+	z.metricsCollector.Count(
 		metricOperationCount,
 		1,
 		tagNodeName, host,
@@ -79,7 +86,7 @@ func (z *Zencached) executeSend(telnetConn *Telnet, operation memcachedCommand, 
 		}
 		elapsedTime := time.Since(start)
 
-		go z.metricsCollector.Maximum(
+		z.metricsCollector.Maximum(
 			metricOperationTime,
 			float64(elapsedTime.Milliseconds()),
 			tagNodeName, telnetConn.GetHost(),
@@ -91,20 +98,20 @@ func (z *Zencached) executeSend(telnetConn *Telnet, operation memcachedCommand, 
 }
 
 // checkResponse - checks the memcached response
-func (z *Zencached) checkResponse(telnetConn *Telnet, foundResponse, notFoundResponse []byte, operation memcachedCommand, renderedCmd string) (bool, []byte, error) {
+func (z *Zencached) checkResponse(telnetConn *Telnet, responseSet [][]byte, operation memcachedCommand, renderedCmd string) (bool, [][]byte, error) {
 
-	response, err := telnetConn.Read()
+	response, err := telnetConn.Read(responseSet)
 	if err != nil {
 		return false, nil, err
 	}
 
-	if !bytes.HasPrefix(response, foundResponse) {
-		if !bytes.HasPrefix(response, notFoundResponse) {
-			return false, nil, fmt.Errorf("%s operation error on key:\n%s", operation, string(response))
+	if !bytes.HasPrefix(response[0], responseSet[0]) {
+		if !bytes.Equal(response[0], responseSet[1]) {
+			return false, nil, fmt.Errorf("memcached operation error on command:\n%s", operation)
 		}
 
 		if z.enableMetrics {
-			go z.metricsCollector.Count(
+			z.metricsCollector.Count(
 				metricCacheMiss,
 				1,
 				tagNodeName, telnetConn.GetHost(),
@@ -116,7 +123,7 @@ func (z *Zencached) checkResponse(telnetConn *Telnet, foundResponse, notFoundRes
 	}
 
 	if z.enableMetrics {
-		go z.metricsCollector.Count(
+		z.metricsCollector.Count(
 			metricCacheHit,
 			1,
 			tagNodeName, telnetConn.GetHost(),
@@ -149,7 +156,7 @@ func (z *Zencached) baseStorage(telnetConn *Telnet, cmd memcachedCommand, key st
 		return false, err
 	}
 
-	wasStored, _, err := z.checkResponse(telnetConn, mcrStored, mcrNotStored, cmd, renderedCmd)
+	wasStored, _, err := z.checkResponse(telnetConn, mcrResponseSetStored, cmd, renderedCmd)
 	if err != nil {
 		return false, err
 	}
@@ -179,45 +186,14 @@ func (z *Zencached) baseGet(telnetConn *Telnet, key string) (string, bool, error
 		return empty, false, err
 	}
 
-	exists, response, err := z.checkResponse(telnetConn, mcrValue, mcrEnd, get, renderedCmd)
+	exists, response, err := z.checkResponse(telnetConn, mcrResponseSetGet, get, renderedCmd)
 	if !exists || err != nil {
 		return empty, false, err
 	}
 
-	start, end := z.extractLine(response, 2)
-	storedValue := string(response[start:end])
+	storedValue := string(response[1])
 
 	return storedValue, true, nil
-}
-
-// extractLine - extracts a line from the response
-func (z *Zencached) extractLine(response []byte, lineNumber int) (start, end int) {
-
-	lineBreakFound := false
-	currentLine := 0
-	for i := 0; i < len(response); i++ {
-		if !lineBreakFound && (response[i] == lineBreaks[0] || response[i] == lineBreaks[1]) {
-
-			end = i
-
-			if response[i+1] == lineBreaks[0] || response[i+1] == lineBreaks[1] {
-				i++
-			}
-
-			lineBreakFound = true
-			currentLine++
-			if currentLine == lineNumber {
-				return
-			}
-		} else {
-			if lineBreakFound {
-				lineBreakFound = false
-				start = i
-			}
-		}
-	}
-
-	return
 }
 
 // Delete - performs a delete operation
@@ -242,7 +218,7 @@ func (z *Zencached) baseDelete(telnetConn *Telnet, key string) (bool, error) {
 		return false, err
 	}
 
-	exists, _, err := z.checkResponse(telnetConn, mcrDeleted, mcrNotFound, delete, renderedCmd)
+	exists, _, err := z.checkResponse(telnetConn, mcrResponseSetDeleted, delete, renderedCmd)
 	if err != nil {
 		return false, err
 	}

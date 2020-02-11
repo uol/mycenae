@@ -40,13 +40,12 @@ func TestClusterStorageCommand(t *testing.T) {
 			panic(err)
 		}
 
-		bytes, err := telnetConn.Read()
+		readedBytes, err := telnetConn.Read([][]byte{[]byte("END")})
 		if err != nil {
 			panic(err)
 		}
 
-		response := string(bytes)
-		if !assert.Truef(t, strings.Contains(response, value), "expected value to be stored on node: %d", i) {
+		if !assert.Truef(t, strings.Contains(string(readedBytes[1]), value), "expected value to be stored on node: %d", i) {
 			return
 		}
 	}
@@ -127,13 +126,12 @@ func TestClusterDeleteCommand(t *testing.T) {
 			panic(err)
 		}
 
-		bytes, err := telnetConn.Read()
+		readedBytes, err := telnetConn.Read([][]byte{[]byte("END")})
 		if err != nil {
 			panic(err)
 		}
 
-		response := string(bytes)
-		if !assert.Truef(t, !strings.Contains(response, value), "found a value stored on node: %d", i) {
+		if !assert.Equalf(t, "END", string(readedBytes[0]), "found a value stored on node: %d", i) {
 			return
 		}
 	}

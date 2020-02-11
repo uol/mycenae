@@ -188,8 +188,11 @@ EnableAutoKeyspaceCreation = true
   # the time duration between connection retries
 	ReconnectionTimeout = "1s"
 
-	# the max time duration to wait a read or write operation
-	ReadWriteTimeout = "3s"
+	# the max time duration to wait a write operation
+	MaxWriteTimeout = "3s"
+
+  # the max time duration to wait a read operation
+	MaxReadTimeout = "100ms"
 
 	# the maximum number of write retries
 	MaxWriteRetries = 3

@@ -50,10 +50,11 @@ func setupMemcachedDocker() []zencached.Node {
 func createTelnetConf() *zencached.TelnetConfiguration {
 
 	return &zencached.TelnetConfiguration{
-		ReconnectionTimeout: 30 * time.Second,
-		ReadWriteTimeout:    3 * time.Second,
+		ReconnectionTimeout: 1 * time.Second,
+		MaxWriteTimeout:     30 * time.Second,
+		MaxReadTimeout:      10 * time.Second,
 		MaxWriteRetries:     3,
-		ReadBufferSize:      255,
+		ReadBufferSize:      2048,
 	}
 }
 
@@ -97,12 +98,19 @@ func TestInfoCommand(t *testing.T) {
 		return
 	}
 
-	payload, err := telnet.Read()
+	payload, err := telnet.Read([][]byte{[]byte("END")})
 	if !assert.NoError(t, err, "error reading response") {
 		return
 	}
 
-	assert.True(t, regexp.MustCompile("STAT version [0-9\\.]+").MatchString(string(payload)), "version not found")
+	found := false
+	for _, line := range payload {
+		if regexp.MustCompile("STAT version [0-9\\.]+").MatchString(string(line)) {
+			found = true
+		}
+	}
+
+	assert.True(t, found, "version not found")
 }
 
 // TestInsertCommand - tests a simple insert command
@@ -117,22 +125,24 @@ func TestInsertCommand(t *testing.T) {
 		return
 	}
 
-	payload, err := telnet.Read()
+	payload, err := telnet.Read([][]byte{[]byte("STORED")})
 	if !assert.NoError(t, err, "error reading response") {
 		return
 	}
 
-	assert.True(t, strings.Contains(string(payload), "STORED"), "expected \"STORED\" as answer")
+	assert.True(t, strings.Contains(string(payload[0]), "STORED"), "expected \"STORED\" as answer")
 
 	err = telnet.Send("get gotest\r\n")
 	if !assert.NoError(t, err, "error sending get command") {
 		return
 	}
 
-	payload, err = telnet.Read()
+	payload, err = telnet.Read([][]byte{[]byte("END")})
 	if !assert.NoError(t, err, "error reading response") {
 		return
 	}
 
-	assert.True(t, strings.Contains(string(payload), "value"), "expected \"value\" to be stored")
+	stored := string(payload[1])
+
+	assert.Equalf(t, "value", stored, "expected \"value\" to be stored")
 }

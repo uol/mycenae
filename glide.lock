@@ -1,5 +1,5 @@
-hash: 95fe6bc47ff8b46ba70ba2af278eddca0f4248806cce37e3d0fcf90a562c0fab
-updated: 2020-02-07T18:23:15.767132698-03:00
+hash: 57212b89f0c4882dc86d9dacde4b016fe7a0d7e02aeb2695641d154c13595794
+updated: 2020-02-11T16:44:55.2840866-03:00
 imports:
 - name: github.com/buger/jsonparser
   version: 1a29609e0929ccd5666069e2e7213c2c69fa4ac2
@@ -54,9 +54,9 @@ imports:
 - name: github.com/uol/logh
   version: 04611a676395e92babe6a4e3f5d0aa517ec0b0d5
 - name: github.com/uol/zencached
-  version: d489aeb7eb9f27e9b5bcc88dd6dd20cf77603cd8
+  version: 8077d2b7e53ea3989976041af4198c00813affd8
 - name: golang.org/x/crypto
-  version: c9f3fb736b729628ec1e9c1a6b4313e883f452f9
+  version: 86ce3cb696783b739e41e834e2eead3e1b4aa3fb
   subpackages:
   - sha3
 - name: golang.org/x/net

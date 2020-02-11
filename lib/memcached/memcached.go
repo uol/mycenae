@@ -25,8 +25,11 @@ type Configuration struct {
 	// ReconnectionTimeout - the time duration between connection retries
 	ReconnectionTimeout string
 
-	// ReadWriteTimeout - the max time duration to wait a read or write operation
-	ReadWriteTimeout string
+	// MaxWriteTimeout - the max time duration to wait a write operation
+	MaxWriteTimeout string
+
+	// MaxReadTimeout - the max time duration to wait a read operation
+	MaxReadTimeout string
 
 	// MaxWriteRetries - the maximum number of write retries
 	MaxWriteRetries int
@@ -62,9 +65,14 @@ func New(stats *snitch.Stats, configuration *Configuration) (*Memcached, error) 
 		return nil, fmt.Errorf("error parsing ReconnectionTimeout: %s", configuration.ReconnectionTimeout)
 	}
 
-	readWriteTimeoutDuration, err := time.ParseDuration(configuration.ReadWriteTimeout)
+	maxWriteTimeoutDuration, err := time.ParseDuration(configuration.MaxWriteTimeout)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing ReadWriteTimeout: %s", configuration.ReadWriteTimeout)
+		return nil, fmt.Errorf("error parsing MaxWriteTimeout: %s", configuration.MaxWriteTimeout)
+	}
+
+	maxReadTimeoutDuration, err := time.ParseDuration(configuration.MaxReadTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing MaxReadTimeout: %s", configuration.MaxReadTimeout)
 	}
 
 	nodes := make([]zencached.Node, len(configuration.Nodes))
@@ -87,7 +95,8 @@ func New(stats *snitch.Stats, configuration *Configuration) (*Memcached, error) 
 		Nodes:                 nodes,
 		NumConnectionsPerNode: configuration.NumConnectionsPerNode,
 		TelnetConfiguration: zencached.TelnetConfiguration{
-			ReadWriteTimeout:    readWriteTimeoutDuration,
+			MaxWriteTimeout:     maxWriteTimeoutDuration,
+			MaxReadTimeout:      maxReadTimeoutDuration,
 			MaxWriteRetries:     configuration.MaxWriteRetries,
 			ReadBufferSize:      configuration.ReadBufferSize,
 			ReconnectionTimeout: reconnectionTimeoutDuration,
