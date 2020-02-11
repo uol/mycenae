@@ -2,7 +2,7 @@ package tsstats
 
 import (
 	"fmt"
-	"github.com/uol/gobol/logh"
+	"github.com/uol/logh"
 	"github.com/uol/gobol/snitch"
 	"github.com/uol/mycenae/lib/constants"
 	"gopkg.in/robfig/cron.v2"

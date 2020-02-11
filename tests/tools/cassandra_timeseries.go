@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/gocql/gocql"
-	"github.com/uol/gobol/hashing"
+	"github.com/uol/hashing"
 )
 
 type cassTs struct {

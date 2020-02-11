@@ -11,7 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/uol/gobol/logh"
+	"github.com/uol/logh"
 
 	"github.com/uol/mycenae/lib/collector"
 	"github.com/uol/mycenae/lib/constants"

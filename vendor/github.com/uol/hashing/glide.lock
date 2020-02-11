@@ -1,0 +1,26 @@
+hash: 9313141e0bd4ec0f7a6a3dfd0d643b5c7c907f9756ea968708b5aad6a4be9029
+updated: 2020-01-27T17:21:54.39080009-03:00
+imports:
+- name: golang.org/x/crypto
+  version: 8986dd9e96cf0a6f74da406c005ba3df38527c04
+  subpackages:
+  - sha3
+- name: golang.org/x/sys
+  version: e8c54fb511f6a2d695a4403ae0dab1c05aef011a
+  subpackages:
+  - cpu
+testImports:
+- name: github.com/davecgh/go-spew
+  version: d8f796af33cc11cb798c1aaeb27a4ebc5099927d
+  subpackages:
+  - spew
+- name: github.com/pmezard/go-difflib
+  version: 5d4384ee4fb2527b0a1256a821ebfc92f91efefc
+  subpackages:
+  - difflib
+- name: github.com/stretchr/testify
+  version: 221dbe5ed46703ee255b1da0dec05086f5035f62
+  subpackages:
+  - assert
+- name: gopkg.in/yaml.v2
+  version: 53403b58ad1b561927d19068c655246f2db79d48

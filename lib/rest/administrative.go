@@ -8,7 +8,7 @@ import (
 	"runtime/debug"
 
 	"github.com/julienschmidt/httprouter"
-	"github.com/uol/gobol/logh"
+	"github.com/uol/logh"
 	"github.com/uol/gobol/rip"
 	"github.com/uol/mycenae/lib/constants"
 )

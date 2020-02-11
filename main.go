@@ -11,7 +11,7 @@ import (
 	"runtime/debug"
 	"syscall"
 
-	"github.com/uol/gobol/logh"
+	"github.com/uol/logh"
 
 	"github.com/gocql/gocql"
 	jsoniter "github.com/json-iterator/go"
@@ -82,7 +82,7 @@ func main() {
 	analyticsStats := createStatisticsService("analytics-stats", &settings.StatsAnalytic)
 	timeseriesStats := createTimeseriesStatisticsService(stats, analyticsStats, settings)
 	scyllaConn := createScyllaConnection(&settings.Cassandra)
-	memcachedConn := createMemcachedConnection(&settings.Memcached, timeseriesStats)
+	memcachedConn := createMemcachedConnection(&settings.Memcached, stats)
 	metadataStorage := createMetadataStorageService(&settings.MetadataSettings, timeseriesStats, memcachedConn)
 	scyllaStorageService, keyspaceTTLMap := createScyllaStorageService(settings, devMode, timeseriesStats, scyllaConn, metadataStorage)
 	keyspaceManager := createKeyspaceManager(settings, devMode, timeseriesStats, scyllaStorageService)
@@ -224,9 +224,9 @@ func createScyllaConnection(conf *cassandra.Settings) *gocql.Session {
 }
 
 // createMemcachedConnection - creates the memcached connection
-func createMemcachedConnection(conf *memcached.Configuration, timeseriesStats *tsstats.StatsTS) *memcached.Memcached {
+func createMemcachedConnection(conf *memcached.Configuration, stats *snitch.Stats) *memcached.Memcached {
 
-	mc, err := memcached.New(timeseriesStats, conf)
+	mc, err := memcached.New(stats, conf)
 	if err != nil {
 		if logh.FatalEnabled {
 			logger.Fatal().Err(err).Msg("error creating memcached connection")
@@ -401,7 +401,7 @@ func createCollectorService(conf *structs.Settings, timeseriesStats *tsstats.Sta
 }
 
 // createPlotService - creates the plot service
-func createPlotService(conf *structs.Settings, timeseriesStats *tsstats.StatsTS, metadataStorage *metadata.Storage, scyllaConn *gocql.Session, keyspaceTTLMap map[int]string) *plot.Plot {
+func createPlotService(conf *structs.Settings, stats *tsstats.StatsTS, metadataStorage *metadata.Storage, scyllaConn *gocql.Session, keyspaceTTLMap map[int]string) *plot.Plot {
 
 	plotService, err := plot.New(
 		scyllaConn,
@@ -412,7 +412,8 @@ func createPlotService(conf *structs.Settings, timeseriesStats *tsstats.StatsTS,
 		conf.Validation.DefaultTTL,
 		conf.DefaultPaginationSize,
 		conf.MaxBytesOnQueryProcessing,
-		timeseriesStats,
+		conf.UnlimitedQueryBytesKeysetWhiteList,
+		stats,
 	)
 
 	if err != nil {

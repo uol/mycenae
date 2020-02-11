@@ -3,7 +3,7 @@ package persistence
 import (
 	"strings"
 
-	"github.com/uol/gobol/logh"
+	"github.com/uol/logh"
 
 	"github.com/gocql/gocql"
 	"github.com/pborman/uuid"

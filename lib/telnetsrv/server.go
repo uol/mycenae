@@ -10,12 +10,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/uol/gobol/logh"
+	"github.com/uol/logh"
 
 	"github.com/uol/mycenae/lib/collector"
 	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/structs"
 	"github.com/uol/mycenae/lib/tsstats"
+	"github.com/uol/mycenae/lib/utils"
 )
 
 //
@@ -137,6 +138,13 @@ func (server *Server) Listen() error {
 
 			conn, err := server.listener.Accept()
 			if err != nil {
+				if utils.IsConnectionClosedError(err) {
+					if logh.InfoEnabled {
+						server.logger.Info().Str(constants.StringsFunc, cFuncListen).Msg("connection was closed")
+					}
+					return
+				}
+
 				if logh.ErrorEnabled {
 					server.logger.Error().Str(constants.StringsFunc, cFuncListen).Err(err).Send()
 				}

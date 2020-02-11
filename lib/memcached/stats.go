@@ -1,41 +1,44 @@
 package memcached
 
 import (
-	"github.com/uol/mycenae/lib/tsstats"
-	"time"
+	"github.com/uol/gobol/snitch"
+	"github.com/uol/logh"
+	"github.com/uol/mycenae/lib/constants"
 )
 
-var (
-	stats *tsstats.StatsTS
-)
+// MetricsCollector - implements the interface zencached.MetricsCollector
+type MetricsCollector struct {
 
-func statsError(oper string, namespace string) {
-	go statsIncrement(
-		"memcached.error",
-		map[string]string{"bucket": namespace, "operation": oper},
-	)
+	// must be replaced with timeline
+	stats *snitch.Stats
 }
 
-func statsSuccess(oper string, namespace string, d time.Duration) {
-	go statsIncrement("memcached.query", map[string]string{"bucket": namespace, "operation": oper})
-	go statsValueAdd(
-		"memcached.duration",
-		map[string]string{"bucket": namespace, "operation": oper},
-		float64(d.Nanoseconds())/float64(time.Millisecond),
-	)
+// send - unifies
+func (mc *MetricsCollector) send(operation, metric string, value float64, tags ...string) {
+
+	tagMap := map[string]string{}
+	for i := 0; i < len(tags); i += 2 {
+		tagMap[tags[i]] = tags[i+1]
+	}
+
+	go func() {
+		err := mc.stats.ValueAdd(metric, tagMap, operation, "@every 10s", false, false, value)
+		if err != nil {
+			if logh.ErrorEnabled {
+				logh.Error().Str(constants.StringsPKG, "memcached").Str(constants.StringsFunc, "Maximum").Str("metric", metric).Err(err).Send()
+			}
+		}
+	}()
 }
 
-func statsNotFound(namespace string) {
-	go statsIncrement(
-		"memcached.not_found",
-		map[string]string{"bucket": namespace},
-	)
+// Count - does the count operation
+func (mc *MetricsCollector) Count(metric string, value float64, tags ...string) {
+
+	mc.send("sum", metric, value, tags...)
 }
 
-func statsIncrement(metric string, tags map[string]string) {
-	stats.Increment("memcached/persistence", metric, tags)
-}
+// Maximum - does the max operation
+func (mc *MetricsCollector) Maximum(metric string, value float64, tags ...string) {
 
-func statsValueAdd(metric string, tags map[string]string, v float64) {
-	stats.ValueAdd("memcached/persistence", metric, tags, v)
+	mc.send("max", metric, value, tags...)
 }

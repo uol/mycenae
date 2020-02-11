@@ -7,7 +7,7 @@ import (
 
 	"github.com/gocql/gocql"
 	"github.com/uol/gobol"
-	"github.com/uol/gobol/logh"
+	"github.com/uol/logh"
 	"github.com/uol/mycenae/lib/constants"
 )
 
@@ -23,6 +23,8 @@ func (persist *persistence) GetTST(keyspace string, keys []string, start, end in
 	var err error
 	var numBytes uint32
 	idsGroup := persist.buildInGroup(keys)
+	_, unlimitedBytes := persist.unlimitedBytesKeysetWhiteList[keyset]
+	allowFullFetch = allowFullFetch || unlimitedBytes
 
 	iter := persist.cassandra.Query(
 		fmt.Sprintf(

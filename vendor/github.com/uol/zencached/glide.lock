@@ -1,0 +1,25 @@
+hash: 971b421259dab0c04c0c6873543fc4ed4362e4d02a3bbb3cc8869d2b46c0a6fd
+updated: 2020-01-29T02:27:06.173731368-03:00
+imports:
+- name: github.com/rs/zerolog
+  version: f1dd50b8c64d79be1392edf1d8fda5cedea4916d
+  subpackages:
+  - internal/cbor
+  - internal/json
+- name: github.com/uol/logh
+  version: b8eb12a00c06edc8f347883caf8c72dbbcdb895b
+testImports:
+- name: github.com/davecgh/go-spew
+  version: d8f796af33cc11cb798c1aaeb27a4ebc5099927d
+  subpackages:
+  - spew
+- name: github.com/pmezard/go-difflib
+  version: 5d4384ee4fb2527b0a1256a821ebfc92f91efefc
+  subpackages:
+  - difflib
+- name: github.com/stretchr/testify
+  version: 221dbe5ed46703ee255b1da0dec05086f5035f62
+  subpackages:
+  - assert
+- name: gopkg.in/yaml.v2
+  version: 53403b58ad1b561927d19068c655246f2db79d48
