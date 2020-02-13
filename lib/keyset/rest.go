@@ -27,12 +27,7 @@ func (ks *Manager) CreateKeyset(w http.ResponseWriter, r *http.Request, ps httpr
 
 	rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset", constants.StringsKeyset: keysetParam})
 
-	exists, gerr := ks.storage.CheckKeyset(keysetParam)
-	if gerr != nil {
-		rip.Fail(w, gerr)
-		return
-	}
-
+	exists := ks.storage.CheckKeyset(keysetParam)
 	if exists {
 		rip.Success(w, http.StatusConflict, nil)
 	} else {
@@ -50,14 +45,7 @@ func (ks *Manager) CreateKeyset(w http.ResponseWriter, r *http.Request, ps httpr
 // GetKeysets - returns all stored keysets
 func (ks *Manager) GetKeysets(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
-	keysets, gerr := ks.storage.ListKeysets()
-
-	if gerr != nil {
-		rip.AddStatsMap(r, map[string]string{"path": "/keysets"})
-		rip.Fail(w, errInternalServerError("GetKeysets", gerr))
-		return
-	}
-
+	keysets := ks.storage.ListKeysets()
 	if keysets == nil || len(keysets) == 0 {
 		rip.SuccessJSON(w, http.StatusNoContent, nil)
 	} else {
@@ -86,12 +74,7 @@ func (ks *Manager) DeleteKeyset(w http.ResponseWriter, r *http.Request, ps httpr
 
 	rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset", constants.StringsKeyset: keysetParam})
 
-	exists, gerr := ks.storage.CheckKeyset(keysetParam)
-	if gerr != nil {
-		rip.Fail(w, gerr)
-		return
-	}
-
+	exists := ks.storage.CheckKeyset(keysetParam)
 	if exists {
 		gerr := ks.storage.DeleteKeyset(keysetParam)
 		if gerr != nil {
@@ -121,18 +104,7 @@ func (ks *Manager) Check(w http.ResponseWriter, r *http.Request, ps httprouter.P
 		return
 	}
 
-	found, err := ks.storage.CheckKeyset(keyset)
-	if err != nil {
-		rip.AddStatsMap(
-			r,
-			map[string]string{
-				"path": "/keysets/#keyset",
-			},
-		)
-		rip.Fail(w, err)
-		return
-	}
-
+	found := ks.storage.CheckKeyset(keyset)
 	if !found {
 		rip.Fail(w, errNotFound(
 			"Check",

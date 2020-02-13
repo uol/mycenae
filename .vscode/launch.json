@@ -15,7 +15,7 @@
 			"host": "127.0.0.1",
 			"program": "${workspaceRoot}/main.go",
 			"env": {},
-			"args": ["-config", "./lab/config.toml"],
+			"args": ["-config", "./prod.toml"],
 			"showLog": true
 		}
 	]

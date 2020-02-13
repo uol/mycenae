@@ -38,6 +38,7 @@ type RestErrors struct {
 type Point struct {
 	Message *structs.TSDBpoint
 	ID      string
+	HashID  []byte
 	Number  bool
 }
 

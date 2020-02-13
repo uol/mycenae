@@ -28,9 +28,12 @@ type SolrBackend struct {
 	stats                       *tsstats.StatsTS
 	logger                      *logh.ContextualLogger
 	memcached                   *memcached.Memcached
-	idCacheTTL                  int32
-	queryCacheTTL               int32
-	keysetCacheTTL              int32
+	idCacheTTL                  []byte
+	noIDCache                   bool
+	queryCacheTTL               []byte
+	noQueryCache                bool
+	keysetCacheTTL              []byte
+	noKeysetCache               bool
 	fieldListQuery              string
 	zookeeperConfig             string
 	maxReturnedMetadata         int
@@ -38,6 +41,7 @@ type SolrBackend struct {
 	solrSpecialCharRegexp       *regexp.Regexp
 	solrRegexpSpecialCharRegexp *regexp.Regexp
 	cacheKeyHashSize            int
+	cachedKeysets               []string
 }
 
 // NewSolrBackend - creates a new instance
@@ -56,7 +60,7 @@ func NewSolrBackend(settings *Settings, stats *tsstats.StatsTS, memcached *memca
 		blacklistedKeysetMap[value] = true
 	}
 
-	return &SolrBackend{
+	sb := &SolrBackend{
 		solrService:                 ss,
 		stats:                       stats,
 		logger:                      logh.CreateContextualLogger(constants.StringsPKG, "metadata"),
@@ -64,9 +68,12 @@ func NewSolrBackend(settings *Settings, stats *tsstats.StatsTS, memcached *memca
 		numShards:                   settings.NumShards,
 		regexPattern:                rp,
 		memcached:                   memcached,
-		idCacheTTL:                  settings.IDCacheTTL,
-		queryCacheTTL:               settings.QueryCacheTTL,
-		keysetCacheTTL:              settings.KeysetCacheTTL,
+		idCacheTTL:                  []byte(strconv.Itoa(settings.IDCacheTTL)),
+		noIDCache:                   settings.IDCacheTTL < 0,
+		queryCacheTTL:               []byte(strconv.Itoa(settings.QueryCacheTTL)),
+		noQueryCache:                settings.QueryCacheTTL < 0,
+		keysetCacheTTL:              []byte(strconv.Itoa(settings.KeysetCacheTTL)),
+		noKeysetCache:               settings.KeysetCacheTTL < 0,
 		fieldListQuery:              fmt.Sprintf("*,[child parentFilter=parent_doc:true limit=%d]", settings.MaxReturnedMetadata),
 		zookeeperConfig:             settings.ZookeeperConfig,
 		maxReturnedMetadata:         settings.MaxReturnedMetadata,
@@ -74,7 +81,12 @@ func NewSolrBackend(settings *Settings, stats *tsstats.StatsTS, memcached *memca
 		solrSpecialCharRegexp:       regexp.MustCompile(`(\+|\-|\&|\||\!|\(|\)|\{|\}|\[|\]|\^|"|\~|\*|\?|\:|\/|\\)`),
 		solrRegexpSpecialCharRegexp: regexp.MustCompile(`(\/)`),
 		cacheKeyHashSize:            settings.CacheKeyHashSize,
-	}, nil
+	}
+
+	sb.cacheKeysets()
+	sb.autoUpdateCachedKeysets()
+
+	return sb, nil
 }
 
 // removeRegexpSlashes - removes all regular expression slashes
@@ -574,7 +586,7 @@ func (sb *SolrBackend) AddDocument(collection string, metadata *Metadata) gobol.
 		return errInternalServer("AddDocument", err)
 	}
 
-	go sb.cacheID(collection, metadata.MetaType, metadata.ID)
+	go sb.cacheID(collection, metadata.MetaType, metadata.ID, []byte(metadata.ID))
 
 	sb.statsCollectionAction(collection, "add_documents", "solr.collection", time.Since(start))
 
@@ -582,9 +594,9 @@ func (sb *SolrBackend) AddDocument(collection string, metadata *Metadata) gobol.
 }
 
 // CheckMetadata - verifies if a metadata exists
-func (sb *SolrBackend) CheckMetadata(collection, tsType, tsid string) (bool, gobol.Error) {
+func (sb *SolrBackend) CheckMetadata(collection, tsType, tsid string, tsidBytes []byte) (bool, gobol.Error) {
 
-	isCached, err := sb.isIDCached(collection, tsType, tsid)
+	isCached, err := sb.isIDCached(collection, tsType, tsid, tsidBytes)
 	if err != nil {
 		return false, errInternalServer("CheckMetadata", err)
 	}
@@ -606,7 +618,7 @@ func (sb *SolrBackend) CheckMetadata(collection, tsType, tsid string) (bool, gob
 	sb.statsCollectionAction(collection, "check_metadata", "solr.collection", time.Since(start))
 
 	if r.Results.NumFound > 0 {
-		go sb.cacheID(collection, tsType, tsid)
+		go sb.cacheID(collection, tsType, tsid, tsidBytes)
 		return true, nil
 	}
 
@@ -636,7 +648,7 @@ func (sb *SolrBackend) DeleteDocumentByID(collection, tsType, id string) gobol.E
 // DeleteCachedIDifExist - check if ID is cached and delete it
 func (sb *SolrBackend) DeleteCachedIDifExist(collection, tsType, id string) gobol.Error {
 
-	isCached, err := sb.isIDCached(collection, tsType, id)
+	isCached, err := sb.isIDCached(collection, tsType, id, []byte(id))
 	if err != nil {
 		if logh.ErrorEnabled {
 			sb.log(sb.logger.Error(), "DeleteCachedIDifExist", collection).Err(err).Msg("error getting tsid from the cache")

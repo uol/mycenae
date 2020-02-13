@@ -80,7 +80,7 @@ EnableAutoKeyspaceCreation = false
   readBuffer = 1048576
 
 [HTTPserver]
-  port = 8080
+  port = 80
   bind = "0.0.0.0"
   EnableProfiling = false
   ForceErrorAsDebug = true
@@ -163,7 +163,7 @@ EnableAutoKeyspaceCreation = false
     ttl = "365"
     ksid = "pdeng_analytics"
 
-[metadataSettings]
+[metadataSettings] 
   numShards = 4
   replicationFactor = 1
   url = "http://10.128.7.28:8983/solr"
@@ -176,17 +176,20 @@ EnableAutoKeyspaceCreation = false
   CacheKeyHashSize = 16
 
 [memcached]
-  # the nodes
-  Nodes = ["10.128.5.92:11211","10.128.5.93:11211","10.128.5.94:11211","10.128.5.95:11211"]
-	
+  # the memcached node list
+  Nodes =  ["182.168.0.4:11211","182.168.0.3:11211","182.168.0.2:11211"]
+
   # the number of idle connections per host
-  NumConnectionsPerNode = 10
-  
+  NumConnectionsPerNode = 8
+
   # the time duration between connection retries
   ReconnectionTimeout = "1s"
 
-  # the max time duration to wait a read or write operation
-  ReadWriteTimeout = "3s"
+  # the max time duration to wait a write operation
+  MaxWriteTimeout = "3s"
+
+  # the max time duration to wait a read operation
+  MaxReadTimeout = "120s"
 
   # the maximum number of write retries
   MaxWriteRetries = 3
@@ -200,4 +203,4 @@ EnableAutoKeyspaceCreation = false
   propertyRegexp   = "^[0-9A-Za-z-\\._\\%\\&\\#\\;\\/]+$"
   keysetNameRegexp = "^[a-z_]{1}[a-z0-9_\\-]+[a-z0-9]{1}$"
   defaultTTL       = 1
-  MaxPropertySize  = 64
+  MaxPropertySize  = 256

@@ -269,18 +269,7 @@ func (nh *NetdataHandler) Handle(line string) {
 					Value: tagMatches[i][2],
 				}
 
-				dup := false
-				for i, k := range point.Tags {
-					if k.Name == tag.Name {
-						point.Tags[i].Value = tag.Value
-						dup = true
-						break
-					}
-				}
-
-				if !dup {
-					point.Tags = append(point.Tags, tag)
-				}
+				point.Tags = append(point.Tags, tag)
 			}
 		}
 	}

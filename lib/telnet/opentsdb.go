@@ -158,18 +158,15 @@ func (otsdbh *OpenTSDBHandler) Handle(line string) {
 			Value: tagMatches[i][2],
 		}
 
-		dup := false
-		for i, k := range point.Tags {
-			if k.Name == tag.Name {
-				point.Tags[i].Value = tag.Value
-				dup = true
-				break
-			}
-		}
+		point.Tags = append(point.Tags, tag)
+	}
 
-		if !dup {
-			point.Tags = append(point.Tags, tag)
+	gerr = otsdbh.validationService.ValidateTags(&point)
+	if gerr != nil {
+		if !otsdbh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
+			otsdbh.logger.Error().Err(gerr).Msgf("tags validation failure: %s", line)
 		}
+		return
 	}
 
 	if !ksidFound {

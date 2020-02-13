@@ -1,12 +1,13 @@
 package validation
 
 import (
+	"strings"
+
 	"github.com/buger/jsonparser"
 	"github.com/uol/gobol"
 	"github.com/uol/logh"
 	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/structs"
-	"strings"
 )
 
 const (
@@ -175,18 +176,7 @@ func (v *Service) ParsePoint(function string, isNumber bool, data []byte) (*stru
 			}
 		}
 
-		dup := false
-		for i, k := range p.Tags {
-			if k.Name == tag.Name {
-				p.Tags[i].Value = tag.Value
-				dup = true
-				break
-			}
-		}
-
-		if !dup {
-			p.Tags = append(p.Tags, tag)
-		}
+		p.Tags = append(p.Tags, tag)
 
 		return nil
 

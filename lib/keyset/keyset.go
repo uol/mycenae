@@ -59,7 +59,7 @@ func (ks *Manager) Delete(keyset string) gobol.Error {
 }
 
 // CheckKeyset - checks if keyset exists
-func (ks *Manager) CheckKeyset(keyset string) (bool, gobol.Error) {
+func (ks *Manager) CheckKeyset(keyset string) bool {
 
 	return ks.storage.CheckKeyset(keyset)
 }

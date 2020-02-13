@@ -1,13 +1,13 @@
 package memcached
 
 import (
+	"bytes"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/uol/gobol/snitch"
-	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/zencached"
 )
 
@@ -103,11 +103,11 @@ func New(stats *snitch.Stats, configuration *Configuration) (*Memcached, error) 
 		},
 	}
 
-	mc := &MetricsCollector{
-		stats: stats,
-	}
+	// mc := &MetricsCollector{
+	// 	stats: stats,
+	// }
 
-	zc, err := zencached.New(zConf, mc)
+	zc, err := zencached.New(zConf, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -118,32 +118,39 @@ func New(stats *snitch.Stats, configuration *Configuration) (*Memcached, error) 
 }
 
 // fqn - builds a new fully qualified name using the specified strings
-func (mc *Memcached) fqn(namespace string, fqnKeys ...string) (string, error) {
+func (mc *Memcached) fqn(namespace []byte, fqnKeys ...string) ([]byte, error) {
 
 	if fqnKeys == nil || len(fqnKeys) == 0 {
-		return constants.StringsEmpty, fmt.Errorf("no fqn composition keys found")
+		return nil, fmt.Errorf("no fqn composition keys found")
 	}
 
-	result := namespace + constants.StringsBar
-
-	for _, item := range fqnKeys {
-		result += item
-		result += constants.StringsBar
+	keysLen := 0
+	for _, key := range fqnKeys {
+		keysLen += len(key) + 1
 	}
 
-	return result, nil
+	buffer := bytes.Buffer{}
+	buffer.Grow(len(namespace) + 1 + keysLen)
+	buffer.Write(namespace)
+	buffer.WriteByte('/')
+	for _, key := range fqnKeys {
+		buffer.WriteString(key)
+		buffer.WriteByte('/')
+	}
+
+	return buffer.Bytes(), nil
 }
 
 // Get - returns an object from the cache
-func (mc *Memcached) Get(router []byte, namespace string, fqnKeys ...string) (string, error) {
+func (mc *Memcached) Get(router, namespace []byte, fqnKeys ...string) ([]byte, bool, error) {
 
 	fqn, err := mc.fqn(namespace, fqnKeys...)
 
 	if err != nil {
-		return constants.StringsEmpty, err
+		return nil, false, err
 	}
 
-	var item string
+	var item []byte
 	var exists bool
 	if mc.isClusterRouter(router) {
 		item, exists, err = mc.client.ClusterGet(fqn)
@@ -152,18 +159,14 @@ func (mc *Memcached) Get(router []byte, namespace string, fqnKeys ...string) (st
 	}
 
 	if err != nil {
-		return constants.StringsEmpty, err
+		return nil, false, err
 	}
 
-	if !exists {
-		return constants.StringsEmpty, nil
-	}
-
-	return item, nil
+	return item, exists, nil
 }
 
 // Put - puts an object in the cache
-func (mc *Memcached) Put(router []byte, value string, ttl uint16, namespace string, fqnKeys ...string) error {
+func (mc *Memcached) Put(router, value, ttl, namespace []byte, fqnKeys ...string) error {
 
 	fqn, err := mc.fqn(namespace, fqnKeys...)
 	if err != nil {
@@ -189,7 +192,7 @@ func (mc *Memcached) Put(router []byte, value string, ttl uint16, namespace stri
 }
 
 // Delete - deletes an object from the cache
-func (mc *Memcached) Delete(router []byte, namespace string, fqnKeys ...string) error {
+func (mc *Memcached) Delete(router, namespace []byte, fqnKeys ...string) error {
 
 	fqn, err := mc.fqn(namespace, fqnKeys...)
 
