@@ -277,9 +277,9 @@ func TestUDPv2PayloadsWithSameMetricTagsTimestampTwoEqualTags(t *testing.T) {
 	mycenaeTools.UDP.SendString(payload2)
 	time.Sleep(tools.Sleep2)
 
-	assertMycenae(t, ksMycenae, timestamp, timestamp, float32(value2), hashID)
+	assertMycenaeEmpty(t, ksMycenae, timestamp, timestamp, hashID)
 
-	assertElastic(t, ksMycenae, metric, tags, hashID)
+	assertElasticEmpty(t, ksMycenae, metric, tags, hashID)
 }
 
 func TestUDPv2PayloadWithStringValue(t *testing.T) {

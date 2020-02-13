@@ -346,15 +346,15 @@ func TestRESTv2PayloadsWithSameMetricTagsTimestampTwoEqualTags(t *testing.T) {
 	hashID := tools.GetHashFromMetricAndTags(metric, tags)
 
 	statusCode, _ := mycenaeTools.HTTP.POSTstring("api/put", payload1)
-	assert.Equal(t, http.StatusNoContent, statusCode)
+	assert.Equal(t, http.StatusBadRequest, statusCode)
 
 	statusCode, _ = mycenaeTools.HTTP.POSTstring("api/put", payload2)
-	assert.Equal(t, http.StatusNoContent, statusCode)
+	assert.Equal(t, http.StatusBadRequest, statusCode)
 	time.Sleep(tools.Sleep3)
 
-	assertMycenae(t, ksMycenae, timestamp, timestamp, float32(value2), hashID)
+	assertMycenaeEmpty(t, ksMycenae, timestamp, timestamp, hashID)
 
-	assertElastic(t, ksMycenae, metric, tags, hashID)
+	assertElasticEmpty(t, ksMycenae, metric, tags, hashID)
 }
 
 func TestRESTv2PayloadWithStringValue(t *testing.T) {
