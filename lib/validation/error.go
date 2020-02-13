@@ -47,6 +47,7 @@ var (
 	errTextTypeExpected    = errSimpleBadRequest("ValidateType", `Wrong Format: Field "text" is required.`)
 	errMaxTextValueSize    = errSimpleBadRequest("ValidateType", `Wrong Format: Field "text" has exceeded the maximum number of characters allowed`)
 	errNoTags              = errSimpleBadRequest("ValidateTags", `Wrong Format: At least one tag is required.`)
+	errDuplicatedTags      = errSimpleBadRequest("ValidateTags", `Wrong Format: Duplicated tags.`)
 	errNoUserTags          = errSimpleBadRequest("ValidateTags", `Wrong Format: At least one tag other than "ksid" and "ttl" is required.`)
 	errNoKeysetTag         = errSimpleBadRequest("ValidateKeyset", `Wrong Format: Tag "ksid" is required.`)
 	errInvalidKeysetFormat = errSimpleBadRequest("ValidateKeyset", `Wrong Format: Field "ksid" has a invalid format.`)

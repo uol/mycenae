@@ -1,6 +1,7 @@
 package zencached_test
 
 import (
+	"bytes"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -51,8 +52,8 @@ func createTelnetConf() *zencached.TelnetConfiguration {
 
 	return &zencached.TelnetConfiguration{
 		ReconnectionTimeout: 1 * time.Second,
-		MaxWriteTimeout:     30 * time.Second,
-		MaxReadTimeout:      10 * time.Second,
+		MaxWriteTimeout:     5 * time.Second,
+		MaxReadTimeout:      5 * time.Second,
 		MaxWriteRetries:     3,
 		ReadBufferSize:      2048,
 	}
@@ -93,7 +94,7 @@ func TestInfoCommand(t *testing.T) {
 
 	defer telnet.Close()
 
-	err := telnet.Send("stats\r\n")
+	err := telnet.Send([]byte("stats\r\n"))
 	if !assert.NoError(t, err, "error sending command") {
 		return
 	}
@@ -103,14 +104,7 @@ func TestInfoCommand(t *testing.T) {
 		return
 	}
 
-	found := false
-	for _, line := range payload {
-		if regexp.MustCompile("STAT version [0-9\\.]+").MatchString(string(line)) {
-			found = true
-		}
-	}
-
-	assert.True(t, found, "version not found")
+	assert.True(t, regexp.MustCompile("STAT version [0-9\\.]+").MatchString(string(payload)), "version not found")
 }
 
 // TestInsertCommand - tests a simple insert command
@@ -120,7 +114,7 @@ func TestInsertCommand(t *testing.T) {
 
 	defer telnet.Close()
 
-	err := telnet.Send("add gotest 0 10 5\r\n", "value\r\n")
+	err := telnet.Send([]byte("add gotest 0 10 4\r\ntest\r\n"))
 	if !assert.NoError(t, err, "error sending set command") {
 		return
 	}
@@ -130,9 +124,9 @@ func TestInsertCommand(t *testing.T) {
 		return
 	}
 
-	assert.True(t, strings.Contains(string(payload[0]), "STORED"), "expected \"STORED\" as answer")
+	assert.True(t, bytes.Contains(payload, []byte("STORED")), "expected \"STORED\" as answer")
 
-	err = telnet.Send("get gotest\r\n")
+	err = telnet.Send([]byte("get gotest\r\n"))
 	if !assert.NoError(t, err, "error sending get command") {
 		return
 	}
@@ -142,7 +136,5 @@ func TestInsertCommand(t *testing.T) {
 		return
 	}
 
-	stored := string(payload[1])
-
-	assert.Equalf(t, "value", stored, "expected \"value\" to be stored")
+	assert.True(t, bytes.Contains(payload, []byte("test")), "expected \"test\" to be stored")
 }

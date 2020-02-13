@@ -346,18 +346,12 @@ func createKeysetManager(conf *structs.Settings, timeseriesStats *tsstats.StatsT
 	}
 
 	for _, v := range conf.DefaultKeysets {
-		exists, err := metadataStorage.CheckKeyset(v)
-		if err != nil {
-			if logh.FatalEnabled {
-				logger.Fatal().Err(err).Msgf("error checking keyset '%s' existence", v)
-			}
-			os.Exit(1)
-		}
+		exists := metadataStorage.CheckKeyset(v)
 		if !exists {
 			if logh.InfoEnabled {
 				logger.Info().Msgf("creating default keyset '%s'", v)
 			}
-			err = keyset.Create(v)
+			err := keyset.Create(v)
 			if err != nil {
 				if logh.FatalEnabled {
 					logger.Fatal().Err(err).Msgf("error creating keyset '%s'", v)

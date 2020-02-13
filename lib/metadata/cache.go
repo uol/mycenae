@@ -4,11 +4,12 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strings"
+	"time"
 
 	jsoniter "github.com/json-iterator/go"
+	"github.com/uol/gobol/logh"
 	"github.com/uol/hashing"
 	"github.com/uol/mycenae/lib/constants"
-	"github.com/uol/mycenae/lib/memcached"
 )
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
@@ -17,31 +18,34 @@ var json = jsoniter.ConfigCompatibleWithStandardLibrary
 // @author rnojiri
 
 const (
-	idNamespace     string = "tsid"
-	facetsNamespace string = "fac"
-	keysetMapID     string = "map"
-	cEmptyArray     string = "[]"
+	cEmptyArray string = "[]"
+)
+
+var (
+	idNamespace     []byte = []byte("tsid")
+	facetsNamespace []byte = []byte("fac")
+	tsidOK          []byte = []byte("1")
 )
 
 // isIDCached - checks if a document id is cached
-func (sb *SolrBackend) isIDCached(collection, tsType, tsid string) (bool, error) {
+func (sb *SolrBackend) isIDCached(collection, tsType string, tsid string, tsidBytes []byte) (bool, error) {
 
-	r, err := sb.memcached.Get([]byte(tsid), idNamespace, collection, tsType, tsid)
+	_, exists, err := sb.memcached.Get(tsidBytes, idNamespace, collection, tsType, tsid)
 	if err != nil {
 		return false, err
 	}
 
-	return len(r) > 0, nil
+	return exists, nil
 }
 
 // cacheID - caches an ID
-func (sb *SolrBackend) cacheID(collection, tsType, tsid string) error {
+func (sb *SolrBackend) cacheID(collection, tsType, tsid string, tsidBytes []byte) error {
 
-	if sb.idCacheTTL < 0 {
+	if sb.noIDCache {
 		return nil
 	}
 
-	err := sb.memcached.Put([]byte(tsid), tsid, uint16(sb.idCacheTTL), idNamespace, collection, tsType, tsid)
+	err := sb.memcached.Put(tsidBytes, tsidOK, sb.idCacheTTL, idNamespace, collection, tsType, tsid)
 	if err != nil {
 		return err
 	}
@@ -60,50 +64,56 @@ func (sb *SolrBackend) deleteCachedID(collection, tsType, tsid string) error {
 	return nil
 }
 
+// autoUpdateCachedKeysets - automatic updates the cached keysets
+func (sb *SolrBackend) autoUpdateCachedKeysets() {
+
+	go func() {
+		for {
+			<-time.After(5 * time.Minute)
+
+			if logh.InfoEnabled {
+				sb.logger.Info().Msg("running cached keysets auto update")
+			}
+
+			sb.cacheKeysets()
+		}
+	}()
+}
+
 // getCachedKeysets - return the keysets
-func (sb *SolrBackend) getCachedKeysets() ([]string, error) {
+func (sb *SolrBackend) getCachedKeysets() []string {
 
-	data, gerr := sb.memcached.Get(memcached.ClusterRouter, constants.StringsKSID, keysetMapID)
-	if gerr != nil {
-		return nil, gerr
-	}
-
-	if len(data) > 0 {
-		return strings.Split(string(data), constants.StringsWhitespace), nil
-	}
-
-	return nil, nil
+	return sb.cachedKeysets
 }
 
 // cacheKeysets - caches the keyset map
-func (sb *SolrBackend) cacheKeysets(keysets []string) error {
+func (sb *SolrBackend) cacheKeysets() {
 
-	if keysets == nil || len(keysets) == 0 {
-		return nil
+	if logh.InfoEnabled {
+		sb.logger.Info().Msg("updating cached keysets")
 	}
 
-	if sb.keysetCacheTTL < 0 {
-		return nil
+	keysets, err := sb.solrService.ListCollections()
+	if err != nil {
+		if logh.ErrorEnabled {
+			sb.logger.Error().Err(err).Send()
+		}
 	}
 
-	value := strings.Trim(fmt.Sprint(keysets), cEmptyArray)
-	gerr := sb.memcached.Put(memcached.ClusterRouter, value, uint16(sb.keysetCacheTTL), constants.StringsKSID, keysetMapID)
-	if gerr != nil {
-		return gerr
+	filteredKeysets := []string{}
+	for i := 0; i < len(keysets); i++ {
+		if _, ok := sb.blacklistedKeysetMap[keysets[i]]; !ok {
+			filteredKeysets = append(filteredKeysets, keysets[i])
+		}
 	}
 
-	return nil
+	sb.cachedKeysets = filteredKeysets
 }
 
 // deleteKeysetMap - deletes the cached keyset map
-func (sb *SolrBackend) deleteCachedKeysets() error {
+func (sb *SolrBackend) deleteCachedKeysets() {
 
-	gerr := sb.memcached.Delete(memcached.ClusterRouter, constants.StringsKSID, keysetMapID)
-	if gerr != nil {
-		return gerr
-	}
-
-	return nil
+	sb.cacheKeysets()
 }
 
 // hash - creates a new hash from a given string
@@ -123,12 +133,12 @@ func (sb *SolrBackend) getCachedFacets(collection, query string) ([]string, erro
 		return nil, gerr
 	}
 
-	data, gerr := sb.memcached.Get(hash, facetsNamespace, collection, hex.EncodeToString(hash))
+	data, exists, gerr := sb.memcached.Get(hash, facetsNamespace, collection, hex.EncodeToString(hash))
 	if gerr != nil {
 		return nil, gerr
 	}
 
-	if len(data) > 0 {
+	if exists {
 		return strings.Split(string(data), constants.StringsWhitespace), nil
 	}
 
@@ -138,7 +148,7 @@ func (sb *SolrBackend) getCachedFacets(collection, query string) ([]string, erro
 // cacheFacets - caches the facets
 func (sb *SolrBackend) cacheFacets(facets []string, collection, query string) error {
 
-	if sb.queryCacheTTL < 0 {
+	if sb.noQueryCache {
 		return nil
 	}
 
@@ -152,7 +162,7 @@ func (sb *SolrBackend) cacheFacets(facets []string, collection, query string) er
 	}
 
 	value := strings.Trim(fmt.Sprint(facets), cEmptyArray)
-	gerr = sb.memcached.Put(hash, value, uint16(sb.queryCacheTTL), facetsNamespace, collection, hex.EncodeToString(hash))
+	gerr = sb.memcached.Put(hash, []byte(value), sb.queryCacheTTL, facetsNamespace, collection, hex.EncodeToString(hash))
 	if gerr != nil {
 		return gerr
 	}

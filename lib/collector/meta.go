@@ -18,9 +18,9 @@ func (collect *Collector) saveMeta(packet *Point) gobol.Error {
 	var gerr gobol.Error
 
 	if packet.Number {
-		found, gerr = collect.CheckMetadata(packet.Message.Keyset, cMetaTypeNumber, packet.ID)
+		found, gerr = collect.CheckMetadata(packet.Message.Keyset, cMetaTypeNumber, packet.ID, packet.HashID)
 	} else {
-		found, gerr = collect.CheckMetadata(packet.Message.Keyset, cMetaTypeText, packet.ID)
+		found, gerr = collect.CheckMetadata(packet.Message.Keyset, cMetaTypeText, packet.ID, packet.HashID)
 	}
 
 	if gerr != nil {

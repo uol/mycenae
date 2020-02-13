@@ -232,11 +232,7 @@ func (plot *Plot) expressionParse(w http.ResponseWriter, expQuery ExpParse) {
 			return
 		}
 
-		found, gerr := plot.persist.metaStorage.CheckKeyset(expQuery.Keyset)
-		if gerr != nil {
-			rip.Fail(w, gerr)
-			return
-		}
+		found := plot.persist.metaStorage.CheckKeyset(expQuery.Keyset)
 		if !found {
 			gerr := errValidationS("expressionParse", `ksid not found`)
 			rip.Fail(w, gerr)
@@ -361,11 +357,7 @@ func (plot *Plot) expressionExpand(w http.ResponseWriter, keyset string, expQuer
 		return
 	}
 
-	found, gerr := plot.persist.metaStorage.CheckKeyset(keyset)
-	if gerr != nil {
-		rip.Fail(w, gerr)
-		return
-	}
+	found := plot.persist.metaStorage.CheckKeyset(keyset)
 	if !found {
 		gerr := errNotFound("expressionExpand")
 		rip.Fail(w, gerr)

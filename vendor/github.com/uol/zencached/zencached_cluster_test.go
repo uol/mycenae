@@ -1,7 +1,7 @@
 package zencached_test
 
 import (
-	"strings"
+	"bytes"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,13 +11,13 @@ import (
 // TestClusterStorageCommand - tests the cluster storage command
 func TestClusterStorageCommand(t *testing.T) {
 
-	key := "cluster-storage"
-	value := "cluster-value-storage"
+	key := []byte("cluster-storage")
+	value := []byte("cluster-value-storage")
 
 	z := createZencached(nil)
 	defer z.Shutdown()
 
-	stored, errors := z.ClusterStorage(zencached.Set, key, value, 60)
+	stored, errors := z.ClusterStorage(zencached.Set, key, value, defaultTTL)
 
 	if !assert.Len(t, stored, numNodes, "wrong number of nodes") {
 		return
@@ -35,17 +35,17 @@ func TestClusterStorageCommand(t *testing.T) {
 		telnetConn := z.GetTelnetConnByNodeIndex(i)
 		defer z.ReturnTelnetConnection(telnetConn, i)
 
-		err := telnetConn.Send("get " + key + "\r\n")
+		err := telnetConn.Send([]byte("get " + string(key) + "\r\n"))
 		if err != nil {
 			panic(err)
 		}
 
-		readedBytes, err := telnetConn.Read([][]byte{[]byte("END")})
+		response, err := telnetConn.Read([][]byte{[]byte("END")})
 		if err != nil {
 			panic(err)
 		}
 
-		if !assert.Truef(t, strings.Contains(string(readedBytes[1]), value), "expected value to be stored on node: %d", i) {
+		if !assert.Truef(t, bytes.Contains(response, value), "expected value to be stored on node: %d", i) {
 			return
 		}
 	}
@@ -69,6 +69,9 @@ func TestClusterGetCommand(t *testing.T) {
 	key := "cluster-get"
 	value := "cluster-value-get"
 
+	keyB := []byte(key)
+	valueB := []byte(value)
+
 	z := createZencached(nil)
 	defer z.Shutdown()
 
@@ -76,7 +79,7 @@ func TestClusterGetCommand(t *testing.T) {
 
 	for i := 0; i < 1000; i++ {
 
-		storedValue, stored, err := z.ClusterGet(key)
+		storedValue, stored, err := z.ClusterGet(keyB)
 
 		if !assert.NoErrorf(t, err, "unexpected error on tentative: %d", i) {
 			return
@@ -86,7 +89,7 @@ func TestClusterGetCommand(t *testing.T) {
 			return
 		}
 
-		if !assert.Equalf(t, value, storedValue, "expected the same value stored", i) {
+		if !assert.Equalf(t, valueB, storedValue, "expected the same value stored", i) {
 			return
 		}
 	}
@@ -98,12 +101,14 @@ func TestClusterDeleteCommand(t *testing.T) {
 	key := "cluster-delete"
 	value := "cluster-value-delete"
 
+	keyB := []byte(key)
+
 	z := createZencached(nil)
 	defer z.Shutdown()
 
 	rawSetKeyOnAllNodes(z, key, value)
 
-	stored, errors := z.ClusterDelete(key)
+	stored, errors := z.ClusterDelete(keyB)
 
 	if !assert.Len(t, stored, numNodes, "wrong number of nodes") {
 		return
@@ -121,17 +126,17 @@ func TestClusterDeleteCommand(t *testing.T) {
 		telnetConn := z.GetTelnetConnByNodeIndex(i)
 		defer z.ReturnTelnetConnection(telnetConn, i)
 
-		err := telnetConn.Send("get " + key + "\r\n")
+		err := telnetConn.Send([]byte("get " + key + "\r\n"))
 		if err != nil {
 			panic(err)
 		}
 
-		readedBytes, err := telnetConn.Read([][]byte{[]byte("END")})
+		response, err := telnetConn.Read([][]byte{[]byte("END")})
 		if err != nil {
 			panic(err)
 		}
 
-		if !assert.Equalf(t, "END", string(readedBytes[0]), "found a value stored on node: %d", i) {
+		if !assert.Truef(t, bytes.Contains(response, []byte("END")), "found a value stored on node: %d", i) {
 			return
 		}
 	}

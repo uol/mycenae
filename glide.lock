@@ -1,5 +1,5 @@
-hash: 57212b89f0c4882dc86d9dacde4b016fe7a0d7e02aeb2695641d154c13595794
-updated: 2020-02-11T16:44:55.2840866-03:00
+hash: 04205d3e872d6b591697eb377ad2967d62602f997f363f1d998aab4bd5e3e8ea
+updated: 2020-02-13T17:15:52.520438399-03:00
 imports:
 - name: github.com/buger/jsonparser
   version: 1a29609e0929ccd5666069e2e7213c2c69fa4ac2
@@ -18,7 +18,7 @@ imports:
 - name: github.com/hailocab/go-hostpool
   version: e80d13ce29ede4452c43dea11e79b9bc8a15b478
 - name: github.com/json-iterator/go
-  version: acfec88f7a0d5140ace3dcdbee10184e3684a9e1
+  version: 7acbb404a45be33f136d6f16fe8f86ca30f1008d
 - name: github.com/julienschmidt/httprouter
   version: 348b672cd90d8190f8240323e372ecd1e66b59dc
 - name: github.com/modern-go/concurrent
@@ -54,7 +54,7 @@ imports:
 - name: github.com/uol/logh
   version: 04611a676395e92babe6a4e3f5d0aa517ec0b0d5
 - name: github.com/uol/zencached
-  version: 8077d2b7e53ea3989976041af4198c00813affd8
+  version: 5e50e73337cc89241c07dde993abfc9d733e04fa
 - name: golang.org/x/crypto
   version: 86ce3cb696783b739e41e834e2eead3e1b4aa3fb
   subpackages:
@@ -64,7 +64,7 @@ imports:
   subpackages:
   - context
 - name: golang.org/x/sys
-  version: d101bd2416d505c0448a6ce8a282482678040a89
+  version: 12a6c2dcc1e4cb348b57847c73987099e261714b
   subpackages:
   - cpu
 - name: gopkg.in/inf.v0

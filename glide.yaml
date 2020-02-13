@@ -16,6 +16,13 @@ import:
 - package: golang.org/x/net
   subpackages:
   - context
+- package: golang.org/x/crypto
+  subpackages:
+  - sha3
+- package: golang.org/x/sys
+  subpackages:
+  - cpu
+- package: gopkg.in/inf.v0
 - package: gopkg.in/robfig/cron.v2
   version: ~v1.0.0
 - package: github.com/uol/go-solr
@@ -33,9 +40,8 @@ import:
   version: ~1.1.1
 - package: github.com/hailocab/go-hostpool
 - package: github.com/uol/zencached
-  version: ~1.2.2
+  version: ~1.3.1
 - package: github.com/json-iterator/go
-  version: ~1.1.9
 - package: github.com/uol/logh
   version: ~1.0.1
 - package: github.com/uol/hashing

@@ -17,10 +17,10 @@ type Backend interface {
 	DeleteKeyset(name string) gobol.Error
 
 	// ListKeyset - list all keyset
-	ListKeysets() ([]string, gobol.Error)
+	ListKeysets() []string
 
 	// CheckKeyset - verifies if a keyset exists
-	CheckKeyset(keyset string) (bool, gobol.Error)
+	CheckKeyset(keyset string) bool
 
 	// FilterTagValues - filter tag values from a collection
 	FilterTagValues(collection, prefix string, maxResults int) ([]string, int, gobol.Error)
@@ -39,7 +39,7 @@ type Backend interface {
 	AddDocument(collection string, metadata *Metadata) gobol.Error
 
 	// CheckMetadata - verifies if a metadata exists
-	CheckMetadata(collection, tsType, tsid string) (bool, gobol.Error)
+	CheckMetadata(collection, tsType, tsid string, tsidBytes []byte) (bool, gobol.Error)
 
 	// SetRegexValue - add slashes to the value
 	SetRegexValue(value string) string
@@ -70,9 +70,9 @@ type Settings struct {
 	NumShards           int
 	ReplicationFactor   int
 	URL                 string
-	IDCacheTTL          int32
-	QueryCacheTTL       int32
-	KeysetCacheTTL      int32
+	IDCacheTTL          int
+	QueryCacheTTL       int
+	KeysetCacheTTL      int
 	MaxReturnedMetadata int
 	ZookeeperConfig     string
 	BlacklistedKeysets  []string

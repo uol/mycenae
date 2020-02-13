@@ -17,6 +17,7 @@ import (
 //
 
 var numNodes int
+var defaultTTL []byte = []byte("60")
 
 // createZencached - creates a new client
 func createZencached(metricsCollector zencached.MetricsCollector) *zencached.Zencached {
@@ -51,7 +52,7 @@ func TestRouting(t *testing.T) {
 
 	f := func(key []byte, expected int) bool {
 
-		tconn, index := z.GetTelnetConnection(key, string(key))
+		tconn, index := z.GetTelnetConnection(key, key)
 		if !assert.Equalf(t, expected, index, "expected index %d", expected) {
 			return false
 		}
@@ -89,8 +90,8 @@ func TestNodePool(t *testing.T) {
 	f := func(minExpectedWait, maxExpectedWait time.Duration, testNumber int) {
 
 		start := time.Now()
-		tconn, index := z.GetTelnetConnection([]byte{44, 11, 89, 4}, "")
-		fmt.Println(tconn)
+		tconn, index := z.GetTelnetConnection([]byte{44, 11, 89, 4}, nil)
+
 		totalDuration := time.Since(start)
 
 		assert.Truef(t, totalDuration.Milliseconds() >= minExpectedWait.Milliseconds() && totalDuration.Milliseconds() < maxExpectedWait.Milliseconds(), "wrong duration for test %d: %d", testNumber, totalDuration.Milliseconds())
@@ -114,7 +115,7 @@ func TestAddCommand(t *testing.T) {
 
 	f := func(route []byte, key, value string, expectedStored bool, testIndex int) {
 
-		stored, err := z.Storage(zencached.Add, route, key, value, 60)
+		stored, err := z.Storage(zencached.Add, route, []byte(key), []byte(value), defaultTTL)
 		if err != nil {
 			panic(err)
 		}
@@ -138,7 +139,7 @@ func TestAddCommand(t *testing.T) {
 // rawSetKey - sets a key on memcached using raw command
 func rawSetKey(telnetConn *zencached.Telnet, key, value string) {
 
-	err := telnetConn.Send(fmt.Sprintf("set %s 0 %d %d\r\n", key, 60, len(value)), fmt.Sprintf("%s\r\n", value))
+	err := telnetConn.Send([]byte(fmt.Sprintf("set %s 0 %d %d\r\n%s\r\n", key, 60, len(value), value)))
 	if err != nil {
 		panic(err)
 	}
@@ -157,12 +158,12 @@ func TestGetCommand(t *testing.T) {
 
 	f := func(route []byte, key, value string, testIndex int) {
 
-		telnetConn, index := z.GetTelnetConnection(route, key)
+		telnetConn, index := z.GetTelnetConnection(route, []byte(key))
 		defer z.ReturnTelnetConnection(telnetConn, index)
 
 		rawSetKey(telnetConn, key, value)
 
-		response, found, err := z.Get(route, key)
+		response, found, err := z.Get(route, []byte(key))
 		if err != nil {
 			panic(err)
 		}
@@ -171,7 +172,7 @@ func TestGetCommand(t *testing.T) {
 			return
 		}
 
-		assert.Equal(t, value, response, "expected values to be equal")
+		assert.Equal(t, []byte(value), response, "expected values to be equal")
 	}
 
 	f([]byte{3}, "test1", "test1", 1)
@@ -193,7 +194,7 @@ func TestSetCommand(t *testing.T) {
 
 	f := func(route []byte, key, value string, testIndex int) {
 
-		stored, err := z.Storage(zencached.Set, route, key, value, 60)
+		stored, err := z.Storage(zencached.Set, route, []byte(key), []byte(value), defaultTTL)
 		if err != nil {
 			panic(err)
 		}
@@ -202,13 +203,13 @@ func TestSetCommand(t *testing.T) {
 			return
 		}
 
-		storedValue, found, err := z.Get(route, key)
+		storedValue, found, err := z.Get(route, []byte(key))
 
 		if !assert.Truef(t, found, "unexpected get status for test %d", testIndex, key) {
 			return
 		}
 
-		assert.Equal(t, value, storedValue, "expected the same values")
+		assert.Equal(t, []byte(value), storedValue, "expected the same values")
 	}
 
 	f([]byte{3}, "test1", "test1", 1)
@@ -230,14 +231,14 @@ func TestDeleteCommand(t *testing.T) {
 
 	f := func(route []byte, key, value string, setValue bool, testIndex int) {
 
-		telnetConn, index := z.GetTelnetConnection(route, key)
+		telnetConn, index := z.GetTelnetConnection(route, []byte(key))
 		defer z.ReturnTelnetConnection(telnetConn, index)
 
 		if setValue {
 			rawSetKey(telnetConn, key, value)
 		}
 
-		status, err := z.Delete(route, key)
+		status, err := z.Delete(route, []byte(key))
 		if err != nil {
 			panic(err)
 		}
@@ -247,7 +248,7 @@ func TestDeleteCommand(t *testing.T) {
 		}
 
 		if setValue {
-			_, found, err := z.Get(route, key)
+			_, found, err := z.Get(route, []byte(key))
 			if err != nil {
 				panic(err)
 			}
@@ -323,28 +324,31 @@ func TestMetricsCollector(t *testing.T) {
 		tc.collected = []string{}
 	}
 
-	_, err := z.Storage(zencached.Set, []byte{7}, "key", "value", 10)
+	key := []byte("key")
+	value := []byte("value")
+
+	_, err := z.Storage(zencached.Set, []byte{7}, key, value, defaultTTL)
 	if err != nil {
 		panic(err)
 	}
 
 	validateArray("set")
 
-	_, err = z.Storage(zencached.Add, []byte{8}, "key", "value", 10)
+	_, err = z.Storage(zencached.Add, []byte{8}, key, value, defaultTTL)
 	if err != nil {
 		panic(err)
 	}
 
 	validateArray("add")
 
-	_, err = z.Delete([]byte{3}, "key")
+	_, err = z.Delete([]byte{3}, key)
 	if err != nil {
 		panic(err)
 	}
 
 	validateArray("delete")
 
-	_, _, err = z.Get([]byte{10}, "key")
+	_, _, err = z.Get([]byte{10}, key)
 	if err != nil {
 		panic(err)
 	}

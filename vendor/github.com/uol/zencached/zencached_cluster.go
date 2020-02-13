@@ -8,7 +8,7 @@ import "math/rand"
 //
 
 // ClusterStorage - performs an full operation operation
-func (z *Zencached) ClusterStorage(cmd memcachedCommand, key string, value string, ttl uint16) ([]bool, []error) {
+func (z *Zencached) ClusterStorage(cmd memcachedCommand, key, value, ttl []byte) ([]bool, []error) {
 
 	stored := make([]bool, z.numNodeTelnetConns)
 	errors := make([]error, z.numNodeTelnetConns)
@@ -25,7 +25,7 @@ func (z *Zencached) ClusterStorage(cmd memcachedCommand, key string, value strin
 }
 
 // ClusterGet - returns a full replicated key stored in the cluster
-func (z *Zencached) ClusterGet(key string) (string, bool, error) {
+func (z *Zencached) ClusterGet(key []byte) ([]byte, bool, error) {
 
 	index := rand.Intn(z.numNodeTelnetConns)
 
@@ -36,7 +36,7 @@ func (z *Zencached) ClusterGet(key string) (string, bool, error) {
 }
 
 // ClusterDelete - deletes a key from all cluster nodes
-func (z *Zencached) ClusterDelete(key string) ([]bool, []error) {
+func (z *Zencached) ClusterDelete(key []byte) ([]bool, []error) {
 
 	deleted := make([]bool, z.numNodeTelnetConns)
 	errors := make([]error, z.numNodeTelnetConns)

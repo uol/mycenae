@@ -172,7 +172,7 @@ func (collect *Collector) MakePacket(rcvMsg *structs.TSDBpoint, number bool) (*P
 	var err error
 	packet.Number = number
 	packet.Message = rcvMsg
-	packet.ID, err = collect.GenerateID(rcvMsg)
+	packet.ID, packet.HashID, err = collect.GenerateID(rcvMsg)
 
 	if err != nil {
 		return nil, errInternalServerError("makePacket", "error creating the tsid hash", err)
@@ -195,7 +195,7 @@ func (collect *Collector) HandlePacket(vp *Point, source string) {
 }
 
 // GenerateID - generates the unique ID from a point
-func (collect *Collector) GenerateID(rcvMsg *structs.TSDBpoint) (string, error) {
+func (collect *Collector) GenerateID(rcvMsg *structs.TSDBpoint) (string, []byte, error) {
 
 	numParameters := (len(rcvMsg.Tags) * 2) + 1
 	strParameters := make([]string, numParameters)
@@ -218,8 +218,8 @@ func (collect *Collector) GenerateID(rcvMsg *structs.TSDBpoint) (string, error) 
 
 	hash, err := hashing.GenerateSHAKE128(collect.settings.TSIDKeySize, parameters...)
 	if err != nil {
-		return constants.StringsEmpty, err
+		return constants.StringsEmpty, nil, err
 	}
 
-	return hex.EncodeToString(hash), nil
+	return hex.EncodeToString(hash), hash, nil
 }

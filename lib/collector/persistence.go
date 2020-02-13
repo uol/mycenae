@@ -54,10 +54,10 @@ func (collect *Collector) InsertText(ksid, tsid string, timestamp int64, text st
 	return nil
 }
 
-func (collect *Collector) CheckMetadata(index, tsType, id string) (bool, gobol.Error) {
+func (collect *Collector) CheckMetadata(index, tsType, id string, idByte []byte) (bool, gobol.Error) {
 
 	start := time.Now()
-	ok, err := collect.metaStorage.CheckMetadata(index, tsType, id)
+	ok, err := collect.metaStorage.CheckMetadata(index, tsType, id, idByte)
 	if err != nil {
 		statsIndexError(index, "all", "head")
 		return false, errPersist("CheckMetadata", err)

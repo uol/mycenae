@@ -116,6 +116,17 @@ func (v *Service) ValidateTags(p *structs.TSDBpoint) gobol.Error {
 		return errNoUserTags
 	}
 
+	tagMap := map[string]struct{}{}
+	for i := 0; i < lt; i++ {
+		if _, ok := tagMap[p.Tags[i].Name]; !ok {
+			tagMap[p.Tags[i].Name] = struct{}{}
+		} else {
+			return errDuplicatedTags
+		}
+	}
+
+	tagMap = nil
+
 	return nil
 }
 
@@ -130,11 +141,7 @@ func (v *Service) ValidateKeyset(keyset string) gobol.Error {
 		return errInvalidKeysetFormat
 	}
 
-	keysetExists, gerr := v.metadataStorage.CheckKeyset(keyset)
-	if gerr != nil {
-		return gerr
-	}
-
+	keysetExists := v.metadataStorage.CheckKeyset(keyset)
 	if !keysetExists {
 		return errInexistentKeyset
 	}

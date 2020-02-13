@@ -135,10 +135,10 @@ func (z *Zencached) GetTelnetConnByNodeIndex(index int) (telnetConn *Telnet) {
 }
 
 // GetTelnetConnection - returns an idle telnet connection
-func (z *Zencached) GetTelnetConnection(routerHash []byte, key string) (telnetConn *Telnet, index int) {
+func (z *Zencached) GetTelnetConnection(routerHash []byte, key []byte) (telnetConn *Telnet, index int) {
 
 	if routerHash == nil {
-		routerHash = []byte(key)
+		routerHash = key
 	}
 
 	if len(routerHash) == 0 {

@@ -3,6 +3,7 @@ package zencached
 import (
 	"bytes"
 	"fmt"
+	"strconv"
 	"time"
 )
 
@@ -15,16 +16,15 @@ import (
 
 // memcached commands and constants
 const (
-	storageFmt string = "%s %s 0 %d %d\r\n%s\r\n"
-	getFmt     string = "get %s\r\n"
-	deleteFmt  string = "delete %s\r\n"
-	empty      string = ""
+	lineBreaksR byte = '\r'
+	lineBreaksN byte = '\n'
+	whiteSpace  byte = ' '
+	zero        byte = '0'
 )
 
 // memcached responses
 var (
-	lineBreaks []byte = []byte{[]byte("\r")[0], []byte("\n")[0]}
-
+	doubleBreaks []byte = []byte{lineBreaksR, lineBreaksN}
 	// responses
 	mcrValue     []byte = []byte("VALUE") // the only prefix
 	mcrStored    []byte = []byte("STORED")
@@ -34,26 +34,27 @@ var (
 	mcrDeleted   []byte = []byte("DELETED")
 
 	// response set
-	mcrResponseSetStored  [][]byte = [][]byte{mcrStored, mcrNotStored}
-	mcrResponseSetGet     [][]byte = [][]byte{mcrValue, mcrEnd}
-	mcrResponseSetDeleted [][]byte = [][]byte{mcrDeleted, mcrNotFound}
+	mcrStoredResponseSet      [][]byte = [][]byte{mcrStored, mcrNotStored}
+	mcrGetCheckResponseSet    [][]byte = [][]byte{mcrEnd}
+	mcrGetCheckEndResponseSet [][]byte = [][]byte{mcrValue, mcrEnd}
+	mcrDeletedResponseSet     [][]byte = [][]byte{mcrDeleted, mcrNotFound}
 )
 
 // memcachedCommand type
-type memcachedCommand string
+type memcachedCommand []byte
 
-const (
+var (
 	// Add - add some key if it not exists
-	Add memcachedCommand = "add"
+	Add memcachedCommand = memcachedCommand("add")
 
 	// Set - sets a key if it exists or not
-	Set memcachedCommand = "set"
+	Set memcachedCommand = memcachedCommand("set")
 
 	// get - return a key if it exists or not
-	get memcachedCommand = "get"
+	get memcachedCommand = memcachedCommand("get")
 
 	// delete - return a key if it exists or not
-	delete memcachedCommand = "delete"
+	delete memcachedCommand = memcachedCommand("delete")
 )
 
 // countOperation - send the operation count metric
@@ -68,7 +69,7 @@ func (z *Zencached) countOperation(host string, operation memcachedCommand) {
 }
 
 // executeSend - sends a message to memcached
-func (z *Zencached) executeSend(telnetConn *Telnet, operation memcachedCommand, renderedCmd string) error {
+func (z *Zencached) executeSend(telnetConn *Telnet, operation memcachedCommand, renderedCmd []byte) error {
 
 	if !z.enableMetrics {
 
@@ -98,15 +99,15 @@ func (z *Zencached) executeSend(telnetConn *Telnet, operation memcachedCommand, 
 }
 
 // checkResponse - checks the memcached response
-func (z *Zencached) checkResponse(telnetConn *Telnet, responseSet [][]byte, operation memcachedCommand, renderedCmd string) (bool, [][]byte, error) {
+func (z *Zencached) checkResponse(telnetConn *Telnet, checkReadSet, checkResponseSet [][]byte, operation memcachedCommand) (bool, []byte, error) {
 
-	response, err := telnetConn.Read(responseSet)
+	response, err := telnetConn.Read(checkReadSet)
 	if err != nil {
 		return false, nil, err
 	}
 
-	if !bytes.HasPrefix(response[0], responseSet[0]) {
-		if !bytes.Equal(response[0], responseSet[1]) {
+	if !bytes.HasPrefix(response, checkResponseSet[0]) {
+		if !bytes.Contains(response, checkResponseSet[1]) {
 			return false, nil, fmt.Errorf("memcached operation error on command:\n%s", operation)
 		}
 
@@ -134,8 +135,31 @@ func (z *Zencached) checkResponse(telnetConn *Telnet, responseSet [][]byte, oper
 	return true, response, nil
 }
 
+// renderStorageCmd - like Sprintf, but in bytes
+func (z *Zencached) renderStorageCmd(cmd memcachedCommand, key, value, ttl []byte) []byte {
+
+	length := strconv.Itoa(len(value))
+
+	buffer := bytes.Buffer{}
+	buffer.Grow(len(cmd) + len(key) + len(value) + len(ttl) + len(length) + 4 + (len(doubleBreaks) * 2) + 1)
+	buffer.Write(cmd)
+	buffer.WriteByte(whiteSpace)
+	buffer.Write(key)
+	buffer.WriteByte(whiteSpace)
+	buffer.WriteByte(zero)
+	buffer.WriteByte(whiteSpace)
+	buffer.Write(ttl)
+	buffer.WriteByte(whiteSpace)
+	buffer.WriteString(length)
+	buffer.Write(doubleBreaks)
+	buffer.Write(value)
+	buffer.Write(doubleBreaks)
+
+	return buffer.Bytes()
+}
+
 // Storage - performs an storage operation
-func (z *Zencached) Storage(cmd memcachedCommand, routerHash []byte, key string, value string, ttl uint16) (bool, error) {
+func (z *Zencached) Storage(cmd memcachedCommand, routerHash, key, value, ttl []byte) (bool, error) {
 
 	telnetConn, index := z.GetTelnetConnection(routerHash, key)
 	defer z.ReturnTelnetConnection(telnetConn, index)
@@ -144,19 +168,18 @@ func (z *Zencached) Storage(cmd memcachedCommand, routerHash []byte, key string,
 }
 
 // baseStorage - base storage function
-func (z *Zencached) baseStorage(telnetConn *Telnet, cmd memcachedCommand, key string, value string, ttl uint16) (bool, error) {
+func (z *Zencached) baseStorage(telnetConn *Telnet, cmd memcachedCommand, key, value, ttl []byte) (bool, error) {
 
 	if z.enableMetrics {
 		z.countOperation(telnetConn.GetHost(), cmd)
 	}
 
-	renderedCmd := fmt.Sprintf(storageFmt, cmd, key, ttl, len(value), value)
-	err := z.executeSend(telnetConn, cmd, renderedCmd)
+	err := z.executeSend(telnetConn, cmd, z.renderStorageCmd(cmd, key, value, ttl))
 	if err != nil {
 		return false, err
 	}
 
-	wasStored, _, err := z.checkResponse(telnetConn, mcrResponseSetStored, cmd, renderedCmd)
+	wasStored, _, err := z.checkResponse(telnetConn, mcrStoredResponseSet, mcrStoredResponseSet, cmd)
 	if err != nil {
 		return false, err
 	}
@@ -164,8 +187,21 @@ func (z *Zencached) baseStorage(telnetConn *Telnet, cmd memcachedCommand, key st
 	return wasStored, nil
 }
 
+// renderKeyOnlyCmd - like Sprintf, but in bytes
+func (z *Zencached) renderKeyOnlyCmd(cmd memcachedCommand, key []byte) []byte {
+
+	buffer := bytes.Buffer{}
+	buffer.Grow(len(cmd) + len(key) + 1 + len(doubleBreaks))
+	buffer.Write(cmd)
+	buffer.WriteByte(whiteSpace)
+	buffer.Write(key)
+	buffer.Write(doubleBreaks)
+
+	return buffer.Bytes()
+}
+
 // Get - performs a get operation
-func (z *Zencached) Get(routerHash []byte, key string) (string, bool, error) {
+func (z *Zencached) Get(routerHash []byte, key []byte) ([]byte, bool, error) {
 
 	telnetConn, index := z.GetTelnetConnection(routerHash, key)
 	defer z.ReturnTelnetConnection(telnetConn, index)
@@ -174,30 +210,58 @@ func (z *Zencached) Get(routerHash []byte, key string) (string, bool, error) {
 }
 
 // baseGet - the base get operation
-func (z *Zencached) baseGet(telnetConn *Telnet, key string) (string, bool, error) {
+func (z *Zencached) baseGet(telnetConn *Telnet, key []byte) ([]byte, bool, error) {
 
 	if z.enableMetrics {
 		z.countOperation(telnetConn.GetHost(), get)
 	}
 
-	renderedCmd := fmt.Sprintf(getFmt, key)
-	err := z.executeSend(telnetConn, get, renderedCmd)
+	err := z.executeSend(telnetConn, get, z.renderKeyOnlyCmd(get, key))
 	if err != nil {
-		return empty, false, err
+		return nil, false, err
 	}
 
-	exists, response, err := z.checkResponse(telnetConn, mcrResponseSetGet, get, renderedCmd)
+	exists, response, err := z.checkResponse(telnetConn, mcrGetCheckResponseSet, mcrGetCheckEndResponseSet, get)
 	if !exists || err != nil {
-		return empty, false, err
+		return nil, false, err
 	}
 
-	storedValue := string(response[1])
+	start, end, err := z.extractValue([]byte(response))
+	if err != nil {
+		return nil, false, err
+	}
 
-	return storedValue, true, nil
+	return response[start:end], true, nil
+}
+
+// extractValue - extracts a value from the response
+func (z *Zencached) extractValue(response []byte) (start, end int, err error) {
+
+	start = -1
+	end = -1
+
+	for i := 0; i < len(response); i++ {
+		if start == -1 && response[i] == lineBreaksN {
+			start = i + 1
+		} else if start >= 0 && response[i] == lineBreaksR {
+			end = i
+			break
+		}
+	}
+
+	if start == -1 {
+		err = fmt.Errorf("no value found")
+	}
+
+	if end == -1 {
+		end = len(response) - 1
+	}
+
+	return
 }
 
 // Delete - performs a delete operation
-func (z *Zencached) Delete(routerHash []byte, key string) (bool, error) {
+func (z *Zencached) Delete(routerHash []byte, key []byte) (bool, error) {
 
 	telnetConn, index := z.GetTelnetConnection(routerHash, key)
 	defer z.ReturnTelnetConnection(telnetConn, index)
@@ -206,19 +270,18 @@ func (z *Zencached) Delete(routerHash []byte, key string) (bool, error) {
 }
 
 // baseDelete - base delete operation
-func (z *Zencached) baseDelete(telnetConn *Telnet, key string) (bool, error) {
+func (z *Zencached) baseDelete(telnetConn *Telnet, key []byte) (bool, error) {
 
 	if z.enableMetrics {
 		z.countOperation(telnetConn.GetHost(), delete)
 	}
 
-	renderedCmd := fmt.Sprintf(deleteFmt, key)
-	err := z.executeSend(telnetConn, delete, renderedCmd)
+	err := z.executeSend(telnetConn, delete, z.renderKeyOnlyCmd(delete, key))
 	if err != nil {
 		return false, err
 	}
 
-	exists, _, err := z.checkResponse(telnetConn, mcrResponseSetDeleted, delete, renderedCmd)
+	exists, _, err := z.checkResponse(telnetConn, mcrDeletedResponseSet, mcrDeletedResponseSet, delete)
 	if err != nil {
 		return false, err
 	}

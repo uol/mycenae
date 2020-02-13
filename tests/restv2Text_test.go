@@ -403,17 +403,17 @@ func TestRESTv2TextPayloadsWithSameMetricTagsTimestampTwoEqualTags(t *testing.T)
 	hashID := tools.GetTextHashFromMetricAndTags(metric, tags)
 
 	statusCode, _ := mycenaeTools.HTTP.POSTstring("api/text/put", payload1)
-	assert.Equal(t, http.StatusNoContent, statusCode)
+	assert.Equal(t, http.StatusBadRequest, statusCode)
 
 	statusCode, _ = mycenaeTools.HTTP.POSTstring("api/text/put", payload2)
-	assert.Equal(t, http.StatusNoContent, statusCode)
+	assert.Equal(t, http.StatusBadRequest, statusCode)
 	time.Sleep(tools.Sleep3)
 
-	assertMycenaeText(t, ksMycenae, timestamp, timestamp, value2, hashID)
+	assertMycenaeTextEmpty(t, ksMycenae, timestamp, timestamp, hashID)
 
-	assertCassandraText(t, hashID, value2, timestamp, timestamp)
+	assertCassandraTextEmpty(t, hashID, timestamp, timestamp)
 
-	assertElasticText(t, ksMycenae, metric, tags, hashID)
+	assertElasticTextEmpty(t, ksMycenae, metric, tags, hashID)
 }
 
 func TestRESTv2TextPayloadWithTwoTagsSameKeyAndDifferentValues(t *testing.T) {
@@ -438,16 +438,16 @@ func TestRESTv2TextPayloadWithTwoTagsSameKeyAndDifferentValues(t *testing.T) {
 	tags := map[string]string{p.TagKey: tagValue2, "ksid": ksMycenae, "ttl": "1"}
 
 	statusCode, _ := mycenaeTools.HTTP.POSTstring("api/text/put", payload)
-	assert.Equal(t, http.StatusNoContent, statusCode)
+	assert.Equal(t, http.StatusBadRequest, statusCode)
 	time.Sleep(tools.Sleep3)
 
 	hashID := tools.GetTextHashFromMetricAndTags(p.Metric, tags)
 
-	assertMycenaeText(t, ksMycenae, *p.Timestamp, *p.Timestamp, *p.Text, hashID)
+	assertMycenaeTextEmpty(t, ksMycenae, *p.Timestamp, *p.Timestamp, hashID)
 
-	assertCassandraText(t, hashID, *p.Text, *p.Timestamp, *p.Timestamp)
+	assertCassandraTextEmpty(t, hashID, *p.Timestamp, *p.Timestamp)
 
-	assertElasticText(t, ksMycenae, p.Metric, tags, hashID)
+	assertElasticTextEmpty(t, ksMycenae, p.Metric, tags, hashID)
 
 	count := mycenaeTools.Solr.Timeseries.GetTextTagValuePost(ksMycenae, p.TagValue)
 	assert.Equal(t, 0, count)
