@@ -21,27 +21,26 @@ import (
 
 // SolrBackend - struct
 type SolrBackend struct {
-	solrService                 *solar.SolrService
-	numShards                   int
-	replicationFactor           int
-	regexPattern                *regexp.Regexp
-	stats                       *tsstats.StatsTS
-	logger                      *logh.ContextualLogger
-	memcached                   *memcached.Memcached
-	idCacheTTL                  []byte
-	noIDCache                   bool
-	queryCacheTTL               []byte
-	noQueryCache                bool
-	keysetCacheTTL              []byte
-	noKeysetCache               bool
-	fieldListQuery              string
-	zookeeperConfig             string
-	maxReturnedMetadata         int
-	blacklistedKeysetMap        map[string]bool
-	solrSpecialCharRegexp       *regexp.Regexp
-	solrRegexpSpecialCharRegexp *regexp.Regexp
-	cacheKeyHashSize            int
-	cachedKeysets               []string
+	solrService                   *solar.SolrService
+	numShards                     int
+	replicationFactor             int
+	regexPattern                  *regexp.Regexp
+	stats                         *tsstats.StatsTS
+	logger                        *logh.ContextualLogger
+	memcached                     *memcached.Memcached
+	idCacheTTL                    []byte
+	noIDCache                     bool
+	queryCacheTTL                 []byte
+	noQueryCache                  bool
+	fieldListQuery                string
+	zookeeperConfig               string
+	maxReturnedMetadata           int
+	blacklistedKeysetMap          map[string]bool
+	solrSpecialCharRegexp         *regexp.Regexp
+	solrRegexpSpecialCharRegexp   *regexp.Regexp
+	cacheKeyHashSize              int
+	cachedKeysets                 []string
+	keysetCacheAutoUpdateInterval time.Duration
 }
 
 // NewSolrBackend - creates a new instance
@@ -60,27 +59,37 @@ func NewSolrBackend(settings *Settings, stats *tsstats.StatsTS, memcached *memca
 		blacklistedKeysetMap[value] = true
 	}
 
+	keysetCacheAutoUpdateIntervalDuration, err := time.ParseDuration(settings.KeysetCacheAutoUpdateInterval)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing keysetCacheAutoUpdateInterval")
+	}
+
+	logger := logh.CreateContextualLogger(constants.StringsPKG, "metadata")
+
+	if logh.InfoEnabled {
+		logger.Info().Msgf("setting keyset cache auto update interval to: %s", settings.KeysetCacheAutoUpdateInterval)
+	}
+
 	sb := &SolrBackend{
-		solrService:                 ss,
-		stats:                       stats,
-		logger:                      logh.CreateContextualLogger(constants.StringsPKG, "metadata"),
-		replicationFactor:           settings.ReplicationFactor,
-		numShards:                   settings.NumShards,
-		regexPattern:                rp,
-		memcached:                   memcached,
-		idCacheTTL:                  []byte(strconv.Itoa(settings.IDCacheTTL)),
-		noIDCache:                   settings.IDCacheTTL < 0,
-		queryCacheTTL:               []byte(strconv.Itoa(settings.QueryCacheTTL)),
-		noQueryCache:                settings.QueryCacheTTL < 0,
-		keysetCacheTTL:              []byte(strconv.Itoa(settings.KeysetCacheTTL)),
-		noKeysetCache:               settings.KeysetCacheTTL < 0,
-		fieldListQuery:              fmt.Sprintf("*,[child parentFilter=parent_doc:true limit=%d]", settings.MaxReturnedMetadata),
-		zookeeperConfig:             settings.ZookeeperConfig,
-		maxReturnedMetadata:         settings.MaxReturnedMetadata,
-		blacklistedKeysetMap:        blacklistedKeysetMap,
-		solrSpecialCharRegexp:       regexp.MustCompile(`(\+|\-|\&|\||\!|\(|\)|\{|\}|\[|\]|\^|"|\~|\*|\?|\:|\/|\\)`),
-		solrRegexpSpecialCharRegexp: regexp.MustCompile(`(\/)`),
-		cacheKeyHashSize:            settings.CacheKeyHashSize,
+		solrService:                   ss,
+		stats:                         stats,
+		logger:                        logger,
+		replicationFactor:             settings.ReplicationFactor,
+		numShards:                     settings.NumShards,
+		regexPattern:                  rp,
+		memcached:                     memcached,
+		idCacheTTL:                    []byte(strconv.Itoa(settings.IDCacheTTL)),
+		noIDCache:                     settings.IDCacheTTL < 0,
+		queryCacheTTL:                 []byte(strconv.Itoa(settings.QueryCacheTTL)),
+		noQueryCache:                  settings.QueryCacheTTL < 0,
+		fieldListQuery:                fmt.Sprintf("*,[child parentFilter=parent_doc:true limit=%d]", settings.MaxReturnedMetadata),
+		zookeeperConfig:               settings.ZookeeperConfig,
+		maxReturnedMetadata:           settings.MaxReturnedMetadata,
+		blacklistedKeysetMap:          blacklistedKeysetMap,
+		solrSpecialCharRegexp:         regexp.MustCompile(`(\+|\-|\&|\||\!|\(|\)|\{|\}|\[|\]|\^|"|\~|\*|\?|\:|\/|\\)`),
+		solrRegexpSpecialCharRegexp:   regexp.MustCompile(`(\/)`),
+		cacheKeyHashSize:              settings.CacheKeyHashSize,
+		keysetCacheAutoUpdateInterval: keysetCacheAutoUpdateIntervalDuration,
 	}
 
 	sb.cacheKeysets()

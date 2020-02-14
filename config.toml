@@ -172,11 +172,11 @@ EnableAutoKeyspaceCreation = true
   url = "http://182.168.0.6:8983/solr"
   IDCacheTTL = -1
   QueryCacheTTL = -1
-  KeysetCacheTTL = -1
   MaxReturnedMetadata = 10000
   ZookeeperConfig = "mycenae"
   BlacklistedKeysets = ["chimera", "blacklist"]
   CacheKeyHashSize = 16
+  KeysetCacheAutoUpdateInterval = "5m"
 
 [memcached]
   # the nodes
