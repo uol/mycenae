@@ -67,16 +67,16 @@ type Storage struct {
 
 // Settings for the metadata package
 type Settings struct {
-	NumShards           int
-	ReplicationFactor   int
-	URL                 string
-	IDCacheTTL          int
-	QueryCacheTTL       int
-	KeysetCacheTTL      int
-	MaxReturnedMetadata int
-	ZookeeperConfig     string
-	BlacklistedKeysets  []string
-	CacheKeyHashSize    int
+	NumShards                     int
+	ReplicationFactor             int
+	URL                           string
+	IDCacheTTL                    int
+	QueryCacheTTL                 int
+	MaxReturnedMetadata           int
+	ZookeeperConfig               string
+	BlacklistedKeysets            []string
+	CacheKeyHashSize              int
+	KeysetCacheAutoUpdateInterval string
 }
 
 // Metadata document

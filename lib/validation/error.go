@@ -17,8 +17,11 @@ const (
 	cPackage string = "validation"
 )
 
+// GError - a validation error type
+type GError gobol.Error
+
 // errBadRequest - bad request error
-func errBadRequest(function, message string, err error) gobol.Error {
+func errBadRequest(function, message string, err error) GError {
 	if err != nil {
 		return tserr.New(
 			err,
@@ -32,7 +35,7 @@ func errBadRequest(function, message string, err error) gobol.Error {
 }
 
 // errSimpleBadRequest - bad request error without error
-func errSimpleBadRequest(function, message string) gobol.Error {
+func errSimpleBadRequest(function, message string) GError {
 	return errBadRequest(function, message, fmt.Errorf(message))
 }
 

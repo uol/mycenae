@@ -69,7 +69,7 @@ func (sb *SolrBackend) autoUpdateCachedKeysets() {
 
 	go func() {
 		for {
-			<-time.After(5 * time.Minute)
+			<-time.After(sb.keysetCacheAutoUpdateInterval)
 
 			if logh.InfoEnabled {
 				sb.logger.Info().Msg("running cached keysets auto update")
