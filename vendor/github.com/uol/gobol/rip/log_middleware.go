@@ -10,7 +10,7 @@ import (
 
 	"github.com/pborman/uuid"
 	"github.com/rs/cors"
-	"github.com/uol/gobol/logh"
+	"github.com/uol/logh"
 	"github.com/uol/gobol/snitch"
 )
 

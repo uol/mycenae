@@ -31,6 +31,8 @@ import:
   version: ^1.17.2
   subpackages:
   - log
+- package: github.com/uol/logh
+  version: ~1.0.0
 testImport:
 - package: github.com/stretchr/testify
   subpackages:

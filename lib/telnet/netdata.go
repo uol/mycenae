@@ -16,6 +16,11 @@ import (
 	"github.com/uol/mycenae/lib/validation"
 )
 
+//
+// Implements the netdata json telnet handler.
+// author: rnojiri
+//
+
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 // netdataJSON - a JSON line from netdata packet

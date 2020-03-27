@@ -11,6 +11,11 @@ import (
 	"github.com/uol/mycenae/lib/constants"
 )
 
+const (
+	funcGetTST  string = "GetTST"
+	queryGetTST string = `SELECT id, date, value FROM %v.ts_text_stamp WHERE id in (%s) AND date > ? AND date < ? ALLOW FILTERING`
+)
+
 func (persist *persistence) GetTST(keyspace string, keys []string, start, end int64, search *regexp.Regexp, allowFullFetch bool, maxBytesLimit uint32, keyset string) (map[string][]TextPnt, uint32, gobol.Error) {
 
 	track := time.Now()
@@ -28,7 +33,7 @@ func (persist *persistence) GetTST(keyspace string, keys []string, start, end in
 
 	iter := persist.cassandra.Query(
 		fmt.Sprintf(
-			`SELECT id, date, value FROM %v.ts_text_stamp WHERE id in (%s) AND date > ? AND date < ? ALLOW FILTERING`,
+			queryGetTST,
 			keyspace,
 			idsGroup,
 		),
@@ -70,33 +75,26 @@ func (persist *persistence) GetTST(keyspace string, keys []string, start, end in
 		}
 	}
 
-	go persist.statsValueAdd(
-		"scylla.query.bytes",
-		map[string]string{
-			constants.StringsKeyset: keyset,
-			"keyspace":              keyspace,
-			"type":                  "number",
-		},
-		float64(numBytes),
-	)
+	persist.statsQueryBytes(funcGetTST, keyset, keyspace, typeText, float64(numBytes))
 
 	if err = iter.Close(); err != nil {
 		if logh.ErrorEnabled {
-			logh.Error().Str(constants.StringsFunc, "getTST").Err(err).Send()
+			logh.Error().Str(constants.StringsFunc, funcGetTST).Err(err).Send()
 		}
 
 		if err == gocql.ErrNotFound {
-			return map[string][]TextPnt{}, 0, errNoContent("getTST")
+			persist.statsSelect(funcGetTST, keyset, keyspace, typeText, time.Since(track), countRows)
+			return map[string][]TextPnt{}, 0, errNoContent(funcGetTST)
 		}
 
-		persist.statsSelectFerror(keyspace, "ts_text_stamp")
-		return map[string][]TextPnt{}, 0, errPersist("getTST", err)
+		persist.statsQueryError(funcGetTST, keyset, keyspace, typeText)
+		return map[string][]TextPnt{}, 0, errPersist(funcGetTST, err)
 	}
 
-	persist.statsSelect(keyspace, "ts_text_stamp", time.Since(track), countRows)
+	persist.statsSelect(funcGetTST, keyset, keyspace, typeText, time.Since(track), countRows)
 
 	if limitReached && !allowFullFetch {
-		return map[string][]TextPnt{}, numBytes, errMaxBytesLimitWrapper("GetTS", persist.maxBytesErr)
+		return map[string][]TextPnt{}, numBytes, errMaxBytesLimitWrapper(funcGetTST, persist.maxBytesErr)
 	}
 
 	return tsMap, numBytes, nil

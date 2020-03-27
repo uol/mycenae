@@ -4,7 +4,6 @@ package gocql
 
 // This file groups integration tests where Cassandra has to be set up with some special integration variables
 import (
-	"context"
 	"reflect"
 	"testing"
 	"time"
@@ -170,15 +169,6 @@ func TestCustomPayloadValues(t *testing.T) {
 		if !reflect.DeepEqual(customPayload, rCustomPayload) {
 			t.Fatal("The received custom payload should match the sent")
 		}
-	}
-}
-
-func TestSessionAwaitSchemaAgreement(t *testing.T) {
-	session := createSession(t)
-	defer session.Close()
-
-	if err := session.AwaitSchemaAgreement(context.Background()); err != nil {
-		t.Fatalf("expected session.AwaitSchemaAgreement to not return an error but got '%v'", err)
 	}
 }
 

@@ -5,7 +5,6 @@
 package gocql
 
 import (
-	"context"
 	"errors"
 	"net"
 	"time"
@@ -147,14 +146,10 @@ type ClusterConfig struct {
 
 	// Dialer will be used to establish all connections created for this Cluster.
 	// If not provided, a default dialer configured with ConnectTimeout will be used.
-	Dialer Dialer
+	Dialer *net.Dialer
 
 	// internal config for testing
 	disableControlConn bool
-}
-
-type Dialer interface {
-	DialContext(ctx context.Context, network, addr string) (net.Conn, error)
 }
 
 // NewCluster generates a new config for the default cluster implementation.

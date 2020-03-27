@@ -2,7 +2,7 @@ package snitch
 
 import (
 	"errors"
-	"github.com/uol/gobol/logh"
+	"github.com/uol/logh"
 	"sort"
 	"strings"
 

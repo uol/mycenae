@@ -1,0 +1,47 @@
+hash: da2922b3042f70e1553c56db0d538467ff9b1a1e5128291c3ec5360190880e4b
+updated: 2020-03-04T01:40:56.378220645-03:00
+imports:
+- name: github.com/rs/zerolog
+  version: f1dd50b8c64d79be1392edf1d8fda5cedea4916d
+  subpackages:
+  - internal/cbor
+  - internal/json
+- name: github.com/uol/funks
+  version: f6a04c7785966773f32313e0c25c9343738369e9
+- name: github.com/uol/gotest
+  version: a7f82102d67468653dffe8fc637d4f885a0accde
+- name: github.com/uol/hashing
+  version: 520f9fe195e130976599e3a495044b6b9aabfcd4
+- name: github.com/uol/logh
+  version: 04611a676395e92babe6a4e3f5d0aa517ec0b0d5
+- name: github.com/uol/scheduler
+  version: 3edd7d67bcde61e731d53144259cb50dd0f9931e
+- name: github.com/uol/serializer
+  version: 0bbe4b09acd77a609dcc12f5890a9a147056a424
+  subpackages:
+  - json
+  - opentsdb
+  - serializer
+- name: golang.org/x/crypto
+  version: bac4c82f69751a6dd76e702d54b3ceb88adab236
+  subpackages:
+  - sha3
+- name: golang.org/x/sys
+  version: cb0a6d8edb6c3528b01a0be84a5fe513dbf880a6
+  subpackages:
+  - cpu
+testImports:
+- name: github.com/davecgh/go-spew
+  version: d8f796af33cc11cb798c1aaeb27a4ebc5099927d
+  subpackages:
+  - spew
+- name: github.com/pmezard/go-difflib
+  version: 5d4384ee4fb2527b0a1256a821ebfc92f91efefc
+  subpackages:
+  - difflib
+- name: github.com/stretchr/testify
+  version: 221dbe5ed46703ee255b1da0dec05086f5035f62
+  subpackages:
+  - assert
+- name: gopkg.in/yaml.v2
+  version: 53403b58ad1b561927d19068c655246f2db79d48

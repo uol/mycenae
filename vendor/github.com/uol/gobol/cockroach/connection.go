@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/jinzhu/gorm"
-	"github.com/uol/gobol/logh"
+	"github.com/uol/logh"
 )
 
 //

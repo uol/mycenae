@@ -12,11 +12,11 @@ import (
 
 	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/memcached"
+	"github.com/uol/mycenae/lib/stats"
 
 	"github.com/uol/go-solr/solr"
 	"github.com/uol/gobol"
 	"github.com/uol/gobol/solar"
-	"github.com/uol/mycenae/lib/tsstats"
 )
 
 // SolrBackend - struct
@@ -25,7 +25,7 @@ type SolrBackend struct {
 	numShards                     int
 	replicationFactor             int
 	regexPattern                  *regexp.Regexp
-	stats                         *tsstats.StatsTS
+	timelineManager               *stats.TimelineManager
 	logger                        *logh.ContextualLogger
 	memcached                     *memcached.Memcached
 	idCacheTTL                    []byte
@@ -44,7 +44,7 @@ type SolrBackend struct {
 }
 
 // NewSolrBackend - creates a new instance
-func NewSolrBackend(settings *Settings, stats *tsstats.StatsTS, memcached *memcached.Memcached) (*SolrBackend, error) {
+func NewSolrBackend(settings *Settings, mc *stats.TimelineManager, memcached *memcached.Memcached) (*SolrBackend, error) {
 
 	ss, err := solar.NewSolrService(settings.URL)
 	if err != nil {
@@ -72,7 +72,7 @@ func NewSolrBackend(settings *Settings, stats *tsstats.StatsTS, memcached *memca
 
 	sb := &SolrBackend{
 		solrService:                   ss,
-		stats:                         stats,
+		timelineManager:               mc,
 		logger:                        logger,
 		replicationFactor:             settings.ReplicationFactor,
 		numShards:                     settings.NumShards,
@@ -187,7 +187,9 @@ func (sb *SolrBackend) cropFacets(facets []string, size int) []string {
 }
 
 // filterFieldValues - filter by field value using wildcard
-func (sb *SolrBackend) filterFieldValues(collection, action, field, value string, maxResults int) ([]string, int, gobol.Error) {
+func (sb *SolrBackend) filterFieldValues(function, collection, field, value string, maxResults int) ([]string, int, gobol.Error) {
+
+	start := time.Now()
 
 	var query Query
 	var facetFields, childFacetFields []string
@@ -215,8 +217,8 @@ func (sb *SolrBackend) filterFieldValues(collection, action, field, value string
 
 	facets, err := sb.getCachedFacets(collection, q)
 	if err != nil {
-		sb.statsCollectionError(collection, action, "solr.collection.search.error")
-		return nil, 0, errInternalServer("filterFieldValues", err)
+		sb.statsError(function, collection, constants.StringsAll, solrFacetQuery)
+		return nil, 0, errInternalServer(function, err)
 	}
 
 	if facets != nil && len(facets) > 0 {
@@ -226,60 +228,60 @@ func (sb *SolrBackend) filterFieldValues(collection, action, field, value string
 
 	r, e := sb.solrService.Facets(collection, q, constants.StringsEmpty, 0, 0, nil, facetFields, childFacetFields, true, sb.maxReturnedMetadata, 1)
 	if e != nil {
-		sb.statsCollectionError(collection, action, "solr.collection.search")
-		return nil, 0, errInternalServer("filterFieldValues", e)
+		sb.statsError(function, collection, constants.StringsAll, solrFacetQuery)
+		return nil, 0, errInternalServer(function, e)
 	}
 
 	facets = sb.extractFacets(r, field, value, collection)
 
 	err = sb.cacheFacets(facets, collection, q)
 	if err != nil {
-		sb.statsCollectionError(collection, action, "solr.collection.search.error")
-		return nil, 0, errInternalServer("filterFieldValues", err)
+		sb.statsError(function, collection, constants.StringsAll, solrFacetQuery)
+		return nil, 0, errInternalServer(function, err)
 	}
 
 	cropped := sb.cropFacets(facets, maxResults)
+
+	sb.statsRequest(function, collection, constants.StringsAll, solrFacetQuery, time.Since(start))
+
 	return cropped, len(facets), nil
 }
+
+const funcFilterTagValues string = "FilterTagValues"
 
 // FilterTagValues - list all tag values from a collection
 func (sb *SolrBackend) FilterTagValues(collection, prefix string, maxResults int) ([]string, int, gobol.Error) {
 
-	start := time.Now()
-	tags, total, err := sb.filterFieldValues(collection, "filter_tag_values", "tag_value", prefix, maxResults)
+	tags, total, err := sb.filterFieldValues(funcFilterTagValues, collection, "tag_value", prefix, maxResults)
 	if err != nil {
-		sb.statsCollectionError(collection, "filter_tag_values", "solr.collection.search.error")
-		return nil, 0, errInternalServer("FilterTagValues", err)
+		return nil, 0, errInternalServer(funcFilterTagValues, err)
 	}
-	sb.statsCollectionAction(collection, "filter_tag_values", "solr.collection.search", time.Since(start))
 
 	return tags, total, nil
 }
+
+const funcFilterTagKeys string = "FilterTagKeys"
 
 // FilterTagKeys - list all tag keys from a collection
 func (sb *SolrBackend) FilterTagKeys(collection, prefix string, maxResults int) ([]string, int, gobol.Error) {
 
-	start := time.Now()
-	tags, total, err := sb.filterFieldValues(collection, "filter_tag_keys", "tag_key", prefix, maxResults)
+	tags, total, err := sb.filterFieldValues(funcFilterTagKeys, collection, "tag_key", prefix, maxResults)
 	if err != nil {
-		sb.statsCollectionError(collection, "filter_tag_keys", "solr.collection.search.error")
 		return nil, 0, errInternalServer("FilterTagKeys", err)
 	}
-	sb.statsCollectionAction(collection, "filter_tag_keys", "solr.collection.search", time.Since(start))
 
 	return tags, total, nil
 }
 
+const funcFilterMetrics string = "FilterMetrics"
+
 // FilterMetrics - list all metrics from a collection
 func (sb *SolrBackend) FilterMetrics(collection, prefix string, maxResults int) ([]string, int, gobol.Error) {
 
-	start := time.Now()
-	metrics, total, err := sb.filterFieldValues(collection, "filter_metrics", "metric", prefix, maxResults)
+	metrics, total, err := sb.filterFieldValues(funcFilterMetrics, collection, "metric", prefix, maxResults)
 	if err != nil {
-		sb.statsCollectionError(collection, "filter_metrics", "solr.collection.search.error")
 		return nil, 0, errInternalServer("FilterMetrics", err)
 	}
-	sb.statsCollectionAction(collection, "filter_metrics", "solr.collection.search", time.Since(start))
 
 	return metrics, total, nil
 }
@@ -461,6 +463,8 @@ func (sb *SolrBackend) buildMetadataQuery(query *Query, parentQueryOnly bool) (s
 	return parentQuery, filterQueries
 }
 
+const funcFilterMetadata string = "FilterMetadata"
+
 // FilterMetadata - list all metas from a collection
 func (sb *SolrBackend) FilterMetadata(collection string, query *Query, from, maxResults int) ([]Metadata, int, gobol.Error) {
 
@@ -470,11 +474,11 @@ func (sb *SolrBackend) FilterMetadata(collection string, query *Query, from, max
 
 	r, err := sb.solrService.FilteredQuery(collection, q, sb.fieldListQuery, from, maxResults, qfs)
 	if err != nil {
-		sb.statsCollectionError(collection, "list_metas", "solr.collection.search.error")
-		return nil, 0, errInternalServer("FilterMetadata", err)
+		sb.statsError(funcFilterMetadata, collection, query.MetaType, solrQuery)
+		return nil, 0, errInternalServer(funcFilterMetadata, err)
 	}
 
-	sb.statsCollectionAction(collection, "list_metas", "solr.collection.search", time.Since(start))
+	sb.statsRequest(funcFilterMetadata, collection, query.MetaType, solrQuery, time.Since(start))
 
 	return sb.fromDocuments(r.Results, collection), r.Results.NumFound, nil
 }
@@ -578,36 +582,43 @@ func (sb *SolrBackend) log(event *zerolog.Event, funcName, keyset string) *zerol
 	return event.Str(constants.StringsFunc, funcName).Str(constants.StringsKeyset, keyset)
 }
 
+const funcAddDocument string = "AddDocument"
+
 // AddDocument - add/update a document
-func (sb *SolrBackend) AddDocument(collection string, metadata *Metadata) gobol.Error {
+func (sb *SolrBackend) AddDocument(collection string, m *Metadata) gobol.Error {
 
 	start := time.Now()
 
-	doc, id := sb.toDocument(metadata, collection)
+	doc, id := sb.toDocument(m, collection)
 
 	if logh.InfoEnabled {
-		sb.log(sb.logger.Info(), "AddDocument", collection).Msgf("adding document: %s", id)
+		sb.log(sb.logger.Info(), funcAddDocument, collection).Msgf("adding document: %s", id)
 	}
 
 	err := sb.solrService.AddDocument(collection, true, doc)
 	if err != nil {
-		sb.statsCollectionError(collection, "add_documents", "solr.collection.error")
-		return errInternalServer("AddDocument", err)
+		sb.statsError(funcAddDocument, collection, m.MetaType, solrNewDoc)
+		return errInternalServer(funcAddDocument, err)
 	}
 
-	go sb.cacheID(collection, metadata.MetaType, metadata.ID, []byte(metadata.ID))
+	go sb.cacheID(collection, m.MetaType, m.ID, []byte(m.ID))
 
-	sb.statsCollectionAction(collection, "add_documents", "solr.collection", time.Since(start))
+	sb.statsRequest(funcAddDocument, collection, m.MetaType, solrNewDoc, time.Since(start))
 
 	return nil
 }
+
+const (
+	funcCheckMetadata  string = "CheckMetadata"
+	queryCheckMetadata string = "parent_doc:true AND id:%s AND type:%s"
+)
 
 // CheckMetadata - verifies if a metadata exists
 func (sb *SolrBackend) CheckMetadata(collection, tsType, tsid string, tsidBytes []byte) (bool, gobol.Error) {
 
 	isCached, err := sb.isIDCached(collection, tsType, tsid, tsidBytes)
 	if err != nil {
-		return false, errInternalServer("CheckMetadata", err)
+		return false, errInternalServer(funcCheckMetadata, err)
 	}
 
 	if isCached {
@@ -616,15 +627,15 @@ func (sb *SolrBackend) CheckMetadata(collection, tsType, tsid string, tsidBytes 
 
 	start := time.Now()
 
-	q := fmt.Sprintf("parent_doc:true AND id:%s AND type:%s", tsid, tsType)
+	q := fmt.Sprintf(queryCheckMetadata, tsid, tsType)
 	r, e := sb.solrService.SimpleQuery(collection, q, constants.StringsEmpty, 0, 0)
 
 	if e != nil {
-		sb.statsCollectionError(collection, "check_metadata", "solr.collection.error")
-		return false, errInternalServer("CheckMetadata", err)
+		sb.statsError(funcCheckMetadata, collection, tsType, solrDocID)
+		return false, errInternalServer(funcCheckMetadata, err)
 	}
 
-	sb.statsCollectionAction(collection, "check_metadata", "solr.collection", time.Since(start))
+	sb.statsRequest(funcCheckMetadata, collection, tsType, solrDocID, time.Since(start))
 
 	if r.Results.NumFound > 0 {
 		go sb.cacheID(collection, tsType, tsid, tsidBytes)
@@ -634,25 +645,32 @@ func (sb *SolrBackend) CheckMetadata(collection, tsType, tsid string, tsidBytes 
 	return false, nil
 }
 
+const (
+	funcDeleteDocumentByID  string = "DeleteDocumentByID"
+	queryDeleteDocumentByID string = "/%s.*/"
+)
+
 // DeleteDocumentByID - delete a document by ID and its child documents
 func (sb *SolrBackend) DeleteDocumentByID(collection, tsType, id string) gobol.Error {
 
 	start := time.Now()
 
-	queryID := fmt.Sprintf("/%s.*/", id)
+	queryID := fmt.Sprintf(queryDeleteDocumentByID, id)
 
 	err := sb.solrService.DeleteDocumentByID(collection, true, queryID)
 	if err != nil {
-		sb.statsCollectionError(collection, "delete_document", "solr.collection.error")
-		return errInternalServer("DeleteDocumentByID", err)
+		sb.statsError(funcDeleteDocumentByID, collection, tsType, solrDelete)
+		return errInternalServer(funcDeleteDocumentByID, err)
 	}
 
 	go sb.DeleteCachedIDifExist(collection, tsType, id)
 
-	sb.statsCollectionAction(collection, "delete_document", "solr.collection", time.Since(start))
+	sb.statsRequest(funcDeleteDocumentByID, collection, tsType, solrDelete, time.Since(start))
 
 	return nil
 }
+
+const funcDeleteCachedIDifExist string = "DeleteCachedIDifExist"
 
 // DeleteCachedIDifExist - check if ID is cached and delete it
 func (sb *SolrBackend) DeleteCachedIDifExist(collection, tsType, id string) gobol.Error {
@@ -660,35 +678,39 @@ func (sb *SolrBackend) DeleteCachedIDifExist(collection, tsType, id string) gobo
 	isCached, err := sb.isIDCached(collection, tsType, id, []byte(id))
 	if err != nil {
 		if logh.ErrorEnabled {
-			sb.log(sb.logger.Error(), "DeleteCachedIDifExist", collection).Err(err).Msg("error getting tsid from the cache")
+			sb.log(sb.logger.Error(), funcDeleteCachedIDifExist, collection).Err(err).Msg("error getting tsid from the cache")
 		}
-		return errInternalServer("DeleteCachedIDifExist", err)
+		return errInternalServer(funcDeleteCachedIDifExist, err)
 	}
 
 	if isCached {
 		err = sb.deleteCachedID(collection, tsType, id)
 		if err != nil {
 			if logh.ErrorEnabled {
-				sb.log(sb.logger.Error(), "DeleteCachedIDifExist", collection).Err(err).Msg("error deleting tsid from cache")
+				sb.log(sb.logger.Error(), funcDeleteCachedIDifExist, collection).Err(err).Msg("error deleting tsid from cache")
 			}
-			return errInternalServer("DeleteCachedIDifExist", err)
+			return errInternalServer(funcDeleteCachedIDifExist, err)
 		}
 
 		if logh.DebugEnabled {
-			sb.log(sb.logger.Debug(), "DeleteCachedIDifExist", collection).Msg("deleted cached tsid")
+			sb.log(sb.logger.Debug(), funcDeleteCachedIDifExist, collection).Msg("deleted cached tsid")
 		}
 	}
 
 	return nil
 }
 
+const funcFilterTagValuesByMetricAndTag string = "FilterTagValuesByMetricAndTag"
+
 // FilterTagValuesByMetricAndTag - returns all tag values related to the specified metric and tag
 func (sb *SolrBackend) FilterTagValuesByMetricAndTag(collection, tsType, metric, tag, prefix string, maxResults int) ([]string, int, gobol.Error) {
 
 	childrenQuery := "tag_key:" + tag
 
-	return sb.filterTagsByMetric(collection, tsType, metric, childrenQuery, prefix, "filter_tag_values_by_metric_and_tag", "tag_value", "FilterTagValuesByMetricAndTag", maxResults)
+	return sb.filterTagsByMetric(collection, tsType, metric, childrenQuery, prefix, "tag_value", funcFilterTagValuesByMetricAndTag, maxResults)
 }
+
+const funcFilterTagKeysByMetric string = "FilterTagKeysByMetric"
 
 // FilterTagKeysByMetric - returns all tag keys related to the specified metric
 func (sb *SolrBackend) FilterTagKeysByMetric(collection, tsType, metric, prefix string, maxResults int) ([]string, int, gobol.Error) {
@@ -701,11 +723,11 @@ func (sb *SolrBackend) FilterTagKeysByMetric(collection, tsType, metric, prefix 
 		childrenQuery += sb.escapeSolrSpecialChars(prefix)
 	}
 
-	return sb.filterTagsByMetric(collection, tsType, metric, childrenQuery, prefix, "filter_tag_values_by_metric", "tag_key", "FilterTagKeysByMetric", maxResults)
+	return sb.filterTagsByMetric(collection, tsType, metric, childrenQuery, prefix, "tag_key", funcFilterTagKeysByMetric, maxResults)
 }
 
 // filterTagsByMetric - returns all tag keys or values related to the specified metric
-func (sb *SolrBackend) filterTagsByMetric(collection, tsType, metric, childrenQuery, prefix, action, field, functionName string, maxResults int) ([]string, int, gobol.Error) {
+func (sb *SolrBackend) filterTagsByMetric(collection, tsType, metric, childrenQuery, prefix, field, functionName string, maxResults int) ([]string, int, gobol.Error) {
 
 	query := "{!parent which=\"parent_doc:true\"}" + childrenQuery
 	filterQueries := []string{
@@ -728,7 +750,7 @@ func (sb *SolrBackend) filterTagsByMetric(collection, tsType, metric, childrenQu
 
 	facets, gerr := sb.getCachedFacets(collection, strBuilder.String())
 	if gerr != nil {
-		sb.statsCollectionError(collection, action, "solr.collection.error")
+		sb.statsError(functionName, collection, tsType, solrQuery)
 		return nil, 0, errInternalServer(functionName, gerr)
 	}
 
@@ -739,7 +761,7 @@ func (sb *SolrBackend) filterTagsByMetric(collection, tsType, metric, childrenQu
 
 	r, err := sb.solrService.Facets(collection, query, constants.StringsEmpty, 0, 0, filterQueries, nil, []string{field}, true, maxResults, 0)
 	if err != nil {
-		sb.statsCollectionError(collection, action, "solr.collection.error")
+		sb.statsError(functionName, collection, tsType, solrQuery)
 		return nil, 0, errInternalServer(functionName, err)
 	}
 
@@ -747,13 +769,13 @@ func (sb *SolrBackend) filterTagsByMetric(collection, tsType, metric, childrenQu
 
 	err = sb.cacheFacets(facets, collection, strBuilder.String())
 	if err != nil {
-		sb.statsCollectionError(collection, action, "solr.collection.error")
+		sb.statsError(functionName, collection, tsType, solrQuery)
 		return nil, 0, errInternalServer(functionName, err)
 	}
 
 	cropped := sb.cropFacets(facets, maxResults)
 
-	sb.statsCollectionAction(collection, action, "solr.collection", time.Since(start))
+	sb.statsRequest(functionName, collection, tsType, solrQuery, time.Since(start))
 
 	return cropped, len(facets), nil
 }

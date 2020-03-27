@@ -20,8 +20,8 @@ const (
 type MetricsCollector interface {
 
 	// Count - collects a metric from zencached (tags are a list of alternated key and values)
-	Count(metric string, value float64, tags ...string)
+	Count(value float64, metric string, tags ...interface{})
 
 	// Maximum - collects a metric from zencached (tags are a list of alternated key and values)
-	Maximum(metric string, value float64, tags ...string)
+	Maximum(value float64, metric string, tags ...interface{})
 }

@@ -9,11 +9,11 @@ import (
 	"github.com/uol/logh"
 
 	"github.com/uol/mycenae/lib/constants"
+	"github.com/uol/mycenae/lib/stats"
 	"github.com/uol/mycenae/lib/telnetmgr"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/uol/gobol/rip"
-	"github.com/uol/gobol/snitch"
 
 	"github.com/uol/mycenae/lib/collector"
 	"github.com/uol/mycenae/lib/config"
@@ -26,7 +26,7 @@ import (
 
 // New returns http handler to the endpoints
 func New(
-	gbs *snitch.Stats,
+	timelineManager *stats.TimelineManager,
 	p *plot.Plot,
 	keyspace *keyspace.Keyspace,
 	mc *memcached.Memcached,
@@ -37,16 +37,16 @@ func New(
 ) *REST {
 
 	return &REST{
-		probeStatus:   http.StatusOK,
-		logger:        logh.CreateContextualLogger(constants.StringsPKG, "rest"),
-		sts:           gbs,
-		reader:        p,
-		kspace:        keyspace,
-		memcached:     mc,
-		writer:        collector,
-		settings:      set,
-		keyset:        ks,
-		telnetManager: telnetManager,
+		probeStatus:     http.StatusOK,
+		logger:          logh.CreateContextualLogger(constants.StringsPKG, "rest"),
+		timelineManager: timelineManager,
+		reader:          p,
+		kspace:          keyspace,
+		memcached:       mc,
+		writer:          collector,
+		settings:        set,
+		keyset:          ks,
+		telnetManager:   telnetManager,
 	}
 }
 
@@ -54,16 +54,16 @@ func New(
 type REST struct {
 	probeStatus int
 
-	logger        *logh.ContextualLogger
-	sts           *snitch.Stats
-	reader        *plot.Plot
-	kspace        *keyspace.Keyspace
-	memcached     *memcached.Memcached
-	writer        *collector.Collector
-	settings      structs.SettingsHTTP
-	server        *http.Server
-	keyset        *keyset.Manager
-	telnetManager *telnetmgr.Manager
+	logger          *logh.ContextualLogger
+	timelineManager *stats.TimelineManager
+	reader          *plot.Plot
+	kspace          *keyspace.Keyspace
+	memcached       *memcached.Memcached
+	writer          *collector.Collector
+	settings        structs.SettingsHTTP
+	server          *http.Server
+	keyset          *keyset.Manager
+	telnetManager   *telnetmgr.Manager
 }
 
 // Start asynchronously the handler of the APIs
@@ -150,14 +150,8 @@ func (trest *REST) asyncStart() {
 	}
 
 	trest.server = &http.Server{
-		Addr: fmt.Sprintf("%s:%d", trest.settings.Bind, trest.settings.Port),
-		Handler: rip.NewLogMiddleware(
-			"mycenae",
-			"mycenae",
-			trest.sts,
-			router,
-			trest.settings.AllowCORS,
-		),
+		Addr:              fmt.Sprintf("%s:%d", trest.settings.Bind, trest.settings.Port),
+		Handler:           router,
 		ReadTimeout:       60 * time.Second,
 		ReadHeaderTimeout: 60 * time.Second,
 		WriteTimeout:      60 * time.Second,

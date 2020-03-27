@@ -15,9 +15,9 @@ import (
 
 	"github.com/uol/mycenae/lib/collector"
 	"github.com/uol/mycenae/lib/constants"
+	"github.com/uol/mycenae/lib/stats"
 	"github.com/uol/mycenae/lib/structs"
 	"github.com/uol/mycenae/lib/telnetsrv"
-	"github.com/uol/mycenae/lib/tsstats"
 )
 
 //
@@ -29,7 +29,7 @@ import (
 type Manager struct {
 	collector                         *collector.Collector
 	logger                            *logh.ContextualLogger
-	stats                             *tsstats.StatsTS
+	timelineManager                   *stats.TimelineManager
 	terminate                         bool
 	connectionBalanceCheckTimeout     time.Duration
 	maxWaitForDropTelnetConnsInterval time.Duration
@@ -47,7 +47,7 @@ type Manager struct {
 }
 
 // New - creates a new manager instance
-func New(globalConfiguration *structs.GlobalTelnetServerConfiguration, httpListenPort int, collector *collector.Collector, stats *tsstats.StatsTS) (*Manager, error) {
+func New(globalConfiguration *structs.GlobalTelnetServerConfiguration, httpListenPort int, collector *collector.Collector, timelineManager *stats.TimelineManager) (*Manager, error) {
 
 	connectionBalanceCheckTimeoutDuration, err := time.ParseDuration(globalConfiguration.TelnetConnsBalanceCheckInterval)
 	if err != nil {
@@ -97,7 +97,7 @@ func New(globalConfiguration *structs.GlobalTelnetServerConfiguration, httpListe
 		connectionBalanceStarted:          false,
 		collector:                         collector,
 		logger:                            logh.CreateContextualLogger(constants.StringsPKG, "telnetmgr"),
-		stats:                             stats,
+		timelineManager:                   timelineManager,
 		terminate:                         false,
 		httpListenPort:                    httpListenPort,
 		sharedConnectionCounter:           0,
@@ -121,7 +121,7 @@ func (manager *Manager) AddServer(serverConfiguration *structs.TelnetServerConfi
 		manager.globalConfiguration.MaxTelnetConnections,
 		&manager.closeConnectionChannel,
 		manager.collector,
-		manager.stats,
+		manager.timelineManager,
 		telnetHandler,
 	)
 

@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/robfig/cron"
-	"github.com/uol/gobol/logh"
+	"github.com/uol/logh"
 )
 
 // Stats holds several informations.

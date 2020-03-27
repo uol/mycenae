@@ -14,8 +14,8 @@ import (
 
 	"github.com/uol/mycenae/lib/collector"
 	"github.com/uol/mycenae/lib/constants"
+	"github.com/uol/mycenae/lib/stats"
 	"github.com/uol/mycenae/lib/structs"
-	"github.com/uol/mycenae/lib/tsstats"
 	"github.com/uol/mycenae/lib/utils"
 )
 
@@ -36,10 +36,10 @@ type Server struct {
 	maxBufferSize            int64
 	collector                *collector.Collector
 	logger                   *logh.ContextualLogger
-	stats                    *tsstats.StatsTS
+	timelineManager          *stats.TimelineManager
 	telnetHandler            TelnetDataHandler
 	lineSplitter             []byte
-	statsConnectionTags      map[string]string
+	statsConnectionTags      []interface{}
 	sharedConnectionCounter  *uint32
 	numLocalConnections      uint32
 	maxConnections           uint32
@@ -53,7 +53,7 @@ type Server struct {
 }
 
 // New - creates a new telnet server
-func New(serverConfiguration *structs.TelnetServerConfiguration, globalTelnetConfigs *structs.GlobalTelnetServerConfiguration, sharedConnectionCounter *uint32, maxConnections uint32, closeConnectionChannel *chan struct{}, collector *collector.Collector, stats *tsstats.StatsTS, telnetHandler TelnetDataHandler) (*Server, error) {
+func New(serverConfiguration *structs.TelnetServerConfiguration, globalTelnetConfigs *structs.GlobalTelnetServerConfiguration, sharedConnectionCounter *uint32, maxConnections uint32, closeConnectionChannel *chan struct{}, collector *collector.Collector, timelineManager *stats.TimelineManager, telnetHandler TelnetDataHandler) (*Server, error) {
 
 	onErrorTimeoutDuration, err := time.ParseDuration(serverConfiguration.OnErrorTimeout)
 	if err != nil {
@@ -80,7 +80,7 @@ func New(serverConfiguration *structs.TelnetServerConfiguration, globalTelnetCon
 		maxBufferSize:            serverConfiguration.MaxBufferSize,
 		collector:                collector,
 		logger:                   logh.CreateContextualLogger(constants.StringsPKG, "telnetsrv"),
-		stats:                    stats,
+		timelineManager:          timelineManager,
 		telnetHandler:            telnetHandler,
 		lineSplitter:             []byte{lineSeparator},
 		terminate:                false,
@@ -92,10 +92,10 @@ func New(serverConfiguration *structs.TelnetServerConfiguration, globalTelnetCon
 		name:                     serverConfiguration.ServerName,
 		connectedIPMap:           sync.Map{},
 		globalTelnetConfigs:      globalTelnetConfigs,
-		statsConnectionTags: map[string]string{
-			"type":   "tcp",
-			"port":   strPort,
-			"source": telnetHandler.SourceName(),
+		statsConnectionTags: []interface{}{
+			"type", "tcp",
+			"port", strPort,
+			"source", telnetHandler.SourceName(),
 		},
 	}, nil
 }
@@ -130,8 +130,6 @@ func (server *Server) Listen() error {
 		server.logger.Info().Str(constants.StringsFunc, cFuncListen).Msgf("listening telnet connections at %q...", server.listener.Addr())
 	}
 
-	handlerSourceName := server.telnetHandler.SourceName()
-
 	go func() {
 
 		for {
@@ -155,8 +153,8 @@ func (server *Server) Listen() error {
 			remoteAddressIP := server.extractIP(conn)
 
 			// reports the connection IP and source
-			go server.stats.ValueAdd("telnetsrv", "network.ip", map[string]string{"ip": remoteAddressIP, "source": handlerSourceName}, 1)
-			go server.stats.ValueAdd("telnetsrv", "network.connection.open", map[string]string{"source": handlerSourceName, "port": server.port}, 1)
+			server.statsNetworkIP(cFuncListen, remoteAddressIP)
+			server.statsNetworkConnectionOpen(cFuncListen)
 
 			if _, stored := server.connectedIPMap.LoadOrStore(remoteAddressIP, struct{}{}); stored {
 
@@ -291,15 +289,7 @@ ConnLoop:
 		}
 	}
 
-	go server.stats.ValueAdd(
-		"telnetsrv",
-		"network.connection.open.time",
-		map[string]string{
-			"source": server.telnetHandler.SourceName(),
-			"port":   server.port,
-		},
-		float64(time.Since(startTime).Nanoseconds())/float64(time.Millisecond),
-	)
+	server.statsNetworkConnectionOpenTime(cFuncListen, startTime)
 
 	if !server.globalTelnetConfigs.SilenceLogs {
 		if err != nil {
@@ -335,22 +325,14 @@ func (server *Server) closeConnection(conn net.Conn, reason string, subtractCoun
 
 	err := conn.Close()
 	if err != nil && !server.globalTelnetConfigs.SilenceLogs && logh.ErrorEnabled {
-		server.logger.Error().Str(constants.StringsFunc, cFuncCloseConnection).Err(err).Msgf("error closing tcp telnet connection %s (%s): %s", remoteAddressIP, reason)
+		server.logger.Error().Str(constants.StringsFunc, cFuncCloseConnection).Err(err).Msgf("error closing tcp telnet connection %s (%s): %s", remoteAddressIP, server.telnetHandler.SourceName())
 	}
 
 	conn = nil
 
 	server.connectedIPMap.Delete(remoteAddressIP)
 
-	source := server.telnetHandler.SourceName()
-
-	statsCloseTags := map[string]string{
-		"type":   reason,
-		"source": source,
-		"port":   server.port,
-	}
-
-	go server.stats.Increment("telnetsrv", "network.connection.close", statsCloseTags)
+	server.statsNetworkConnectionClose(cFuncCloseConnection, reason)
 
 	var localConns, sharedConns uint32
 
@@ -366,11 +348,11 @@ func (server *Server) closeConnection(conn net.Conn, reason string, subtractCoun
 
 		if logh.InfoEnabled {
 			server.logger.Info().Str(constants.StringsFunc, cFuncCloseConnection).Msgf("tcp telnet connection closed %s (%s) from %d connections)", remoteAddressIP, reason, localConns)
-			server.logger.Info().Str(constants.StringsFunc, cFuncCloseConnection).Msgf("total telnet connections: %d / %d (local conns / total conns -> %s)", localConns, sharedConns, source)
+			server.logger.Info().Str(constants.StringsFunc, cFuncCloseConnection).Msgf("total telnet connections: %d / %d (local conns / total conns -> %s)", localConns, sharedConns, server.telnetHandler.SourceName())
 		}
 	}
 
-	go server.stats.ValueAdd("telnetsrv", "network.connection.close.time", statsCloseTags, float64(time.Since(startTime).Nanoseconds())/float64(time.Millisecond))
+	server.statsNetworkConnectionCloseTime(cFuncCloseConnection, reason, startTime)
 }
 
 // Shutdown - stops listening
@@ -415,7 +397,7 @@ func (server *Server) collectStats() {
 			return
 		}
 
-		go server.stats.ValueAdd("telnetsrv", "network.connection", server.statsConnectionTags, (float64)(server.numLocalConnections))
+		server.statsNetworkConnection(cFuncCollectStats)
 	}
 }
 

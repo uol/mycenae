@@ -39,14 +39,14 @@ const (
 func (plot *Plot) checkTotalTSLimits(message, keyset, metric string, total int) gobol.Error {
 
 	if total > plot.LogQueryTSThreshold {
-		plot.statsQueryTSThreshold(keyset, total)
+		plot.statsQueryTSThreshold(cFuncCheckTotalTSLimits, keyset, total)
 		if logh.WarnEnabled {
 			plot.logger.Warn().Str(constants.StringsFunc, cFuncCheckTotalTSLimits).Str("type", "q").Str(constants.StringsKeyset, keyset).Str("metric", metric).Msg(message)
 		}
 	}
 
 	if total > plot.MaxTimeseries {
-		plot.statsQueryTSLimit(keyset, total)
+		plot.statsQueryTSLimit(cFuncCheckTotalTSLimits, keyset, total)
 		if logh.WarnEnabled {
 			plot.logger.Warn().Str(constants.StringsFunc, cFuncCheckTotalTSLimits).Str("type", "ts").Str(constants.StringsKeyset, keyset).Str("metric", metric).Msg(message)
 		}

@@ -13,6 +13,11 @@ import (
 	"github.com/uol/mycenae/lib/validation"
 )
 
+//
+// Implements the opentsdb telnet handler.
+// author: rnojiri
+//
+
 // TelnetFormatTagsRegexp - contains the regexp to parse the tags
 const TelnetFormatTagsRegexp string = `([0-9A-Za-z-\._\%\&\#\;\/]+)=([0-9A-Za-z-\._\%\&\#\;\/]+)`
 

@@ -11,7 +11,7 @@ import (
 
 	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/metadata"
-	"github.com/uol/mycenae/lib/tsstats"
+	"github.com/uol/mycenae/lib/stats"
 )
 
 type persistence struct {
@@ -21,7 +21,7 @@ type persistence struct {
 	constPartBytesFromTextPoint   uintptr
 	stringSize                    uintptr
 	maxBytesErr                   error
-	stats                         *tsstats.StatsTS
+	timelineManager               *stats.TimelineManager
 	unlimitedBytesKeysetWhiteList map[string]bool
 	logger                        *logh.ContextualLogger
 }
@@ -36,7 +36,7 @@ func New(
 	defaultMaxResults int,
 	maxBytesLimit uint32,
 	unlimitedBytesKeysetWhiteList []string,
-	stats *tsstats.StatsTS,
+	timelineManager *stats.TimelineManager,
 ) (*Plot, gobol.Error) {
 
 	if maxTimeseries < 1 {
@@ -58,7 +58,7 @@ func New(
 		MaxTimeseries:       maxTimeseries,
 		LogQueryTSThreshold: logQueryTSthreshold,
 		persist: &persistence{
-			stats:                         stats,
+			timelineManager:               timelineManager,
 			cassandra:                     cass,
 			metaStorage:                   metaStorage,
 			stringSize:                    stringSize,
@@ -73,7 +73,7 @@ func New(
 		defaultMaxResults: defaultMaxResults,
 		maxBytesLimit:     maxBytesLimit,
 		logger:            logh.CreateContextualLogger(constants.StringsPKG, "plot"),
-		stats:             stats,
+		timelineManager:   timelineManager,
 	}, nil
 }
 
@@ -85,7 +85,7 @@ type Plot struct {
 	defaultTTL          int
 	defaultMaxResults   int
 	maxBytesLimit       uint32
-	stats               *tsstats.StatsTS
+	timelineManager     *stats.TimelineManager
 	logger              *logh.ContextualLogger
 }
 

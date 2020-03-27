@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
-	"strconv"
 	"time"
 
+	"github.com/uol/mycenae/lib/stats"
 	"github.com/uol/mycenae/lib/structs"
 	"github.com/uol/mycenae/lib/validation"
 
@@ -18,11 +18,10 @@ import (
 	"github.com/uol/logh"
 	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/metadata"
-	"github.com/uol/mycenae/lib/tsstats"
 )
 
 var (
-	stats *tsstats.StatsTS
+	timelineManager *stats.TimelineManager
 )
 
 const (
@@ -33,7 +32,7 @@ const (
 
 // New - creates a new Collector
 func New(
-	sts *tsstats.StatsTS,
+	tm *stats.TimelineManager,
 	cass *gocql.Session,
 	metaStorage *metadata.Storage,
 	set *structs.Settings,
@@ -41,7 +40,7 @@ func New(
 	validation *validation.Service,
 ) (*Collector, error) {
 
-	stats = sts
+	timelineManager = tm
 
 	collect := &Collector{
 		cassandra:      cass,
@@ -93,12 +92,12 @@ func (collect *Collector) worker(id int, jobChannel <-chan workerData) {
 
 		err := collect.processPacket(j.validatedPoint)
 		if err != nil {
-			statsPointsError(j.validatedPoint.Message.Keyset, collect.getType(j.validatedPoint.Number), j.source, strconv.Itoa(j.validatedPoint.Message.TTL))
+			statsPointsError(j.validatedPoint.Message.Keyset, collect.getType(j.validatedPoint.Number), j.source, j.validatedPoint.Message.TTL)
 			if logh.ErrorEnabled {
 				collect.logger.Error().Str(constants.StringsFunc, "worker").Err(err).Send()
 			}
 		} else {
-			statsPoints(j.validatedPoint.Message.Keyset, collect.getType(j.validatedPoint.Number), j.source, strconv.Itoa(j.validatedPoint.Message.TTL))
+			statsPoints(j.validatedPoint.Message.Keyset, collect.getType(j.validatedPoint.Number), j.source, j.validatedPoint.Message.TTL)
 		}
 	}
 }

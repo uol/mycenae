@@ -11,71 +11,84 @@ import (
 	"github.com/uol/mycenae/lib/metadata"
 )
 
+const (
+	fmtInsertNumberQuery string = `INSERT INTO %v.ts_number_stamp (id, date, value) VALUES (?, ?, ?)`
+	fmtInsertTextQuery   string = `INSERT INTO %v.ts_text_stamp (id, date , value) VALUES (?, ?, ?)`
+	tableNumberStamp     string = "ts_number_stamp"
+	tableTextStamp       string = "ts_text_stamp"
+)
+
 func (collect *Collector) InsertPoint(ksid, tsid string, timestamp int64, value float64) gobol.Error {
 
 	start := time.Now()
+
 	var err error
 	if err = collect.cassandra.Query(
-		fmt.Sprintf(`INSERT INTO %v.ts_number_stamp (id, date, value) VALUES (?, ?, ?)`, ksid),
+		fmt.Sprintf(fmtInsertNumberQuery, ksid),
 		tsid,
 		timestamp,
 		value,
 	).Exec(); err != nil {
-		statsInsertQerror(ksid, "ts_number_stamp")
+		statsInsertQueryError(ksid, tableNumberStamp)
 		if logh.ErrorEnabled {
 			collect.logger.Error().Err(err).Str(constants.StringsFunc, "InsertPoint").Str("tsid", tsid).Int64("timestamp", timestamp).Float64("value", value).Str("ksid", ksid).Send()
 		}
 
-		statsInsertFBerror(ksid, "ts_number_stamp")
+		statsInsertRollback(ksid, tableNumberStamp)
 		return errPersist("InsertPoint", err)
 	}
-	statsInsert(ksid, "ts_number_stamp", time.Since(start))
+
+	statsInsertQuery(ksid, tableNumberStamp, time.Since(start))
+
 	return nil
 }
 
 func (collect *Collector) InsertText(ksid, tsid string, timestamp int64, text string) gobol.Error {
 
 	start := time.Now()
+
 	var err error
 	if err = collect.cassandra.Query(
-		fmt.Sprintf(`INSERT INTO %v.ts_text_stamp (id, date , value) VALUES (?, ?, ?)`, ksid),
+		fmt.Sprintf(fmtInsertTextQuery, ksid),
 		tsid,
 		timestamp,
 		text,
 	).Exec(); err != nil {
-		statsInsertQerror(ksid, "ts_text_stamp")
+		statsInsertQueryError(ksid, tableTextStamp)
 		if logh.ErrorEnabled {
 			collect.logger.Error().Err(err).Str(constants.StringsFunc, "InsertText").Str("tsid", tsid).Int64("timestamp", timestamp).Str("text", text).Str("ksid", ksid).Send()
 		}
-		statsInsertFBerror(ksid, "ts_text_stamp")
+		statsInsertRollback(ksid, tableTextStamp)
 		return errPersist("InsertText", err)
 	}
-	statsInsert(ksid, "ts_text_stamp", time.Since(start))
+
+	statsInsertQuery(ksid, tableTextStamp, time.Since(start))
+
 	return nil
 }
 
+const funcCheckMetadata string = "CheckMetadata"
+
+// CheckMetadata - checks for the metadata existence
 func (collect *Collector) CheckMetadata(index, tsType, id string, idByte []byte) (bool, gobol.Error) {
 
-	start := time.Now()
 	ok, err := collect.metaStorage.CheckMetadata(index, tsType, id, idByte)
 	if err != nil {
-		statsIndexError(index, "all", "head")
-		return false, errPersist("CheckMetadata", err)
+		return false, errPersist(funcCheckMetadata, err)
 	}
-	statsIndex(index, "all", "head", time.Since(start))
 
 	return ok, nil
 }
 
-func (collect *Collector) AddMetadata(collection string, metadata *metadata.Metadata) gobol.Error {
-	start := time.Now()
+const funcAddMetadata string = "AddMetadata"
 
-	err := collect.metaStorage.AddDocument(collection, metadata)
+// AddMetadata - adds a new document metadata
+func (collect *Collector) AddMetadata(collection string, m *metadata.Metadata) gobol.Error {
+
+	err := collect.metaStorage.AddDocument(collection, m)
 	if err != nil {
-		statsIndexError(collection, "document", "AddMetadata")
-		return errPersist("AddMetadata", err)
+		return errPersist(funcAddMetadata, err)
 	}
-	statsIndex(collection, "document", "AddMetadata", time.Since(start))
 
 	return nil
 }

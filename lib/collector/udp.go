@@ -6,18 +6,16 @@ import (
 	"github.com/uol/mycenae/lib/constants"
 )
 
-func sendIPStats(addr string) {
-
-	go stats.Increment("HandleUDPpacket", "network.ip", map[string]string{"ip": addr, "source": "udp"})
-}
-
 // HandleUDPpacket - handles the UDP packet received from the collector
 func (collector *Collector) HandleUDPpacket(buf []byte, addr string) {
 
-	sendIPStats(addr)
+	statsNetworkIP(addr, constants.StringsUDP)
 
-	logh.Debug().Msgf("udp: %s", string(buf))
-	_, gerr := collector.HandleJSONBytes(buf, "udp", true)
+	if logh.DebugEnabled {
+		logh.Debug().Msgf("udp: %s", string(buf))
+	}
+
+	_, gerr := collector.HandleJSONBytes(buf, constants.StringsUDP, true)
 	if gerr != nil {
 		collector.fail(gerr, addr)
 	}

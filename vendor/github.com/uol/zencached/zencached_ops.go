@@ -61,8 +61,8 @@ var (
 func (z *Zencached) countOperation(host string, operation memcachedCommand) {
 
 	z.metricsCollector.Count(
-		metricOperationCount,
 		1,
+		metricOperationCount,
 		tagNodeName, host,
 		tagOperationName, string(operation),
 	)
@@ -88,8 +88,8 @@ func (z *Zencached) executeSend(telnetConn *Telnet, operation memcachedCommand, 
 		elapsedTime := time.Since(start)
 
 		z.metricsCollector.Maximum(
-			metricOperationTime,
 			float64(elapsedTime.Milliseconds()),
+			metricOperationTime,
 			tagNodeName, telnetConn.GetHost(),
 			tagOperationName, string(operation),
 		)
@@ -113,8 +113,8 @@ func (z *Zencached) checkResponse(telnetConn *Telnet, checkReadSet, checkRespons
 
 		if z.enableMetrics {
 			z.metricsCollector.Count(
-				metricCacheMiss,
 				1,
+				metricCacheMiss,
 				tagNodeName, telnetConn.GetHost(),
 				tagOperationName, string(operation),
 			)
@@ -125,8 +125,8 @@ func (z *Zencached) checkResponse(telnetConn *Telnet, checkReadSet, checkRespons
 
 	if z.enableMetrics {
 		z.metricsCollector.Count(
-			metricCacheHit,
 			1,
+			metricCacheHit,
 			tagNodeName, telnetConn.GetHost(),
 			tagOperationName, string(operation),
 		)

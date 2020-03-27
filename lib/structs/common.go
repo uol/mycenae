@@ -3,10 +3,10 @@ package structs
 import (
 	"github.com/uol/gobol/cassandra"
 	"github.com/uol/logh"
-	"github.com/uol/gobol/snitch"
 	"github.com/uol/mycenae/lib/keyspace"
 	"github.com/uol/mycenae/lib/memcached"
 	"github.com/uol/mycenae/lib/metadata"
+	"github.com/uol/mycenae/lib/stats"
 )
 
 type SettingsHTTP struct {
@@ -85,8 +85,7 @@ type Settings struct {
 	Cassandra                          cassandra.Settings
 	Memcached                          memcached.Configuration
 	Logs                               LoggerSettings
-	Stats                              snitch.Settings
-	StatsAnalytic                      snitch.Settings
+	Stats                              stats.Configuration
 	MetadataSettings                   metadata.Settings
 	Validation                         ValidationConfiguration
 }

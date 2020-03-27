@@ -8,7 +8,7 @@ import (
 
 	"github.com/rs/zerolog"
 
-	"github.com/uol/gobol/logh"
+	"github.com/uol/logh"
 
 	"github.com/uol/gobol"
 )

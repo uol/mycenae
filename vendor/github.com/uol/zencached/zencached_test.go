@@ -274,11 +274,11 @@ type testCollector struct {
 	collected []string
 }
 
-func (c *testCollector) Count(metric string, value float64, tags ...string) {
+func (c *testCollector) Count(value float64, metric string, tags ...interface{}) {
 	c.collected = append(c.collected, fmt.Sprintf("count/%s/%f/%v", metric, value, tags))
 }
 
-func (c *testCollector) Maximum(metric string, value float64, tags ...string) {
+func (c *testCollector) Maximum(value float64, metric string, tags ...interface{}) {
 	c.collected = append(c.collected, fmt.Sprintf("max/%s/%f/%v", metric, value, tags))
 }
 

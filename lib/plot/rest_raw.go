@@ -29,8 +29,6 @@ type queryParameters struct {
 // RawDataQuery - returns the raw query
 func (plot *Plot) RawDataQuery(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
-	rip.AddStatsMap(r, map[string]string{"path": "/api/query/raw"})
-
 	defer r.Body.Close()
 
 	rawQuery := &RawDataQuery{}

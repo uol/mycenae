@@ -40,7 +40,7 @@ func (collect *Collector) handle(w http.ResponseWriter, r *http.Request, number 
 		return
 	}
 
-	_, gerr := collect.HandleJSONBytes(bytes, "http", number)
+	_, gerr := collect.HandleJSONBytes(bytes, constants.StringsHTTP, number)
 	if gerr != nil {
 		rip.Fail(w, gerr)
 		return
@@ -93,5 +93,5 @@ func (collect *Collector) sendIPStats(r *http.Request) {
 		}
 	}
 
-	statsValueAdd("network.ip", map[string]string{"ip": ip, "source": "http"}, 1)
+	statsNetworkIP(ip, constants.StringsHTTP)
 }

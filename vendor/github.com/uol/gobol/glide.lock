@@ -1,22 +1,22 @@
-hash: 9fad51e9fec1418e4d98ac79501f26874457d484ab5844d965492d41a4ec343a
-updated: 2019-12-16T20:07:54.180899514-03:00
+hash: 047e492e94a740ce4d8a1a22545e231909074ab476813e0d3c85e21dc4e0462d
+updated: 2020-01-28T20:19:28.605647057-03:00
 imports:
 - name: github.com/BurntSushi/toml
   version: 3012a1dbe2e4bd1391d42b32f0577cb7bbc7f005
 - name: github.com/gocql/gocql
-  version: 1982a06ad6b987c24beec15336019914d71b2e31
+  version: 95d072f1b5bbc604ce10f41ce1c914578592ed00
   subpackages:
   - internal/lru
   - internal/murmur
   - internal/streams
 - name: github.com/golang/snappy
-  version: 2a8bb927dd31d8daada140a5d09578521ce5c36a
+  version: ff6b7dc882cf4cfba7ee0b9f7dcc1ac096c554aa
 - name: github.com/google/uuid
-  version: 0cd6bf5da1e1c83f8b45653022c74f71af0538a4
+  version: c2e93f3ae59f2904160ceaab466009f965df46d6
 - name: github.com/hailocab/go-hostpool
   version: e80d13ce29ede4452c43dea11e79b9bc8a15b478
 - name: github.com/jinzhu/gorm
-  version: 81c17a7e2529c59efc4e74c5b32c1fb71fb12fa2
+  version: 79a77d771dee4e4b60e9c543e8663bbc80466670
 - name: github.com/jinzhu/inflection
   version: f5c5f50e6090ae76a29240b61ae2a90dd810112e
 - name: github.com/julienschmidt/httprouter
@@ -43,24 +43,14 @@ imports:
   version: 88954f7f66307d572c5fc59d6ba31d19a0ca9888
   subpackages:
   - solr
+- name: github.com/uol/logh
+  version: b8eb12a00c06edc8f347883caf8c72dbbcdb895b
 - name: github.com/uol/serializer
   version: 0bbe4b09acd77a609dcc12f5890a9a147056a424
-  subpackages:
-  - json
-  - opentsdb
-  - serializer
-- name: golang.org/x/crypto
-  version: e9b2fee46413994441b28dfca259d911d963dfed
-  subpackages:
-  - sha3
-- name: golang.org/x/sys
-  version: ac6580df4449443a05718fd7858c1f91ad5f8d20
-  subpackages:
-  - cpu
 - name: gopkg.in/inf.v0
   version: d2d2541c53f18d2a059457998ce2876cc8e67cbf
 - name: gopkg.in/yaml.v2
-  version: 1f64d6156d11335c3f22d9330b0ad14fc1e789ce
+  version: 53403b58ad1b561927d19068c655246f2db79d48
 testImports:
 - name: github.com/davecgh/go-spew
   version: d8f796af33cc11cb798c1aaeb27a4ebc5099927d
@@ -71,6 +61,6 @@ testImports:
   subpackages:
   - difflib
 - name: github.com/stretchr/testify
-  version: f35b8ab0b5a2cef36673838d662e249dd9c94686
+  version: 221dbe5ed46703ee255b1da0dec05086f5035f62
   subpackages:
   - assert
