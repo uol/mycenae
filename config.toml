@@ -46,6 +46,9 @@ TSIDKeySize = 16
 # When starting up enables the automatic keyspace creation for the default keyspaces bellow
 EnableAutoKeyspaceCreation = true
 
+# Report metrics sent in the past (everything before the time bellow in miliseconds)
+DelayedMetricsThreshold = 3000
+
 # All default keyspaces
 [DefaultKeyspaces]
   one_day = 1

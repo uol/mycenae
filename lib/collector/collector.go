@@ -111,6 +111,12 @@ func (collect *Collector) processPacket(point *Point) gobol.Error {
 
 	start := time.Now()
 
+	pastTime := start.Unix() - point.Message.Timestamp
+
+	if pastTime >= collect.settings.DelayedMetricsThreshold {
+		statsDelayedMetrics(point.Message.Keyset, pastTime)
+	}
+
 	var gerr gobol.Error
 
 	if point.Number {

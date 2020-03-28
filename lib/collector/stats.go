@@ -15,6 +15,7 @@ const (
 	metricTimeseriesCountNew  string = "timeseries.count.new"
 	metricTimeseriesCountOld  string = "timeseries.count.old"
 	metricScyllaRollbackError string = "scylla.rollback.error"
+	metricDelayedMetric       string = "delayed.metrics"
 )
 
 func statsProcTime(ksid string, d time.Duration) {
@@ -130,4 +131,14 @@ func statsNetworkIP(ip, source string) {
 		constants.StringsMetricNetworkIP,
 		constants.StringsIP, ip,
 		constants.StringsSource, source)
+}
+
+func statsDelayedMetrics(ksid string, pastTime int64) {
+
+	timelineManager.FlattenMaxN(
+		constants.StringsEmpty,
+		float64(pastTime),
+		metricDelayedMetric,
+		constants.StringsTargetKSID, utils.ValidateExpectedValue(ksid),
+	)
 }

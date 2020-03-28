@@ -71,6 +71,7 @@ type Settings struct {
 	SilencePointValidationErrors       bool
 	GarbageCollectorPercentage         int
 	TSIDKeySize                        int
+	DelayedMetricsThreshold            int64
 	GlobalTelnetServerConfiguration    GlobalTelnetServerConfiguration
 	HTTPserver                         SettingsHTTP
 	UDPserver                          SettingsUDP
