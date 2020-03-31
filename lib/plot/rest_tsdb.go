@@ -349,7 +349,7 @@ func (plot *Plot) getTimeseries(
 
 			if q.FilterValue != constants.StringsEmpty {
 				filterV.Enabled = true
-				if q.FilterValue[:2] == ">=" || q.FilterValue[:2] == "<=" || q.FilterValue[:2] == "==" {
+				if q.FilterValue[:2] == ">=" || q.FilterValue[:2] == "<=" || q.FilterValue[:2] == "==" || q.FilterValue[:2] == "!=" {
 					val, err := strconv.ParseFloat(q.FilterValue[2:], 64)
 					if err != nil {
 						return resps, sumBytes, errValidationE("getTimeseries", err)
