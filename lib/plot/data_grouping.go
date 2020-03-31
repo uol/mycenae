@@ -492,6 +492,12 @@ func filterValues(oper structs.FilterValueOperation, serie Pnts) Pnts {
 				filteredSerie = append(filteredSerie, pnt)
 			}
 		}
+	case "!=":
+		for _, pnt := range serie {
+			if pnt.Value != oper.Value {
+				filteredSerie = append(filteredSerie, pnt)
+			}
+		}
 	}
 
 	return filteredSerie

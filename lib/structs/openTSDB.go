@@ -101,7 +101,7 @@ func (query TSDBqueryPayload) Validate() gobol.Error {
 				return errValidation(fmt.Errorf("invalid filter value %s", q.FilterValue))
 			}
 
-			if q.FilterValue[:2] == ">=" || q.FilterValue[:2] == "<=" || q.FilterValue[:2] == "==" {
+			if q.FilterValue[:2] == ">=" || q.FilterValue[:2] == "<=" || q.FilterValue[:2] == "==" || q.FilterValue[:2] == "!=" {
 				_, err := strconv.ParseFloat(q.FilterValue[2:], 64)
 				if err != nil {
 					return errValidation(err)
