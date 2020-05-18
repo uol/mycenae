@@ -68,7 +68,7 @@ func (m *Manager) SendHTTP(schemaName string, parameters ...interface{}) error {
 		return fmt.Errorf("this transport does not accepts http messages")
 	}
 
-	m.transport.DataChannel() <- jsonSerializer.ArrayItem{
+	m.transport.DataChannel() <- &jsonSerializer.ArrayItem{
 		Name:       schemaName,
 		Parameters: parameters,
 	}
@@ -79,7 +79,7 @@ func (m *Manager) SendHTTP(schemaName string, parameters ...interface{}) error {
 // SerializeHTTP - serializes a point using the json serializer
 func (m *Manager) SerializeHTTP(schemaName string, parameters ...interface{}) (string, error) {
 
-	return m.transport.Serialize(jsonSerializer.ArrayItem{
+	return m.transport.Serialize(&jsonSerializer.ArrayItem{
 		Name:       schemaName,
 		Parameters: parameters,
 	})
@@ -115,7 +115,7 @@ func (m *Manager) SendOpenTSDB(value float64, timestamp int64, metric string, ta
 		timestamp = time.Now().Unix()
 	}
 
-	m.transport.DataChannel() <- openTSDBSerializer.ArrayItem{
+	m.transport.DataChannel() <- &openTSDBSerializer.ArrayItem{
 		Metric:    metric,
 		Tags:      tags,
 		Timestamp: timestamp,
@@ -128,7 +128,7 @@ func (m *Manager) SendOpenTSDB(value float64, timestamp int64, metric string, ta
 // SerializeOpenTSDB - serializes a point using the opentsdb serializer
 func (m *Manager) SerializeOpenTSDB(value float64, timestamp int64, metric string, tags ...interface{}) (string, error) {
 
-	return m.transport.Serialize(openTSDBSerializer.ArrayItem{
+	return m.transport.Serialize(&openTSDBSerializer.ArrayItem{
 		Metric:    metric,
 		Tags:      tags,
 		Timestamp: timestamp,
@@ -162,23 +162,43 @@ func (m *Manager) FlattenOpenTSDB(operation FlatOperation, value float64, timest
 }
 
 // StoreDataToAccumulateHTTP - stores a data to accumulate
-func (m *Manager) StoreDataToAccumulateHTTP(name string, parameters ...interface{}) (string, error) {
+func (m *Manager) StoreDataToAccumulateHTTP(ttl time.Duration, name string, parameters ...interface{}) (string, error) {
 
 	return m.accumulator.Store(&jsonSerializer.ArrayItem{
 		Name:       name,
 		Parameters: parameters,
-	})
+	}, ttl)
+}
+
+// StoreHashedDataToAccumulateHTTP - stores a data with custom hash to accumulate
+func (m *Manager) StoreHashedDataToAccumulateHTTP(hash string, ttl time.Duration, name string, parameters ...interface{}) error {
+
+	return m.accumulator.StoreCustomHash(&jsonSerializer.ArrayItem{
+		Name:       name,
+		Parameters: parameters,
+	}, ttl, hash)
 }
 
 // StoreDataToAccumulateOpenTSDB - stores a data to accumulate
-func (m *Manager) StoreDataToAccumulateOpenTSDB(value float64, timestamp int64, metric string, tags ...interface{}) (string, error) {
+func (m *Manager) StoreDataToAccumulateOpenTSDB(ttl time.Duration, value float64, timestamp int64, metric string, tags ...interface{}) (string, error) {
 
 	return m.accumulator.Store(&openTSDBSerializer.ArrayItem{
 		Metric:    metric,
 		Tags:      tags,
 		Timestamp: timestamp,
 		Value:     value,
-	})
+	}, ttl)
+}
+
+// StoreHashedDataToAccumulateOpenTSDB - stores a data with custom hash to accumulate
+func (m *Manager) StoreHashedDataToAccumulateOpenTSDB(hash string, ttl time.Duration, value float64, timestamp int64, metric string, tags ...interface{}) error {
+
+	return m.accumulator.StoreCustomHash(&openTSDBSerializer.ArrayItem{
+		Metric:    metric,
+		Tags:      tags,
+		Timestamp: timestamp,
+		Value:     value,
+	}, ttl, hash)
 }
 
 // IncrementAccumulatedData - stores a data to accumulate
@@ -190,6 +210,11 @@ func (m *Manager) IncrementAccumulatedData(hash string) error {
 // Start - starts the manager
 func (m *Manager) Start() error {
 
+	err := m.transport.Start()
+	if err != nil {
+		return err
+	}
+
 	if m.flattener != nil {
 		m.flattener.Start()
 	}
@@ -198,7 +223,7 @@ func (m *Manager) Start() error {
 		m.accumulator.Start()
 	}
 
-	return m.transport.Start()
+	return nil
 }
 
 // Shutdown - shuts down the transport

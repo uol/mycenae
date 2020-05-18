@@ -1,12 +1,12 @@
-hash: 3b74a6c49f315e204467678fafa541dbdadd948299dd62835c2f7459d956d7a8
-updated: 2020-03-16T18:43:23.036398689-03:00
+hash: 793a0b9a6c088d05b2f8e98c6e43f854ac3cde88f338959c90b9b0161684138c
+updated: 2020-04-23T23:24:16.501417883-03:00
 imports:
 - name: github.com/buger/jsonparser
   version: 1a29609e0929ccd5666069e2e7213c2c69fa4ac2
 - name: github.com/BurntSushi/toml
   version: 3012a1dbe2e4bd1391d42b32f0577cb7bbc7f005
 - name: github.com/gocql/gocql
-  version: 95d072f1b5bbc604ce10f41ce1c914578592ed00
+  version: cd4b606dd2fb8920e814a86b2901d062daf388a8
   subpackages:
   - internal/lru
   - internal/murmur
@@ -18,13 +18,13 @@ imports:
 - name: github.com/hailocab/go-hostpool
   version: e80d13ce29ede4452c43dea11e79b9bc8a15b478
 - name: github.com/json-iterator/go
-  version: 7acbb404a45be33f136d6f16fe8f86ca30f1008d
+  version: acfec88f7a0d5140ace3dcdbee10184e3684a9e1
 - name: github.com/julienschmidt/httprouter
   version: 348b672cd90d8190f8240323e372ecd1e66b59dc
 - name: github.com/modern-go/concurrent
   version: bacd9c7ef1dd9b15be4a9909b8ac7a4e313eec94
 - name: github.com/modern-go/reflect2
-  version: 94122c33edd36123c84d5368cfb2b69df93a0ec8
+  version: 4b7aa43c6742a2c18fdef89dd197aaae7dac7ccd
 - name: github.com/pborman/uuid
   version: 8b1b92947f46224e3b97bb1a3a5b0382be00d31e
 - name: github.com/robfig/cron
@@ -43,7 +43,7 @@ imports:
   subpackages:
   - solr
 - name: github.com/uol/gobol
-  version: dbadc82d336517452492fa5f9fc1604adb8d9b28
+  version: 5ae448567b8d89c7746cf1a504fe98c7252b186c
   subpackages:
   - cassandra
   - loader
@@ -57,25 +57,25 @@ imports:
 - name: github.com/uol/scheduler
   version: 3edd7d67bcde61e731d53144259cb50dd0f9931e
 - name: github.com/uol/serializer
-  version: 0bbe4b09acd77a609dcc12f5890a9a147056a424
+  version: 97927ecda92eee84fc36f6db384c1ccea8fd32a2
   subpackages:
   - json
   - opentsdb
   - serializer
 - name: github.com/uol/timeline
-  version: b62190978296920ca45985b5c1f6486825b136d8
+  version: 7336997e2b4a305a686afb114932a4985cfd2997
 - name: github.com/uol/zencached
   version: d18f0dfa196e584cf82e52297f619987cf9dc4e8
 - name: golang.org/x/crypto
-  version: f7b00557c8c46a1ea4b035cae84f52028c2c0564
+  version: 78000ba7a073cafc0278790f6bce552a0f25850e
   subpackages:
   - sha3
 - name: golang.org/x/net
-  version: 244492dfa37ae2ce87222fd06250a03160745faa
+  version: d3edc9973b7eb1fb302b0ff2c62357091cea9a30
   subpackages:
   - context
 - name: golang.org/x/sys
-  version: 9a0dfc3c55686ed331929a6eace0b5c5b9c18471
+  version: 5c8b2ff67527cb88b770f693cebf3799036d8bc0
   subpackages:
   - cpu
 - name: gopkg.in/inf.v0

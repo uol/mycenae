@@ -38,6 +38,7 @@ func createTimelineManager(start bool, port int) *timeline.Manager {
 
 	if start {
 		err = manager.Start()
+
 		if err != nil {
 			panic(err)
 		}

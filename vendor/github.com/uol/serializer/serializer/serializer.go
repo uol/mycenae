@@ -1,5 +1,13 @@
 package serializer
 
+const (
+	// Empty - defines an empty string
+	Empty string = ""
+
+	// ByteFloatFormat - defines the float format
+	ByteFloatFormat byte = 'f'
+)
+
 // Serializer - a generic way to serialize
 type Serializer interface {
 

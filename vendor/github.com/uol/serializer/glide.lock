@@ -1,19 +1,13 @@
-hash: bfb88c82a7a4b65e3ec773f9ef3975837cadc3e66cb93b0b3cc3e14052516c7e
-updated: 2019-08-22T20:08:03.937971837-03:00
-imports:
-- name: github.com/uol/gobol
-  version: bf4660002d6b8e55980611eaad99c3d0be8a5dff
-  subpackages:
-  - structs
-  - timeline
-  - util
+hash: 0a6cfc9d8c2df478b399445539ee8f0ecde03200407f180fe4fe5be16395ae11
+updated: 2020-04-22T18:33:10.198086303-03:00
+imports: []
 testImports:
 - name: github.com/davecgh/go-spew
   version: d8f796af33cc11cb798c1aaeb27a4ebc5099927d
   subpackages:
   - spew
 - name: github.com/json-iterator/go
-  version: 27518f6661eba504be5a7a9a9f6d9460d892ade3
+  version: acfec88f7a0d5140ace3dcdbee10184e3684a9e1
 - name: github.com/modern-go/concurrent
   version: bacd9c7ef1dd9b15be4a9909b8ac7a4e313eec94
 - name: github.com/modern-go/reflect2
@@ -22,19 +16,32 @@ testImports:
   version: 5d4384ee4fb2527b0a1256a821ebfc92f91efefc
   subpackages:
   - difflib
+- name: github.com/rs/zerolog
+  version: f1dd50b8c64d79be1392edf1d8fda5cedea4916d
+  subpackages:
+  - internal/cbor
+  - internal/json
 - name: github.com/stretchr/testify
-  version: f35b8ab0b5a2cef36673838d662e249dd9c94686
+  version: 221dbe5ed46703ee255b1da0dec05086f5035f62
   subpackages:
   - assert
-- name: go.uber.org/atomic
-  version: df976f2515e274675050de7b3f42545de80594fd
-- name: go.uber.org/multierr
-  version: 3c4937480c32f4c13a875a1829af76c98ca3d40a
-- name: go.uber.org/zap
-  version: ff33455a0e382e8a81d14dd7c922020b6b5e7982
+- name: github.com/uol/funks
+  version: f6a04c7785966773f32313e0c25c9343738369e9
+- name: github.com/uol/hashing
+  version: 520f9fe195e130976599e3a495044b6b9aabfcd4
+- name: github.com/uol/logh
+  version: 04611a676395e92babe6a4e3f5d0aa517ec0b0d5
+- name: github.com/uol/scheduler
+  version: 3edd7d67bcde61e731d53144259cb50dd0f9931e
+- name: github.com/uol/timeline
+  version: 30a157b41f4f92c59e062c03874028358658120e
+- name: golang.org/x/crypto
+  version: 78000ba7a073cafc0278790f6bce552a0f25850e
   subpackages:
-  - buffer
-  - internal/bufferpool
-  - internal/color
-  - internal/exit
-  - zapcore
+  - sha3
+- name: golang.org/x/sys
+  version: 5c8b2ff67527cb88b770f693cebf3799036d8bc0
+  subpackages:
+  - cpu
+- name: gopkg.in/yaml.v2
+  version: 53403b58ad1b561927d19068c655246f2db79d48

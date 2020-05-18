@@ -76,7 +76,7 @@ type Collector struct {
 
 type workerData struct {
 	validatedPoint *Point
-	source         string
+	source         *constants.SourceType
 }
 
 func (collect *Collector) getType(number bool) string {
@@ -140,13 +140,22 @@ func (collect *Collector) processPacket(point *Point) gobol.Error {
 }
 
 // HandleJSONBytes - handles a point in byte format
-func (collect *Collector) HandleJSONBytes(data []byte, source string, isNumber bool) (int, gobol.Error) {
+func (collect *Collector) HandleJSONBytes(data []byte, sourceType *constants.SourceType, ip string, isNumber bool) (int, gobol.Error) {
 
 	points := structs.TSDBpoints{}
 	gerrs := []gobol.Error{}
 
-	collect.validation.ParsePoints(cFuncHandleJSONBytes, isNumber, data, &points, &gerrs)
-	if gerrs != nil && len(gerrs) > 0 {
+	keyset := collect.ParsePoints(cFuncHandleJSONBytes, isNumber, data, &points, &gerrs)
+	numErrs := len(gerrs)
+	if numErrs > 0 {
+		for _, gerr := range gerrs {
+			collect.validation.StatsValidationError(cFuncHandleJSONBytes, keyset, ip, sourceType, gerr)
+		}
+
+		if numErrs == 1 {
+			return 0, gerrs[0]
+		}
+
 		return 0, errMultipleErrors(cFuncHandleJSONBytes, gerrs)
 	}
 
@@ -161,7 +170,7 @@ func (collect *Collector) HandleJSONBytes(data []byte, source string, isNumber b
 			return 0, err
 		}
 
-		collect.HandlePacket(vp, source)
+		collect.HandlePacket(vp, sourceType)
 	}
 
 	return len(points), nil
@@ -191,7 +200,7 @@ func (collect *Collector) MakePacket(rcvMsg *structs.TSDBpoint, number bool) (*P
 }
 
 // HandlePacket - handles a point in struct format
-func (collect *Collector) HandlePacket(vp *Point, source string) {
+func (collect *Collector) HandlePacket(vp *Point, source *constants.SourceType) {
 
 	collect.jobChannel <- workerData{
 		validatedPoint: vp,

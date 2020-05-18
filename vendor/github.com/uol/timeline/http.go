@@ -59,9 +59,10 @@ func NewHTTPTransport(configuration *HTTPTransportConfig) (*HTTPTransport, error
 
 	t := &HTTPTransport{
 		core: transportCore{
-			batchSendInterval: configuration.BatchSendInterval,
-			pointChannel:      make(chan interface{}, configuration.TransportBufferSize),
-			loggers:           logh.CreateContextualLogger("pkg", "timeline/http"),
+			batchSendInterval:    configuration.BatchSendInterval,
+			pointChannel:         make(chan interface{}, configuration.TransportBufferSize),
+			loggers:              logh.CreateContextualLogger("pkg", "timeline/http"),
+			defaultConfiguration: &configuration.DefaultTransportConfiguration,
 		},
 		configuration: configuration,
 		httpClient:    funks.CreateHTTPClient(configuration.RequestTimeout, true),
@@ -105,19 +106,24 @@ func (t *HTTPTransport) DataChannel() chan<- interface{} {
 func (t *HTTPTransport) TransferData(dataList []interface{}) error {
 
 	numPoints := len(dataList)
-	points := make([]serializer.ArrayItem, numPoints)
+	points := make([]*serializer.ArrayItem, numPoints)
+
 	var ok bool
 	for i := 0; i < numPoints; i++ {
-		points[i], ok = dataList[i].(serializer.ArrayItem)
+		points[i], ok = dataList[i].(*serializer.ArrayItem)
 		if !ok {
 			return fmt.Errorf("error casting data to serializer.ArrayItem")
 		}
 	}
 
+	t.core.debugInput(dataList)
+
 	payload, err := t.serializer.SerializeArray(points...)
 	if err != nil {
 		return err
 	}
+
+	t.core.debugOutput(payload)
 
 	req, err := http.NewRequest(t.configuration.Method, t.serviceURL, bytes.NewBuffer([]byte(payload)))
 	if err != nil {

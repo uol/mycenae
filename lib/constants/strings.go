@@ -4,6 +4,9 @@ const (
 	// StringsEmpty - a empty space
 	StringsEmpty string = ""
 
+	// StringsComma - a comma
+	StringsComma string = ","
+
 	// StringsWhitespace - a white space
 	StringsWhitespace string = " "
 
@@ -61,17 +64,11 @@ const (
 	// StringsSource - source tag
 	StringsSource string = "source"
 
-	// StringColumnFamily - column family tag
-	StringColumnFamily string = "column_family"
-
 	// StringsOperation - operation tag
 	StringsOperation string = "operation"
 
 	// StringsType - type tag
 	StringsType string = "type"
-
-	// StringsInsert - operation insert tag value
-	StringsInsert string = "insert"
 
 	// StringsHTTP - "http" word
 	StringsHTTP string = "http"
@@ -96,4 +93,30 @@ const (
 
 	// StringsMetricNetworkConnection - network connection metric
 	StringsMetricNetworkConnection string = "network.connection"
+
+	// StringsUnknown - "unknown" word
+	StringsUnknown string = "unknown"
+)
+
+// CRUDOperation - defines a database CRUD operation
+type CRUDOperation string
+
+const (
+	// CRUDOperationCreate - CRUD operation
+	CRUDOperationCreate CRUDOperation = "create"
+
+	// CRUDOperationInsert - CRUD operation
+	CRUDOperationInsert CRUDOperation = "insert"
+
+	// CRUDOperationSelect - CRUD operation
+	CRUDOperationSelect CRUDOperation = "select"
+
+	// CRUDOperationDelete - CRUD operation
+	CRUDOperationDelete CRUDOperation = "delete"
+
+	// CRUDOperationUpdate - CRUD operation
+	CRUDOperationUpdate CRUDOperation = "update"
+
+	// CRUDOperationDrop - CRUD operation
+	CRUDOperationDrop CRUDOperation = "drop"
 )

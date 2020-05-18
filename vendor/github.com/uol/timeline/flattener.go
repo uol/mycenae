@@ -114,7 +114,7 @@ func (f *Flattener) ProcessMapEntry(entry interface{}) bool {
 	newValue, err := f.flatten(entry.(*mapEntry))
 	if err != nil {
 		if logh.ErrorEnabled {
-			f.loggers.Error().Msg(err.Error())
+			f.loggers.Error().Err(err).Msg("error on flatten operation")
 		}
 
 		return false
@@ -123,7 +123,7 @@ func (f *Flattener) ProcessMapEntry(entry interface{}) bool {
 	item, err := f.transport.FlattenerPointToDataChannelItem(newValue)
 	if err != nil {
 		if logh.ErrorEnabled {
-			f.loggers.Error().Msg(err.Error())
+			f.loggers.Error().Err(err).Msg("error on casting operation")
 		}
 
 		return false

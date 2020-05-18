@@ -2,22 +2,26 @@ package rip
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"strconv"
-	"sync"
+	"strings"
 	"time"
 
-	"github.com/pborman/uuid"
-	"github.com/rs/cors"
 	"github.com/uol/logh"
-	"github.com/uol/gobol/snitch"
 )
 
-type key int
+type dummyKeyType int
 
 const (
-	statsTagskey key = 0
+	statsTagskey            dummyKeyType = 1
+	metricNetworkConnection string       = "network.connection"
+	metricRequestCount      string       = "http.request.count"
+	metricRequestDuration   string       = "http.request.duration"
+	metricResponseSize      string       = "http.response.size"
+	tagMethod               string       = "method"
+	tagStatus               string       = "status"
+	tagPath                 string       = "path"
+	strUndefined            string       = "undefined"
 )
 
 type LogResponseWriter struct {
@@ -27,11 +31,14 @@ type LogResponseWriter struct {
 }
 
 func (w *LogResponseWriter) Write(b []byte) (int, error) {
+
 	if w.status == 0 {
 		w.status = http.StatusOK
 	}
+
 	size, err := w.ResponseWriter.Write(b)
 	w.size += size
+
 	return size, err
 }
 
@@ -44,116 +51,120 @@ func (w *LogResponseWriter) Header() http.Header {
 	return w.ResponseWriter.Header()
 }
 
-func NewLogMiddleware(service, system string, sts *snitch.Stats, next http.Handler, allowCORS bool) *LogHandler {
-	var fullHandler http.Handler
-	if allowCORS {
-		fullHandler = cors.AllowAll().Handler(next)
-	} else {
-		fullHandler = next
-	}
-	return &LogHandler{
-		service:   service,
-		system:    system,
-		next:      fullHandler,
-		stats:     sts,
-		allowCORS: allowCORS,
-		connectionStatsTags: map[string]string{
-			"type":   "tcp",
-			"source": "http",
-		},
-	}
-}
-
+// LogHandler - add statistics from requests
 type LogHandler struct {
-	service             string
-	system              string
-	next                http.Handler
-	stats               *snitch.Stats
-	allowCORS           bool
-	connectionStatsTags map[string]string
+	next           http.Handler
+	stats          StatisticsInterface
+	connectionTags []interface{}
+	logger         *logh.ContextualLogger
 }
 
+// NewLogMiddleware - creates a new instance of LogHandler
+func NewLogMiddleware(next http.Handler, port int, statisticsImpl StatisticsInterface) *LogHandler {
+
+	return &LogHandler{
+		next:  next,
+		stats: statisticsImpl,
+		connectionTags: []interface{}{
+			"type", "tcp",
+			"port", port,
+			"source", "http",
+		},
+		logger: logh.CreateContextualLogger("pkg", "rip"),
+	}
+}
+
+// StatisticsInterface - defines an interface to input request statistics
+type StatisticsInterface interface {
+
+	// Increment - increments a metric
+	Increment(metric string, tags ...interface{})
+
+	// Maximum - input a maximum operation
+	Maximum(metric string, value float64, tags ...interface{})
+}
+
+// ServeHTTP - implements the interface to serve http requests
 func (h *LogHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
-	go h.incrementHTTPConn()
+	go h.stats.Increment(metricNetworkConnection, h.connectionTags...)
 
 	start := time.Now()
 
-	rid := uuid.NewRandom().String()
-
-	header := w.Header()
-
-	header.Add(fmt.Sprintf("X-REQUEST-%s-ID", h.service), rid)
-
-	if header.Get(fmt.Sprintf("X-REQUEST-%s-ID", h.system)) == "" {
-		header.Add(fmt.Sprintf("X-REQUEST-%s-ID", h.system), rid)
-	}
-
-	logw := &LogResponseWriter{
+	logResponseWriter := &LogResponseWriter{
 		ResponseWriter: w,
 	}
 
 	ctx := context.Background()
 
-	userTags := sync.Map{}
+	var userTags []interface{}
 
-	h.next.ServeHTTP(logw, r.WithContext(context.WithValue(ctx, statsTagskey, &userTags)))
+	h.next.ServeHTTP(logResponseWriter, r.WithContext(context.WithValue(ctx, statsTagskey, &userTags)))
 
-	status := logw.status
+	status := logResponseWriter.status
+
+	tags := []interface{}{
+		tagMethod, r.Method,
+		tagStatus, strconv.Itoa(status),
+	}
+
+	tagsOK := true
+	customPathFound := false
+	userTags, ok := r.Context().Value(statsTagskey).([]interface{})
+	if ok {
+
+		numTags := len(userTags)
+		tagsOK = numTags%2 == 0
+
+		if tagsOK {
+
+			for i := 0; i < numTags; i++ {
+
+				if !customPathFound && i%2 != 0 {
+					if value, ok := tags[i].(string); ok {
+						if value == tagPath {
+							customPathFound = true
+						}
+					}
+				}
+
+				tags = append(tags, userTags[i])
+			}
+		}
+	}
+
+	if tagsOK && !customPathFound {
+
+		var uri string
+
+		if status != 404 && status != 405 {
+
+			i := strings.IndexByte(r.RequestURI, '?')
+			var length int
+			if i < 0 {
+				length = len(r.RequestURI)
+			} else {
+				length = i
+			}
+
+			uri = r.RequestURI[:length]
+
+		} else {
+			uri = strUndefined
+		}
+
+		tags = append(tags, tagPath, uri)
+	}
 
 	d := time.Since(start)
 
-	tags := map[string]string{
-		"protocol": r.Proto,
-		"method":   r.Method,
-		"status":   strconv.Itoa(status),
-	}
-
-	if status != 404 && status != 405 {
-		tags["path"] = r.URL.Path
-	}
-
-	userTags.Range(func(k, v interface{}) bool {
-		tags[k.(string)] = v.(string)
-		return true
-	})
-
-	h.increment("request.count", tags)
-	h.valueAdd("request.duration", tags, float64(d.Nanoseconds())/float64(time.Millisecond))
-}
-
-func AddStatsMap(r *http.Request, tags map[string]string) {
-	userTags, ok := r.Context().Value(statsTagskey).(*sync.Map)
-	if ok {
-		for k, v := range tags {
-			userTags.Store(k, v)
-		}
-	}
-}
-
-func (h *LogHandler) increment(metric string, tags map[string]string) {
-	err := h.stats.Increment(metric, tags, "@every 1m", false, true)
-	if err != nil {
-		if ev := logError(customError{msg: err.Error(), pkg: "log_middleware", function: "increment"}); ev != nil {
-			ev.Str("metric", metric)
-		}
-	}
-}
-
-func (h *LogHandler) valueAdd(metric string, tags map[string]string, v float64) {
-	err := h.stats.ValueAdd(metric, tags, "avg", "@every 1m", false, false, v)
-	if err != nil {
-		if logh.ErrorEnabled {
-			logger.Error().Str("metric", metric).Str("pkg", "log_middleware").Str("func", "valueAdd").Err(err).Send()
-		}
-	}
-}
-
-func (h *LogHandler) incrementHTTPConn() {
-	err := h.stats.Increment("network.connection", h.connectionStatsTags, "@every 10s", false, true)
-	if err != nil {
-		if logh.ErrorEnabled {
-			logger.Error().Str("pkg", "log_middleware").Str("func", "incrementHTTPConn").Err(err).Send()
+	if tagsOK {
+		h.stats.Increment(metricRequestCount, tags...)
+		h.stats.Maximum(metricRequestDuration, float64(d.Nanoseconds())/float64(time.Millisecond), tags...)
+		h.stats.Maximum(metricResponseSize, (float64)(logResponseWriter.size), tags...)
+	} else {
+		if logh.WarnEnabled {
+			h.logger.Warn().Msgf("received a wrong number of tags: %+v", userTags...)
 		}
 	}
 }

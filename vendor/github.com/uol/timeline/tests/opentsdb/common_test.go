@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -27,7 +28,9 @@ const (
 // generatePort - generates a port
 func generatePort() int {
 
-	port, err := strconv.Atoi(fmt.Sprintf("18%d", rand.Intn(999)))
+	rand.Seed(time.Now().Unix())
+
+	port, err := strconv.Atoi(fmt.Sprintf("1%d", rand.Intn(9999)))
 	if err != nil {
 		panic(err)
 	}
@@ -45,6 +48,7 @@ func createOpenTSDBTransport() *timeline.OpenTSDBTransport {
 			SerializerBufferSize: 1024,
 			TransportBufferSize:  5,
 		},
+		ReadBufferSize:      64,
 		MaxReadTimeout:      3 * time.Second,
 		ReconnectionTimeout: 1 * time.Second,
 	}
@@ -62,10 +66,11 @@ func listenTelnet(t *testing.T, c chan string, port int) {
 
 	server, err := net.Listen("tcp", fmt.Sprintf("%s:%d", telnetHost, port))
 	if err != nil {
-		panic(err)
+		if strings.Contains(err.Error(), "address already in use") {
+			<-time.After(time.Second)
+			listenTelnet(t, c, generatePort())
+		}
 	}
-
-	defer server.Close()
 
 	conn, err := server.Accept()
 	if err != nil {
@@ -74,6 +79,7 @@ func listenTelnet(t *testing.T, c chan string, port int) {
 
 	handleConnection(t, c, conn)
 
+	server.Close()
 }
 
 // handleConnection - handles the current connection
@@ -83,7 +89,7 @@ func handleConnection(t *testing.T, c chan string, conn net.Conn) {
 
 	buffer := make([]byte, maxBuffer)
 
-	err := conn.SetDeadline(time.Now().Add(100 * time.Second))
+	err := conn.SetDeadline(time.Now().Add(500 * time.Second))
 	if err != nil {
 		panic(err)
 	}
@@ -94,6 +100,7 @@ func handleConnection(t *testing.T, c chan string, conn net.Conn) {
 	}
 
 	if !assert.NotZero(t, n, "no characters found") {
+		fmt.Println("reading zero")
 		return
 	}
 

@@ -22,11 +22,11 @@ func (backend *scylladb) addKeyspaceMetadata(ks Keyspace) gobol.Error {
 		ks.DC,
 		ks.Replication,
 	).Exec(); err != nil {
-		backend.statsQueryError(funcAddKeyspaceMetadata, backend.ksMngr, scyllaInsert)
+		backend.statsQueryError(funcAddKeyspaceMetadata, backend.ksMngr, constants.CRUDOperationInsert)
 		return errPersist(funcAddKeyspaceMetadata, structName, err)
 	}
 
-	backend.statsQuery(funcAddKeyspaceMetadata, backend.ksMngr, scyllaInsert, time.Since(start))
+	backend.statsQuery(funcAddKeyspaceMetadata, backend.ksMngr, constants.CRUDOperationInsert, time.Since(start))
 
 	return nil
 }
@@ -38,10 +38,16 @@ func (backend *scylladb) createKeyspace(ks Keyspace) gobol.Error {
 		formatCreateKeyspace,
 		ks.Name, ks.DC, ks.Replication,
 	)
+
+	start := time.Now()
+
 	if err := backend.session.Query(query).Exec(); err != nil {
-		backend.statsQueryError(funcPrivateCreateKeyspace, ks.Name, scyllaCreate)
+		backend.statsQueryError(funcPrivateCreateKeyspace, ks.Name, constants.CRUDOperationCreate)
 		return errPersist(funcPrivateCreateKeyspace, structName, err)
 	}
+
+	backend.statsQuery(funcPrivateCreateKeyspace, ks.Name, constants.CRUDOperationCreate, time.Since(start))
+
 	return nil
 }
 
@@ -57,10 +63,14 @@ func (backend *scylladb) createTable(keyset, valueColumnType, tableName, functio
 		tableTTL,
 	)
 
+	start := time.Now()
+
 	if err := backend.session.Query(query).Exec(); err != nil {
-		backend.statsQueryError(functionName, keyset, scyllaCreate)
+		backend.statsQueryError(functionName, keyset, constants.CRUDOperationCreate)
 		return errPersist(functionName, structName, err)
 	}
+
+	backend.statsQuery(functionName, keyset, constants.CRUDOperationCreate, time.Since(start))
 
 	return nil
 }

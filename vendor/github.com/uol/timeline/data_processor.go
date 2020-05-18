@@ -1,7 +1,6 @@
 package timeline
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
@@ -71,7 +70,7 @@ func (d *dataProcessorCore) Start() {
 			select {
 			case <-d.terminateChan:
 				if logh.InfoEnabled {
-					d.loggers.Info().Msgf("breaking %s cycle")
+					d.loggers.Info().Msgf("breaking %s cycle", d.parent.GetName())
 				}
 				return
 			default:
@@ -91,7 +90,7 @@ func (d *dataProcessorCore) Start() {
 			})
 
 			if logh.DebugEnabled {
-				d.loggers.Debug().Msg(fmt.Sprintf("%d points were processed", count))
+				d.loggers.Debug().Msgf("%d points were processed", count)
 			}
 		}
 	}()

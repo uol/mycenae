@@ -37,6 +37,7 @@ type netdataJSON struct {
 	Name         string  `json:"name"`
 	Value        float64 `json:"value"`
 	Timestamp    int64   `json:"timestamp"`
+	Keyset       string  `json:"-"` //only for quick identification
 }
 
 const (
@@ -56,71 +57,86 @@ const (
 	tagRegexp                 string = `([0-9A-Za-z-\._\%\&\#\;\/]+)=([0-9A-Za-z-\._\%\&\#\;\/\*\+\']+)`
 	tagValueReplacementRegexp string = `[^0-9A-Za-z-\._\%\&\#\;\/]+`
 	setMetricTag              string = "%set_metric%"
+
+	cMsgFKeysetNotFound       string = "no keyset found for host: %s"
+	cMsgErrParsingJSONProp    string = "error parsing json property"
+	cMsgFErrInvalidSpecialCmd string = "invalid netdata property to use set_metric: %s"
 )
 
-// Parse - parses the json bytes to the object fields
-func (n *netdataJSON) Parse(data []byte) error {
+// Parse - parses the json bytes to the object fields (returns the first identifier found)
+func (n *netdataJSON) Parse(data []byte, silenceLogs bool, logger *logh.ContextualLogger) gobol.Error {
 
 	var err error
 
 	if n.HostName, err = jsonparser.GetString(data, propHostName); err != nil {
-		return err
+		return n.getParsingError(err, silenceLogs, logger)
 	}
 
 	if n.DefaultTags, err = jsonparser.GetString(data, propDefaultTags); err != nil {
-		return err
+		return n.getParsingError(err, silenceLogs, logger)
+	}
+
+	n.Keyset = extractKeysetValue(n.DefaultTags)
+	if len(n.Keyset) == 0 {
+		return n.getParsingError(err, silenceLogs, logger)
 	}
 
 	if n.ChartID, err = jsonparser.GetString(data, propChartID); err != nil {
-		return err
+		return n.getParsingError(err, silenceLogs, logger)
 	}
 
 	if n.ChartFamily, err = jsonparser.GetString(data, propChartFamily); err != nil {
-		return err
+		return n.getParsingError(err, silenceLogs, logger)
 	}
 
 	if n.ChartContext, err = jsonparser.GetString(data, propChartContext); err != nil {
-		return err
+		return n.getParsingError(err, silenceLogs, logger)
 	}
 
 	if n.ChartType, err = jsonparser.GetString(data, propChartType); err != nil {
-		return err
+		return n.getParsingError(err, silenceLogs, logger)
 	}
 
 	if n.ChartName, err = jsonparser.GetString(data, propChartName); err != nil {
-		return err
+		return n.getParsingError(err, silenceLogs, logger)
 	}
 
 	if n.ID, err = jsonparser.GetString(data, propID); err != nil {
-		return err
+		return n.getParsingError(err, silenceLogs, logger)
 	}
 
 	if n.Name, err = jsonparser.GetString(data, propName); err != nil {
-		return err
+		return n.getParsingError(err, silenceLogs, logger)
 	}
 
 	if n.Value, err = jsonparser.GetFloat(data, propValue); err != nil {
-		return err
+		return n.getParsingError(err, silenceLogs, logger)
 	}
 
 	if n.Timestamp, err = jsonparser.GetInt(data, propTimestamp); err != nil {
-		return err
+		return n.getParsingError(err, silenceLogs, logger)
 	}
 
 	return nil
+}
+
+func (n *netdataJSON) getParsingError(err error, silenceLogs bool, logger *logh.ContextualLogger) gobol.Error {
+	if !silenceLogs && logh.ErrorEnabled {
+		logger.Error().Err(err).Msg(cMsgErrParsingJSONProp)
+	}
+	return errDataFormatParse
 }
 
 // NetdataHandler - handles netdata telnet format data
 type NetdataHandler struct {
 	tagsRegexp        *regexp.Regexp
 	specialCharRegexp *regexp.Regexp
-	netdataTags       map[string]struct{}
+	netdataTags       map[string]bool
 	regexpCache       sync.Map
 	mutex             *sync.Mutex
 	cacheDuration     time.Duration
 	collector         *collector.Collector
 	logger            *logh.ContextualLogger
-	sourceName        string
 	telnetConfig      *structs.GlobalTelnetServerConfiguration
 	validationService *validation.Service
 }
@@ -128,14 +144,14 @@ type NetdataHandler struct {
 // NewNetdataHandler - creates the new handler
 func NewNetdataHandler(regexpCacheDuration string, collector *collector.Collector, telnetConfig *structs.GlobalTelnetServerConfiguration, validationService *validation.Service) *NetdataHandler {
 
-	netdataTags := map[string]struct{}{
-		propChartID:      struct{}{},
-		propChartFamily:  struct{}{},
-		propChartContext: struct{}{},
-		propChartType:    struct{}{},
-		propChartName:    struct{}{},
-		propID:           struct{}{},
-		propName:         struct{}{},
+	netdataTags := map[string]bool{
+		propChartID:      true,
+		propChartFamily:  true,
+		propChartContext: true,
+		propChartType:    true,
+		propChartName:    true,
+		propID:           true,
+		propName:         true,
 	}
 
 	cacheDuration, err := time.ParseDuration(regexpCacheDuration)
@@ -152,7 +168,6 @@ func NewNetdataHandler(regexpCacheDuration string, collector *collector.Collecto
 		regexpCache:       sync.Map{},
 		mutex:             &sync.Mutex{},
 		logger:            logh.CreateContextualLogger(constants.StringsPKG, "telnet", constants.StringsFunc, "Handle"),
-		sourceName:        "telnet-netdata",
 		telnetConfig:      telnetConfig,
 		validationService: validationService,
 	}
@@ -177,23 +192,23 @@ func (nh *NetdataHandler) expireCachedRegexp(regexp string) {
 }
 
 // Handle - extracts the points received by telnet
-func (nh *NetdataHandler) Handle(line string) {
+func (nh *NetdataHandler) Handle(line, ip string) bool {
 
-	if line == constants.StringsEmpty {
-		return
-	}
-
-	pointJSON := netdataJSON{}
-
-	err := pointJSON.Parse([]byte(line))
-	if err != nil {
-		if !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-			nh.logger.Error().Msgf("error unmarshalling line: %s", line)
+	if len(line) == 0 {
+		if !nh.telnetConfig.SilenceLogs && logh.DebugEnabled {
+			nh.logger.Debug().Msg(cMsgEmptyLine)
 		}
-		return
+		return false
 	}
 
 	var gerr gobol.Error
+	pointJSON := netdataJSON{}
+
+	gerr = pointJSON.Parse([]byte(line), nh.telnetConfig.SilenceLogs, nh.logger)
+	if gerr != nil {
+		logAndStats(nh, gerr, cFuncParse, pointJSON.Keyset, ip, cMsgFInvalidLineContent, line)
+		return false
+	}
 
 	point := structs.TSDBpoint{
 		Value: &pointJSON.Value,
@@ -202,10 +217,8 @@ func (nh *NetdataHandler) Handle(line string) {
 
 	point.Timestamp, gerr = nh.validationService.ValidateTimestamp(pointJSON.Timestamp)
 	if gerr != nil {
-		if !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-			nh.logger.Error().Msgf("invalid timestamp: %s", point.Timestamp)
-		}
-		return
+		logAndStats(nh, gerr, cFuncHandle, pointJSON.Keyset, pointJSON.HostName, cMsgFInvalidTimestamp, point.Timestamp)
+		return false
 	}
 
 	ttlFound := false
@@ -214,15 +227,14 @@ func (nh *NetdataHandler) Handle(line string) {
 	metricPropertyReplacement := propChartID
 
 	if len(tagMatches) > 0 {
+
 		for i := 0; i < len(tagMatches); i++ {
 
 			if setMetricTag == tagMatches[i][1] {
 
 				if _, ok := nh.netdataTags[tagMatches[i][2]]; !ok {
-					if !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-						nh.logger.Error().Msgf("invalid netdata property to use set_metric: %s", tagMatches[i][2])
-					}
-					return
+					logAndStats(nh, errSpecialCommandFormat, cFuncHandle, pointJSON.Keyset, ip, cMsgFErrInvalidSpecialCmd, tagMatches[i][2])
+					continue
 				}
 
 				metricPropertyReplacement = tagMatches[i][2]
@@ -233,10 +245,8 @@ func (nh *NetdataHandler) Handle(line string) {
 				case constants.StringsTTL:
 					ttl, ttlStr, gerr := nh.validationService.ParseTTL(tagMatches[i][2])
 					if gerr != nil {
-						if !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-							nh.logger.Error().Err(gerr).Msgf("invalid ttl: %s", line)
-						}
-						return
+						logAndStats(nh, gerr, cFuncHandle, pointJSON.Keyset, ip, cMsgFInvalidTTL, line)
+						continue
 					}
 					point.TTL = ttl
 					tagMatches[i][2] = ttlStr
@@ -244,28 +254,22 @@ func (nh *NetdataHandler) Handle(line string) {
 				case constants.StringsKSID:
 					gerr = nh.validationService.ValidateKeyset(tagMatches[i][2])
 					if gerr != nil {
-						if !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-							nh.logger.Error().Err(gerr).Msgf("invalid ksid: %s", line)
-						}
-						return
+						logAndStats(nh, gerr, cFuncHandle, pointJSON.Keyset, ip, cMsgFInvalidKSID, line)
+						continue
 					}
 					point.Keyset = tagMatches[i][2]
 					ksidFound = true
 				default:
 					gerr = nh.validationService.ValidateProperty(tagMatches[i][1], validation.TagKeyType)
 					if gerr != nil {
-						if !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-							nh.logger.Error().Err(gerr).Msgf("invalid key: %s", line)
-						}
-						return
+						logAndStats(nh, gerr, cFuncHandle, pointJSON.Keyset, ip, cMsgFInvalidKey, line)
+						continue
 					}
 
 					gerr = nh.validationService.ValidateProperty(tagMatches[i][2], validation.TagValueType)
 					if gerr != nil {
-						if !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-							nh.logger.Error().Err(gerr).Msgf("invalid value: %s", line)
-						}
-						return
+						logAndStats(nh, gerr, cFuncHandle, pointJSON.Keyset, ip, cMsgFInvalidValue, line)
+						continue
 					}
 				}
 
@@ -280,10 +284,8 @@ func (nh *NetdataHandler) Handle(line string) {
 	}
 
 	if !ksidFound {
-		if !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-			nh.logger.Error().Err(gerr).Msgf("no ksid tag found: %s", line)
-		}
-		return
+		logAndStats(nh, validation.ErrNoKeysetTag, cFuncHandle, pointJSON.Keyset, pointJSON.HostName, cMsgFKSIDTagNotFound, line)
+		return false
 	}
 
 	if !ttlFound {
@@ -326,13 +328,11 @@ func (nh *NetdataHandler) Handle(line string) {
 
 	gerr = nh.validationService.ValidateTags(&point)
 	if gerr != nil {
-		if !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-			nh.logger.Error().Err(gerr).Msgf("tags validation failure: %s", line)
-		}
-		return
+		logAndStats(nh, gerr, cFuncHandle, pointJSON.Keyset, pointJSON.HostName, cMsgFInvalidTags, line)
+		return false
 	}
 
-	metric := ""
+	metric := constants.StringsEmpty
 	switch metricPropertyReplacement {
 	case propChartID:
 		metric = pointJSON.ChartID
@@ -356,24 +356,37 @@ func (nh *NetdataHandler) Handle(line string) {
 
 	gerr = nh.validationService.ValidateProperty(point.Metric, validation.MetricType)
 	if gerr != nil {
-		if !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-			nh.logger.Error().Err(gerr).Msgf("invalid metric: %s", line)
-		}
-		return
+		logAndStats(nh, gerr, cFuncHandle, pointJSON.Keyset, pointJSON.HostName, cMsgFInvalidMetric, line)
+		return false
 	}
 
-	packet, err := nh.collector.MakePacket(&point, true)
-	if err != nil {
-		if !nh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-			nh.logger.Error().Err(err).Msgf("point validation failure: %s", line)
-		}
-		return
+	packet, gerr := nh.collector.MakePacket(&point, true)
+	if gerr != nil {
+		logAndStats(nh, gerr, cFuncHandle, pointJSON.Keyset, pointJSON.HostName, cMsgFPointCreationError, line)
+		return false
 	}
 
-	nh.collector.HandlePacket(packet, nh.sourceName)
+	nh.collector.HandlePacket(packet, nh.GetSourceType())
+
+	return true
 }
 
-// SourceName - returns the connection type name
-func (nh *NetdataHandler) SourceName() string {
-	return nh.sourceName
+// GetSourceType - returns the source type
+func (nh *NetdataHandler) GetSourceType() *constants.SourceType {
+	return constants.SourceTypeTelnetNetdata
+}
+
+// GetLogger - returns the logger
+func (nh *NetdataHandler) GetLogger() *logh.ContextualLogger {
+	return nh.logger
+}
+
+// GetValidationService - returns the validation service instance
+func (nh *NetdataHandler) GetValidationService() *validation.Service {
+	return nh.validationService
+}
+
+// SilenceLogs - checks the configuration to silence all validation logs
+func (nh *NetdataHandler) SilenceLogs() bool {
+	return nh.telnetConfig.SilenceLogs
 }

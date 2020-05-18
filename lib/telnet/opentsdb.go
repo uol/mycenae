@@ -18,8 +18,10 @@ import (
 // author: rnojiri
 //
 
-// TelnetFormatTagsRegexp - contains the regexp to parse the tags
-const TelnetFormatTagsRegexp string = `([0-9A-Za-z-\._\%\&\#\;\/]+)=([0-9A-Za-z-\._\%\&\#\;\/]+)`
+const (
+	cMsgFNoParseableTagsFound  string = "error reading line content: %s"
+	cMsgFNoParseableValueFound string = "error parsing value: %s"
+)
 
 // OpenTSDBHandler - handles opentsdb telnet format data
 type OpenTSDBHandler struct {
@@ -27,7 +29,6 @@ type OpenTSDBHandler struct {
 	tagsRegexp        *regexp.Regexp
 	collector         *collector.Collector
 	logger            *logh.ContextualLogger
-	sourceName        string
 	telnetConfig      *structs.GlobalTelnetServerConfiguration
 	validationService *validation.Service
 }
@@ -37,9 +38,8 @@ func NewOpenTSDBHandler(collector *collector.Collector, telnetConfig *structs.Gl
 
 	return &OpenTSDBHandler{
 		formatRegexp:      regexp.MustCompile(`put ([0-9A-Za-z-\._\%\&\#\;\/]+) ([0-9]+) ([0-9Ee\.\-\,]+) ([0-9A-Za-z-\._\%\&\#\;\/ =]+)`),
-		tagsRegexp:        regexp.MustCompile(TelnetFormatTagsRegexp),
+		tagsRegexp:        regexp.MustCompile(`([0-9A-Za-z-\._\%\&\#\;\/]+)=([0-9A-Za-z-\._\%\&\#\;\/]+)`),
 		collector:         collector,
-		sourceName:        "telnet-opentsdb",
 		logger:            logh.CreateContextualLogger(constants.StringsPKG, "telnet", constants.StringsFunc, "Handle"),
 		telnetConfig:      telnetConfig,
 		validationService: validationService,
@@ -47,71 +47,32 @@ func NewOpenTSDBHandler(collector *collector.Collector, telnetConfig *structs.Gl
 }
 
 // Handle - extracts the points received by telnet
-func (otsdbh *OpenTSDBHandler) Handle(line string) {
+func (otsdbh *OpenTSDBHandler) Handle(line string, ip string) bool {
 
-	if line == constants.StringsEmpty {
+	if len(line) == 0 {
 		if !otsdbh.telnetConfig.SilenceLogs && logh.DebugEnabled {
-			otsdbh.logger.Debug().Msg("empty line received")
+			otsdbh.logger.Debug().Msg(cMsgEmptyLine)
 		}
-		return
+		return true
 	}
+
+	keyset := extractKeysetValue(line)
 
 	matches := otsdbh.formatRegexp.FindStringSubmatch(line)
 	if len(matches) != 5 {
-		if !otsdbh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-			otsdbh.logger.Error().Msgf("invalid pattern: %s", line)
-		}
-		return
+		logAndStats(otsdbh, errDataFormatParse, cFuncHandle, keyset, ip, cMsgFInvalidLineContent, line)
+		return false
 	}
 
 	tagMatches := otsdbh.tagsRegexp.FindAllStringSubmatch(matches[4], -1)
 	if len(tagMatches) == 0 {
-		if !otsdbh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-			otsdbh.logger.Error().Msgf("no parseable tags found: %s", line)
-		}
-		return
+		logAndStats(otsdbh, errDataFormatParse, cFuncHandle, keyset, ip, cMsgFNoParseableTagsFound, line)
+		return false
 	}
 
 	var err error
 	var gerr gobol.Error
 	point := structs.TSDBpoint{}
-
-	gerr = otsdbh.validationService.ValidateProperty(matches[1], validation.MetricType)
-	if gerr != nil {
-		if !otsdbh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-			otsdbh.logger.Error().Msgf("invalid metric: %s", line)
-		}
-		return
-	}
-
-	point.Metric = matches[1]
-
-	point.Timestamp, err = strconv.ParseInt(matches[2], 10, 64)
-	if err != nil {
-		if !otsdbh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-			otsdbh.logger.Error().Msgf("no parseable timestamp found: %s", line)
-		}
-		return
-	}
-
-	point.Timestamp, gerr = otsdbh.validationService.ValidateTimestamp(point.Timestamp)
-	if gerr != nil {
-		if !otsdbh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-			otsdbh.logger.Error().Msgf("invalid timestamp: %s", point.Timestamp)
-		}
-		return
-	}
-
-	value, err := strconv.ParseFloat(matches[3], 64)
-	if err != nil {
-		if !otsdbh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-			otsdbh.logger.Error().Msgf("no parseable float number found: %s", line)
-		}
-		return
-	}
-
-	point.Value = &value
-
 	point.Tags = []structs.TSDBTag{}
 	ttlFound := false
 	ksidFound := false
@@ -122,10 +83,8 @@ func (otsdbh *OpenTSDBHandler) Handle(line string) {
 		case constants.StringsTTL:
 			ttl, ttlStr, gerr := otsdbh.validationService.ParseTTL(tagMatches[i][2])
 			if gerr != nil {
-				if !otsdbh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-					otsdbh.logger.Error().Err(gerr).Msgf("invalid ttl: %s", line)
-				}
-				return
+				logAndStats(otsdbh, gerr, cFuncHandle, keyset, ip, cMsgFInvalidTTL, line)
+				return false
 			}
 			point.TTL = ttl
 			tagMatches[i][2] = ttlStr
@@ -133,28 +92,22 @@ func (otsdbh *OpenTSDBHandler) Handle(line string) {
 		case constants.StringsKSID:
 			gerr = otsdbh.validationService.ValidateKeyset(tagMatches[i][2])
 			if gerr != nil {
-				if !otsdbh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-					otsdbh.logger.Error().Err(gerr).Msgf("invalid ksid: %s", line)
-				}
-				return
+				logAndStats(otsdbh, gerr, cFuncHandle, keyset, ip, cMsgFInvalidKSID, line)
+				return false
 			}
 			point.Keyset = tagMatches[i][2]
 			ksidFound = true
 		default:
 			gerr = otsdbh.validationService.ValidateProperty(tagMatches[i][1], validation.TagKeyType)
 			if gerr != nil {
-				if !otsdbh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-					otsdbh.logger.Error().Err(gerr).Msgf("invalid key: %s", line)
-				}
-				return
+				logAndStats(otsdbh, gerr, cFuncHandle, keyset, ip, cMsgFInvalidKey, line)
+				return false
 			}
 
 			gerr = otsdbh.validationService.ValidateProperty(tagMatches[i][2], validation.TagValueType)
 			if gerr != nil {
-				if !otsdbh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-					otsdbh.logger.Error().Err(gerr).Msgf("invalid value: %s", line)
-				}
-				return
+				logAndStats(otsdbh, gerr, cFuncHandle, keyset, ip, cMsgFInvalidValue, line)
+				return false
 			}
 		}
 
@@ -168,17 +121,13 @@ func (otsdbh *OpenTSDBHandler) Handle(line string) {
 
 	gerr = otsdbh.validationService.ValidateTags(&point)
 	if gerr != nil {
-		if !otsdbh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-			otsdbh.logger.Error().Err(gerr).Msgf("tags validation failure: %s", line)
-		}
-		return
+		logAndStats(otsdbh, gerr, cFuncHandle, keyset, ip, cMsgFInvalidTags, line)
+		return false
 	}
 
 	if !ksidFound {
-		if !otsdbh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-			otsdbh.logger.Error().Err(gerr).Msgf("no ksid tag found: %s", line)
-		}
-		return
+		logAndStats(otsdbh, validation.ErrNoKeysetTag, cFuncHandle, keyset, ip, cMsgFKSIDTagNotFound, line)
+		return false
 	}
 
 	if !ttlFound {
@@ -187,18 +136,61 @@ func (otsdbh *OpenTSDBHandler) Handle(line string) {
 		point.TTL = ttl
 	}
 
-	validatedPoint, err := otsdbh.collector.MakePacket(&point, true)
-	if err != nil {
-		if !otsdbh.telnetConfig.SilenceLogs && logh.ErrorEnabled {
-			otsdbh.logger.Error().Msgf("point validation failure: %s", line)
-		}
-		return
+	gerr = otsdbh.validationService.ValidateProperty(matches[1], validation.MetricType)
+	if gerr != nil {
+		logAndStats(otsdbh, gerr, cFuncHandle, keyset, ip, cMsgFInvalidMetric, line)
+		return false
 	}
 
-	otsdbh.collector.HandlePacket(validatedPoint, otsdbh.sourceName)
+	point.Metric = matches[1]
+
+	point.Timestamp, err = strconv.ParseInt(matches[2], 10, 64)
+	if err != nil {
+		logAndStats(otsdbh, gerr, cFuncHandle, keyset, ip, cMsgFInvalidTimestamp, line)
+		return false
+	}
+
+	point.Timestamp, gerr = otsdbh.validationService.ValidateTimestamp(point.Timestamp)
+	if gerr != nil {
+		logAndStats(otsdbh, gerr, cFuncHandle, keyset, ip, cMsgFInvalidTimestamp, line)
+		return false
+	}
+
+	value, err := strconv.ParseFloat(matches[3], 64)
+	if err != nil {
+		logAndStats(otsdbh, validation.ErrParsingValue, cFuncHandle, keyset, ip, cMsgFInvalidValue, line)
+		return false
+	}
+
+	point.Value = &value
+
+	validatedPoint, gerr := otsdbh.collector.MakePacket(&point, true)
+	if err != nil {
+		logAndStats(otsdbh, gerr, cFuncHandle, keyset, ip, cMsgFPointCreationError, line)
+		return false
+	}
+
+	otsdbh.collector.HandlePacket(validatedPoint, otsdbh.GetSourceType())
+
+	return true
 }
 
-// SourceName - returns the connection type name
-func (otsdbh *OpenTSDBHandler) SourceName() string {
-	return otsdbh.sourceName
+// GetSourceType - returns the source type
+func (otsdbh *OpenTSDBHandler) GetSourceType() *constants.SourceType {
+	return constants.SourceTypeTelnetOpenTSDB
+}
+
+// GetLogger - returns the logger
+func (otsdbh *OpenTSDBHandler) GetLogger() *logh.ContextualLogger {
+	return otsdbh.logger
+}
+
+// GetValidationService - returns the validation service instance
+func (otsdbh *OpenTSDBHandler) GetValidationService() *validation.Service {
+	return otsdbh.validationService
+}
+
+// SilenceLogs - checks the configuration to silence all validation logs
+func (otsdbh *OpenTSDBHandler) SilenceLogs() bool {
+	return otsdbh.telnetConfig.SilenceLogs
 }

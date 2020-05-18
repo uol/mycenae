@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/rs/cors"
 	"github.com/uol/logh"
 
 	"github.com/uol/mycenae/lib/constants"
@@ -149,9 +150,19 @@ func (trest *REST) asyncStart() {
 		router.Handler(http.MethodGet, "/debug/pprof/:item", http.DefaultServeMux)
 	}
 
+	var compositeHTTPHandlers http.Handler
+
+	logHandler := rip.NewLogMiddleware(router, trest.settings.Port, newRestStatistics(trest.timelineManager))
+
+	if trest.settings.AllowCORS {
+		compositeHTTPHandlers = cors.AllowAll().Handler(logHandler)
+	} else {
+		compositeHTTPHandlers = logHandler
+	}
+
 	trest.server = &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", trest.settings.Bind, trest.settings.Port),
-		Handler:           router,
+		Handler:           compositeHTTPHandlers,
 		ReadTimeout:       60 * time.Second,
 		ReadHeaderTimeout: 60 * time.Second,
 		WriteTimeout:      60 * time.Second,

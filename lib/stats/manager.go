@@ -1,6 +1,7 @@
 package stats
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -33,6 +34,7 @@ type BackendItem struct {
 	timeline.Backend
 	Type          StorageType
 	CycleDuration utils.Duration
+	AddHostTag    bool
 	CommonTags    map[string]string
 }
 
@@ -49,6 +51,9 @@ type Configuration struct {
 	HashSize             int
 	TransportBufferSize  int
 	SerializerBufferSize int
+	ReadBufferSize       int
+	DebugInput           bool
+	DebugOutput          bool
 	BatchSendInterval    utils.Duration
 	RequestTimeout       utils.Duration
 	MaxReadTimeout       utils.Duration
@@ -84,7 +89,6 @@ func New(configuration *Configuration) (*TimelineManager, error) {
 	}
 
 	return &TimelineManager{
-		backendMap:    nil,
 		logger:        logger,
 		hostName:      hostName,
 		configuration: configuration,
@@ -92,11 +96,24 @@ func New(configuration *Configuration) (*TimelineManager, error) {
 }
 
 // storageTypeNotFound - logs the storage type not found error
-func (tm *TimelineManager) storageTypeNotFound(stype StorageType) {
+func (tm *TimelineManager) storageTypeNotFound(function string, stype StorageType, logErr, returnErr bool) error {
 
-	if logh.ErrorEnabled {
-		tm.logger.Error().Msgf("storage type is not configured: %s", stype)
+	msg := fmt.Sprintf("storage type is not configured: %s", stype)
+
+	if logErr && logh.ErrorEnabled {
+		ev := tm.logger.Error()
+		if len(function) > 0 {
+			ev = ev.Str(constants.StringsFunc, function)
+		}
+
+		ev.Msg(msg)
 	}
+
+	if returnErr {
+		return errors.New(msg)
+	}
+
+	return nil
 }
 
 // Flatten - performs a flatten operation
@@ -106,66 +123,64 @@ func (tm *TimelineManager) Flatten(caller string, stype StorageType, op timeline
 		return
 	}
 
-	go func() {
-		backend, ok := tm.backendMap[stype]
-		if !ok {
-			tm.storageTypeNotFound(stype)
-			return
-		}
-
-		tags = append(tags, backend.commonTags...)
-
-		err := backend.manager.FlattenOpenTSDB(op, value, time.Now().Unix(), metric, tags...)
-		if err != nil {
-			if logh.ErrorEnabled {
-				ev := tm.logger.Error().Err(err)
-				if len(caller) > 0 {
-					ev = ev.Str(constants.StringsFunc, caller)
-				}
-				ev.Msg("flattening operation error")
-			}
-		}
-	}()
-}
-
-// StoreDataToAccumulate - stores data to accumulate
-func (tm *TimelineManager) StoreDataToAccumulate(caller string, stype StorageType, value float64, metric string, tags ...interface{}) (string, error) {
-
 	backend, ok := tm.backendMap[stype]
 	if !ok {
-		return constants.StringsEmpty, fmt.Errorf("storage type is not configured")
+		tm.storageTypeNotFound(caller, stype, true, false)
+		return
 	}
 
 	tags = append(tags, backend.commonTags...)
 
-	return backend.manager.StoreDataToAccumulateOpenTSDB(value, time.Now().Unix(), metric, tags...)
+	err := backend.manager.FlattenOpenTSDB(op, value, time.Now().Unix(), metric, tags...)
+	if err != nil {
+		if logh.ErrorEnabled {
+			ev := tm.logger.Error().Err(err)
+			if len(caller) > 0 {
+				ev = ev.Str(constants.StringsFunc, caller)
+			}
+			ev.Msg("flattening operation error")
+		}
+	}
 }
 
-// Accumulate - performs a accumulate operation (check for ErrNotFound, raised when the hash is not stored)
-func (tm *TimelineManager) Accumulate(caller string, stype StorageType, hash string) {
+// AccumulateHashedData - accumulates a hashed data
+func (tm *TimelineManager) AccumulateHashedData(stype StorageType, hash string) (bool, error) {
 
-	if !tm.ready {
-		return
+	backend, ok := tm.backendMap[stype]
+	if !ok {
+		return false, tm.storageTypeNotFound(constants.StringsEmpty, stype, false, true)
 	}
 
-	go func() {
-		backend, ok := tm.backendMap[stype]
-		if !ok {
-			tm.storageTypeNotFound(stype)
-			return
+	err := backend.manager.IncrementAccumulatedData(hash)
+	if err != nil {
+		if err == timeline.ErrNotStored {
+			return false, nil
 		}
 
-		err := backend.manager.IncrementAccumulatedData(hash)
-		if err != nil {
-			if logh.ErrorEnabled {
-				ev := tm.logger.Error().Err(err)
-				if len(caller) > 0 {
-					ev = ev.Str(constants.StringsFunc, caller)
-				}
-				ev.Msg("accumulate operation error")
-			}
-		}
-	}()
+		return false, err
+	}
+
+	return true, nil
+}
+
+// StoreHashedData - stores the hashed data
+func (tm *TimelineManager) StoreHashedData(stype StorageType, hash string, ttl time.Duration, metric string, tags ...interface{}) error {
+
+	backend, ok := tm.backendMap[stype]
+	if !ok {
+		return tm.storageTypeNotFound(constants.StringsEmpty, stype, false, true)
+	}
+
+	tags = append(tags, backend.commonTags...)
+
+	return backend.manager.StoreHashedDataToAccumulateOpenTSDB(
+		hash,
+		ttl,
+		1,
+		time.Now().Unix(),
+		metric,
+		tags...,
+	)
 }
 
 // Start - starts the timeline manager
@@ -177,21 +192,20 @@ func (tm *TimelineManager) Start() error {
 			TransportBufferSize:  tm.configuration.TransportBufferSize,
 			BatchSendInterval:    tm.configuration.BatchSendInterval.Duration,
 			RequestTimeout:       tm.configuration.RequestTimeout.Duration,
+			DebugInput:           tm.configuration.DebugInput,
+			DebugOutput:          tm.configuration.DebugOutput,
 		},
+		ReadBufferSize:      tm.configuration.ReadBufferSize,
 		MaxReadTimeout:      tm.configuration.MaxReadTimeout.Duration,
 		ReconnectionTimeout: tm.configuration.ReconnectionTimeout.Duration,
 	}
+
+	tm.backendMap = map[StorageType]backendManager{}
 
 	t, err := timeline.NewOpenTSDBTransport(&tc)
 	if err != nil {
 		return err
 	}
-
-	if logh.InfoEnabled {
-		tm.logger.Info().Msg("opentsdb transport created")
-	}
-
-	tm.backendMap = map[StorageType]backendManager{}
 
 	for i := 0; i < len(tm.configuration.Backends); i++ {
 
@@ -207,27 +221,37 @@ func (tm *TimelineManager) Start() error {
 		}
 
 		f := timeline.NewFlattener(&dtc)
-
-		ac := timeline.AccumulatorConf{
-			DataTransformerConf: dtc,
-			DataTTL:             tm.configuration.DataTTL.Duration,
-		}
-
-		a := timeline.NewAccumulator(&ac)
+		a := timeline.NewAccumulator(&dtc)
 
 		manager, err := timeline.NewManager(t, f, a, &b)
 		if err != nil {
 			return err
 		}
 
-		tags := make([]interface{}, len(tm.configuration.Backends[i].CommonTags)*2)
-		tagIndex := 0
+		numHostTags := 0
+		if tm.configuration.Backends[i].AddHostTag {
+			numHostTags = 2
+		}
 
+		tags := make([]interface{}, numHostTags+len(tm.configuration.Backends[i].CommonTags)*2)
+
+		tagIndex := 0
 		for k, v := range tm.configuration.Backends[i].CommonTags {
 			tags[tagIndex] = k
 			tagIndex++
 			tags[tagIndex] = v
 			tagIndex++
+		}
+
+		if tm.configuration.Backends[i].AddHostTag {
+			tags[tagIndex] = constants.StringsHost
+			tagIndex++
+			tags[tagIndex] = tm.hostName
+		}
+
+		err = manager.Start()
+		if err != nil {
+			return err
 		}
 
 		tm.backendMap[tm.configuration.Backends[i].Type] = backendManager{
@@ -236,12 +260,8 @@ func (tm *TimelineManager) Start() error {
 		}
 
 		if logh.InfoEnabled {
-			tm.logger.Info().Str("type", string(tm.configuration.Backends[i].Type)).Msgf("timeline manager created: %s:%d", b.Host, b.Port)
+			tm.logger.Info().Str(constants.StringsType, string(tm.configuration.Backends[i].Type)).Msgf("timeline manager created: %s:%d (%+v)", b.Host, b.Port, tags)
 		}
-	}
-
-	for _, v := range tm.backendMap {
-		v.manager.Start()
 	}
 
 	if logh.InfoEnabled {

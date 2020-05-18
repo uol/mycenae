@@ -67,7 +67,7 @@ DelayedMetricsThreshold = 3000
 [cassandra]
   keyspace = "mycenae"
   consistency = "one"
-  nodes = ["182.168.0.5","182.168.0.6","182.168.0.7"]
+  nodes = ["182.168.0.2","182.168.0.3","182.168.0.4"]
   username = "cassandra"
   password = "cassandra"
   connections = 3
@@ -85,9 +85,9 @@ DelayedMetricsThreshold = 3000
 [HTTPserver]
   port = 8082
   bind = "loghost"
-  EnableProfiling = true
+  EnableProfiling = false
   ForceErrorAsDebug = false
-  AllowCORS = true
+  AllowCORS = false
 
 [GlobalTelnetServerConfiguration]
   # The maximum request time to reach other nodes
@@ -117,13 +117,16 @@ DelayedMetricsThreshold = 3000
   # silence all info logs
   SilenceLogs = true
 
+  # allows the listed host to connect multiple times
+  MultipleConnsAllowedHosts = ["loghost"]
+
 [NetdataServer]
   port = 8023
   bind = "loghost"
   onErrorTimeout = "5s"
   sendStatsTimeout = "10s"
   maxIdleConnectionTimeout = "30s"
-  maxBufferSize = 204800
+  maxBufferSize = 2048
   cacheDuration = "1m"
   ServerName = "Netdata Telnet Server"
 
@@ -133,7 +136,7 @@ DelayedMetricsThreshold = 3000
   onErrorTimeout = "5s" 
   sendStatsTimeout = "10s"
   maxIdleConnectionTimeout = "30s"
-  maxBufferSize = 204800
+  maxBufferSize = 2048
   ServerName = "OpenTSDB Telnet Server"
 
 [logs]
@@ -143,20 +146,24 @@ DelayedMetricsThreshold = 3000
 [stats]
   hashingAlgorithm = "shake128"
   hashSize = 6
-  transportBufferSize = 5000
-  serializerBufferSize = 1024
-  batchSendInterval = "20s"
+  transportBufferSize = 10000
+  serializerBufferSize = 2048
+  batchSendInterval = "30s"
   requestTimeout = "5s"
-  maxReadTimeout = "1s"
+  maxReadTimeout = "100ms"
   reconnectionTimeout = "3s"
-  dataTTL = "1m"
+  dataTTL = "2m"
+  readBufferSize = 64
+  #debugOutput = true
+  #debugInput = true
 
   [[stats.backends]]
     host = "loghost"
     port = 8123
     type = "normal"
-    cycleDuration = "60s"
-    [[stats.backends.commonTags]]
+    cycleDuration = "15s"
+    addHostTag = true
+    [stats.backends.commonTags]
       service = "mycenae"
       ttl = "1"
       ksid = "pdeng_stats"
@@ -165,16 +172,17 @@ DelayedMetricsThreshold = 3000
     host = "loghost"
     port = 8123
     type = "archive"
-    cycleDuration = "60s"
-    [[stats.backends.commonTags]]
+    cycleDuration = "15s"
+    addHostTag = true
+    [stats.backends.commonTags]
       service = "mycenae"
       ttl = "1"
-      ksid = "pdeng_analytics"
+      ksid = "pdeng_stats"
 
 [metadataSettings]
   numShards = 1
   replicationFactor = 1
-  url = "http://182.168.0.3:8983/solr"
+  url = "http://182.168.0.6:8983/solr"
   IDCacheTTL = -1
   QueryCacheTTL = -1
   MaxReturnedMetadata = 10000
@@ -211,7 +219,7 @@ DelayedMetricsThreshold = 3000
 [validation]
   maxTextValueSize = 10000
 	maxNumTags       = 20
-	propertyRegexp   = "^[0-9A-Za-z-\\._\\%\\&\\#\\;\\/]+$"
-  keysetNameRegexp = "^[a-z_]{1}[a-z0-9_\\-]+[a-z0-9]{1}$"
+	propertyRegexp   = "(?i)^[0-9a-z-\\._\\%\\&\\#\\;\\/]+$"
+  keysetNameRegexp = "(?i)^[a-z_]{1}[a-z0-9_\\-]+[a-z0-9]{1}$"
 	defaultTTL       = 1
   MaxPropertySize  = 64

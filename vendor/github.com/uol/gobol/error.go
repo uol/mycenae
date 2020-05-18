@@ -7,4 +7,5 @@ type Error interface {
 	Message() string
 	Package() string
 	Function() string
+	ErrorCode() string
 }

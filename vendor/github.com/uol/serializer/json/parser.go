@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/uol/serializer/serializer"
 )
 
 /**
@@ -40,14 +42,14 @@ func (s *Serializer) mapJSON(item interface{}, variablePaths map[string]struct{}
 	var b strings.Builder
 	b.Grow(s.bufferSize)
 
-	b.WriteString("{")
+	b.WriteString(strBracketLeft)
 
-	err := s.mapStruct(item, &b, &varSequence, variablePaths, "")
+	err := s.mapStruct(item, &b, &varSequence, variablePaths, serializer.Empty)
 	if err != nil {
 		return nil, err
 	}
 
-	b.WriteString("}")
+	b.WriteString(strBracketRight)
 
 	variableMap := map[string]int{}
 	for i, variable := range varSequence {
@@ -71,11 +73,11 @@ func (s *Serializer) writeMapInStringFormat(field *reflect.StructField, value *r
 	}
 
 	if variableType == propertyVariable {
-		b.WriteString("{%s}")
+		b.WriteString(strFmtStringInBrackets)
 		return true, nil
 	}
 
-	b.WriteString("{")
+	b.WriteString(strBracketLeft)
 	it := value.MapRange()
 
 	hasNext := it.Next()
@@ -110,11 +112,11 @@ func (s *Serializer) writeMapInStringFormat(field *reflect.StructField, value *r
 
 		hasNext = it.Next()
 		if hasNext {
-			b.WriteString(",")
+			b.WriteString(strComma)
 		}
 	}
 
-	b.WriteString("}")
+	b.WriteString(strBracketRight)
 
 	return true, nil
 }
@@ -128,13 +130,13 @@ func (s *Serializer) writeArrayInStringFormat(field *reflect.StructField, value 
 	}
 
 	if variableType == propertyVariable {
-		b.WriteString("[%s]")
+		b.WriteString(strFmtStringInSqBrackets)
 		return true, nil
 	}
 
 	arraySize := value.Len()
 
-	b.WriteString("[")
+	b.WriteString(strSquareBracketLeft)
 
 	var indexBuilder strings.Builder
 
@@ -142,9 +144,9 @@ func (s *Serializer) writeArrayInStringFormat(field *reflect.StructField, value 
 
 		indexBuilder.Grow(len(currentPath) + 5)
 		indexBuilder.WriteString(currentPath)
-		indexBuilder.WriteString("[")
+		indexBuilder.WriteString(strSquareBracketLeft)
 		indexBuilder.WriteString(strconv.Itoa(i))
-		indexBuilder.WriteString("]")
+		indexBuilder.WriteString(strSquareBracketRight)
 
 		val := value.Index(i)
 
@@ -171,11 +173,11 @@ func (s *Serializer) writeArrayInStringFormat(field *reflect.StructField, value 
 		indexBuilder.Reset()
 
 		if i < arraySize-1 {
-			b.WriteString(",")
+			b.WriteString(strComma)
 		}
 	}
 
-	b.WriteString("]")
+	b.WriteString(strSquareBracketRight)
 
 	return true, nil
 }
@@ -195,7 +197,7 @@ func (s *Serializer) mapStruct(item interface{}, b *strings.Builder, varSequence
 
 			isSubObject, _, currentPath := s.fieldToProperty(&field, b, varSequence, variablePaths, path)
 			if isSubObject {
-				b.WriteString("{")
+				b.WriteString(strBracketLeft)
 			}
 
 			x := v.Field(i).Interface()
@@ -205,11 +207,11 @@ func (s *Serializer) mapStruct(item interface{}, b *strings.Builder, varSequence
 			}
 
 			if isSubObject {
-				b.WriteString("}")
+				b.WriteString(strBracketRight)
 			}
 
 			if i < numFields-1 {
-				b.WriteString(",")
+				b.WriteString(strComma)
 			}
 
 			continue
@@ -219,7 +221,7 @@ func (s *Serializer) mapStruct(item interface{}, b *strings.Builder, varSequence
 			fv := v.Field(i)
 			s.writeMapInStringFormat(&field, &fv, b, varSequence, variablePaths, path)
 			if i < numFields-1 {
-				b.WriteString(",")
+				b.WriteString(strComma)
 			}
 
 			continue
@@ -229,7 +231,7 @@ func (s *Serializer) mapStruct(item interface{}, b *strings.Builder, varSequence
 			fv := v.Field(i)
 			s.writeArrayInStringFormat(&field, &fv, b, varSequence, variablePaths, path)
 			if i < numFields-1 {
-				b.WriteString(",")
+				b.WriteString(strComma)
 			}
 
 			continue
@@ -261,7 +263,7 @@ func (s *Serializer) mapStruct(item interface{}, b *strings.Builder, varSequence
 		}
 
 		if i < numFields-1 {
-			b.WriteString(",")
+			b.WriteString(strComma)
 		}
 	}
 
@@ -273,15 +275,15 @@ func (s *Serializer) getFormatSymbol(k reflect.Kind) (string, error) {
 
 	switch k {
 	case reflect.String:
-		return "%s", nil
+		return strStringVar, nil
 	case reflect.Uint, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint8, reflect.Uintptr, reflect.Int, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int8:
-		return "%d", nil
+		return strIntVar, nil
 	case reflect.Float32, reflect.Float64:
-		return "%f", nil
+		return strFloatVar, nil
 	case reflect.Bool:
-		return "%t", nil
+		return strBooleanVar, nil
 	default:
-		return "", fmt.Errorf("type not mapped: %d", k)
+		return serializer.Empty, fmt.Errorf("type not mapped: %d", k)
 	}
 }
 
@@ -299,13 +301,13 @@ func (s *Serializer) getValueFromField(field *reflect.StructField, value *reflec
 	case reflect.String:
 		var b strings.Builder
 		str := value.String()
-		b.Grow(len(str) + 2 + (strings.Count(str, `"`) * 2))
+		b.Grow(len(str) + 2 + (strings.Count(str, strDoubleQuote) * 2))
 		s.writeStringValue(str, &b)
 		return b.String(), nil
 	case reflect.Uint, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint8, reflect.Uintptr, reflect.Int, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int8:
 		return strconv.FormatInt(value.Int(), 10), nil
 	case reflect.Float32, reflect.Float64:
-		return strconv.FormatFloat(value.Float(), 'f', -1, 64), nil
+		return strconv.FormatFloat(value.Float(), serializer.ByteFloatFormat, -1, 64), nil
 	case reflect.Bool:
 		return strconv.FormatBool(value.Bool()), nil
 	case reflect.Interface:
@@ -313,42 +315,44 @@ func (s *Serializer) getValueFromField(field *reflect.StructField, value *reflec
 		internalValue := reflect.ValueOf(iface)
 		return s.getValueFromField(nil, &internalValue)
 	default:
-		return "", fmt.Errorf("kind not mapped: %s", kind.String())
+		return serializer.Empty, fmt.Errorf("kind not mapped: %s", kind.String())
 	}
 }
 
 // writeStringValue - writes a string in JSON format
 func (s *Serializer) writeStringValue(value string, b *strings.Builder) {
 
-	b.WriteByte(doubleQuote)
+	b.WriteByte(byteValueDoubleQuote)
 
 	for _, c := range []byte(value) {
-		if c == doubleQuote {
-			b.WriteString(escapedDoubleQuote)
+		if c == byteValueDoubleQuote {
+			b.WriteString(jsonEscapedDoubleQuote)
+		} else if c == byteValueEscapeBar {
+			b.WriteString(jsonEscapedEscapeBar)
 		} else {
 			b.WriteByte(c)
 		}
 	}
 
-	b.WriteByte(doubleQuote)
+	b.WriteByte(byteValueDoubleQuote)
 }
 
 // writePropertyString - writes a string in JSON format
 func (s *Serializer) writePropertyString(name string, b *strings.Builder) {
 
 	s.writeStringValue(name, b)
-	b.WriteString(":")
+	b.WriteString(strColon)
 }
 
 // fieldToProperty - try to write a property, returns if it's a json property, the type and the current path
 func (s *Serializer) fieldToProperty(field *reflect.StructField, b *strings.Builder, varSequence *[]string, variablePaths map[string]struct{}, path string) (bool, variableType, string) {
 
-	tag, ok := field.Tag.Lookup("json")
+	tag, ok := field.Tag.Lookup(strJSON)
 	if !ok {
 		return false, normalValue, path
 	}
 
-	tagValues := strings.Split(tag, ",")
+	tagValues := strings.Split(tag, strComma)
 
 	s.writePropertyString(tagValues[0], b)
 
@@ -370,7 +374,7 @@ func (s *Serializer) buildPath(path, new string) string {
 	temp.Grow(len(path) + len(new) + 1)
 	temp.WriteString(path)
 	if len(path) > 0 {
-		temp.WriteString(".")
+		temp.WriteString(strDot)
 	}
 	temp.WriteString(new)
 

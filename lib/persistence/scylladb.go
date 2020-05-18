@@ -91,19 +91,23 @@ func (backend *scylladb) CreateKeyspace(
 		return err
 	}
 
-	backend.statsQuery(keyspace.Name, constants.StringsEmpty, "create", time.Since(start))
+	backend.statsQuery(funcCreateKeyspace, keyspace.Name, constants.CRUDOperationCreate, time.Since(start))
 	return nil
 }
 
+const cFuncDeleteKeyspace string = "DeleteKeyspace"
+
 func (backend *scylladb) DeleteKeyspace(id string) gobol.Error {
+
 	start := time.Now()
 	query := fmt.Sprintf(formatDeleteKeyspace, id)
+
 	if err := backend.session.Query(query).Exec(); err != nil {
-		backend.statsQueryError(id, constants.StringsEmpty, "drop")
-		return errPersist("DeleteKeyspace", structName, err)
+		backend.statsQueryError(cFuncDeleteKeyspace, id, constants.CRUDOperationDrop)
+		return errPersist(cFuncDeleteKeyspace, structName, err)
 	}
 
-	backend.statsQuery(id, constants.StringsEmpty, "drop", time.Since(start))
+	backend.statsQuery(cFuncDeleteKeyspace, id, constants.CRUDOperationDrop, time.Since(start))
 	return nil
 }
 
@@ -135,7 +139,7 @@ func (backend *scylladb) ListKeyspaces() ([]Keyspace, gobol.Error) {
 			backend.statsQuery(
 				funcListKeyspaces,
 				backend.ksMngr,
-				scyllaSelect,
+				constants.CRUDOperationSelect,
 				time.Since(start),
 			)
 			return []Keyspace{}, errNoContent(
@@ -144,7 +148,7 @@ func (backend *scylladb) ListKeyspaces() ([]Keyspace, gobol.Error) {
 			)
 		}
 
-		backend.statsQueryError(backend.ksMngr, "ts_keyspace", "select")
+		backend.statsQueryError(funcListKeyspaces, backend.ksMngr, constants.CRUDOperationSelect)
 		return []Keyspace{}, errPersist(
 			funcListKeyspaces,
 			structName,
@@ -155,7 +159,7 @@ func (backend *scylladb) ListKeyspaces() ([]Keyspace, gobol.Error) {
 	backend.statsQuery(
 		funcListKeyspaces,
 		backend.ksMngr,
-		scyllaSelect,
+		constants.CRUDOperationSelect,
 		time.Since(start),
 	)
 
@@ -169,13 +173,39 @@ func (backend *scylladb) GetKeyspace(id string) (Keyspace, bool, gobol.Error) {
 		query = fmt.Sprintf(formatGetKeyspace, backend.ksMngr)
 		ks    = Keyspace{Name: id}
 	)
+
+	start := time.Now()
+
 	if err := backend.session.Query(query, id).Scan(
-		&ks.Name, &ks.Contact, &ks.DC, &ks.Replication,
+		&ks.Name,
+		&ks.Contact,
+		&ks.DC,
+		&ks.Replication,
 	); err == gocql.ErrNotFound {
+
+		backend.statsQuery(
+			funcGetKeyspace,
+			id,
+			constants.CRUDOperationSelect,
+			time.Since(start),
+		)
+
 		return Keyspace{}, false, nil
+
 	} else if err != nil {
+
+		backend.statsQueryError(funcGetKeyspace, id, constants.CRUDOperationSelect)
+
 		return Keyspace{}, false, errPersist(funcGetKeyspace, structName, err)
 	}
+
+	backend.statsQuery(
+		funcListKeyspaces,
+		id,
+		constants.CRUDOperationSelect,
+		time.Since(start),
+	)
+
 	return ks, true, nil
 }
 
@@ -183,24 +213,23 @@ const funcUpdateKeyspace string = "UpdateKeyspace"
 
 func (backend *scylladb) UpdateKeyspace(ksid, contact string) gobol.Error {
 
-	start := time.Now()
-
-	query := fmt.Sprintf(formatUpdateKeyspace, backend.ksMngr)
-
 	if _, found, err := backend.GetKeyspace(ksid); err != nil {
 		return err
 	} else if !found {
 		return errNotFound(funcUpdateKeyspace, structName, constants.StringsEmpty)
 	}
 
+	start := time.Now()
+	query := fmt.Sprintf(formatUpdateKeyspace, backend.ksMngr)
+
 	if err := backend.session.Query(
 		query, contact, ksid,
 	).Exec(); err != nil {
-		backend.statsQueryError(funcUpdateKeyspace, ksid, scyllaUpdate)
+		backend.statsQueryError(funcUpdateKeyspace, ksid, constants.CRUDOperationUpdate)
 		return errPersist(funcUpdateKeyspace, structName, err)
 	}
 
-	backend.statsQuery(funcUpdateKeyspace, ksid, scyllaUpdate, time.Since(start))
+	backend.statsQuery(funcUpdateKeyspace, ksid, constants.CRUDOperationUpdate, time.Since(start))
 
 	return nil
 }

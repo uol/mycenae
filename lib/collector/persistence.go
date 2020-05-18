@@ -29,16 +29,16 @@ func (collect *Collector) InsertPoint(ksid, tsid string, timestamp int64, value 
 		timestamp,
 		value,
 	).Exec(); err != nil {
-		statsInsertQueryError(ksid, tableNumberStamp)
+		statsInsertQueryError(ksid)
 		if logh.ErrorEnabled {
 			collect.logger.Error().Err(err).Str(constants.StringsFunc, "InsertPoint").Str("tsid", tsid).Int64("timestamp", timestamp).Float64("value", value).Str("ksid", ksid).Send()
 		}
 
-		statsInsertRollback(ksid, tableNumberStamp)
+		statsInsertRollback(ksid)
 		return errPersist("InsertPoint", err)
 	}
 
-	statsInsertQuery(ksid, tableNumberStamp, time.Since(start))
+	statsInsertQuery(ksid, time.Since(start))
 
 	return nil
 }
@@ -54,15 +54,15 @@ func (collect *Collector) InsertText(ksid, tsid string, timestamp int64, text st
 		timestamp,
 		text,
 	).Exec(); err != nil {
-		statsInsertQueryError(ksid, tableTextStamp)
+		statsInsertQueryError(ksid)
 		if logh.ErrorEnabled {
 			collect.logger.Error().Err(err).Str(constants.StringsFunc, "InsertText").Str("tsid", tsid).Int64("timestamp", timestamp).Str("text", text).Str("ksid", ksid).Send()
 		}
-		statsInsertRollback(ksid, tableTextStamp)
+		statsInsertRollback(ksid)
 		return errPersist("InsertText", err)
 	}
 
-	statsInsertQuery(ksid, tableTextStamp, time.Since(start))
+	statsInsertQuery(ksid, time.Since(start))
 
 	return nil
 }

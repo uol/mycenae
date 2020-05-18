@@ -50,7 +50,7 @@ type Transport interface {
 	FlattenerPointToDataChannelItem(item *FlattenerPoint) (interface{}, error)
 
 	// DataChannelItemToAccumulatedData - converts the data channel item to the accumulated data
-	DataChannelItemToAccumulatedData(configuration *DataTransformerConf, item interface{}) (Hashable, error)
+	DataChannelItemToAccumulatedData(configuration *DataTransformerConf, item interface{}, calculateHash bool) (Hashable, error)
 
 	// AccumulatedDataToDataChannelItem - converts the accumulated data to the data channel item
 	AccumulatedDataToDataChannelItem(item *AccumulatedData) (interface{}, error)
@@ -65,10 +65,12 @@ type Hashable interface {
 
 // transportCore - implements a default transport behaviour
 type transportCore struct {
-	transport         Transport
-	batchSendInterval time.Duration
-	pointChannel      chan interface{}
-	loggers           *logh.ContextualLogger
+	transport            Transport
+	batchSendInterval    time.Duration
+	pointChannel         chan interface{}
+	loggers              *logh.ContextualLogger
+	started              bool
+	defaultConfiguration *DefaultTransportConfiguration
 }
 
 // DefaultTransportConfiguration - the default fields used by the transport configuration
@@ -77,6 +79,8 @@ type DefaultTransportConfiguration struct {
 	BatchSendInterval    time.Duration
 	RequestTimeout       time.Duration
 	SerializerBufferSize int
+	DebugInput           bool
+	DebugOutput          bool
 }
 
 // Validate - validates the default itens from the configuration
@@ -104,9 +108,15 @@ func (c *DefaultTransportConfiguration) Validate() error {
 // Start - starts the transport
 func (t *transportCore) Start() error {
 
+	if t.started {
+		return nil
+	}
+
 	if logh.InfoEnabled {
 		t.loggers.Info().Msg("starting transport...")
 	}
+
+	t.started = true
 
 	go t.transferDataLoop()
 
@@ -149,14 +159,14 @@ outterFor:
 		numPoints = len(points)
 
 		if numPoints == 0 {
-			if logh.InfoEnabled {
-				t.loggers.Info().Msg("buffer is empty, no data will be send")
+			if logh.DebugEnabled {
+				t.loggers.Debug().Msg("buffer is empty, no data will be send")
 			}
 			continue
-		}
-
-		if logh.InfoEnabled {
-			t.loggers.Info().Msg(fmt.Sprintf("sending a batch of %d points...", numPoints))
+		} else {
+			if logh.InfoEnabled {
+				t.loggers.Info().Msg(fmt.Sprintf("sending a batch of %d points...", numPoints))
+			}
 		}
 
 		err := t.transport.TransferData(points)
@@ -166,7 +176,7 @@ outterFor:
 			}
 		} else {
 			if logh.InfoEnabled {
-				t.loggers.Info().Msg(fmt.Sprintf("batch of %d points were sent!", numPoints))
+				t.loggers.Info().Msgf("batch of %d points were sent!", numPoints)
 			}
 		}
 
@@ -181,4 +191,27 @@ func (t *transportCore) Close() {
 	}
 
 	close(t.pointChannel)
+
+	t.started = false
+}
+
+// debugInput - print the incoming points if enabled
+func (t *transportCore) debugInput(array []interface{}) {
+
+	if t.defaultConfiguration.DebugInput && logh.DebugEnabled {
+
+		for _, item := range array {
+
+			t.loggers.Debug().Str("point", "input").Msgf("%+v", item)
+		}
+	}
+}
+
+// debugOutput - print the outcoming points if enabled
+func (t *transportCore) debugOutput(serialized string) {
+
+	if t.defaultConfiguration.DebugOutput && logh.DebugEnabled {
+
+		t.loggers.Debug().Str("point", "output").Msgf("--content-start--\n%s\n--content-end--\n", serialized)
+	}
 }

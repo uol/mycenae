@@ -46,7 +46,7 @@ func (t *OpenTSDBTransport) DataChannelItemToFlattenerPoint(configuration *DataT
 		flattenerPointData: flattenerPointData{
 			operation:       operation,
 			timestamp:       item.Timestamp,
-			dataChannelItem: *item,
+			dataChannelItem: item,
 		},
 	}, nil
 }
@@ -54,7 +54,7 @@ func (t *OpenTSDBTransport) DataChannelItemToFlattenerPoint(configuration *DataT
 // FlattenerPointToDataChannelItem - converts the flattened point to the data channel one
 func (t *OpenTSDBTransport) FlattenerPointToDataChannelItem(point *FlattenerPoint) (interface{}, error) {
 
-	item, ok := point.dataChannelItem.(serializer.ArrayItem)
+	item, ok := point.dataChannelItem.(*serializer.ArrayItem)
 	if !ok {
 		return nil, fmt.Errorf("error casting point's data channel item")
 	}
@@ -65,26 +65,30 @@ func (t *OpenTSDBTransport) FlattenerPointToDataChannelItem(point *FlattenerPoin
 }
 
 // DataChannelItemToAccumulatedData - converts the data channel item to the accumulated data
-func (t *OpenTSDBTransport) DataChannelItemToAccumulatedData(configuration *DataTransformerConf, instance interface{}) (Hashable, error) {
+func (t *OpenTSDBTransport) DataChannelItemToAccumulatedData(configuration *DataTransformerConf, instance interface{}, calculateHash bool) (Hashable, error) {
 
 	item, hashParameters, err := t.extractData(instance, nil)
 
-	hash, err := getHash(configuration, hashParameters...)
-	if err != nil {
-		return nil, err
+	var hash string
+
+	if calculateHash {
+		hash, err = getHash(configuration, hashParameters...)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &AccumulatedData{
 		count: 0,
 		hash:  hash,
-		data:  *item,
+		data:  item,
 	}, nil
 }
 
 // AccumulatedDataToDataChannelItem - converts the accumulated data to the data channel item
 func (t *OpenTSDBTransport) AccumulatedDataToDataChannelItem(point *AccumulatedData) (interface{}, error) {
 
-	item, ok := point.data.(serializer.ArrayItem)
+	item, ok := point.data.(*serializer.ArrayItem)
 	if !ok {
 		return nil, fmt.Errorf("error casting accumulated data to data channel item")
 	}

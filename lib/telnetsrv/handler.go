@@ -1,5 +1,11 @@
 package telnetsrv
 
+import (
+	"github.com/uol/logh"
+	"github.com/uol/mycenae/lib/constants"
+	"github.com/uol/mycenae/lib/validation"
+)
+
 //
 // Specifies a telnet data handler
 // author: rnojiri
@@ -9,8 +15,17 @@ package telnetsrv
 type TelnetDataHandler interface {
 
 	// Handle - handles the data and send
-	Handle(line string)
+	Handle(line, ip string) bool
 
-	// sourceName - returns the connection type name
-	SourceName() string
+	// GetSourceType - returns the source type
+	GetSourceType() *constants.SourceType
+
+	// GetLogger - returns the logger
+	GetLogger() *logh.ContextualLogger
+
+	// GetValidationService - returns the validation service instance
+	GetValidationService() *validation.Service
+
+	// SilenceLogs - checks the configuration to silence all validation logs
+	SilenceLogs() bool
 }

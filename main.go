@@ -82,10 +82,18 @@ func main() {
 	memcachedConn := createMemcachedConnection(&settings.Memcached, timelineManager)
 	metadataStorage := createMetadataStorageService(&settings.MetadataSettings, timelineManager, memcachedConn)
 	scyllaStorageService, keyspaceTTLMap := createScyllaStorageService(settings, devMode, timelineManager, scyllaConn, metadataStorage)
-	validationService := createValidation(settings, metadataStorage, keyspaceTTLMap)
+	validationService := createValidation(settings, metadataStorage, keyspaceTTLMap, timelineManager)
 	collectorService := createCollectorService(settings, timelineManager, metadataStorage, scyllaConn, validationService, keyspaceTTLMap)
 	telnetManager := createTelnetManager(settings, collectorService, timelineManager, validationService)
-	timelineManager.Start()
+
+	err = timelineManager.Start()
+	if err != nil {
+		if logh.ErrorEnabled {
+			logger.Error().Err(err).Msg("error starting timeline manager")
+		}
+		os.Exit(1)
+	}
+
 	keyspaceManager := createKeyspaceManager(settings, devMode, timelineManager, scyllaStorageService)
 	keysetManager := createKeysetManager(settings, metadataStorage)
 	plotService := createPlotService(settings, timelineManager, metadataStorage, scyllaConn, keyspaceTTLMap)
@@ -473,12 +481,13 @@ func createTelnetManager(conf *structs.Settings, collectorService *collector.Col
 }
 
 // createValidation - creates a new validation service
-func createValidation(conf *structs.Settings, metadataStorage *metadata.Storage, keyspaceTTLMap map[int]string) *validation.Service {
+func createValidation(conf *structs.Settings, metadataStorage *metadata.Storage, keyspaceTTLMap map[int]string, timelineManager *stats.TimelineManager) *validation.Service {
 
 	service, err := validation.New(
 		&conf.Validation,
 		metadataStorage,
 		keyspaceTTLMap,
+		timelineManager,
 	)
 
 	if err != nil {

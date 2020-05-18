@@ -14,7 +14,7 @@ import (
 	"github.com/uol/gobol/rip"
 )
 
-func (collect *Collector) handle(w http.ResponseWriter, r *http.Request, number bool) {
+func (collect *Collector) handle(w http.ResponseWriter, r *http.Request, ip string, number bool) {
 
 	var bytes []byte
 	var err error
@@ -40,7 +40,7 @@ func (collect *Collector) handle(w http.ResponseWriter, r *http.Request, number 
 		return
 	}
 
-	_, gerr := collect.HandleJSONBytes(bytes, constants.StringsHTTP, number)
+	_, gerr := collect.HandleJSONBytes(bytes, constants.SourceTypeHTTP, ip, number)
 	if gerr != nil {
 		rip.Fail(w, gerr)
 		return
@@ -60,15 +60,15 @@ func (collect *Collector) handle(w http.ResponseWriter, r *http.Request, number 
 // HandleNumber - handles the point in number format
 func (collect *Collector) HandleNumber(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
-	collect.sendIPStats(r)
-	collect.handle(w, r, true)
+	ip := collect.sendIPStats(r)
+	collect.handle(w, r, ip, true)
 }
 
 // HandleText - handles the point in text format
 func (collect *Collector) HandleText(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
-	collect.sendIPStats(r)
-	collect.handle(w, r, false)
+	ip := collect.sendIPStats(r)
+	collect.handle(w, r, ip, false)
 }
 
 const (
@@ -76,22 +76,25 @@ const (
 	cXForwardedFor string = "X-Forwarded-For"
 )
 
-func (collect *Collector) sendIPStats(r *http.Request) {
+// sendIPStats - send IP statistics and return the source IP
+func (collect *Collector) sendIPStats(r *http.Request) string {
 
 	ip, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		if logh.ErrorEnabled {
 			collect.logger.Error().Str(constants.StringsFunc, cFuncIPStats).Err(err).Msg("error parsing remote address")
 		}
-		return
+		return constants.StringsEmpty
 	}
 
 	if ip == constants.StringsEmpty {
-		array := strings.Split(r.Header.Get(cXForwardedFor), ",")
+		array := strings.Split(r.Header.Get(cXForwardedFor), constants.StringsComma)
 		if len(array) > 0 {
 			ip = strings.TrimSpace(array[0])
 		}
 	}
 
 	statsNetworkIP(ip, constants.StringsHTTP)
+
+	return ip
 }

@@ -18,10 +18,6 @@ const (
 	typeText   keyspaceType = "text"
 )
 
-const (
-	scyllaSelect string = "select"
-)
-
 func (persist *persistence) statsQueryError(function, keyset, keyspace string, ksType keyspaceType) {
 
 	persist.timelineManager.FlattenCountIncN(
@@ -30,6 +26,7 @@ func (persist *persistence) statsQueryError(function, keyset, keyspace string, k
 		constants.StringsTargetKSID, keyset,
 		constants.StringsKeyspace, keyspace,
 		constants.StringsType, ksType,
+		constants.StringsOperation, constants.CRUDOperationSelect,
 	)
 }
 
@@ -41,6 +38,7 @@ func (persist *persistence) statsSelect(function, keyset, keyspace string, ksTyp
 		constants.StringsTargetKSID, keyset,
 		constants.StringsKeyspace, keyspace,
 		constants.StringsType, ksType,
+		constants.StringsOperation, constants.CRUDOperationSelect,
 	)
 
 	persist.timelineManager.FlattenMaxN(
@@ -50,6 +48,7 @@ func (persist *persistence) statsSelect(function, keyset, keyspace string, ksTyp
 		constants.StringsTargetKSID, keyset,
 		constants.StringsKeyspace, keyspace,
 		constants.StringsType, ksType,
+		constants.StringsOperation, constants.CRUDOperationSelect,
 	)
 
 	persist.timelineManager.FlattenMaxN(
@@ -59,6 +58,7 @@ func (persist *persistence) statsSelect(function, keyset, keyspace string, ksTyp
 		constants.StringsTargetKSID, keyset,
 		constants.StringsKeyspace, keyspace,
 		constants.StringsType, ksType,
+		constants.StringsOperation, constants.CRUDOperationSelect,
 	)
 }
 
@@ -71,5 +71,6 @@ func (persist *persistence) statsQueryBytes(function, keyset, keyspace string, k
 		constants.StringsTargetKSID, keyset,
 		constants.StringsKeyspace, keyspace,
 		constants.StringsType, ksType,
+		constants.StringsOperation, constants.CRUDOperationSelect,
 	)
 }

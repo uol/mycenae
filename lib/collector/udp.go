@@ -11,11 +11,7 @@ func (collector *Collector) HandleUDPpacket(buf []byte, addr string) {
 
 	statsNetworkIP(addr, constants.StringsUDP)
 
-	if logh.DebugEnabled {
-		logh.Debug().Msgf("udp: %s", string(buf))
-	}
-
-	_, gerr := collector.HandleJSONBytes(buf, constants.StringsUDP, true)
+	_, gerr := collector.HandleJSONBytes(buf, constants.SourceTypeUDP, addr, true)
 	if gerr != nil {
 		collector.fail(gerr, addr)
 	}

@@ -11,7 +11,7 @@
 # multiple consistencies and abstract that to the applications
 
 # Max number of timeseries allowed to be queried (Solr pagination)
-MaxTimeseries = 5000
+MaxTimeseries = 50000
 
 # Warning number of timeseries
 LogQueryTSthreshold = 5000
@@ -29,13 +29,13 @@ DefaultPaginationSize = 1000
 DefaultKeysets = ["pdeng_stats", "pdeng_collectd", "pdeng_analytics"]
 
 # Maximum size of bytes for each query processing
-MaxBytesOnQueryProcessing = 1548576
+MaxBytesOnQueryProcessing = 104857600
 
 # Allows these keysets to do queries with more than "MaxBytesOnQueryProcessing" bytes
 UnlimitedQueryBytesKeysetWhiteList = ["pdeng_stats", "pdeng_collectd", "pdeng_analytics"]
 
 # Silences all point validation errors from the logs
-SilencePointValidationErrors = true
+SilencePointValidationErrors = false
 
 # Garbage collector initial percentage
 GarbageCollectorPercentage = 75
@@ -44,7 +44,10 @@ GarbageCollectorPercentage = 75
 TSIDKeySize = 16
 
 # When starting up enables the automatic keyspace creation for the default keyspaces bellow
-EnableAutoKeyspaceCreation = false
+EnableAutoKeyspaceCreation = true
+
+# Report metrics sent in the past (everything before the time bellow in miliseconds)
+DelayedMetricsThreshold = 3000
 
 # All default keyspaces
 [DefaultKeyspaces]
@@ -64,7 +67,7 @@ EnableAutoKeyspaceCreation = false
 [cassandra]
   keyspace = "mycenae"
   consistency = "one"
-  nodes = ["10.128.5.232", "10.128.5.233", "10.128.5.234", "10.128.5.235", "10.128.5.236", "10.128.5.237"]
+  nodes = ["182.168.0.2","182.168.0.3","182.168.0.4"]
   username = "cassandra"
   password = "cassandra"
   connections = 3
@@ -80,127 +83,143 @@ EnableAutoKeyspaceCreation = false
   readBuffer = 1048576
 
 [HTTPserver]
-  port = 80
-  bind = "0.0.0.0"
+  port = 8082
+  bind = "localhost"
   EnableProfiling = false
-  ForceErrorAsDebug = true
-  AllowCORS = false 
+  ForceErrorAsDebug = false
+  AllowCORS = true
 
 [GlobalTelnetServerConfiguration]
   # The maximum request time to reach other nodes
   HTTPRequestTimeout = "10s"
 
   # The size of the connection close channel
-  ConnectionCloseChannelSize = 2000
+  ConnectionCloseChannelSize = 10
 
   # The maximum telnet connections allowed per node
-  MaxTelnetConnections = 2000
+  MaxTelnetConnections = 10
 
   # The maximum number of unbalanced telnet connections
-  MaxUnbalancedTelnetConnsPerNode = 50
+  MaxUnbalancedTelnetConnsPerNode = 5
 
   # the time duration to check if the node is balanced
-  TelnetConnsBalanceCheckInterval = "5m"
+  TelnetConnsBalanceCheckInterval = "10s"
 
-  # the time duration to wait the unbalanced connection be dropped and in which telnet servers will not receive new connections
-  MaxWaitForDropTelnetConnsInterval = "121s"
+  # the time duration to wait the unbalanced connection be dropped
+  MaxWaitForDropTelnetConnsInterval = "35s"
 
   # the time duration to wait when a halt request is received for stop the balancing process
-  MaxWaitForOtherNodeConnsBalancing = "121s"
+  MaxWaitForOtherNodeConnsBalancing = "35s"
 
   # the available timeseries nodes
-  Nodes = ["a1-heleno1", "a1-heleno2", "a1-heleno3"]
+  Nodes = ["localhost"]
 
   # silence all info logs
-  SilenceLogs = true
+  SilenceLogs = false
+
+  # allows the listed host to connect multiple times
+  MultipleConnsAllowedHosts = ["localhost"]
 
 [NetdataServer]
   port = 8023
-  bind = "loghost"
-  onErrorTimeout = "10s"
-  maxBufferSize = 102400
-  sendStatsTimeout = "15s"
-  maxIdleConnectionTimeout = "120s"
-  cacheDuration = "10m"
+  bind = "localhost"
+  onErrorTimeout = "5s"
+  sendStatsTimeout = "10s"
+  maxIdleConnectionTimeout = "3m"
+  maxBufferSize = 2048
+  cacheDuration = "1m"
   ServerName = "Netdata Telnet Server"
 
 [TELNETserver]
   port = 8123
-  bind = "loghost"
-  onErrorTimeout = "10s"
-  maxBufferSize = 102400
-  sendStatsTimeout = "5s"
-  maxIdleConnectionTimeout = "120s"
+  bind = "localhost"
+  onErrorTimeout = "5s" 
+  sendStatsTimeout = "10s"
+  maxIdleConnectionTimeout = "3m"
+  maxBufferSize = 2048
   ServerName = "OpenTSDB Telnet Server"
 
 [logs]
-  level = "error"
-  format = "json"
+  level = "debug"
+  format = "console"
 
 [stats]
-  address = "10.128.7.19"
-  port = 80
-  protocol = "http"
-  httptimeout = "10s"
-  httppostinterval = "1m"
-  interval = "@every 1m"
-  runtime = false
-  [stats.tags]
-    service = "mycenae"
-    ttl = "14"
-    ksid = "pdeng_stats"
+  hashingAlgorithm = "shake128"
+  hashSize = 6
+  transportBufferSize = 10000
+  serializerBufferSize = 2048
+  batchSendInterval = "30s"
+  requestTimeout = "5s"
+  maxReadTimeout = "100ms"
+  reconnectionTimeout = "3s"
+  dataTTL = "2m"
+  readBufferSize = 64
+  #debugOutput = true
+  #debugInput = true
 
-[statsAnalytic]
-  address = "10.128.7.19"
-  port = 80
-  protocol = "http"
-  httptimeout = "10s"
-  httppostinterval = "10m"
-  interval = "@every 10m"
-  runtime = false
-  [statsAnalytic.tags]
-    service = "mycenae"
-    ttl = "365"
-    ksid = "pdeng_analytics"
+  [[stats.backends]]
+    host = "localhost"
+    port = 8123
+    type = "normal"
+    cycleDuration = "15s"
+    addHostTag = true
+    [stats.backends.commonTags]
+      service = "mycenae"
+      ttl = "1"
+      ksid = "pdeng_stats"
 
-[metadataSettings] 
-  numShards = 4
+  [[stats.backends]]
+    host = "localhost"
+    port = 8123
+    type = "archive"
+    cycleDuration = "15s"
+    addHostTag = true
+    [stats.backends.commonTags]
+      service = "mycenae"
+      ttl = "1"
+      ksid = "pdeng_stats"
+
+[metadataSettings]
+  numShards = 1
   replicationFactor = 1
-  url = "http://10.128.7.28:8983/solr"
-  IDCacheTTL = 7200
-  QueryCacheTTL = 600
-  KeysetCacheTTL = 600
+  url = "http://182.168.0.6:8983/solr"
+  IDCacheTTL = -1
+  QueryCacheTTL = -1
   MaxReturnedMetadata = 10000
   ZookeeperConfig = "mycenae"
-  BlacklistedKeysets = ["inventory"]
+  BlacklistedKeysets = ["chimera", "blacklist"]
   CacheKeyHashSize = 16
+  KeysetCacheAutoUpdateInterval = "5m"
 
 [memcached]
-  # the memcached node list
-  Nodes =  ["182.168.0.4:11211","182.168.0.3:11211","182.168.0.2:11211"]
-
+  # the nodes
+  Nodes = ["182.168.0.10:11211","182.168.0.11:11211","182.168.0.12:11211"]
+	
   # the number of idle connections per host
-  NumConnectionsPerNode = 8
-
+  NumConnectionsPerNode = 5
+  
   # the time duration between connection retries
-  ReconnectionTimeout = "1s"
+	ReconnectionTimeout = "1s"
 
-  # the max time duration to wait a write operation
-  MaxWriteTimeout = "3s"
+	# the max time duration to wait a write operation
+	MaxWriteTimeout = "3s"
 
   # the max time duration to wait a read operation
-  MaxReadTimeout = "120s"
+	MaxReadTimeout = "100ms"
 
-  # the maximum number of write retries
-  MaxWriteRetries = 3
+	# the maximum number of write retries
+	MaxWriteRetries = 3
 
-  # the size of the read buffer in bytes
-  ReadBufferSize = 2048
+	# the size of the read buffer in bytes
+	ReadBufferSize = 2048
+
+  # activates the memcached metrics
+  EnableMetrics = true
 
 [validation]
   maxTextValueSize = 10000
-  maxNumTags       = 20
-  propertyRegexp   = "^[0-9A-Za-z-\\._\\%\\&\\#\\;\\/]+$"
-  keysetNameRegexp = "^[a-z_]{1}[a-z0-9_\\-]+[a-z0-9]{1}$"
-  defaultTTL       = 1
-  MaxPropertySize  = 256
+	maxNumTags       = 20
+	propertyRegexp   = "(?i)^[0-9a-z-\\._\\%\\&\\#\\;\\/]+$"
+  keysetNameRegexp = "(?i)^[a-z_]{1}[a-z0-9_\\-]+[a-z0-9]{1}$"
+	defaultTTL       = 1
+  MaxPropertySize  = 64

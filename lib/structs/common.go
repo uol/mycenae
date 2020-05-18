@@ -49,6 +49,7 @@ type GlobalTelnetServerConfiguration struct {
 	ConnectionCloseChannelSize        int
 	Nodes                             []string
 	SilenceLogs                       bool
+	MultipleConnsAllowedHosts         []string
 }
 
 // ValidationConfiguration - validation configurations

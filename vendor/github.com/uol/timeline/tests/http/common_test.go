@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/uol/gotest"
+	serializer "github.com/uol/serializer/json"
 	"github.com/uol/timeline"
 )
 
@@ -60,7 +61,7 @@ func createHTTPTransport() *timeline.HTTPTransport {
 
 	transport.AddJSONMapping(
 		numberPoint,
-		timeline.NumberPoint{},
+		serializer.NumberPoint{},
 		"metric",
 		"value",
 		"timestamp",
@@ -69,7 +70,7 @@ func createHTTPTransport() *timeline.HTTPTransport {
 
 	transport.AddJSONMapping(
 		textPoint,
-		timeline.TextPoint{},
+		serializer.TextPoint{},
 		"metric",
 		"text",
 		"timestamp",
@@ -80,10 +81,10 @@ func createHTTPTransport() *timeline.HTTPTransport {
 }
 
 // newNumberPoint - creates a new number point
-func newNumberPoint(value float64) *timeline.NumberPoint {
+func newNumberPoint(value float64) *serializer.NumberPoint {
 
-	return &timeline.NumberPoint{
-		Point: timeline.Point{
+	return &serializer.NumberPoint{
+		Point: serializer.Point{
 			Metric:    "number-metric",
 			Timestamp: time.Now().Unix(),
 			Tags: map[string]string{
@@ -96,10 +97,10 @@ func newNumberPoint(value float64) *timeline.NumberPoint {
 }
 
 // newTextPoint - creates a new text point
-func newTextPoint(text string) *timeline.TextPoint {
+func newTextPoint(text string) *serializer.TextPoint {
 
-	return &timeline.TextPoint{
-		Point: timeline.Point{
+	return &serializer.TextPoint{
+		Point: serializer.Point{
 			Metric:    "text-metric",
 			Timestamp: time.Now().Unix(),
 			Tags: map[string]string{
@@ -111,13 +112,13 @@ func newTextPoint(text string) *timeline.TextPoint {
 	}
 }
 
-type ByMetric []timeline.NumberPoint
+type ByMetric []serializer.NumberPoint
 
 func (a ByMetric) Len() int           { return len(a) }
 func (a ByMetric) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a ByMetric) Less(i, j int) bool { return a[i].Metric < a[j].Metric }
 
-type ByMetricP []*timeline.NumberPoint
+type ByMetricP []*serializer.NumberPoint
 
 func (a ByMetricP) Len() int           { return len(a) }
 func (a ByMetricP) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }

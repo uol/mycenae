@@ -6,17 +6,7 @@ import (
 	"github.com/uol/mycenae/lib/constants"
 )
 
-type scyllaOperation string
-
-const (
-	scyllaCreate scyllaOperation = "create"
-	scyllaInsert scyllaOperation = "insert"
-	scyllaSelect scyllaOperation = "select"
-	scyllaDelete scyllaOperation = "delete"
-	scyllaUpdate scyllaOperation = "update"
-)
-
-func (backend *scylladb) statsQuery(function, keyspace string, operation scyllaOperation, d time.Duration) {
+func (backend *scylladb) statsQuery(function, keyspace string, operation constants.CRUDOperation, d time.Duration) {
 
 	backend.timelineManager.FlattenMaxN(
 		function,
@@ -34,7 +24,7 @@ func (backend *scylladb) statsQuery(function, keyspace string, operation scyllaO
 	)
 }
 
-func (backend *scylladb) statsQueryError(function, keyspace string, operation scyllaOperation) {
+func (backend *scylladb) statsQueryError(function, keyspace string, operation constants.CRUDOperation) {
 
 	backend.timelineManager.FlattenCountIncN(
 		function,

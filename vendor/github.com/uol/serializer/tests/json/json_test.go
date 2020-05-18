@@ -8,7 +8,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/uol/gobol/structs"
 	serializer "github.com/uol/serializer/json"
 	"github.com/uol/serializer/tests"
 )
@@ -104,10 +103,10 @@ func TestArrayNoVariables(t *testing.T) {
 	s := createSerializer()
 	addType(t, s, "s", newType)
 
-	result, err := s.SerializeArray([]serializer.ArrayItem{
-		serializer.ArrayItem{Name: "s"},
-		serializer.ArrayItem{Name: "s"},
-		serializer.ArrayItem{Name: "s"},
+	result, err := s.SerializeArray([]*serializer.ArrayItem{
+		{Name: "s"},
+		{Name: "s"},
+		{Name: "s"},
 	}...)
 	if !assert.NoError(t, err, "error serializing to array") {
 		return
@@ -165,29 +164,29 @@ func TestArrayVariables(t *testing.T) {
 	s := createSerializer()
 	addType(t, s, "s", newType, "boolean", "float", "integer")
 
-	result, err := s.SerializeArray([]serializer.ArrayItem{
-		serializer.ArrayItem{Name: "s", Parameters: []interface{}{"boolean", true, "float", 1.0, "integer", 1}},
-		serializer.ArrayItem{Name: "s", Parameters: []interface{}{"boolean", false, "float", 2.0, "integer", 2}},
-		serializer.ArrayItem{Name: "s", Parameters: []interface{}{"boolean", true, "float", 3.0, "integer", 3}},
+	result, err := s.SerializeArray([]*serializer.ArrayItem{
+		{Name: "s", Parameters: []interface{}{"boolean", true, "float", 1.0, "integer", 1}},
+		{Name: "s", Parameters: []interface{}{"boolean", false, "float", 2.0, "integer", 2}},
+		{Name: "s", Parameters: []interface{}{"boolean", true, "float", 3.0, "integer", 3}},
 	}...)
 	if !assert.NoError(t, err, "error serializing to array") {
 		return
 	}
 
 	array := []SimpleJSON{
-		SimpleJSON{
+		{
 			Boolean: true,
 			Float:   1.0,
 			Integer: 1,
 			Text:    "array",
 		},
-		SimpleJSON{
+		{
 			Boolean: false,
 			Float:   2.0,
 			Integer: 2,
 			Text:    "array",
 		},
-		SimpleJSON{
+		{
 			Boolean: true,
 			Float:   3.0,
 			Integer: 3,
@@ -202,8 +201,8 @@ func TestArrayVariables(t *testing.T) {
 // TestCompositeStructJSON - test a complex json serialization
 func TestCompositeStructJSON(t *testing.T) {
 
-	p := structs.NumberPoint{
-		Point: structs.Point{
+	p := serializer.NumberPoint{
+		Point: serializer.Point{
 			Metric:    "metric1",
 			Timestamp: time.Now().Unix(),
 			Tags: map[string]string{
@@ -222,8 +221,8 @@ func TestCompositeStructJSON(t *testing.T) {
 		"tags.host", "loghost",
 	)
 
-	expected := structs.NumberPoint{
-		Point: structs.Point{
+	expected := serializer.NumberPoint{
+		Point: serializer.Point{
 			Metric:    p.Metric,
 			Timestamp: p.Timestamp,
 			Tags: map[string]string{
@@ -235,7 +234,7 @@ func TestCompositeStructJSON(t *testing.T) {
 		Value: 100.5,
 	}
 
-	actual := structs.NumberPoint{}
+	actual := serializer.NumberPoint{}
 	validateJSON(t, result, &expected, &actual)
 }
 
@@ -381,7 +380,7 @@ func TestGenericSerializer(t *testing.T) {
 		"text", "changed",
 	)
 
-	result2, err := s.SerializeGeneric(serializer.ArrayItem{
+	result2, err := s.SerializeGeneric(&serializer.ArrayItem{
 		Name: "s",
 		Parameters: []interface{}{
 			"boolean", false,
@@ -409,10 +408,10 @@ func TestGenericArraySerializer(t *testing.T) {
 	s := createSerializer()
 	addType(t, s, "s", newType, "boolean", "float", "integer")
 
-	itemArray := []serializer.ArrayItem{
-		serializer.ArrayItem{Name: "s", Parameters: []interface{}{"boolean", true, "float", 1.0, "integer", 1}},
-		serializer.ArrayItem{Name: "s", Parameters: []interface{}{"boolean", false, "float", 2.0, "integer", 2}},
-		serializer.ArrayItem{Name: "s", Parameters: []interface{}{"boolean", true, "float", 3.0, "integer", 3}},
+	itemArray := []*serializer.ArrayItem{
+		{Name: "s", Parameters: []interface{}{"boolean", true, "float", 1.0, "integer", 1}},
+		{Name: "s", Parameters: []interface{}{"boolean", false, "float", 2.0, "integer", 2}},
+		{Name: "s", Parameters: []interface{}{"boolean", true, "float", 3.0, "integer", 3}},
 	}
 
 	result1, err := s.SerializeArray(itemArray...)
@@ -431,4 +430,63 @@ func TestGenericArraySerializer(t *testing.T) {
 	}
 
 	assert.Equal(t, result1, result2, "expected same output")
+}
+
+// TestInvalidNumberOfTags - tests a single line, invalid number of string tags
+func TestInvalidNumberOfTags(t *testing.T) {
+
+	newType := SimpleJSON{
+		Boolean: true,
+		Float:   float64(tests.GenerateRandom(0, 100)),
+		Integer: tests.GenerateRandom(0, 1000),
+		Text:    "variable",
+	}
+
+	s := createSerializer()
+	addType(t, s, "s", newType, "boolean", "text")
+
+	_, err := s.Serialize("s", "boolean")
+	assert.Error(t, err, "expected validation error")
+}
+
+// TestArrayWithInvalidNumberOfTags - tests an array of items, invalid number of string tags
+func TestArrayWithInvalidNumberOfTags(t *testing.T) {
+
+	newType := SimpleJSON{
+		Boolean: true,
+		Float:   float64(tests.GenerateRandom(0, 100)),
+		Integer: tests.GenerateRandom(0, 1000),
+		Text:    "variable",
+	}
+
+	s := createSerializer()
+	addType(t, s, "s", newType, "integer", "float")
+
+	items := []*serializer.ArrayItem{
+		{Name: "s", Parameters: []interface{}{"integer", 1, "float", 10.0}},
+		{Name: "s", Parameters: []interface{}{"integer", 1, "float", 10.0}},
+		{Name: "s", Parameters: []interface{}{"integer", 1, 10.0}},
+	}
+
+	_, err := s.SerializeArray(items...)
+	assert.Error(t, err, "expected validation error")
+}
+
+// TestSpecialChars - test serializing a simple JSON with special characters
+func TestSpecialChars(t *testing.T) {
+
+	newType := SimpleJSON{
+		Boolean: true,
+		Float:   float64(tests.GenerateRandom(0, 100)),
+		Integer: tests.GenerateRandom(0, 1000),
+		Text:    "\\\"test\"",
+	}
+
+	s := createSerializer()
+	addType(t, s, "s", newType)
+
+	result := serialize(t, s, "s")
+
+	actual := SimpleJSON{}
+	validateJSON(t, result, &newType, &actual)
 }

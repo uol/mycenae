@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+
+	"github.com/uol/serializer/serializer"
 )
 
 /**
@@ -15,12 +17,12 @@ import (
 func (s *Serializer) SerializeGeneric(item interface{}) (string, error) {
 
 	if item == nil {
-		return "", nil
+		return serializer.Empty, nil
 	}
 
-	casted, ok := item.(ArrayItem)
+	casted, ok := item.(*ArrayItem)
 	if !ok {
-		return "", fmt.Errorf("unexpected instance type")
+		return serializer.Empty, fmt.Errorf("unexpected instance type")
 	}
 
 	return s.Serialize(casted.Name, casted.Parameters...)
@@ -31,16 +33,16 @@ func (s *Serializer) SerializeGenericArray(items ...interface{}) (string, error)
 
 	numItems := len(items)
 	if numItems == 0 {
-		return "", nil
+		return serializer.Empty, nil
 	}
 
-	casted := make([]ArrayItem, numItems)
+	casted := make([]*ArrayItem, numItems)
 
 	var ok bool
 	for i := 0; i < numItems; i++ {
-		casted[i], ok = items[i].(ArrayItem)
+		casted[i], ok = items[i].(*ArrayItem)
 		if !ok {
-			return "", fmt.Errorf("unexpected instance type on index: %d", i)
+			return serializer.Empty, fmt.Errorf("unexpected instance type on index: %d", i)
 		}
 	}
 
@@ -48,11 +50,11 @@ func (s *Serializer) SerializeGenericArray(items ...interface{}) (string, error)
 }
 
 // SerializeArray - serializes an array of jsons
-func (s *Serializer) SerializeArray(items ...ArrayItem) (string, error) {
+func (s *Serializer) SerializeArray(items ...*ArrayItem) (string, error) {
 
 	numItems := len(items)
 	if numItems == 0 {
-		return "", nil
+		return serializer.Empty, nil
 	}
 
 	var err error
@@ -62,7 +64,7 @@ func (s *Serializer) SerializeArray(items ...ArrayItem) (string, error) {
 	for i := 0; i < numItems; i++ {
 		jsons[i], err = s.Serialize(items[i].Name, items[i].Parameters...)
 		if err != nil {
-			return "", err
+			return serializer.Empty, err
 		}
 		totalSize += len(jsons[i])
 	}
@@ -70,18 +72,18 @@ func (s *Serializer) SerializeArray(items ...ArrayItem) (string, error) {
 	var b strings.Builder
 	b.Grow(totalSize + (numItems - 1) + 2)
 
-	b.WriteString("[")
+	b.WriteString(strSquareBracketLeft)
 
 	for i := 0; i < numItems; i++ {
 
 		b.WriteString(jsons[i])
 
 		if i < numItems-1 {
-			b.WriteString(",")
+			b.WriteString(strComma)
 		}
 	}
 
-	b.WriteString("]")
+	b.WriteString(strSquareBracketRight)
 
 	return b.String(), nil
 }
@@ -91,11 +93,11 @@ func (s *Serializer) Serialize(name string, parameters ...interface{}) (string, 
 
 	m, ok := s.mapping[name]
 	if !ok {
-		return "", fmt.Errorf("no json mapping with name \"%s\"", name)
+		return serializer.Empty, fmt.Errorf("no json mapping with name \"%s\"", name)
 	}
 
 	if m.numVariables != len(parameters)/2 {
-		return "", fmt.Errorf("wrong number of variables")
+		return serializer.Empty, fmt.Errorf("wrong number of variables")
 	}
 
 	params := make([]interface{}, m.numVariables)
@@ -103,7 +105,7 @@ func (s *Serializer) Serialize(name string, parameters ...interface{}) (string, 
 
 		varName, ok := parameters[i].(string)
 		if !ok {
-			return "", fmt.Errorf("error casting variable index %d to string", i)
+			return serializer.Empty, fmt.Errorf("error casting variable index %d to string", i)
 		}
 
 		genericValue := parameters[i+1]
@@ -112,14 +114,14 @@ func (s *Serializer) Serialize(name string, parameters ...interface{}) (string, 
 
 		key, ok := m.variableMap[varName]
 		if !ok {
-			return "", fmt.Errorf(`variable "%s" does not exist`, varName)
+			return serializer.Empty, fmt.Errorf(`variable "%s" does not exist`, varName)
 		}
 
 		if kind == reflect.Map {
 
 			strMap, err := s.serializeMap(&value)
 			if err != nil {
-				return "", err
+				return serializer.Empty, err
 			}
 
 			params[key] = strMap
@@ -128,7 +130,7 @@ func (s *Serializer) Serialize(name string, parameters ...interface{}) (string, 
 
 			strArray, err := s.serializeArray(&value)
 			if err != nil {
-				return "", err
+				return serializer.Empty, err
 			}
 
 			params[key] = strArray
@@ -140,19 +142,19 @@ func (s *Serializer) Serialize(name string, parameters ...interface{}) (string, 
 				str := value.String()
 
 				var b strings.Builder
-				b.Grow(len(str) + 2 + (strings.Count(str, `"`) * 2))
+				b.Grow(len(str) + 2 + (strings.Count(str, strDoubleQuote) * 2))
 
-				b.WriteByte(doubleQuote)
+				b.WriteByte(byteValueDoubleQuote)
 
 				for _, c := range []byte(str) {
-					if c == doubleQuote {
-						b.WriteString(escapedDoubleQuote)
+					if c == byteValueDoubleQuote {
+						b.WriteString(jsonEscapedDoubleQuote)
 					} else {
 						b.WriteByte(c)
 					}
 				}
 
-				b.WriteByte(doubleQuote)
+				b.WriteByte(byteValueDoubleQuote)
 
 				params[key] = b.String()
 
@@ -182,16 +184,16 @@ func (s *Serializer) serializeMap(value *reflect.Value) (string, error) {
 
 		strVal, err := s.getValueFromField(nil, &val)
 		if err != nil {
-			return "", err
+			return serializer.Empty, err
 		}
 
 		s.writeStringValue(key, &b)
-		b.WriteString(":")
+		b.WriteString(strColon)
 		b.WriteString(strVal)
 
 		hasNext = it.Next()
 		if hasNext {
-			b.WriteString(",")
+			b.WriteString(strComma)
 		}
 	}
 
@@ -211,13 +213,13 @@ func (s *Serializer) serializeArray(value *reflect.Value) (string, error) {
 
 		strVal, err := s.getValueFromField(nil, &val)
 		if err != nil {
-			return "", err
+			return serializer.Empty, err
 		}
 
 		b.WriteString(strVal)
 
 		if i < arraySize-1 {
-			b.WriteString(",")
+			b.WriteString(strComma)
 		}
 	}
 

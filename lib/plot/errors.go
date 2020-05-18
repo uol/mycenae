@@ -43,7 +43,7 @@ func errValidationS(f, s string) gobol.Error {
 }
 
 func errNotFound(f string) gobol.Error {
-	return errBasic(f, constants.StringsEmpty, http.StatusNotFound, errors.New(constants.StringsEmpty))
+	return errBasic(f, "status not found", http.StatusNotFound, errors.New("status not found"))
 }
 
 func errValidation(f, m string, e error) gobol.Error {
@@ -51,7 +51,7 @@ func errValidation(f, m string, e error) gobol.Error {
 }
 
 func errNoContent(f string) gobol.Error {
-	return errBasic(f, constants.StringsEmpty, http.StatusNoContent, errors.New(constants.StringsEmpty))
+	return errBasic(f, "no content", http.StatusNoContent, errors.New("no content"))
 }
 
 func errParamSize(f string, e error) gobol.Error {

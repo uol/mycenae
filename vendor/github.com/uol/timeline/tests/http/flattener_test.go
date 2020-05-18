@@ -6,6 +6,7 @@ import (
 
 	"github.com/uol/gotest"
 	"github.com/uol/hashing"
+	serializer "github.com/uol/serializer/json"
 	"github.com/uol/timeline"
 )
 
@@ -41,13 +42,14 @@ func createTimelineManagerF(start bool) *timeline.Manager {
 		if err != nil {
 			panic(err)
 		}
+
 	}
 
 	return manager
 }
 
 // toGenericParameters - converts a number point to generic parameters
-func toGenericParameters(point *timeline.NumberPoint) []interface{} {
+func toGenericParameters(point *serializer.NumberPoint) []interface{} {
 
 	return []interface{}{
 		"metric", point.Metric,
@@ -79,7 +81,7 @@ func testFlatOperation(t *testing.T, operation timeline.FlatOperation, expectedV
 	number.Value = expectedValue
 
 	requestData := gotest.WaitForHTTPServerRequest(s)
-	testRequestData(t, requestData, []*timeline.NumberPoint{number}, true, false)
+	testRequestData(t, requestData, []*serializer.NumberPoint{number}, true, false)
 }
 
 // TestSendSum - tests the sum operation

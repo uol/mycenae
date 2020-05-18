@@ -72,26 +72,6 @@ var (
 	}
 )
 
-//
-//func (ts *cassTs) countByValueInColumn(column string, table string, namespace string, funcName string, value string) (int, gobol.Error) {
-//
-//	it := ts.cql.Query(fmt.Sprintf("SELECT %s FROM %s.%s", column, namespace, table)).Iter()
-//
-//	var count int
-//	var scanned string
-//	for it.Scan(&scanned) {
-//		if value == scanned {
-//			count++;
-//		}
-//	}
-//
-//	if err := it.Close(); err != nil {
-//		log.Println(err)
-//	}
-//
-//	return count, nil
-//}
-
 func (ts *cassTs) getTTLKeyspace(ttl int) string {
 	if ks, ok := TTLKeyspaceMap[ttl]; !ok {
 		panic("no ttl keyspace with value " + strconv.FormatInt(int64(ttl), 10))

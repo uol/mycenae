@@ -21,7 +21,7 @@ func createSerializer() *serializer.Serializer {
 }
 
 // serialize - try to serialize the named type
-func serialize(t *testing.T, s *serializer.Serializer, item serializer.ArrayItem) string {
+func serialize(t *testing.T, s *serializer.Serializer, item *serializer.ArrayItem) string {
 
 	result, err := s.Serialize(item.Metric, item.Timestamp, item.Value, item.Tags...)
 	if !assert.NoError(t, err, "error serializing line") {
@@ -32,7 +32,7 @@ func serialize(t *testing.T, s *serializer.Serializer, item serializer.ArrayItem
 }
 
 // serializeArray - try to serialize the named type
-func serializeArray(t *testing.T, s *serializer.Serializer, items []serializer.ArrayItem) string {
+func serializeArray(t *testing.T, s *serializer.Serializer, items []*serializer.ArrayItem) string {
 
 	result, err := s.SerializeArray(items...)
 	if !assert.NoError(t, err, "error serializing array") {
@@ -47,7 +47,7 @@ func TestSingleLineStringTags(t *testing.T) {
 
 	s := createSerializer()
 
-	line := serializer.ArrayItem{
+	line := &serializer.ArrayItem{
 		Metric:    "single",
 		Timestamp: time.Now().Unix(),
 		Value:     float64(tests.GenerateRandom(1, 100)),
@@ -68,7 +68,7 @@ func TestSingleLineMixedTypeTags(t *testing.T) {
 
 	s := createSerializer()
 
-	line := serializer.ArrayItem{
+	line := &serializer.ArrayItem{
 		Metric:    "single",
 		Timestamp: time.Now().Unix(),
 		Value:     float64(tests.GenerateRandom(10, 100)) + 0.5,
@@ -93,12 +93,12 @@ func TestMultiLineStringTags(t *testing.T) {
 
 	const size = 21
 	format := ""
-	lines := make([]serializer.ArrayItem, size)
+	lines := make([]*serializer.ArrayItem, size)
 	args := []interface{}{}
 
 	for i := 0; i < size; i++ {
 
-		lines[i] = serializer.ArrayItem{
+		lines[i] = &serializer.ArrayItem{
 			Metric:    "multi" + strconv.Itoa(i),
 			Timestamp: time.Now().Unix(),
 			Value:     float64(i),
@@ -126,12 +126,12 @@ func TestMultiLineMixedTypeTags(t *testing.T) {
 
 	const size = 24
 	format := ""
-	lines := make([]serializer.ArrayItem, size)
+	lines := make([]*serializer.ArrayItem, size)
 	args := []interface{}{}
 
 	for i := 0; i < size; i++ {
 
-		lines[i] = serializer.ArrayItem{
+		lines[i] = &serializer.ArrayItem{
 			Metric:    "multi" + strconv.Itoa(i),
 			Timestamp: time.Now().Unix(),
 			Value:     float64(i),
@@ -159,7 +159,7 @@ func TestGenericSerializer(t *testing.T) {
 
 	s := createSerializer()
 
-	line := serializer.ArrayItem{
+	line := &serializer.ArrayItem{
 		Metric:    "single",
 		Timestamp: time.Now().Unix(),
 		Value:     float64(tests.GenerateRandom(10, 100)) + 0.5,
@@ -187,13 +187,13 @@ func TestGenericArraySerializer(t *testing.T) {
 
 	const size = 24
 	format := ""
-	lines := make([]serializer.ArrayItem, size)
+	lines := make([]*serializer.ArrayItem, size)
 	interfaceLine := make([]interface{}, size)
 	args := []interface{}{}
 
 	for i := 0; i < size; i++ {
 
-		lines[i] = serializer.ArrayItem{
+		lines[i] = &serializer.ArrayItem{
 			Metric:    "multi" + strconv.Itoa(i),
 			Timestamp: time.Now().Unix(),
 			Value:     float64(i),
@@ -219,4 +219,60 @@ func TestGenericArraySerializer(t *testing.T) {
 	}
 
 	assert.Equal(t, result1, result2, "expected same output")
+}
+
+// TestSingleInvalidNumberOfTags - tests a single line, invalid number of string tags
+func TestSingleInvalidNumberOfTags(t *testing.T) {
+
+	s := createSerializer()
+
+	_, err := s.Serialize(
+		"validation",
+		time.Now().Unix(),
+		float64(tests.GenerateRandom(1, 100)),
+		"localhost",
+		"ttl", "1",
+	)
+
+	assert.Error(t, err, "expected a validation error")
+}
+
+// TestArrayWithInvalidNumberOfTags - tests an array of items, invalid number of string tags
+func TestArrayWithInvalidNumberOfTags(t *testing.T) {
+
+	s := createSerializer()
+
+	items := []*serializer.ArrayItem{
+		{
+			Metric:    "validation1",
+			Timestamp: time.Now().Unix(),
+			Value:     float64(tests.GenerateRandom(1, 100)),
+			Tags: []interface{}{
+				"host", "localhost",
+				"ttl", "1",
+			},
+		},
+		{
+			Metric:    "validation2-missing-ttl",
+			Timestamp: time.Now().Unix(),
+			Value:     float64(tests.GenerateRandom(1, 100)),
+			Tags: []interface{}{
+				"host", "localhost",
+				"ttl", //missing ttl
+			},
+		},
+		{
+			Metric:    "validation3",
+			Timestamp: time.Now().Unix(),
+			Value:     float64(tests.GenerateRandom(1, 100)),
+			Tags: []interface{}{
+				"host", "localhost",
+				"ttl", "1",
+			},
+		},
+	}
+
+	_, err := s.SerializeArray(items...)
+
+	assert.Error(t, err, "expected a validation error")
 }

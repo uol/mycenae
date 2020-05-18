@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	metricProcTime            string = "points.processes_time"
+	metricProcTime            string = "points.processes.duration"
 	metricMetaLost            string = "meta.lost"
 	metricPointsReceived      string = "points.received"
 	metricPointsReceivedError string = "points.received.error"
@@ -37,68 +37,64 @@ func statsLostMeta(ksid string) {
 	)
 }
 
-func statsInsertQuery(keyspace, columnFamily string, d time.Duration) {
+func statsInsertQuery(keyspace string, d time.Duration) {
 
 	timelineManager.FlattenMaxN(
 		constants.StringsEmpty,
 		float64(d.Nanoseconds())/float64(time.Millisecond),
 		constants.StringsMetricScyllaQueryDuration,
 		constants.StringsKeyspace, keyspace,
-		constants.StringColumnFamily, columnFamily,
-		constants.StringsOperation, constants.StringsInsert,
+		constants.StringsOperation, constants.CRUDOperationInsert,
 	)
 
 	timelineManager.FlattenCountIncN(
 		constants.StringsEmpty,
 		constants.StringsMetricScyllaQuery,
 		constants.StringsKeyspace, keyspace,
-		constants.StringColumnFamily, columnFamily,
-		constants.StringsOperation, constants.StringsInsert,
+		constants.StringsOperation, constants.CRUDOperationInsert,
 	)
 }
 
-func statsInsertQueryError(keyspace, columnFamily string) {
+func statsInsertQueryError(keyspace string) {
 
 	timelineManager.FlattenCountIncN(
 		constants.StringsEmpty,
 		constants.StringsMetricScyllaQueryError,
 		constants.StringsKeyspace, utils.ValidateExpectedValue(keyspace),
-		constants.StringColumnFamily, columnFamily,
-		constants.StringsOperation, constants.StringsInsert,
+		constants.StringsOperation, constants.CRUDOperationInsert,
 	)
 }
 
-func statsInsertRollback(keyspace, columnFamily string) {
+func statsInsertRollback(keyspace string) {
 
 	timelineManager.FlattenCountIncN(
 		constants.StringsEmpty,
 		metricScyllaRollbackError,
 		constants.StringsKeyspace, utils.ValidateExpectedValue(keyspace),
-		constants.StringColumnFamily, columnFamily,
-		constants.StringsOperation, constants.StringsInsert,
+		constants.StringsOperation, constants.CRUDOperationInsert,
 	)
 }
 
-func statsPoints(ksid, metaType, protocol string, ttl int) {
+func statsPoints(ksid, metaType string, sourceType *constants.SourceType, ttl int) {
 
 	timelineManager.FlattenCountIncN(
 		constants.StringsEmpty,
 		metricPointsReceived,
 		constants.StringsTargetKSID, utils.ValidateExpectedValue(ksid),
 		constants.StringsTargetTTL, ttl,
-		constants.StringsProtocol, protocol,
+		constants.StringsProtocol, sourceType.Name,
 		constants.StringsType, metaType,
 	)
 }
 
-func statsPointsError(ksid, metaType, protocol string, ttl int) {
+func statsPointsError(ksid, metaType string, sourceType *constants.SourceType, ttl int) {
 
 	timelineManager.FlattenCountIncN(
 		constants.StringsEmpty,
 		metricPointsReceivedError,
 		constants.StringsTargetKSID, utils.ValidateExpectedValue(ksid),
 		constants.StringsTargetTTL, ttl,
-		constants.StringsProtocol, protocol,
+		constants.StringsProtocol, sourceType.Name,
 		constants.StringsType, metaType,
 	)
 }
@@ -128,6 +124,7 @@ func statsCountOldTimeseries(ksid, metaType string, ttl int) {
 func statsNetworkIP(ip, source string) {
 
 	timelineManager.FlattenCountIncN(
+		constants.StringsEmpty,
 		constants.StringsMetricNetworkIP,
 		constants.StringsIP, ip,
 		constants.StringsSource, source)
