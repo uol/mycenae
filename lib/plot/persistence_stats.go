@@ -1,40 +1,76 @@
 package plot
 
-import "time"
+import (
+	"time"
 
-func (persist *persistence) statsSelectQerror(ks, cf string) {
-	go persist.statsIncrement(
-		"scylla.query.error",
-		map[string]string{"keyspace": ks, "column_family": cf, "operation": "select"},
+	"github.com/uol/mycenae/lib/constants"
+)
+
+const (
+	metricScyllaQueryBytes   string = "scylla.query.bytes"
+	metricScyllaQueryMaxRows string = "scylla.query.max.rows"
+)
+
+type keyspaceType string
+
+const (
+	typeNumber keyspaceType = "number"
+	typeText   keyspaceType = "text"
+)
+
+func (persist *persistence) statsQueryError(function, keyset, keyspace string, ksType keyspaceType) {
+
+	persist.timelineManager.FlattenCountIncN(
+		function,
+		constants.StringsMetricScyllaQueryError,
+		constants.StringsTargetKSID, keyset,
+		constants.StringsKeyspace, keyspace,
+		constants.StringsType, ksType,
+		constants.StringsOperation, constants.CRUDOperationSelect,
 	)
 }
 
-func (persist *persistence) statsSelectFerror(ks, cf string) {
-	go persist.statsIncrement(
-		"scylla.fallback.error",
-		map[string]string{"keyspace": ks, "column_family": cf, "operation": "select"},
-	)
-}
+func (persist *persistence) statsSelect(function, keyset, keyspace string, ksType keyspaceType, d time.Duration, countRows int) {
 
-func (persist *persistence) statsSelect(ks, cf string, d time.Duration, countRows int) {
-	tags := map[string]string{"keyspace": ks, "column_family": cf, "operation": "select"}
-	go persist.statsIncrement("scylla.query", tags)
-	go persist.statsValueAdd(
-		"scylla.query.duration",
-		tags,
+	persist.timelineManager.FlattenCountIncN(
+		function,
+		constants.StringsMetricScyllaQuery,
+		constants.StringsTargetKSID, keyset,
+		constants.StringsKeyspace, keyspace,
+		constants.StringsType, ksType,
+		constants.StringsOperation, constants.CRUDOperationSelect,
+	)
+
+	persist.timelineManager.FlattenMaxN(
+		function,
 		float64(d.Nanoseconds())/float64(time.Millisecond),
+		constants.StringsMetricScyllaQueryDuration,
+		constants.StringsTargetKSID, keyset,
+		constants.StringsKeyspace, keyspace,
+		constants.StringsType, ksType,
+		constants.StringsOperation, constants.CRUDOperationSelect,
 	)
-	go persist.statsValueMax("scylla.query.max.rows", tags, float64(countRows))
+
+	persist.timelineManager.FlattenMaxN(
+		function,
+		float64(countRows),
+		metricScyllaQueryMaxRows,
+		constants.StringsTargetKSID, keyset,
+		constants.StringsKeyspace, keyspace,
+		constants.StringsType, ksType,
+		constants.StringsOperation, constants.CRUDOperationSelect,
+	)
 }
 
-func (persist *persistence) statsIncrement(metric string, tags map[string]string) {
-	persist.stats.Increment(cPackage, metric, tags)
-}
+func (persist *persistence) statsQueryBytes(function, keyset, keyspace string, ksType keyspaceType, value float64) {
 
-func (persist *persistence) statsValueAdd(metric string, tags map[string]string, v float64) {
-	persist.stats.ValueAdd(cPackage, metric, tags, v)
-}
-
-func (persist *persistence) statsValueMax(metric string, tags map[string]string, v float64) {
-	persist.stats.ValueMax(cPackage, metric, tags, v)
+	persist.timelineManager.FlattenMaxN(
+		function,
+		value,
+		metricScyllaQueryBytes,
+		constants.StringsTargetKSID, keyset,
+		constants.StringsKeyspace, keyspace,
+		constants.StringsType, ksType,
+		constants.StringsOperation, constants.CRUDOperationSelect,
+	)
 }

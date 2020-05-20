@@ -24,7 +24,7 @@ func (collect *Collector) saveMeta(packet *Point) gobol.Error {
 	}
 
 	if gerr != nil {
-		statsLostMeta()
+		statsLostMeta(packet.Message.Keyset)
 		return gerr
 	}
 
@@ -36,7 +36,7 @@ func (collect *Collector) saveMeta(packet *Point) gobol.Error {
 	}
 
 	if !found {
-		go statsCountNewTimeseries(packet.Message.Keyset, metaType, packet.Message.TTL)
+		statsCountNewTimeseries(packet.Message.Keyset, metaType, packet.Message.TTL)
 
 		var tagKeys, tagValues []string
 		for _, tag := range packet.Message.Tags {
@@ -56,7 +56,7 @@ func (collect *Collector) saveMeta(packet *Point) gobol.Error {
 
 		collect.AddMetadata(packet.Message.Keyset, metadata)
 	} else {
-		go statsCountOldTimeseries(packet.Message.Keyset, metaType, packet.Message.TTL)
+		statsCountOldTimeseries(packet.Message.Keyset, metaType, packet.Message.TTL)
 	}
 
 	return nil

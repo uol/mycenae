@@ -8,6 +8,8 @@ import (
 	"github.com/uol/mycenae/lib/constants"
 )
 
+const funcAddKeyspaceMetadata string = "addKeyspaceMetadata"
+
 func (backend *scylladb) addKeyspaceMetadata(ks Keyspace) gobol.Error {
 	var (
 		start = time.Now()
@@ -20,25 +22,32 @@ func (backend *scylladb) addKeyspaceMetadata(ks Keyspace) gobol.Error {
 		ks.DC,
 		ks.Replication,
 	).Exec(); err != nil {
-		backend.statsQueryError(backend.ksMngr, "ts_keyspace", "insert")
-		return errPersist("addKeyspaceMetadata", "scylladb", err)
+		backend.statsQueryError(funcAddKeyspaceMetadata, backend.ksMngr, constants.CRUDOperationInsert)
+		return errPersist(funcAddKeyspaceMetadata, structName, err)
 	}
 
-	backend.statsQuery(backend.ksMngr, "ts_keyspace", "insert",
-		time.Since(start),
-	)
+	backend.statsQuery(funcAddKeyspaceMetadata, backend.ksMngr, constants.CRUDOperationInsert, time.Since(start))
+
 	return nil
 }
+
+const funcPrivateCreateKeyspace string = "createKeyspace"
 
 func (backend *scylladb) createKeyspace(ks Keyspace) gobol.Error {
 	query := fmt.Sprintf(
 		formatCreateKeyspace,
 		ks.Name, ks.DC, ks.Replication,
 	)
+
+	start := time.Now()
+
 	if err := backend.session.Query(query).Exec(); err != nil {
-		backend.statsQueryError(ks.Name, constants.StringsEmpty, "create")
-		return errPersist("createKeyspace", "scylladb", err)
+		backend.statsQueryError(funcPrivateCreateKeyspace, ks.Name, constants.CRUDOperationCreate)
+		return errPersist(funcPrivateCreateKeyspace, structName, err)
 	}
+
+	backend.statsQuery(funcPrivateCreateKeyspace, ks.Name, constants.CRUDOperationCreate, time.Since(start))
+
 	return nil
 }
 
@@ -54,10 +63,14 @@ func (backend *scylladb) createTable(keyset, valueColumnType, tableName, functio
 		tableTTL,
 	)
 
+	start := time.Now()
+
 	if err := backend.session.Query(query).Exec(); err != nil {
-		backend.statsQueryError(keyset, constants.StringsEmpty, "create")
-		return errPersist(functionName, "scylladb", err)
+		backend.statsQueryError(functionName, keyset, constants.CRUDOperationCreate)
+		return errPersist(functionName, structName, err)
 	}
+
+	backend.statsQuery(functionName, keyset, constants.CRUDOperationCreate, time.Since(start))
 
 	return nil
 }
@@ -79,7 +92,7 @@ func (backend *scylladb) setPermissions(ks Keyspace) gobol.Error {
 		query := fmt.Sprintf(format, ks.Name, backend.grantUsername)
 		if err := backend.session.Query(query).Exec(); err != nil {
 			backend.statsQueryError(ks.Name, constants.StringsEmpty, "create")
-			return errPersist("setPermissions", "scylladb", err)
+			return errPersist("setPermissions", structName, err)
 		}
 	}
 	return nil

@@ -9,6 +9,8 @@ if [ ! -d "${LOGS}" ]; then
     mkdir ${LOGS}
 fi
 
+#httpPort=$(grep -a1 'HTTPserver' ${GOPATH}/src/github.com/uol/mycenae/config.toml | grep port | sed -n -e 's/  port = //p')
+
 pod_arguments=(
 	'-it'
     '--detach'
@@ -22,6 +24,9 @@ pod_arguments=(
     '--add-host' "loghost:182.168.0.25${1}"
     '--add-host' "mycenae${2}:182.168.0.25${2}"
     '--ip' "182.168.0.25${1}"
+    #'-p' "${httpPort}:${httpPort}"
+    #'-p' "8023:8023"
+    #'-p' "8123:8123"
 )
 
 dockerCmd="docker run ${pod_arguments[@]} ubuntu:xenial"

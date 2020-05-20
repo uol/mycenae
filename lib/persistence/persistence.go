@@ -10,7 +10,7 @@ import (
 	"github.com/uol/gobol"
 	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/metadata"
-	"github.com/uol/mycenae/lib/tsstats"
+	"github.com/uol/mycenae/lib/stats"
 )
 
 // Backend hides the underlying implementation of the persistence
@@ -49,12 +49,12 @@ func NewStorage(
 	grantUser string,
 	session *gocql.Session,
 	metadata *metadata.Storage,
-	stats *tsstats.StatsTS,
+	timelineManager *stats.TimelineManager,
 	devMode bool,
 	defaultTTL int,
 ) (*Storage, error) {
 	backend, err := newScyllaPersistence(
-		ksAdmin, grantUser, session, stats, devMode, defaultTTL,
+		ksAdmin, grantUser, session, timelineManager, devMode, defaultTTL,
 	)
 	if err != nil {
 		return nil, err

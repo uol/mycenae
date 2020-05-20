@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
-	"strconv"
 	"time"
 
+	"github.com/uol/mycenae/lib/stats"
 	"github.com/uol/mycenae/lib/structs"
 	"github.com/uol/mycenae/lib/validation"
 
@@ -18,11 +18,10 @@ import (
 	"github.com/uol/logh"
 	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/metadata"
-	"github.com/uol/mycenae/lib/tsstats"
 )
 
 var (
-	stats *tsstats.StatsTS
+	timelineManager *stats.TimelineManager
 )
 
 const (
@@ -33,7 +32,7 @@ const (
 
 // New - creates a new Collector
 func New(
-	sts *tsstats.StatsTS,
+	tm *stats.TimelineManager,
 	cass *gocql.Session,
 	metaStorage *metadata.Storage,
 	set *structs.Settings,
@@ -41,7 +40,7 @@ func New(
 	validation *validation.Service,
 ) (*Collector, error) {
 
-	stats = sts
+	timelineManager = tm
 
 	collect := &Collector{
 		cassandra:      cass,
@@ -77,7 +76,7 @@ type Collector struct {
 
 type workerData struct {
 	validatedPoint *Point
-	source         string
+	source         *constants.SourceType
 }
 
 func (collect *Collector) getType(number bool) string {
@@ -93,12 +92,12 @@ func (collect *Collector) worker(id int, jobChannel <-chan workerData) {
 
 		err := collect.processPacket(j.validatedPoint)
 		if err != nil {
-			statsPointsError(j.validatedPoint.Message.Keyset, collect.getType(j.validatedPoint.Number), j.source, strconv.Itoa(j.validatedPoint.Message.TTL))
+			statsPointsError(j.validatedPoint.Message.Keyset, collect.getType(j.validatedPoint.Number), j.source, j.validatedPoint.Message.TTL)
 			if logh.ErrorEnabled {
 				collect.logger.Error().Str(constants.StringsFunc, "worker").Err(err).Send()
 			}
 		} else {
-			statsPoints(j.validatedPoint.Message.Keyset, collect.getType(j.validatedPoint.Number), j.source, strconv.Itoa(j.validatedPoint.Message.TTL))
+			statsPoints(j.validatedPoint.Message.Keyset, collect.getType(j.validatedPoint.Number), j.source, j.validatedPoint.Message.TTL)
 		}
 	}
 }
@@ -111,6 +110,12 @@ func (collect *Collector) Stop() {
 func (collect *Collector) processPacket(point *Point) gobol.Error {
 
 	start := time.Now()
+
+	pastTime := start.Unix() - point.Message.Timestamp
+
+	if pastTime >= collect.settings.DelayedMetricsThreshold {
+		statsDelayedMetrics(point.Message.Keyset, pastTime)
+	}
 
 	var gerr gobol.Error
 
@@ -135,13 +140,22 @@ func (collect *Collector) processPacket(point *Point) gobol.Error {
 }
 
 // HandleJSONBytes - handles a point in byte format
-func (collect *Collector) HandleJSONBytes(data []byte, source string, isNumber bool) (int, gobol.Error) {
+func (collect *Collector) HandleJSONBytes(data []byte, sourceType *constants.SourceType, ip string, isNumber bool) (int, gobol.Error) {
 
 	points := structs.TSDBpoints{}
 	gerrs := []gobol.Error{}
 
-	collect.validation.ParsePoints(cFuncHandleJSONBytes, isNumber, data, &points, &gerrs)
-	if gerrs != nil && len(gerrs) > 0 {
+	keyset := collect.ParsePoints(cFuncHandleJSONBytes, isNumber, data, &points, &gerrs)
+	numErrs := len(gerrs)
+	if numErrs > 0 {
+		for _, gerr := range gerrs {
+			collect.validation.StatsValidationError(cFuncHandleJSONBytes, keyset, ip, sourceType, gerr)
+		}
+
+		if numErrs == 1 {
+			return 0, gerrs[0]
+		}
+
 		return 0, errMultipleErrors(cFuncHandleJSONBytes, gerrs)
 	}
 
@@ -156,7 +170,7 @@ func (collect *Collector) HandleJSONBytes(data []byte, source string, isNumber b
 			return 0, err
 		}
 
-		collect.HandlePacket(vp, source)
+		collect.HandlePacket(vp, sourceType)
 	}
 
 	return len(points), nil
@@ -186,7 +200,7 @@ func (collect *Collector) MakePacket(rcvMsg *structs.TSDBpoint, number bool) (*P
 }
 
 // HandlePacket - handles a point in struct format
-func (collect *Collector) HandlePacket(vp *Point, source string) {
+func (collect *Collector) HandlePacket(vp *Point, source *constants.SourceType) {
 
 	collect.jobChannel <- workerData{
 		validatedPoint: vp,

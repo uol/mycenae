@@ -17,35 +17,17 @@ func (kspace *Keyspace) Create(
 ) {
 	ks := ps.ByName("keyspace")
 	if ks == constants.StringsEmpty {
-		rip.AddStatsMap(r,
-			map[string]string{
-				"path":     "/keyspaces/#keyspace",
-				"keyspace": "empty",
-			},
-		)
 		rip.Fail(w, errNotFound("Create"))
 		return
 	}
 
 	if !storage.ValidateKey(ks) {
-		rip.AddStatsMap(r,
-			map[string]string{
-				"path": "/keyspaces/#keyspace",
-			},
-		)
 		rip.Fail(w, errValidationS(
 			"CreateKeyspace",
 			`Wrong Format: Field "keyspaceName" is not well formed.`,
 		))
 		return
 	}
-
-	rip.AddStatsMap(r,
-		map[string]string{
-			"path":     "/keyspaces/#keyspace",
-			"keyspace": ks,
-		},
-	)
 
 	var ksc Config
 	err := rip.FromJSON(r, &ksc)
@@ -92,7 +74,6 @@ func (kspace *Keyspace) Update(w http.ResponseWriter, r *http.Request, ps httpro
 
 	ks := ps.ByName("keyspace")
 	if ks == constants.StringsEmpty {
-		rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace", "keyspace": "empty"})
 		rip.Fail(w, errNotFound("Update"))
 		return
 	}
@@ -101,19 +82,15 @@ func (kspace *Keyspace) Update(w http.ResponseWriter, r *http.Request, ps httpro
 
 	gerr := rip.FromJSON(r, &ksc)
 	if gerr != nil {
-		rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace"})
 		rip.Fail(w, gerr)
 		return
 	}
 
 	gerr = kspace.UpdateKeyspace(ks, ksc.Contact)
 	if gerr != nil {
-		rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace"})
 		rip.Fail(w, gerr)
 		return
 	}
-
-	rip.AddStatsMap(r, map[string]string{"path": "/keyspaces/#keyspace", "keyspace": ks})
 
 	rip.Success(w, http.StatusOK, nil)
 	return
@@ -155,25 +132,12 @@ func (kspace *Keyspace) Check(
 ) {
 	ks := ps.ByName("keyspace")
 	if ks == constants.StringsEmpty {
-		rip.AddStatsMap(
-			r,
-			map[string]string{
-				"path":     "/keyspaces/#keyspace",
-				"keyspace": "empty",
-			},
-		)
 		rip.Fail(w, errNotFound("Check"))
 		return
 	}
 
 	_, found, err := kspace.GetKeyspace(ks)
 	if err != nil {
-		rip.AddStatsMap(
-			r,
-			map[string]string{
-				"path": "/keyspaces/#keyspace",
-			},
-		)
 		rip.Fail(w, err)
 		return
 	}
@@ -184,13 +148,6 @@ func (kspace *Keyspace) Check(
 		return
 	}
 
-	rip.AddStatsMap(
-		r,
-		map[string]string{
-			"path":     "/keyspaces/#keyspace",
-			"keyspace": ks,
-		},
-	)
 	rip.Success(w, http.StatusOK, nil)
 }
 

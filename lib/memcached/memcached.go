@@ -7,7 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/uol/gobol/snitch"
+	"github.com/uol/logh"
+	"github.com/uol/mycenae/lib/stats"
 	"github.com/uol/zencached"
 )
 
@@ -36,6 +37,9 @@ type Configuration struct {
 
 	// ReadBufferSize - the size of the read buffer in bytes
 	ReadBufferSize int
+
+	// EnableMetrics - enables the memcached metrics
+	EnableMetrics bool
 }
 
 var (
@@ -50,7 +54,7 @@ type Memcached struct {
 }
 
 // New - initializes
-func New(stats *snitch.Stats, configuration *Configuration) (*Memcached, error) {
+func New(tm *stats.TimelineManager, configuration *Configuration) (*Memcached, error) {
 
 	if configuration == nil {
 		return nil, fmt.Errorf("no memcached configuration found")
@@ -103,11 +107,19 @@ func New(stats *snitch.Stats, configuration *Configuration) (*Memcached, error) 
 		},
 	}
 
-	// mc := &MetricsCollector{
-	// 	stats: stats,
-	// }
+	var zc *zencached.Zencached
 
-	zc, err := zencached.New(zConf, nil)
+	if configuration.EnableMetrics {
+
+		if logh.InfoEnabled {
+			logh.Info().Msg("memcached metrics enabled")
+		}
+
+		zc, err = zencached.New(zConf, newMetricsCollector(tm))
+	} else {
+		zc, err = zencached.New(zConf, nil)
+	}
+
 	if err != nil {
 		return nil, err
 	}

@@ -11,6 +11,11 @@ import (
 	"github.com/uol/gobol"
 )
 
+const (
+	funcGetTS  string = "GetTS"
+	queryGetTS string = `SELECT id, date, value FROM %v.ts_number_stamp WHERE id in (%s) AND date > ? AND date < ? ALLOW FILTERING`
+)
+
 func (persist *persistence) GetTS(keyspace string, keys []string, start, end int64, ms, allowFullFetch bool, maxBytesLimit uint32, keyset string) (map[string][]Pnt, uint32, gobol.Error) {
 
 	track := time.Now()
@@ -28,7 +33,7 @@ func (persist *persistence) GetTS(keyspace string, keys []string, start, end int
 
 	iter := persist.cassandra.Query(
 		fmt.Sprintf(
-			`SELECT id, date, value FROM %v.ts_number_stamp WHERE id in (%s) AND date > ? AND date < ? ALLOW FILTERING`,
+			queryGetTS,
 			keyspace,
 			idsGroup,
 		),
@@ -67,34 +72,26 @@ func (persist *persistence) GetTS(keyspace string, keys []string, start, end int
 		countRows++
 	}
 
-	go persist.statsValueAdd(
-		"scylla.query.bytes",
-		map[string]string{
-			constants.StringsKeyset: keyset,
-			"keyspace":              keyspace,
-			"type":                  "number",
-		},
-		float64(numBytes),
-	)
+	persist.statsQueryBytes(funcGetTS, keyset, keyspace, typeNumber, float64(numBytes))
 
 	if err = iter.Close(); err != nil {
 		if logh.ErrorEnabled {
-			logh.Error().Str(constants.StringsFunc, "getTS").Err(err).Send()
+			logh.Error().Str(constants.StringsFunc, funcGetTS).Err(err).Send()
 		}
 
 		if err == gocql.ErrNotFound {
-			persist.statsSelect(keyspace, "ts_number_stamp", time.Since(track), countRows)
-			return map[string][]Pnt{}, 0, errNoContent("getTS")
+			persist.statsSelect(funcGetTS, keyset, keyspace, typeNumber, time.Since(track), countRows)
+			return map[string][]Pnt{}, 0, errNoContent(funcGetTS)
 		}
 
-		persist.statsSelectQerror(keyspace, "ts_number_stamp")
-		return map[string][]Pnt{}, 0, errPersist("getTS", err)
+		persist.statsQueryError(funcGetTS, keyset, keyspace, typeNumber)
+		return map[string][]Pnt{}, 0, errPersist(funcGetTS, err)
 	}
 
-	persist.statsSelect(keyspace, "ts_number_stamp", time.Since(track), countRows)
+	persist.statsSelect(funcGetTS, keyset, keyspace, typeNumber, time.Since(track), countRows)
 
 	if limitReached && !allowFullFetch {
-		return map[string][]Pnt{}, numBytes, errMaxBytesLimitWrapper("GetTS", persist.maxBytesErr)
+		return map[string][]Pnt{}, numBytes, errMaxBytesLimitWrapper(funcGetTS, persist.maxBytesErr)
 	}
 
 	return tsMap, numBytes, nil

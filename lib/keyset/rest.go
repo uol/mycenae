@@ -14,18 +14,14 @@ func (ks *Manager) CreateKeyset(w http.ResponseWriter, r *http.Request, ps httpr
 	keysetParam := ps.ByName(constants.StringsKeyset)
 
 	if keysetParam == constants.StringsEmpty {
-		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset", constants.StringsKeyset: "empty"})
 		rip.Fail(w, errBadRequest("CreateKeyset", "parameter 'keyset' cannot be empty"))
 		return
 	}
 
 	if !ks.keysetRegexp.MatchString(keysetParam) {
-		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset"})
 		rip.Fail(w, errBadRequest("CreateKeyset", "parameter 'keyset' has an invalid format"))
 		return
 	}
-
-	rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset", constants.StringsKeyset: keysetParam})
 
 	exists := ks.storage.CheckKeyset(keysetParam)
 	if exists {
@@ -61,18 +57,14 @@ func (ks *Manager) DeleteKeyset(w http.ResponseWriter, r *http.Request, ps httpr
 	keysetParam := ps.ByName(constants.StringsKeyset)
 
 	if keysetParam == constants.StringsEmpty {
-		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset", constants.StringsKeyset: "empty"})
 		rip.Fail(w, errBadRequest("DeleteKeyset", "parameter 'keyset' cannot be empty"))
 		return
 	}
 
 	if !ks.keysetRegexp.MatchString(keysetParam) {
-		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset"})
 		rip.Fail(w, errBadRequest("DeleteKeyset", "parameter 'keyset' has an invalid format"))
 		return
 	}
-
-	rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset", constants.StringsKeyset: keysetParam})
 
 	exists := ks.storage.CheckKeyset(keysetParam)
 	if exists {
@@ -93,13 +85,6 @@ func (ks *Manager) DeleteKeyset(w http.ResponseWriter, r *http.Request, ps httpr
 func (ks *Manager) Check(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	keyset := ps.ByName(constants.StringsKeyset)
 	if keyset == constants.StringsEmpty {
-		rip.AddStatsMap(
-			r,
-			map[string]string{
-				"path":                  "/keysets/#keyset",
-				constants.StringsKeyset: "empty",
-			},
-		)
 		rip.Fail(w, errNotFound("Check"))
 		return
 	}
@@ -111,14 +96,6 @@ func (ks *Manager) Check(w http.ResponseWriter, r *http.Request, ps httprouter.P
 		))
 		return
 	}
-
-	rip.AddStatsMap(
-		r,
-		map[string]string{
-			"path":                  "/keysets/#keyset",
-			constants.StringsKeyset: keyset,
-		},
-	)
 
 	rip.Success(w, http.StatusOK, nil)
 }

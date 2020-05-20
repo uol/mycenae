@@ -15,12 +15,9 @@ func (plot *Plot) ListPoints(w http.ResponseWriter, r *http.Request, ps httprout
 
 	keyset := ps.ByName(constants.StringsKeyset)
 	if keyset == constants.StringsEmpty {
-		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/points", constants.StringsKeyset: "empty"})
 		rip.Fail(w, errNotFound("ListPoints"))
 		return
 	}
-
-	rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/points", constants.StringsKeyset: keyset})
 
 	query := structs.TsQuery{}
 

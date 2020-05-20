@@ -5,7 +5,6 @@ import (
 
 	"github.com/uol/gobol"
 	"github.com/uol/mycenae/lib/metadata"
-	"github.com/uol/mycenae/lib/tsstats"
 )
 
 // Manages all keyset CRUD and offers some API
@@ -14,15 +13,13 @@ import (
 // Manager - the keyset
 type Manager struct {
 	storage      *metadata.Storage
-	stats        *tsstats.StatsTS
 	keysetRegexp *regexp.Regexp
 }
 
 // New - initializes
-func New(storage *metadata.Storage, s *tsstats.StatsTS, keysetRegexp string) *Manager {
+func New(storage *metadata.Storage, keysetRegexp string) *Manager {
 	return &Manager{
 		storage:      storage,
-		stats:        s,
 		keysetRegexp: regexp.MustCompile(keysetRegexp),
 	}
 }

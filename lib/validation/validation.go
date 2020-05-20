@@ -9,9 +9,15 @@ import (
 	"github.com/uol/logh"
 	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/metadata"
+	"github.com/uol/mycenae/lib/stats"
 	"github.com/uol/mycenae/lib/structs"
 	"github.com/uol/mycenae/lib/utils"
 )
+
+//
+// Validates all point properties before save it.
+// @author: rnojiri
+//
 
 // PropertyType - type
 type PropertyType uint8
@@ -35,10 +41,11 @@ type Service struct {
 	defaultTTLStr   string
 	defaultTTLTag   structs.TSDBTag
 	keysetRegexp    *regexp.Regexp
+	timelineManager *stats.TimelineManager
 }
 
 // New - creates a new validation instance
-func New(configuration *structs.ValidationConfiguration, metadataStorage *metadata.Storage, keyspaceTTLMap map[int]string) (*Service, error) {
+func New(configuration *structs.ValidationConfiguration, metadataStorage *metadata.Storage, keyspaceTTLMap map[int]string, timelineManager *stats.TimelineManager) (*Service, error) {
 
 	if configuration == nil {
 		return nil, fmt.Errorf("validation configuration is null")
@@ -46,7 +53,7 @@ func New(configuration *structs.ValidationConfiguration, metadataStorage *metada
 
 	defaultTTLStr := strconv.Itoa(configuration.DefaultTTL)
 
-	return &Service{
+	s := &Service{
 		configuration:   configuration,
 		propertyRegexp:  regexp.MustCompile(configuration.PropertyRegexp),
 		keysetRegexp:    regexp.MustCompile(configuration.KeysetNameRegexp),
@@ -55,7 +62,12 @@ func New(configuration *structs.ValidationConfiguration, metadataStorage *metada
 		logger:          logh.CreateContextualLogger(constants.StringsPKG, "validation"),
 		defaultTTLStr:   defaultTTLStr,
 		defaultTTLTag:   structs.TSDBTag{Name: constants.StringsTTL, Value: defaultTTLStr},
-	}, nil
+		timelineManager: timelineManager,
+	}
+
+	s.storeValidationErrorCount()
+
+	return s, nil
 }
 
 // ValidateType - validates the point type
@@ -63,15 +75,15 @@ func (v *Service) ValidateType(p *structs.TSDBpoint, number bool) gobol.Error {
 
 	if number {
 		if p.Value == nil {
-			return errNumberTypeExpected
+			return ErrNumberTypeExpected
 		}
 	} else {
 		if p.Text == constants.StringsEmpty {
-			return errTextTypeExpected
+			return ErrTextTypeExpected
 		}
 
 		if len(p.Text) > v.configuration.MaxTextValueSize {
-			return errMaxTextValueSize
+			return ErrMaxTextValueSize
 		}
 	}
 
@@ -87,16 +99,16 @@ func (v *Service) ValidateProperty(value string, propertyType PropertyType) gobo
 	if !isValid {
 		switch propertyType {
 		case TagKeyType:
-			return errInvalidTagKey
+			return ErrInvalidTagKey
 		case TagValueType:
-			return errInvalidTagValue
+			return ErrInvalidTagValue
 		case MetricType:
-			return errInvalidMetric
+			return ErrInvalidMetric
 		default:
 			if logh.ErrorEnabled {
 				v.logger.Error().Msgf("no property type of value %d is mapped", propertyType)
 			}
-			return errInvalidPropertyType
+			return ErrInvalidPropertyType
 		}
 	}
 
@@ -109,11 +121,11 @@ func (v *Service) ValidateTags(p *structs.TSDBpoint) gobol.Error {
 	lt := len(p.Tags)
 
 	if lt == 0 {
-		return errNoTags
+		return ErrNoTags
 	}
 
 	if lt == 2 && p.TTL != 0 && p.Keyset != constants.StringsEmpty {
-		return errNoUserTags
+		return ErrNoUserTags
 	}
 
 	tagMap := map[string]struct{}{}
@@ -121,7 +133,7 @@ func (v *Service) ValidateTags(p *structs.TSDBpoint) gobol.Error {
 		if _, ok := tagMap[p.Tags[i].Name]; !ok {
 			tagMap[p.Tags[i].Name] = struct{}{}
 		} else {
-			return errDuplicatedTags
+			return ErrDuplicatedTags
 		}
 	}
 
@@ -134,16 +146,16 @@ func (v *Service) ValidateTags(p *structs.TSDBpoint) gobol.Error {
 func (v *Service) ValidateKeyset(keyset string) gobol.Error {
 
 	if keyset == constants.StringsEmpty {
-		return errNoKeysetTag
+		return ErrNoKeysetTag
 	}
 
 	if !v.keysetRegexp.MatchString(keyset) {
-		return errInvalidKeysetFormat
+		return ErrInvalidKeysetFormat
 	}
 
 	keysetExists := v.metadataStorage.CheckKeyset(keyset)
 	if !keysetExists {
-		return errInexistentKeyset
+		return ErrInexistentKeyset
 	}
 
 	return nil
@@ -157,7 +169,7 @@ func (v *Service) ParseTTL(value string) (int, string, gobol.Error) {
 
 	ttl, err := strconv.Atoi(value)
 	if err != nil {
-		return 0, constants.StringsEmpty, errInvalidTTLValue
+		return 0, constants.StringsEmpty, ErrInvalidTTLValue
 	}
 
 	if _, ok := v.keyspaceTTLMap[ttl]; !ok {
@@ -180,7 +192,7 @@ func (v *Service) ValidateTimestamp(timestamp int64) (int64, gobol.Error) {
 
 	truncated, err := utils.MilliToSeconds(timestamp)
 	if err != nil {
-		return 0, errBadRequest(cFuncParseTimestamp, cMsgParseTimestamp, err)
+		return 0, ErrInvalidTimestamp
 	}
 
 	return truncated, nil

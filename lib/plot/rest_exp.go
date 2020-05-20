@@ -75,12 +75,9 @@ func (plot *Plot) ExpressionQueryPOST(w http.ResponseWriter, r *http.Request, ps
 
 	keyset := ps.ByName(constants.StringsKeyset)
 	if keyset == constants.StringsEmpty {
-		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/query/expression", constants.StringsKeyset: "empty"})
 		rip.Fail(w, errNotFound("ExpressionQueryPOST"))
 		return
 	}
-
-	rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/query/expression", constants.StringsKeyset: keyset})
 
 	expQuery := ExpQuery{}
 
@@ -97,12 +94,9 @@ func (plot *Plot) ExpressionQueryGET(w http.ResponseWriter, r *http.Request, ps 
 
 	keyset := ps.ByName(constants.StringsKeyset)
 	if keyset == constants.StringsEmpty {
-		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/query/expression", constants.StringsKeyset: "empty"})
 		rip.Fail(w, errNotFound("ExpressionQueryGET"))
 		return
 	}
-
-	rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/query/expression", constants.StringsKeyset: keyset})
 
 	expQuery := ExpQuery{
 		Expression: r.URL.Query().Get("exp"),
@@ -180,10 +174,6 @@ func (plot *Plot) ExpressionParsePOST(w http.ResponseWriter, r *http.Request, ps
 		return
 	}
 
-	if expQuery.Keyset != constants.StringsEmpty {
-		rip.AddStatsMap(r, map[string]string{constants.StringsKSID: expQuery.Keyset})
-	}
-
 	plot.expressionParse(w, expQuery)
 }
 
@@ -194,10 +184,6 @@ func (plot *Plot) ExpressionParseGET(w http.ResponseWriter, r *http.Request, _ h
 	expQuery := ExpParse{
 		Expression: query.Get("exp"),
 		Keyset:     query.Get(constants.StringsKSID),
-	}
-
-	if expQuery.Keyset != constants.StringsEmpty {
-		rip.AddStatsMap(r, map[string]string{constants.StringsKSID: expQuery.Keyset})
 	}
 
 	expandStr := query.Get("expand")
@@ -315,12 +301,9 @@ func (plot *Plot) ExpressionExpandPOST(w http.ResponseWriter, r *http.Request, p
 
 	keyset := ps.ByName(constants.StringsKeyset)
 	if keyset == constants.StringsEmpty {
-		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/expression/expand", constants.StringsKeyset: "empty"})
 		rip.Fail(w, errNotFound("ExpressionExpandPOST"))
 		return
 	}
-
-	rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/expression/expand", constants.StringsKeyset: keyset})
 
 	gerr := rip.FromJSON(r, &expQuery)
 	if gerr != nil {
@@ -339,12 +322,9 @@ func (plot *Plot) ExpressionExpandGET(w http.ResponseWriter, r *http.Request, ps
 
 	keyset := ps.ByName(constants.StringsKeyset)
 	if keyset == constants.StringsEmpty {
-		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/expression/expand", constants.StringsKeyset: "empty"})
 		rip.Fail(w, errNotFound("ExpressionExpandGET"))
 		return
 	}
-
-	rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/expression/expand", constants.StringsKeyset: keyset})
 
 	plot.expressionExpand(w, keyset, expQuery)
 }

@@ -119,14 +119,14 @@ func (z *Zencached) GetTelnetConnByNodeIndex(index int) (telnetConn *Telnet) {
 		elapsedTime := time.Since(start)
 
 		z.metricsCollector.Count(
-			metricNodeDistribution,
 			1,
+			metricNodeDistribution,
 			tagNodeName, telnetConn.GetHost(),
 		)
 
 		z.metricsCollector.Maximum(
-			metricNodeConnAvailableTime,
 			float64(elapsedTime.Milliseconds()),
+			metricNodeConnAvailableTime,
 			tagNodeName, telnetConn.GetHost(),
 		)
 	}

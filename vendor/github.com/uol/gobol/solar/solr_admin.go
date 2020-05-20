@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	"github.com/uol/go-solr/solr"
-	"github.com/uol/gobol/logh"
+	"github.com/uol/logh"
 )
 
 /**

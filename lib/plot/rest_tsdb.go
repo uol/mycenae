@@ -21,12 +21,9 @@ func (plot *Plot) Lookup(w http.ResponseWriter, r *http.Request, ps httprouter.P
 
 	keyset := ps.ByName(constants.StringsKeyset)
 	if keyset == constants.StringsEmpty {
-		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/search/lookup", constants.StringsKeyset: "empty"})
 		rip.Fail(w, errNotFound("Lookup"))
 		return
 	}
-
-	rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/search/lookup", constants.StringsKeyset: keyset})
 
 	m := r.URL.Query().Get("m")
 
@@ -79,12 +76,9 @@ func (plot *Plot) Suggest(w http.ResponseWriter, r *http.Request, ps httprouter.
 
 	keyset := ps.ByName(constants.StringsKeyset)
 	if keyset == constants.StringsEmpty {
-		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/suggest", constants.StringsKeyset: "empty"})
 		rip.Fail(w, errNotFound("Suggest"))
 		return
 	}
-
-	rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/suggest", constants.StringsKeyset: keyset})
 
 	queryString := r.URL.Query()
 
@@ -140,12 +134,9 @@ func (plot *Plot) Query(w http.ResponseWriter, r *http.Request, ps httprouter.Pa
 
 	keyset := ps.ByName(constants.StringsKeyset)
 	if keyset == constants.StringsEmpty {
-		rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/query", constants.StringsKeyset: "empty"})
 		rip.Fail(w, errNotFound("Query"))
 		return
 	}
-
-	rip.AddStatsMap(r, map[string]string{"path": "/keysets/#keyset/api/query", constants.StringsKeyset: keyset})
 
 	query := structs.TSDBqueryPayload{}
 
@@ -178,6 +169,8 @@ func (plot *Plot) Query(w http.ResponseWriter, r *http.Request, ps httprouter.Pa
 	return
 }
 
+const funcGetTimeseries string = "getTimeseries"
+
 func (plot *Plot) getTimeseries(
 	keyset string,
 	query structs.TSDBqueryPayload,
@@ -193,7 +186,7 @@ func (plot *Plot) getTimeseries(
 		query.End = now.UnixNano() / 1e+6
 	} else {
 		if query.Start == 0 {
-			return resps, 0, errValidationS("getTimeseries", "start cannot be zero")
+			return resps, 0, errValidationS(funcGetTimeseries, "start cannot be zero")
 		}
 
 		if query.End == 0 {
@@ -201,7 +194,7 @@ func (plot *Plot) getTimeseries(
 		}
 
 		if query.End < query.Start {
-			return resps, 0, errValidationS("getTimeseries", "end date should be equal or bigger than start date")
+			return resps, 0, errValidationS(funcGetTimeseries, "end date should be equal or bigger than start date")
 		}
 	}
 
@@ -287,7 +280,7 @@ func (plot *Plot) getTimeseries(
 				if filter.Tagk == "ttl" {
 					v, err := strconv.Atoi(filter.Filter)
 					if err != nil {
-						return resps, sumBytes, errValidationE("getTimeseries", err)
+						return resps, sumBytes, errValidationE(funcGetTimeseries, err)
 					}
 					ttl = v
 					ttlIndex = i
@@ -352,14 +345,14 @@ func (plot *Plot) getTimeseries(
 				if q.FilterValue[:2] == ">=" || q.FilterValue[:2] == "<=" || q.FilterValue[:2] == "==" || q.FilterValue[:2] == "!=" {
 					val, err := strconv.ParseFloat(q.FilterValue[2:], 64)
 					if err != nil {
-						return resps, sumBytes, errValidationE("getTimeseries", err)
+						return resps, sumBytes, errValidationE(funcGetTimeseries, err)
 					}
 					filterV.BoolOper = q.FilterValue[:2]
 					filterV.Value = val
 				} else if q.FilterValue[:1] == ">" || q.FilterValue[:1] == "<" {
 					val, err := strconv.ParseFloat(q.FilterValue[1:], 64)
 					if err != nil {
-						return resps, sumBytes, errValidationE("getTimeseries", err)
+						return resps, sumBytes, errValidationE(funcGetTimeseries, err)
 					}
 					filterV.BoolOper = q.FilterValue[:1]
 					filterV.Value = val
@@ -402,7 +395,7 @@ func (plot *Plot) getTimeseries(
 			)
 			if gerr != nil {
 				if gerr.Error() == plot.persist.maxBytesErr.Error() {
-					return resps, sumBytes, errMaxBytesLimit("getTimeseries", keyset, q.Metric, query.Start, query.End, ttl)
+					return resps, sumBytes, errMaxBytesLimit(funcGetTimeseries, keyset, q.Metric, query.Start, query.End, ttl)
 				}
 
 				return resps, sumBytes, gerr
@@ -473,10 +466,10 @@ func (plot *Plot) getTimeseries(
 
 		}
 
-		plot.statsConferMetric(keyset, q.Metric)
+		plot.statsActiveMetric(funcGetTimeseries, keyset, q.Metric)
 	}
 
-	plot.statsPlotSummaryPoints(sumCountPoints, sumTotalPoints, sumBytes, keyset)
+	plot.statsPlotSummaryPoints(funcGetTimeseries, keyset, sumCountPoints, sumTotalPoints)
 
 	sort.Sort(resps)
 

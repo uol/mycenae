@@ -6,43 +6,30 @@ import (
 	"github.com/uol/mycenae/lib/constants"
 )
 
-func (backend *scylladb) statsQuery(
-	keyspace, column, operation string,
-	d time.Duration,
-) {
-	tags := map[string]string{"keyspace": keyspace, "operation": operation}
-	if column != constants.StringsEmpty {
-		tags["column_family"] = column
-	}
-	go backend.statsIncrement("scylla.query", tags)
-	go backend.statsValueAdd(
-		"scylla.query.duration",
-		tags,
+func (backend *scylladb) statsQuery(function, keyspace string, operation constants.CRUDOperation, d time.Duration) {
+
+	backend.timelineManager.FlattenMaxN(
+		function,
 		float64(d.Nanoseconds())/float64(time.Millisecond),
+		constants.StringsMetricScyllaQueryDuration,
+		constants.StringsKeyspace, keyspace,
+		constants.StringsOperation, operation,
+	)
+
+	backend.timelineManager.FlattenCountIncN(
+		function,
+		constants.StringsMetricScyllaQuery,
+		constants.StringsKeyspace, keyspace,
+		constants.StringsOperation, operation,
 	)
 }
 
-func (backend *scylladb) statsQueryError(
-	keyspace, column, operation string,
-) {
-	tags := map[string]string{"keyspace": keyspace, "operation": operation}
-	if column != constants.StringsEmpty {
-		tags["column_family"] = column
-	}
-	go backend.statsIncrement(
-		"scylla.query.error",
-		tags,
+func (backend *scylladb) statsQueryError(function, keyspace string, operation constants.CRUDOperation) {
+
+	backend.timelineManager.FlattenCountIncN(
+		function,
+		constants.StringsMetricScyllaQueryError,
+		constants.StringsKeyspace, keyspace,
+		constants.StringsOperation, operation,
 	)
-}
-
-func (backend *scylladb) statsIncrement(
-	metric string, tags map[string]string,
-) {
-	backend.stats.Increment("keyspace/persistence", metric, tags)
-}
-
-func (backend *scylladb) statsValueAdd(
-	metric string, tags map[string]string, value float64,
-) {
-	backend.stats.ValueAdd("keyspace/persistence", metric, tags, value)
 }

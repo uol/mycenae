@@ -35,25 +35,20 @@ func (plot *Plot) getSizeParameter(w http.ResponseWriter, q url.Values, function
 }
 
 func (plot *Plot) ListTagsNumber(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	plot.listTags(w, r, ps, "number", map[string]string{"path": "/keysets/#keyset/tags"})
+	plot.listTags(w, r, ps, "number")
 }
 
 func (plot *Plot) ListTagsText(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	plot.listTags(w, r, ps, "text", map[string]string{"path": "/keysets/#keyset/text/tags"})
+	plot.listTags(w, r, ps, "text")
 }
 
-func (plot *Plot) listTags(w http.ResponseWriter, r *http.Request, ps httprouter.Params, tsType string, smap map[string]string) {
+func (plot *Plot) listTags(w http.ResponseWriter, r *http.Request, ps httprouter.Params, tsType string) {
 
 	keyset := ps.ByName(constants.StringsKeyset)
 	if keyset == constants.StringsEmpty {
-		smap[constants.StringsKeyset] = "empty"
-		rip.AddStatsMap(r, smap)
 		rip.Fail(w, errNotFound("listTags"))
 		return
 	}
-
-	smap[constants.StringsKeyset] = keyset
-	rip.AddStatsMap(r, smap)
 
 	q := r.URL.Query()
 
@@ -95,13 +90,11 @@ func (plot *Plot) listMetrics(w http.ResponseWriter, r *http.Request, ps httprou
 	keyset := ps.ByName(constants.StringsKeyset)
 	if keyset == constants.StringsEmpty {
 		smap[constants.StringsKeyset] = "empty"
-		rip.AddStatsMap(r, smap)
 		rip.Fail(w, errNotFound("listMetrics"))
 		return
 	}
 
 	smap[constants.StringsKeyset] = keyset
-	rip.AddStatsMap(r, smap)
 
 	q := r.URL.Query()
 
@@ -131,20 +124,18 @@ func (plot *Plot) listMetrics(w http.ResponseWriter, r *http.Request, ps httprou
 }
 
 func (plot *Plot) ListMetaNumber(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	plot.listMeta(w, r, ps, "meta", map[string]string{"path": "/keysets/#keyset/meta"})
+	plot.listMeta(w, r, ps, "meta")
 }
 
 func (plot *Plot) ListMetaText(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	plot.listMeta(w, r, ps, "metatext", map[string]string{"path": "/keysets/#keyset/text/meta"})
+	plot.listMeta(w, r, ps, "metatext")
 }
 
 // getKeysetParameter - returns the keyset parameter
-func (plot *Plot) getKeysetParameter(w http.ResponseWriter, r *http.Request, ps httprouter.Params, functionName string, smap map[string]string) (*string, bool) {
+func (plot *Plot) getKeysetParameter(w http.ResponseWriter, r *http.Request, ps httprouter.Params, functionName string) (*string, bool) {
 
 	keyset := ps.ByName(constants.StringsKeyset)
 	if keyset == constants.StringsEmpty {
-		smap[constants.StringsKeyset] = "empty"
-		rip.AddStatsMap(r, smap)
 		err := errNotFound(functionName)
 		rip.Fail(w, err)
 		return nil, true
@@ -154,15 +145,12 @@ func (plot *Plot) getKeysetParameter(w http.ResponseWriter, r *http.Request, ps 
 }
 
 // getQueryParameter - extracts all query parameters found in the request
-func (plot *Plot) getQueryParameter(w http.ResponseWriter, r *http.Request, ps httprouter.Params, functionName string, smap map[string]string) (*TSmeta, *string, bool) {
+func (plot *Plot) getQueryParameter(w http.ResponseWriter, r *http.Request, ps httprouter.Params, functionName string) (*TSmeta, *string, bool) {
 
-	keyset, fail := plot.getKeysetParameter(w, r, ps, functionName, smap)
+	keyset, fail := plot.getKeysetParameter(w, r, ps, functionName)
 	if fail {
 		return nil, nil, true
 	}
-
-	smap[constants.StringsKeyset] = *keyset
-	rip.AddStatsMap(r, smap)
 
 	err := plot.validateKeyset(*keyset)
 	if err != nil {
@@ -200,9 +188,9 @@ func (plot *Plot) getFromParameter(w http.ResponseWriter, q url.Values, function
 	return from, false
 }
 
-func (plot *Plot) listMeta(w http.ResponseWriter, r *http.Request, ps httprouter.Params, tsType string, smap map[string]string) {
+func (plot *Plot) listMeta(w http.ResponseWriter, r *http.Request, ps httprouter.Params, tsType string) {
 
-	query, keyset, fail := plot.getQueryParameter(w, r, ps, "listMeta", smap)
+	query, keyset, fail := plot.getQueryParameter(w, r, ps, "listMeta")
 	if fail {
 		return
 	}
@@ -271,7 +259,7 @@ func (plot *Plot) DeleteTextTS(w http.ResponseWriter, r *http.Request, ps httpro
 
 func (plot *Plot) deleteTS(w http.ResponseWriter, r *http.Request, ps httprouter.Params, tsType string, smap map[string]string) {
 
-	query, keyset, fail := plot.getQueryParameter(w, r, ps, "deleteTS", smap)
+	query, keyset, fail := plot.getQueryParameter(w, r, ps, "deleteTS")
 	if fail {
 		return
 	}
@@ -328,28 +316,28 @@ func (plot *Plot) deleteTS(w http.ResponseWriter, r *http.Request, ps httprouter
 
 // ListNumberTagValuesByMetric - returns tag values filtered by metric
 func (plot *Plot) ListNumberTagValuesByMetric(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	plot.listTagsByMetric(w, r, ps, "meta", "ListNumberTagValuesByMetric", map[string]string{"path": "/keysets/#keyset/metric/tag/values"}, true)
+	plot.listTagsByMetric(w, r, ps, "meta", "ListNumberTagValuesByMetric", true)
 }
 
 // ListTextTagValuesByMetric - returns text tag values filtered by metric
 func (plot *Plot) ListTextTagValuesByMetric(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	plot.listTagsByMetric(w, r, ps, "metatext", "ListTextTagValuesByMetric", map[string]string{"path": "/keysets/#keyset/text/metric/tag/values"}, true)
+	plot.listTagsByMetric(w, r, ps, "metatext", "ListTextTagValuesByMetric", true)
 }
 
 // ListNumberTagKeysByMetric - returns tag keys filtered by metric
 func (plot *Plot) ListNumberTagKeysByMetric(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	plot.listTagsByMetric(w, r, ps, "meta", "ListNumberTagKeysByMetric", map[string]string{"path": "/keysets/#keyset/metric/tag/keys"}, false)
+	plot.listTagsByMetric(w, r, ps, "meta", "ListNumberTagKeysByMetric", false)
 }
 
 // ListTextTagKeysByMetric - returns text tag keys filtered by metric
 func (plot *Plot) ListTextTagKeysByMetric(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	plot.listTagsByMetric(w, r, ps, "metatext", "ListTextTagKeysByMetric", map[string]string{"path": "/keysets/#keyset/text/metric/tag/keys"}, false)
+	plot.listTagsByMetric(w, r, ps, "metatext", "ListTextTagKeysByMetric", false)
 }
 
 // listTagsByMetric - returns tags filtered by metric
-func (plot *Plot) listTagsByMetric(w http.ResponseWriter, r *http.Request, ps httprouter.Params, tsType, functionName string, smap map[string]string, filterValues bool) {
+func (plot *Plot) listTagsByMetric(w http.ResponseWriter, r *http.Request, ps httprouter.Params, tsType, functionName string, filterValues bool) {
 
-	keyset, fail := plot.getKeysetParameter(w, r, ps, functionName, smap)
+	keyset, fail := plot.getKeysetParameter(w, r, ps, functionName)
 	if fail {
 		return
 	}

@@ -7,8 +7,8 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/uol/gobol/logh"
 	"github.com/uol/hashing"
+	"github.com/uol/logh"
 	"github.com/uol/mycenae/lib/constants"
 )
 

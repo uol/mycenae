@@ -6,7 +6,7 @@ import (
 
 	"github.com/uol/logh"
 	"github.com/uol/mycenae/lib/constants"
-	"github.com/uol/mycenae/lib/tsstats"
+	"github.com/uol/mycenae/lib/stats"
 	"github.com/uol/mycenae/lib/utils"
 
 	"github.com/uol/mycenae/lib/structs"
@@ -18,24 +18,23 @@ type udpHandler interface {
 }
 
 // New - creates a new udp server instance
-func New(setUDP structs.SettingsUDP, handler udpHandler, stats *tsstats.StatsTS) *UDPserver {
+func New(setUDP structs.SettingsUDP, handler udpHandler, timelineManager *stats.TimelineManager) *UDPserver {
 
 	return &UDPserver{
-		handler:  handler,
-		settings: setUDP,
-		stats:    stats,
-		logger:   logh.CreateContextualLogger(constants.StringsPKG, "udp", "source", "udp-json"),
+		handler:         handler,
+		settings:        setUDP,
+		timelineManager: timelineManager,
+		logger:          logh.CreateContextualLogger(constants.StringsPKG, "udp", "source", "udp-json"),
 	}
 }
 
 // UDPserver - the server struct
 type UDPserver struct {
-	handler   udpHandler
-	settings  structs.SettingsUDP
-	sock      *net.UDPConn
-	stats     *tsstats.StatsTS
-	statsTags map[string]string
-	logger    *logh.ContextualLogger
+	handler         udpHandler
+	settings        structs.SettingsUDP
+	sock            *net.UDPConn
+	timelineManager *stats.TimelineManager
+	logger          *logh.ContextualLogger
 }
 
 // Start - starts the udp server
@@ -89,7 +88,7 @@ func (us *UDPserver) asyncStart() {
 		buf := make([]byte, 1024)
 
 		rlen, addr, err := us.sock.ReadFromUDP(buf)
-		us.incConnectionStats()
+		us.statsNetworkConnection(cFuncAsyncStart)
 
 		saddr := constants.StringsEmpty
 
@@ -122,9 +121,4 @@ func (us *UDPserver) Stop() {
 			us.logger.Error().Str(constants.StringsFunc, "Stop").Err(err).Send()
 		}
 	}
-}
-
-// incConnectionStats - increments the UDP connection statistics
-func (us *UDPserver) incConnectionStats() {
-	go us.stats.Increment("udp", "network.connection", us.statsTags)
 }

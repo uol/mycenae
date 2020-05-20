@@ -1,118 +1,141 @@
 package collector
 
 import (
-	"strconv"
 	"time"
 
 	"github.com/uol/mycenae/lib/constants"
+	"github.com/uol/mycenae/lib/utils"
+)
+
+const (
+	metricProcTime            string = "points.processes.duration"
+	metricMetaLost            string = "meta.lost"
+	metricPointsReceived      string = "points.received"
+	metricPointsReceivedError string = "points.received.error"
+	metricTimeseriesCountNew  string = "timeseries.count.new"
+	metricTimeseriesCountOld  string = "timeseries.count.old"
+	metricScyllaRollbackError string = "scylla.rollback.error"
+	metricDelayedMetric       string = "delayed.metrics"
 )
 
 func statsProcTime(ksid string, d time.Duration) {
-	go statsValueAdd(
-		"points.processes_time",
-		map[string]string{"target_ksid": validateTagValue(ksid)},
+
+	timelineManager.FlattenMaxN(
+		constants.StringsEmpty,
 		float64(d.Nanoseconds())/float64(time.Millisecond),
+		metricProcTime,
+		constants.StringsTargetKSID, utils.ValidateExpectedValue(ksid),
 	)
 }
 
-func statsLostMeta() {
-	go statsIncrement(
-		"meta.lost",
-		map[string]string{},
+func statsLostMeta(ksid string) {
+
+	timelineManager.FlattenCountIncN(
+		constants.StringsEmpty,
+		metricMetaLost,
+		constants.StringsTargetKSID, utils.ValidateExpectedValue(ksid),
 	)
 }
 
-func statsInsertQerror(ksid, cf string) {
-	go statsIncrement(
-		"scylla.query.error",
-		map[string]string{"target_ksid": validateTagValue(ksid), "column_family": cf, "operation": "insert"},
-	)
-}
+func statsInsertQuery(keyspace string, d time.Duration) {
 
-func statsInsertFBerror(ksid, cf string) {
-	go statsIncrement(
-		"scylla.fallback.error",
-		map[string]string{"target_ksid": validateTagValue(ksid), "column_family": cf, "operation": "insert"},
-	)
-}
-
-func statsIndexError(i, t, m string) {
-	tags := map[string]string{"method": m}
-	if i != constants.StringsEmpty {
-		tags["index"] = i
-	}
-	if t != constants.StringsEmpty {
-		tags["type"] = t
-	}
-	go statsIncrement("solr.request.error", tags)
-}
-
-func statsIndex(i, t, m string, d time.Duration) {
-	tags := map[string]string{"method": m}
-	if i != constants.StringsEmpty {
-		tags["index"] = i
-	}
-	if t != constants.StringsEmpty {
-		tags["type"] = t
-	}
-	go statsIncrement("solr.request", tags)
-	go statsValueAdd(
-		"solr.request.duration",
-		tags,
+	timelineManager.FlattenMaxN(
+		constants.StringsEmpty,
 		float64(d.Nanoseconds())/float64(time.Millisecond),
+		constants.StringsMetricScyllaQueryDuration,
+		constants.StringsKeyspace, keyspace,
+		constants.StringsOperation, constants.CRUDOperationInsert,
+	)
+
+	timelineManager.FlattenCountIncN(
+		constants.StringsEmpty,
+		constants.StringsMetricScyllaQuery,
+		constants.StringsKeyspace, keyspace,
+		constants.StringsOperation, constants.CRUDOperationInsert,
 	)
 }
 
-func statsInsert(ks, cf string, d time.Duration) {
-	tags := map[string]string{"keyspace": ks, "column_family": cf, "operation": "insert"}
-	go statsIncrement("scylla.query", tags)
-	go statsValueAdd(
-		"scylla.query.duration",
-		tags,
-		float64(d.Nanoseconds())/float64(time.Millisecond),
+func statsInsertQueryError(keyspace string) {
+
+	timelineManager.FlattenCountIncN(
+		constants.StringsEmpty,
+		constants.StringsMetricScyllaQueryError,
+		constants.StringsKeyspace, utils.ValidateExpectedValue(keyspace),
+		constants.StringsOperation, constants.CRUDOperationInsert,
 	)
 }
 
-func statsPoints(ksid, vt, protocol, ttl string) {
-	go statsIncrement(
-		"points.received",
-		map[string]string{"protocol": protocol, "target_ksid": validateTagValue(ksid), "type": vt, "target_ttl": validateTagValue(ttl)},
+func statsInsertRollback(keyspace string) {
+
+	timelineManager.FlattenCountIncN(
+		constants.StringsEmpty,
+		metricScyllaRollbackError,
+		constants.StringsKeyspace, utils.ValidateExpectedValue(keyspace),
+		constants.StringsOperation, constants.CRUDOperationInsert,
 	)
 }
 
-func statsPointsError(ksid, vt, protocol, ttl string) {
+func statsPoints(ksid, metaType string, sourceType *constants.SourceType, ttl int) {
 
-	go statsIncrement(
-		"points.received.error",
-		map[string]string{"protocol": protocol, "target_ksid": validateTagValue(ksid), "type": vt, "target_ttl": validateTagValue(ttl)},
+	timelineManager.FlattenCountIncN(
+		constants.StringsEmpty,
+		metricPointsReceived,
+		constants.StringsTargetKSID, utils.ValidateExpectedValue(ksid),
+		constants.StringsTargetTTL, ttl,
+		constants.StringsProtocol, sourceType.Name,
+		constants.StringsType, metaType,
 	)
 }
 
-func statsIncrement(metric string, tags map[string]string) {
-	go stats.Increment("collector", metric, tags)
-}
+func statsPointsError(ksid, metaType string, sourceType *constants.SourceType, ttl int) {
 
-func statsValueAdd(metric string, tags map[string]string, v float64) {
-	go stats.ValueAdd("collector", metric, tags, v)
-}
-
-func statsCountNewTimeseries(ksid, vt string, ttl int) {
-	go statsIncrement(
-		"timeseries.count.new",
-		map[string]string{"target_ksid": validateTagValue(ksid), "type": vt, "target_ttl": strconv.Itoa(ttl)},
+	timelineManager.FlattenCountIncN(
+		constants.StringsEmpty,
+		metricPointsReceivedError,
+		constants.StringsTargetKSID, utils.ValidateExpectedValue(ksid),
+		constants.StringsTargetTTL, ttl,
+		constants.StringsProtocol, sourceType.Name,
+		constants.StringsType, metaType,
 	)
 }
 
-func statsCountOldTimeseries(ksid, vt string, ttl int) {
-	go statsIncrement(
-		"timeseries.count.old",
-		map[string]string{"target_ksid": validateTagValue(ksid), "type": vt, "target_ttl": strconv.Itoa(ttl)},
+func statsCountNewTimeseries(ksid, metaType string, ttl int) {
+
+	timelineManager.FlattenCountIncN(
+		constants.StringsEmpty,
+		metricTimeseriesCountNew,
+		constants.StringsTargetKSID, utils.ValidateExpectedValue(ksid),
+		constants.StringsTargetTTL, ttl,
+		constants.StringsType, metaType,
 	)
 }
 
-func validateTagValue(tag string) string {
-	if tag == constants.StringsEmpty {
-		return "unknown"
-	}
-	return tag
+func statsCountOldTimeseries(ksid, metaType string, ttl int) {
+
+	timelineManager.FlattenCountIncN(
+		constants.StringsEmpty,
+		metricTimeseriesCountOld,
+		constants.StringsTargetKSID, utils.ValidateExpectedValue(ksid),
+		constants.StringsTargetTTL, ttl,
+		constants.StringsType, metaType,
+	)
+}
+
+func statsNetworkIP(ip, source string) {
+
+	timelineManager.FlattenCountIncN(
+		constants.StringsEmpty,
+		constants.StringsMetricNetworkIP,
+		constants.StringsIP, ip,
+		constants.StringsSource, source)
+}
+
+func statsDelayedMetrics(ksid string, pastTime int64) {
+
+	timelineManager.FlattenMaxN(
+		constants.StringsEmpty,
+		float64(pastTime),
+		metricDelayedMetric,
+		constants.StringsTargetKSID, utils.ValidateExpectedValue(ksid),
+	)
 }
