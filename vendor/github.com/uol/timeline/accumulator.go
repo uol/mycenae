@@ -75,7 +75,6 @@ func NewAccumulator(configuration *DataTransformerConf) *Accumulator {
 		dataProcessorCore: dataProcessorCore{
 			configuration: configuration,
 			pointMap:      sync.Map{},
-			terminateChan: make(chan struct{}, 1),
 			loggers:       logh.CreateContextualLogger("pkg", "timeline/accumulator"),
 		},
 	}
@@ -98,7 +97,8 @@ func (a *Accumulator) ProcessMapEntry(entry interface{}) bool {
 			}
 		}
 
-		a.transport.DataChannel() <- item
+		a.transport.DataChannel(item)
+
 		atomic.StoreUint64(&data.count, 0)
 		data.lastUpdate = time.Now()
 	}

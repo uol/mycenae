@@ -59,13 +59,12 @@ func NewHTTPTransport(configuration *HTTPTransportConfig) (*HTTPTransport, error
 
 	t := &HTTPTransport{
 		core: transportCore{
-			batchSendInterval:    configuration.BatchSendInterval,
-			pointChannel:         make(chan interface{}, configuration.TransportBufferSize),
+			batchSendInterval:    configuration.BatchSendInterval.Duration,
 			loggers:              logh.CreateContextualLogger("pkg", "timeline/http"),
 			defaultConfiguration: &configuration.DefaultTransportConfiguration,
 		},
 		configuration: configuration,
-		httpClient:    funks.CreateHTTPClient(configuration.RequestTimeout, true),
+		httpClient:    funks.CreateHTTPClient(configuration.RequestTimeout.Duration, true),
 		serializer:    s,
 	}
 
@@ -97,22 +96,46 @@ func (t *HTTPTransport) ConfigureBackend(backend *Backend) error {
 }
 
 // DataChannel - send a new point
-func (t *HTTPTransport) DataChannel() chan<- interface{} {
+func (t *HTTPTransport) DataChannel(item interface{}) {
 
-	return t.core.pointChannel
+	t.core.pointBuffer.Add(item)
 }
 
 // TransferData - transfers the data to the backend throught this transport
 func (t *HTTPTransport) TransferData(dataList []interface{}) error {
 
 	numPoints := len(dataList)
+	if numPoints == 0 {
+
+		if logh.WarnEnabled {
+			t.core.loggers.Warn().Msg("no points to transfer")
+		}
+
+		return nil
+	}
+
 	points := make([]*serializer.ArrayItem, numPoints)
 
 	var ok bool
 	for i := 0; i < numPoints; i++ {
+
+		if dataList[i] == nil {
+
+			if logh.ErrorEnabled {
+				t.core.loggers.Error().Msgf("null point at buffer index: %d", i)
+			}
+
+			continue
+		}
+
 		points[i], ok = dataList[i].(*serializer.ArrayItem)
 		if !ok {
-			return fmt.Errorf("error casting data to serializer.ArrayItem")
+
+			if logh.ErrorEnabled {
+				t.core.loggers.Error().Msgf("could not cast object: %+v", dataList[i])
+			}
+
+			return fmt.Errorf("error casting data to serializer.ArrayItem: %+v", dataList[i])
 		}
 	}
 

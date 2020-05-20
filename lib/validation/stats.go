@@ -93,7 +93,7 @@ func (v *Service) StatsValidationError(function, keyset, ip string, sourceType *
 		metricIDType = idTypeBoth
 	}
 
-	tags = append(tags, tagIDType, metricIDType, tagErrorCode, fullErrorCode, constants.StringsKeyset, keyset)
+	tags = append(tags, tagIDType, metricIDType, tagErrorCode, fullErrorCode, constants.StringsTargetKSID, keyset)
 
 	stored, err := v.timelineManager.AccumulateCustomHashN(key)
 	if err != nil {

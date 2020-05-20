@@ -74,7 +74,6 @@ func NewFlattener(configuration *DataTransformerConf) *Flattener {
 		dataProcessorCore: dataProcessorCore{
 			configuration: configuration,
 			pointMap:      sync.Map{},
-			terminateChan: make(chan struct{}, 1),
 			loggers:       logh.CreateContextualLogger("pkg", "timeline/flattener"),
 		},
 	}
@@ -129,7 +128,7 @@ func (f *Flattener) ProcessMapEntry(entry interface{}) bool {
 		return false
 	}
 
-	f.transport.DataChannel() <- item
+	f.transport.DataChannel(item)
 
 	return true
 }

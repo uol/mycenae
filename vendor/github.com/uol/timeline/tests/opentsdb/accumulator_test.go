@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/uol/funks"
 	"github.com/uol/hashing"
 	serializer "github.com/uol/serializer/opentsdb"
 	"github.com/uol/timeline"
@@ -18,18 +19,22 @@ import (
 * @author rnojiri
 **/
 
+const defaultTransportSize int = 50
+
 // createTimelineManagerA - creates a new timeline manager
-func createTimelineManagerA(port int) *timeline.Manager {
+func createTimelineManagerA(port, transportSize int) *timeline.Manager {
 
 	backend := timeline.Backend{
 		Host: telnetHost,
 		Port: port,
 	}
 
-	transport := createOpenTSDBTransport()
+	transport := createOpenTSDBTransport(transportSize, 1*time.Second)
 
 	conf := &timeline.DataTransformerConf{
-		CycleDuration:    time.Millisecond * 900,
+		CycleDuration: funks.Duration{
+			Duration: time.Millisecond * 900,
+		},
 		HashingAlgorithm: hashing.SHAKE256,
 		HashSize:         12,
 	}
@@ -58,9 +63,9 @@ func testStorage(t *testing.T, customHash bool) {
 	port := generatePort()
 
 	c := make(chan string, 100)
-	go listenTelnet(t, c, port)
+	go listenTelnet(t, c, port, 1, time.Second)
 
-	m := createTimelineManagerA(port)
+	m := createTimelineManagerA(port, defaultTransportSize)
 	defer m.Shutdown()
 
 	n := newArrayItem("storage", 0)
@@ -139,9 +144,9 @@ func testAdd(t *testing.T, params ...accumParam) {
 	port := generatePort()
 
 	c := make(chan string, 100)
-	go listenTelnet(t, c, port)
+	go listenTelnet(t, c, port, 1, time.Second)
 
-	m := createTimelineManagerA(port)
+	m := createTimelineManagerA(port, defaultTransportSize)
 	defer m.Shutdown()
 
 	expected := []serializer.ArrayItem{}
@@ -250,9 +255,9 @@ func testDataTTL(t *testing.T, customHash bool) {
 	port := generatePort()
 
 	c := make(chan string, 100)
-	go listenTelnet(t, c, port)
+	go listenTelnet(t, c, port, 1, time.Second)
 
-	m := createTimelineManagerA(port)
+	m := createTimelineManagerA(port, defaultTransportSize)
 	defer m.Shutdown()
 
 	metricPrefix := "metric"
@@ -317,9 +322,9 @@ func testDataNoTTL(t *testing.T, customHash bool) {
 	port := generatePort()
 
 	c := make(chan string, 100)
-	go listenTelnet(t, c, port)
+	go listenTelnet(t, c, port, 1, time.Second)
 
-	m := createTimelineManagerA(port)
+	m := createTimelineManagerA(port, defaultTransportSize)
 	defer m.Shutdown()
 
 	metricPrefix := "metric"

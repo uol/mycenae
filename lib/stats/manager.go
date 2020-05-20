@@ -6,10 +6,10 @@ import (
 	"os"
 	"time"
 
+	"github.com/uol/funks"
 	"github.com/uol/hashing"
 	"github.com/uol/logh"
 	"github.com/uol/mycenae/lib/constants"
-	"github.com/uol/mycenae/lib/utils"
 	"github.com/uol/timeline"
 )
 
@@ -33,7 +33,7 @@ const (
 type BackendItem struct {
 	timeline.Backend
 	Type          StorageType
-	CycleDuration utils.Duration
+	CycleDuration funks.Duration
 	AddHostTag    bool
 	CommonTags    map[string]string
 }
@@ -46,19 +46,11 @@ type backendManager struct {
 
 // Configuration - configuration
 type Configuration struct {
-	Backends             []BackendItem
-	HashingAlgorithm     hashing.Algorithm
-	HashSize             int
-	TransportBufferSize  int
-	SerializerBufferSize int
-	ReadBufferSize       int
-	DebugInput           bool
-	DebugOutput          bool
-	BatchSendInterval    utils.Duration
-	RequestTimeout       utils.Duration
-	MaxReadTimeout       utils.Duration
-	ReconnectionTimeout  utils.Duration
-	DataTTL              utils.Duration
+	Backends         []BackendItem
+	HashingAlgorithm hashing.Algorithm
+	HashSize         int
+	DataTTL          funks.Duration
+	timeline.OpenTSDBTransportConfig
 }
 
 // TimelineManager - manages the configured number of timeline manager instances
@@ -190,14 +182,15 @@ func (tm *TimelineManager) Start() error {
 		DefaultTransportConfiguration: timeline.DefaultTransportConfiguration{
 			SerializerBufferSize: tm.configuration.SerializerBufferSize,
 			TransportBufferSize:  tm.configuration.TransportBufferSize,
-			BatchSendInterval:    tm.configuration.BatchSendInterval.Duration,
-			RequestTimeout:       tm.configuration.RequestTimeout.Duration,
+			BatchSendInterval:    tm.configuration.BatchSendInterval,
+			RequestTimeout:       tm.configuration.RequestTimeout,
 			DebugInput:           tm.configuration.DebugInput,
 			DebugOutput:          tm.configuration.DebugOutput,
 		},
-		ReadBufferSize:      tm.configuration.ReadBufferSize,
-		MaxReadTimeout:      tm.configuration.MaxReadTimeout.Duration,
-		ReconnectionTimeout: tm.configuration.ReconnectionTimeout.Duration,
+		ReadBufferSize:         tm.configuration.ReadBufferSize,
+		MaxReadTimeout:         tm.configuration.MaxReadTimeout,
+		ReconnectionTimeout:    tm.configuration.ReconnectionTimeout,
+		MaxReconnectionRetries: tm.configuration.MaxReconnectionRetries,
 	}
 
 	tm.backendMap = map[StorageType]backendManager{}
@@ -215,7 +208,7 @@ func (tm *TimelineManager) Start() error {
 		}
 
 		dtc := timeline.DataTransformerConf{
-			CycleDuration:    tm.configuration.Backends[i].CycleDuration.Duration,
+			CycleDuration:    tm.configuration.Backends[i].CycleDuration,
 			HashSize:         tm.configuration.HashSize,
 			HashingAlgorithm: tm.configuration.HashingAlgorithm,
 		}

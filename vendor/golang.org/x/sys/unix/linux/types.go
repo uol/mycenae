@@ -46,6 +46,7 @@ package unix
 #include <sys/statvfs.h>
 #include <sys/sysinfo.h>
 #include <sys/time.h>
+#include <sys/timerfd.h>
 #include <sys/times.h>
 #include <sys/timex.h>
 #include <sys/un.h>
@@ -88,6 +89,7 @@ struct termios2 {
 #include <linux/fanotify.h>
 #include <linux/filter.h>
 #include <linux/fs.h>
+#include <linux/fsverity.h>
 #include <linux/genetlink.h>
 #include <linux/hdreg.h>
 #include <linux/icmpv6.h>
@@ -105,6 +107,7 @@ struct termios2 {
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter.h>
 #include <linux/netlink.h>
+#include <linux/nexthop.h>
 #include <linux/perf_event.h>
 #include <linux/random.h>
 #include <linux/rtc.h>
@@ -205,6 +208,8 @@ union sockaddr_all {
 	struct sockaddr_ll s5;
 	struct sockaddr_nl s6;
 	struct sockaddr_pppox s7;
+	struct sockaddr_l2tpip s8;
+	struct sockaddr_l2tpip6 s9;
 };
 
 struct sockaddr_any {
@@ -406,6 +411,8 @@ type Timeval C.struct_timeval
 
 type Timex C.struct_timex
 
+type ItimerSpec C.struct_itimerspec
+
 const (
 	TIME_OK    = C.TIME_OK
 	TIME_INS   = C.TIME_INS
@@ -509,6 +516,10 @@ type RawSockaddrPPPoX [C.sizeof_struct_sockaddr_pppox]byte
 
 type RawSockaddrTIPC C.struct_sockaddr_tipc
 
+type RawSockaddrL2TPIP C.struct_sockaddr_l2tpip
+
+type RawSockaddrL2TPIP6 C.struct_sockaddr_l2tpip6
+
 type RawSockaddr C.struct_sockaddr
 
 type RawSockaddrAny C.struct_sockaddr_any
@@ -561,6 +572,8 @@ const (
 	SizeofSockaddrXDP       = C.sizeof_struct_sockaddr_xdp
 	SizeofSockaddrPPPoX     = C.sizeof_struct_sockaddr_pppox
 	SizeofSockaddrTIPC      = C.sizeof_struct_sockaddr_tipc
+	SizeofSockaddrL2TPIP    = C.sizeof_struct_sockaddr_l2tpip
+	SizeofSockaddrL2TPIP6   = C.sizeof_struct_sockaddr_l2tpip6
 	SizeofLinger            = C.sizeof_struct_linger
 	SizeofIovec             = C.sizeof_struct_iovec
 	SizeofIPMreq            = C.sizeof_struct_ip_mreq
@@ -2274,4 +2287,30 @@ const (
 	DEVLINK_DPIPE_HEADER_ETHERNET             = C.DEVLINK_DPIPE_HEADER_ETHERNET
 	DEVLINK_DPIPE_HEADER_IPV4                 = C.DEVLINK_DPIPE_HEADER_IPV4
 	DEVLINK_DPIPE_HEADER_IPV6                 = C.DEVLINK_DPIPE_HEADER_IPV6
+)
+
+// fs-verity
+
+type FsverityDigest C.struct_fsverity_digest
+
+type FsverityEnableArg C.struct_fsverity_enable_arg
+
+// nexthop
+
+type Nhmsg C.struct_nhmsg
+
+type NexthopGrp C.struct_nexthop_grp
+
+const (
+	NHA_UNSPEC     = C.NHA_UNSPEC
+	NHA_ID         = C.NHA_ID
+	NHA_GROUP      = C.NHA_GROUP
+	NHA_GROUP_TYPE = C.NHA_GROUP_TYPE
+	NHA_BLACKHOLE  = C.NHA_BLACKHOLE
+	NHA_OIF        = C.NHA_OIF
+	NHA_GATEWAY    = C.NHA_GATEWAY
+	NHA_ENCAP_TYPE = C.NHA_ENCAP_TYPE
+	NHA_ENCAP      = C.NHA_ENCAP
+	NHA_GROUPS     = C.NHA_GROUPS
+	NHA_MASTER     = C.NHA_MASTER
 )

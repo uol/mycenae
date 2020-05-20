@@ -5,12 +5,10 @@ import:
   subpackages:
   - json
   - opentsdb
-- package: github.com/uol/gotest
-  version: ~1.0.0
 - package: github.com/uol/hashing
   version: ~1.0.0
 - package: github.com/uol/funks
-  version: ~1.0.0
+  version: ~1.1.0
 - package: github.com/uol/logh
   version: ~1.0.1
 - package: github.com/uol/scheduler
@@ -20,3 +18,5 @@ testImport:
   version: ~1.4.0
   subpackages:
   - assert
+- package: github.com/uol/gotest
+  version: ~1.1.0

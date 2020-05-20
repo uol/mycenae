@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -22,14 +23,14 @@ import (
 **/
 
 // createTimelineManager - creates a new timeline manager
-func createTimelineManager(start bool, port int) *timeline.Manager {
+func createTimelineManager(start bool, port, transportSize int, batchSendInterval time.Duration) *timeline.Manager {
 
 	backend := timeline.Backend{
 		Host: telnetHost,
 		Port: port,
 	}
 
-	transport := createOpenTSDBTransport()
+	transport := createOpenTSDBTransport(transportSize, batchSendInterval)
 
 	manager, err := timeline.NewManager(transport, nil, nil, &backend)
 	if err != nil {
@@ -81,15 +82,75 @@ func testValue(t *testing.T, c chan string, m *timeline.Manager, items ...serial
 	assert.Equal(t, mainBuffer.String(), lines, "lines does not match")
 }
 
+// TestExceedingBufferSize - tests when the buffer exceeds its size
+func TestExceedingBufferSize(t *testing.T) {
+
+	port := generatePort()
+	bufferSize := 2
+	numPoints := 6
+	numRequests := numPoints / bufferSize
+	requestTimes := make([]int64, numRequests)
+	batchSendInterval := 3 * time.Second
+	wg := sync.WaitGroup{}
+	wg.Add(numRequests)
+
+	c := make(chan string)
+	go listenTelnet(t, c, port, numRequests, 10*time.Second)
+
+	m := createTimelineManager(true, port, bufferSize, batchSendInterval)
+	defer m.Shutdown()
+
+	go func() {
+		for i := 0; i < numRequests; i++ {
+			<-c
+			wg.Done()
+			requestTimes[i] = time.Now().Unix()
+		}
+	}()
+
+	firstPointTime := time.Now().Unix()
+
+	for i := 0; i < numPoints; i++ {
+
+		err := m.SendOpenTSDB(
+			float64(i),
+			time.Now().Unix(),
+			"metric",
+			[]interface{}{
+				"ttl", "1",
+				"ksid", "testksid",
+				"tagName", "tagValue",
+			}...,
+		)
+
+		if !assert.NoError(t, err, "expected no error") {
+			return
+		}
+	}
+
+	wg.Wait()
+
+	// the time between requests must be minimal and the last request will be $batchSendDuration
+	for i := 0; i < numRequests-1; i++ {
+		if !assert.LessOrEqual(t, requestTimes[i]-firstPointTime, int64(10), "expected less than 10 milisecond") {
+			return
+		}
+	}
+
+	// the last time will be the same as $batchSendDuration
+	assert.GreaterOrEqual(t, requestTimes[numRequests-1]-firstPointTime, int64(batchSendInterval.Seconds()), "expected greater than batch interval")
+	assert.Less(t, requestTimes[numRequests-1]-firstPointTime, int64(batchSendInterval.Seconds()+1), "expected less than batch interval plus one second")
+}
+
 // TestSingleInput - tests a simple input
 func TestSingleInput(t *testing.T) {
 
 	port := generatePort()
 
 	c := make(chan string, 100)
-	go listenTelnet(t, c, port)
+	go listenTelnet(t, c, port, 1, time.Second)
 
-	m := createTimelineManager(true, port)
+	m := createTimelineManager(true, port, defaultTransportSize, 1*time.Second)
 	defer m.Shutdown()
 
 	testValue(t, c, m,
@@ -112,9 +173,9 @@ func TestMultiInput(t *testing.T) {
 	port := generatePort()
 
 	c := make(chan string, 100)
-	go listenTelnet(t, c, port)
+	go listenTelnet(t, c, port, 1, time.Second)
 
-	m := createTimelineManager(true, port)
+	m := createTimelineManager(true, port, defaultTransportSize, 1*time.Second)
 	defer m.Shutdown()
 
 	testValue(t, c, m,
@@ -157,9 +218,9 @@ func TestSerialization(t *testing.T) {
 	port := generatePort()
 
 	c := make(chan string, 100)
-	go listenTelnet(t, c, port)
+	go listenTelnet(t, c, port, 1, time.Second)
 
-	m := createTimelineManager(false, port)
+	m := createTimelineManager(false, port, defaultTransportSize, 1*time.Second)
 	defer m.Shutdown()
 
 	value := rand.Float64()

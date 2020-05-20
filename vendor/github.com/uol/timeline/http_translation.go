@@ -13,7 +13,7 @@ func (t *HTTPTransport) extractData(instance interface{}, operation *FlatOperati
 	var ok bool
 	item, ok = instance.(*serializer.ArrayItem)
 	if !ok {
-		err = fmt.Errorf("error casting instance to data channel item")
+		err = fmt.Errorf("error casting instance to data channel item: %+v", instance)
 		return
 	}
 
@@ -119,7 +119,7 @@ func (t *HTTPTransport) FlattenerPointToDataChannelItem(point *FlattenerPoint) (
 
 	item, ok := point.dataChannelItem.(*serializer.ArrayItem)
 	if !ok {
-		return nil, fmt.Errorf("error casting flattener point to data channel item")
+		return nil, fmt.Errorf("error casting flattener point to data channel item: %+v", *point)
 	}
 
 	item.Parameters = append(item.Parameters, t.configuration.TimestampProperty, point.timestamp, t.configuration.ValueProperty, point.value)
@@ -156,7 +156,7 @@ func (t *HTTPTransport) AccumulatedDataToDataChannelItem(point *AccumulatedData)
 
 	item, ok := point.data.(*serializer.ArrayItem)
 	if !ok {
-		return nil, fmt.Errorf("error casting accumulated data to data channel item")
+		return nil, fmt.Errorf("error casting accumulated data to data channel item: %+v", *point)
 	}
 
 	item.Parameters = append(item.Parameters, t.configuration.TimestampProperty, time.Now().Unix(), t.configuration.ValueProperty, float64(point.count))

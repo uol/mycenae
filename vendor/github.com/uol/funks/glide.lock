@@ -1,7 +1,9 @@
-hash: 2c9e67fe493d8b08fd4541d77d03ce0cffc2c6d1c7f6908d4a89b056001207cd
-updated: 2020-01-27T17:37:16.006835419-03:00
+hash: 441dd0e8fa262134810a745f9ee59a85b4e175e5bf402664551870f920fa1170
+updated: 2020-05-18T12:24:58.033829396-03:00
 imports: []
 testImports:
+- name: github.com/BurntSushi/toml
+  version: 3012a1dbe2e4bd1391d42b32f0577cb7bbc7f005
 - name: github.com/davecgh/go-spew
   version: d8f796af33cc11cb798c1aaeb27a4ebc5099927d
   subpackages:

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/uol/funks"
 	"github.com/uol/hashing"
 	serializer "github.com/uol/serializer/opentsdb"
 	"github.com/uol/timeline"
@@ -19,17 +20,19 @@ import (
 **/
 
 // createTimelineManagerF - creates a new timeline manager
-func createTimelineManagerF(start bool, port int) *timeline.Manager {
+func createTimelineManagerF(start bool, port, transportSize int) *timeline.Manager {
 
 	backend := timeline.Backend{
 		Host: telnetHost,
 		Port: port,
 	}
 
-	transport := createOpenTSDBTransport()
+	transport := createOpenTSDBTransport(transportSize, 1*time.Second)
 
 	conf := &timeline.DataTransformerConf{
-		CycleDuration:    time.Millisecond * 900,
+		CycleDuration: funks.Duration{
+			Duration: time.Millisecond * 900,
+		},
 		HashingAlgorithm: hashing.SHA256,
 	}
 
@@ -128,9 +131,9 @@ func TestSum(t *testing.T) {
 	port := generatePort()
 
 	c := make(chan string, 100)
-	go listenTelnet(t, c, port)
+	go listenTelnet(t, c, port, 1, time.Second)
 
-	m := createTimelineManagerF(true, port)
+	m := createTimelineManagerF(true, port, defaultTransportSize)
 	defer m.Shutdown()
 
 	item := newArrayItem("sum", 10.0)
@@ -151,9 +154,9 @@ func TestAvg(t *testing.T) {
 	port := generatePort()
 
 	c := make(chan string, 100)
-	go listenTelnet(t, c, port)
+	go listenTelnet(t, c, port, 1, time.Second)
 
-	m := createTimelineManagerF(true, port)
+	m := createTimelineManagerF(true, port, defaultTransportSize)
 
 	item1 := newArrayItem("avg", 10.0)
 
@@ -176,9 +179,9 @@ func TestMax(t *testing.T) {
 	port := generatePort()
 
 	c := make(chan string, 100)
-	go listenTelnet(t, c, port)
+	go listenTelnet(t, c, port, 1, time.Second)
 
-	m := createTimelineManagerF(true, port)
+	m := createTimelineManagerF(true, port, defaultTransportSize)
 
 	item1 := newArrayItem("max", 1.0)
 
@@ -204,9 +207,9 @@ func TestMin(t *testing.T) {
 	port := generatePort()
 
 	c := make(chan string, 100)
-	go listenTelnet(t, c, port)
+	go listenTelnet(t, c, port, 1, time.Second)
 
-	m := createTimelineManagerF(true, port)
+	m := createTimelineManagerF(true, port, defaultTransportSize)
 
 	item1 := newArrayItem("min", 1.0)
 
@@ -232,9 +235,9 @@ func TestCount(t *testing.T) {
 	port := generatePort()
 
 	c := make(chan string, 100)
-	go listenTelnet(t, c, port)
+	go listenTelnet(t, c, port, 1, time.Second)
 
-	m := createTimelineManagerF(true, port)
+	m := createTimelineManagerF(true, port, defaultTransportSize)
 
 	item1 := newArrayItem("count", 1.0)
 

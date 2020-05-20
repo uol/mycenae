@@ -1,23 +1,35 @@
-hash: a4fb1f7c53b4eaa81d78c2a3f6af45f44607bba68506aa031893439ee583255d
-updated: 2020-03-06T17:44:07.766643605-03:00
+hash: 19a1a5683e939e620521ddbabb069c9e0a86415f25b321170b7937f2f733546b
+updated: 2020-05-18T13:05:25.163909229-03:00
 imports:
 - name: github.com/BurntSushi/toml
   version: 3012a1dbe2e4bd1391d42b32f0577cb7bbc7f005
 - name: github.com/gocql/gocql
-  version: 95d072f1b5bbc604ce10f41ce1c914578592ed00
+  version: 0714040f3e35885cd24d406cd3de9356ab0c9504
+  subpackages:
+  - internal/lru
+  - internal/murmur
+  - internal/streams
+- name: github.com/golang/snappy
+  version: 2a8bb927dd31d8daada140a5d09578521ce5c36a
 - name: github.com/hailocab/go-hostpool
   version: e80d13ce29ede4452c43dea11e79b9bc8a15b478
+- name: github.com/json-iterator/go
+  version: acfec88f7a0d5140ace3dcdbee10184e3684a9e1
 - name: github.com/julienschmidt/httprouter
   version: 348b672cd90d8190f8240323e372ecd1e66b59dc
+- name: github.com/modern-go/concurrent
+  version: bacd9c7ef1dd9b15be4a9909b8ac7a4e313eec94
+- name: github.com/modern-go/reflect2
+  version: 94122c33edd36123c84d5368cfb2b69df93a0ec8
 - name: github.com/pborman/uuid
   version: adf5a7427709b9deb95d29d3fa8a2bf9cfd388f1
 - name: github.com/robfig/cron
   version: b41be1df696709bb6395fe435af20370037c0b4c
-- name: github.com/rs/cors
-  version: 9a47f48565a795472d43519dd49aac781f3034fb
 - name: github.com/rs/zerolog
   version: f7c93dce1c970bb6e76646ef657fd55b066d0b45
   subpackages:
+  - internal/cbor
+  - internal/json
   - log
 - name: github.com/samuel/go-zookeeper
   version: 2cc03de413da42869e2db7ce7965d3e978d917eb
@@ -30,11 +42,21 @@ imports:
 - name: github.com/uol/logh
   version: 04611a676395e92babe6a4e3f5d0aa517ec0b0d5
 - name: github.com/uol/serializer
-  version: 0bbe4b09acd77a609dcc12f5890a9a147056a424
+  version: 97927ecda92eee84fc36f6db384c1ccea8fd32a2
+- name: gopkg.in/inf.v0
+  version: d2d2541c53f18d2a059457998ce2876cc8e67cbf
 - name: gopkg.in/yaml.v2
-  version: 53403b58ad1b561927d19068c655246f2db79d48
+  version: 0b1645d91e851e735d3e23330303ce81f70adbe3
 testImports:
+- name: github.com/davecgh/go-spew
+  version: d8f796af33cc11cb798c1aaeb27a4ebc5099927d
+  subpackages:
+  - spew
+- name: github.com/pmezard/go-difflib
+  version: 5d4384ee4fb2527b0a1256a821ebfc92f91efefc
+  subpackages:
+  - difflib
 - name: github.com/stretchr/testify
-  version: ""
+  version: f35b8ab0b5a2cef36673838d662e249dd9c94686
   subpackages:
   - assert

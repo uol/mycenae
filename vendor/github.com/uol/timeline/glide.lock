@@ -1,5 +1,5 @@
-hash: 17d38d545dd1a21fa0e06eb9bee1ce1a10a402af386c08619bc5e4ffb9e51d6b
-updated: 2020-04-22T20:01:24.609850379-03:00
+hash: b1c2549a1c829791e366463f949c03ed139d4e59106f59b893d0035f51a1ad14
+updated: 2020-05-18T20:52:02.501161462-03:00
 imports:
 - name: github.com/rs/zerolog
   version: f1dd50b8c64d79be1392edf1d8fda5cedea4916d
@@ -7,9 +7,7 @@ imports:
   - internal/cbor
   - internal/json
 - name: github.com/uol/funks
-  version: f6a04c7785966773f32313e0c25c9343738369e9
-- name: github.com/uol/gotest
-  version: a7f82102d67468653dffe8fc637d4f885a0accde
+  version: f269ed14e2d4a926c50b15abc1b8280691a72142
 - name: github.com/uol/hashing
   version: 520f9fe195e130976599e3a495044b6b9aabfcd4
 - name: github.com/uol/logh
@@ -23,11 +21,11 @@ imports:
   - opentsdb
   - serializer
 - name: golang.org/x/crypto
-  version: 78000ba7a073cafc0278790f6bce552a0f25850e
+  version: 06a226fb4e3765ef3f48aa2852b401bc7b98e981
   subpackages:
   - sha3
 - name: golang.org/x/sys
-  version: 5c8b2ff67527cb88b770f693cebf3799036d8bc0
+  version: 1151b9dac4a98d49ef7f80f07ddd826ff51e0b36
   subpackages:
   - cpu
 testImports:
@@ -43,5 +41,7 @@ testImports:
   version: 221dbe5ed46703ee255b1da0dec05086f5035f62
   subpackages:
   - assert
+- name: github.com/uol/gotest
+  version: 722ab493fff3af02df304ce64b32e353a730197e
 - name: gopkg.in/yaml.v2
-  version: 53403b58ad1b561927d19068c655246f2db79d48
+  version: 0b1645d91e851e735d3e23330303ce81f70adbe3

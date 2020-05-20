@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/uol/funks"
 	"github.com/uol/logh"
+	"github.com/uol/timeline/buffer"
 )
 
 /**
@@ -23,7 +25,7 @@ const (
 type Transport interface {
 
 	// Send - send a new point
-	DataChannel() chan<- interface{}
+	DataChannel(item interface{})
 
 	// ConfigureBackend - configures the backend
 	ConfigureBackend(backend *Backend) error
@@ -67,7 +69,7 @@ type Hashable interface {
 type transportCore struct {
 	transport            Transport
 	batchSendInterval    time.Duration
-	pointChannel         chan interface{}
+	pointBuffer          *buffer.Buffer
 	loggers              *logh.ContextualLogger
 	started              bool
 	defaultConfiguration *DefaultTransportConfiguration
@@ -76,8 +78,8 @@ type transportCore struct {
 // DefaultTransportConfiguration - the default fields used by the transport configuration
 type DefaultTransportConfiguration struct {
 	TransportBufferSize  int
-	BatchSendInterval    time.Duration
-	RequestTimeout       time.Duration
+	BatchSendInterval    funks.Duration
+	RequestTimeout       funks.Duration
 	SerializerBufferSize int
 	DebugInput           bool
 	DebugOutput          bool
@@ -116,6 +118,7 @@ func (t *transportCore) Start() error {
 		t.loggers.Info().Msg("starting transport...")
 	}
 
+	t.pointBuffer = buffer.New()
 	t.started = true
 
 	go t.transferDataLoop()
@@ -130,57 +133,63 @@ func (t *transportCore) transferDataLoop() {
 		t.loggers.Info().Msg("initializing transfer data loop...")
 	}
 
-outterFor:
 	for {
 		<-time.After(t.batchSendInterval)
 
-		points := []interface{}{}
-		numPoints := 0
+		t.releaseBuffer()
+	}
+}
 
-	innerLoop:
-		for {
-			select {
-			case point, ok := <-t.pointChannel:
+// releaseBuffer - releases the point buffer
+func (t *transportCore) releaseBuffer() {
 
-				if !ok {
-					if logh.InfoEnabled {
-						t.loggers.Info().Msg("breaking data transfer loop")
-					}
-					break outterFor
-				}
+	numPoints := t.pointBuffer.GetSize()
 
-				points = append(points, point)
-
-			default:
-				break innerLoop
-			}
+	if numPoints == 0 {
+		if logh.DebugEnabled {
+			t.loggers.Debug().Msg("buffer is empty, no data will be send")
 		}
+		return
+	}
 
-		numPoints = len(points)
+	if logh.InfoEnabled {
+		t.loggers.Info().Msg(fmt.Sprintf("sending a batch of %d points...", numPoints))
+	}
 
-		if numPoints == 0 {
-			if logh.DebugEnabled {
-				t.loggers.Debug().Msg("buffer is empty, no data will be send")
-			}
-			continue
+	points := t.pointBuffer.GetAll()
+	end := 0
+
+	for i := 0; end != numPoints; i++ {
+
+		var batchBuffer []interface{}
+
+		if numPoints <= t.defaultConfiguration.TransportBufferSize {
+			batchBuffer = points
+			end = numPoints
 		} else {
-			if logh.InfoEnabled {
-				t.loggers.Info().Msg(fmt.Sprintf("sending a batch of %d points...", numPoints))
+			start := i * t.defaultConfiguration.TransportBufferSize
+			end = start + t.defaultConfiguration.TransportBufferSize
+
+			if end > numPoints {
+				end = numPoints
 			}
+
+			batchBuffer = points[start:end]
 		}
 
-		err := t.transport.TransferData(points)
+		err := t.transport.TransferData(batchBuffer)
 		if err != nil {
 			if logh.ErrorEnabled {
-				t.loggers.Error().Msg(err.Error())
+				t.loggers.Error().Err(err).Msg("error transferring data")
 			}
 		} else {
 			if logh.InfoEnabled {
 				t.loggers.Info().Msgf("batch of %d points were sent!", numPoints)
 			}
 		}
-
 	}
+
+	return
 }
 
 // Close - closes the transport
@@ -190,8 +199,7 @@ func (t *transportCore) Close() {
 		t.loggers.Info().Msg("closing...")
 	}
 
-	close(t.pointChannel)
-
+	t.pointBuffer.Release()
 	t.started = false
 }
 

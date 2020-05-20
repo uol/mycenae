@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/uol/funks"
 	"github.com/uol/gotest"
 	serializer "github.com/uol/serializer/json"
 	"github.com/uol/timeline"
@@ -13,6 +14,11 @@ import (
 * The timeline library tests.
 * @author rnojiri
 **/
+
+const (
+	testServerHost string = "localhost"
+	testServerPort int    = 18080
+)
 
 // createTimeseriesBackend - creates a new test server simulating a timeseries backend
 func createTimeseriesBackend() *gotest.HTTPServer {
@@ -29,7 +35,11 @@ func createTimeseriesBackend() *gotest.HTTPServer {
 		Status: 201,
 	}
 
-	return gotest.CreateNewTestHTTPServer([]gotest.ResponseData{responses})
+	return gotest.CreateNewTestHTTPServer(
+		testServerHost,
+		testServerPort,
+		[]gotest.ResponseData{responses},
+	)
 }
 
 const (
@@ -37,15 +47,19 @@ const (
 	textPoint   = "textJSON"
 )
 
-// createHTTPTransport - creates the http transport
-func createHTTPTransport() *timeline.HTTPTransport {
+// createHTTPTransport - creates the http transport with custom batch send interval
+func createHTTPTransport(transportBufferSize int, batchSendInterval time.Duration) *timeline.HTTPTransport {
 
 	transportConf := timeline.HTTPTransportConfig{
 		DefaultTransportConfiguration: timeline.DefaultTransportConfiguration{
-			RequestTimeout:       time.Second,
-			BatchSendInterval:    time.Second,
-			TransportBufferSize:  1024,
-			SerializerBufferSize: 5,
+			RequestTimeout: funks.Duration{
+				Duration: time.Second,
+			},
+			BatchSendInterval: funks.Duration{
+				Duration: batchSendInterval,
+			},
+			TransportBufferSize:  transportBufferSize,
+			SerializerBufferSize: 256,
 		},
 		ServiceEndpoint:        "/api/put",
 		Method:                 "PUT",

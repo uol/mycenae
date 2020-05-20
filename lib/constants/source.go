@@ -37,6 +37,6 @@ var (
 	// SourceTypeTelnetOpenTSDB - defines the source's data
 	SourceTypeTelnetOpenTSDB *SourceType = &SourceType{
 		Name:            "telnet-opentsdb",
-		ErrorCodePrefix: errorCodeTelnetNetdata,
+		ErrorCodePrefix: errorCodeTelnetOpenTSDB,
 	}
 )

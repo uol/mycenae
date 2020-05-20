@@ -31,6 +31,7 @@ var (
 		"io.aiven.cassandra.auth.AivenAuthenticator",
 		"com.ericsson.bss.cassandra.ecaudit.auth.AuditPasswordAuthenticator",
 		"com.amazon.helenus.auth.HelenusAuthenticator",
+		"com.ericsson.bss.cassandra.ecaudit.auth.AuditAuthenticator",
 	}
 )
 
@@ -1232,7 +1233,7 @@ func (c *Conn) AvailableStreams() int {
 
 func (c *Conn) UseKeyspace(keyspace string) error {
 	q := &writeQueryFrame{statement: `USE "` + keyspace + `"`}
-	q.params.consistency = Any
+	q.params.consistency = c.session.cons
 
 	framer, err := c.exec(c.ctx, q, nil)
 	if err != nil {

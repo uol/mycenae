@@ -1,8 +1,7 @@
 package timeline
 
 import (
-	"time"
-
+	"github.com/uol/funks"
 	"github.com/uol/hashing"
 )
 
@@ -13,7 +12,7 @@ import (
 
 // DataTransformerConf - flattener configuration
 type DataTransformerConf struct {
-	CycleDuration    time.Duration
+	CycleDuration    funks.Duration
 	HashingAlgorithm hashing.Algorithm
 	HashSize         int
 	isSHAKE          bool

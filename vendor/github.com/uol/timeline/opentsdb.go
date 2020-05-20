@@ -6,6 +6,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/uol/funks"
 	"github.com/uol/logh"
 	serializer "github.com/uol/serializer/opentsdb"
 )
@@ -29,16 +30,18 @@ type OpenTSDBTransport struct {
 // OpenTSDBTransportConfig - has all openTSDB event manager configurations
 type OpenTSDBTransportConfig struct {
 	DefaultTransportConfiguration
-	ReadBufferSize      int
-	MaxReadTimeout      time.Duration
-	ReconnectionTimeout time.Duration
+	ReadBufferSize         int
+	MaxReadTimeout         funks.Duration
+	ReconnectionTimeout    funks.Duration
+	MaxReconnectionRetries int
 }
 
 type rwOp string
 
 const (
-	read  rwOp = "read"
-	write rwOp = "write"
+	read               rwOp = "read"
+	write              rwOp = "write"
+	defaultConnRetries int  = 3
 )
 
 // NewOpenTSDBTransport - creates a new openTSDB event manager
@@ -64,12 +67,15 @@ func NewOpenTSDBTransport(configuration *OpenTSDBTransportConfig) (*OpenTSDBTran
 		return nil, fmt.Errorf("invalid connection reconnection timeout: %s", configuration.ReconnectionTimeout)
 	}
 
+	if configuration.MaxReconnectionRetries == 0 {
+		configuration.MaxReconnectionRetries = defaultConnRetries
+	}
+
 	s := serializer.New(configuration.SerializerBufferSize)
 
 	t := &OpenTSDBTransport{
 		core: transportCore{
-			batchSendInterval:    configuration.BatchSendInterval,
-			pointChannel:         make(chan interface{}, configuration.TransportBufferSize),
+			batchSendInterval:    configuration.BatchSendInterval.Duration,
 			loggers:              logh.CreateContextualLogger("pkg", "timeline/opentsdb"),
 			defaultConfiguration: &configuration.DefaultTransportConfiguration,
 		},
@@ -99,9 +105,9 @@ func (t *OpenTSDBTransport) ConfigureBackend(backend *Backend) error {
 }
 
 // DataChannel - send a new point
-func (t *OpenTSDBTransport) DataChannel() chan<- interface{} {
+func (t *OpenTSDBTransport) DataChannel(item interface{}) {
 
-	return t.core.pointChannel
+	t.core.pointBuffer.Add(item)
 }
 
 // recover - recovers from panic
@@ -118,13 +124,38 @@ func (t *OpenTSDBTransport) panicRecovery() {
 func (t *OpenTSDBTransport) TransferData(dataList []interface{}) error {
 
 	numPoints := len(dataList)
+
+	if numPoints == 0 {
+
+		if logh.WarnEnabled {
+			t.core.loggers.Warn().Msg("no points to transfer")
+		}
+
+		return nil
+	}
+
 	points := make([]*serializer.ArrayItem, numPoints)
 
 	var ok bool
 	for i := 0; i < numPoints; i++ {
+
+		if dataList[i] == nil {
+
+			if logh.ErrorEnabled {
+				t.core.loggers.Error().Msgf("null point at buffer index: %d", i)
+			}
+
+			continue
+		}
+
 		points[i], ok = dataList[i].(*serializer.ArrayItem)
 		if !ok {
-			return fmt.Errorf("error casting data to serializer.ArrayItem")
+
+			if logh.ErrorEnabled {
+				t.core.loggers.Error().Msgf("could not cast object: %+v", dataList[i])
+			}
+
+			return fmt.Errorf("error casting data to serializer.ArrayItem: %+v", dataList[i])
 		}
 	}
 
@@ -143,7 +174,7 @@ func (t *OpenTSDBTransport) TransferData(dataList []interface{}) error {
 
 	defer t.panicRecovery()
 
-	for {
+	for i := 0; i < t.configuration.MaxReconnectionRetries; i++ {
 		if !t.writePayload(payload) {
 			t.closeConnection()
 			t.retryConnect()
@@ -165,7 +196,7 @@ func (t *OpenTSDBTransport) writePayload(payload string) bool {
 		return false
 	}
 
-	err := t.connection.SetWriteDeadline(time.Now().Add(t.configuration.RequestTimeout))
+	err := t.connection.SetWriteDeadline(time.Now().Add(t.configuration.RequestTimeout.Duration))
 	if err != nil {
 		if logh.ErrorEnabled {
 			t.core.loggers.Error().Err(err).Msg("error setting write deadline")
@@ -185,7 +216,7 @@ func (t *OpenTSDBTransport) writePayload(payload string) bool {
 
 	readBuffer := make([]byte, t.configuration.ReadBufferSize)
 
-	err = t.connection.SetReadDeadline(time.Now().Add(t.configuration.MaxReadTimeout))
+	err = t.connection.SetReadDeadline(time.Now().Add(t.configuration.MaxReadTimeout.Duration))
 	if err != nil {
 		if logh.ErrorEnabled {
 			t.core.loggers.Error().Err(err).Msg("error setting read deadline")
@@ -199,6 +230,14 @@ func (t *OpenTSDBTransport) writePayload(payload string) bool {
 			t.logConnectionError(err, read)
 			return false
 		}
+	}
+
+	err = t.connection.SetDeadline(time.Time{})
+	if err != nil {
+		if logh.ErrorEnabled {
+			t.core.loggers.Error().Msg("error setting connection's deadline")
+		}
+		return false
 	}
 
 	return true
@@ -274,7 +313,7 @@ func (t *OpenTSDBTransport) retryConnect() {
 			t.core.loggers.Info().Msgf("connection retry to \"%s\" in: %s", t.address.String(), t.configuration.ReconnectionTimeout.String())
 		}
 
-		<-time.After(t.configuration.ReconnectionTimeout)
+		<-time.After(t.configuration.ReconnectionTimeout.Duration)
 	}
 
 	if logh.InfoEnabled {

@@ -5,3 +5,5 @@ testImport:
   version: ~1.4.0
   subpackages:
   - assert
+- package: github.com/BurntSushi/toml
+  version: ~v0.3.1

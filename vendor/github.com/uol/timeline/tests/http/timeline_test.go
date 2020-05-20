@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"sync"
 	"testing"
 	"time"
 
@@ -21,14 +22,14 @@ import (
 **/
 
 // createTimelineManager - creates a new timeline manager
-func createTimelineManager(start bool) *timeline.Manager {
+func createTimelineManager(start bool, transportSize int, batchSendInterval time.Duration) *timeline.Manager {
 
 	backend := timeline.Backend{
-		Host: gotest.TestServerHost,
-		Port: gotest.TestServerPort,
+		Host: testServerHost,
+		Port: testServerPort,
 	}
 
-	transport := createHTTPTransport()
+	transport := createHTTPTransport(transportSize, batchSendInterval)
 
 	manager, err := timeline.NewManager(transport, nil, nil, &backend)
 	if err != nil {
@@ -214,7 +215,7 @@ func TestSendNumber(t *testing.T) {
 	s := createTimeseriesBackend()
 	defer s.Close()
 
-	m := createTimelineManager(true)
+	m := createTimelineManager(true, defaultTransportSize, time.Second)
 	defer m.Shutdown()
 
 	number := newNumberPoint(1)
@@ -226,7 +227,7 @@ func TestSendNumber(t *testing.T) {
 
 	<-time.After(2 * time.Second)
 
-	requestData := gotest.WaitForHTTPServerRequest(s)
+	requestData := gotest.WaitForHTTPServerRequest(s, time.Second, 10*time.Second)
 	testRequestData(t, requestData, []*serializer.NumberPoint{number}, true, false)
 }
 
@@ -236,7 +237,7 @@ func TestSendText(t *testing.T) {
 	s := createTimeseriesBackend()
 	defer s.Close()
 
-	m := createTimelineManager(true)
+	m := createTimelineManager(true, defaultTransportSize, time.Second)
 	defer m.Shutdown()
 
 	text := newTextPoint("test")
@@ -246,7 +247,7 @@ func TestSendText(t *testing.T) {
 
 	<-time.After(2 * time.Second)
 
-	requestData := gotest.WaitForHTTPServerRequest(s)
+	requestData := gotest.WaitForHTTPServerRequest(s, time.Second, 10*time.Second)
 	testRequestData(t, requestData, []*serializer.TextPoint{text}, false, false)
 }
 
@@ -256,7 +257,7 @@ func TestSendNumberArray(t *testing.T) {
 	s := createTimeseriesBackend()
 	defer s.Close()
 
-	m := createTimelineManager(true)
+	m := createTimelineManager(true, defaultTransportSize, time.Second)
 	defer m.Shutdown()
 
 	numbers := []*serializer.NumberPoint{newNumberPoint(1), newNumberPoint(2), newNumberPoint(3)}
@@ -268,7 +269,7 @@ func TestSendNumberArray(t *testing.T) {
 
 	<-time.After(2 * time.Second)
 
-	requestData := gotest.WaitForHTTPServerRequest(s)
+	requestData := gotest.WaitForHTTPServerRequest(s, time.Second, 10*time.Second)
 	testRequestData(t, requestData, numbers, true, false)
 }
 
@@ -278,7 +279,7 @@ func TestSendTextArray(t *testing.T) {
 	s := createTimeseriesBackend()
 	defer s.Close()
 
-	m := createTimelineManager(true)
+	m := createTimelineManager(true, defaultTransportSize, time.Second)
 	defer m.Shutdown()
 
 	texts := []*serializer.TextPoint{newTextPoint("1"), newTextPoint("2"), newTextPoint("3")}
@@ -290,7 +291,7 @@ func TestSendTextArray(t *testing.T) {
 
 	<-time.After(2 * time.Second)
 
-	requestData := gotest.WaitForHTTPServerRequest(s)
+	requestData := gotest.WaitForHTTPServerRequest(s, time.Second, 10*time.Second)
 	testRequestData(t, requestData, texts, false, false)
 }
 
@@ -300,7 +301,7 @@ func TestSendCustomNumber(t *testing.T) {
 	s := createTimeseriesBackend()
 	defer s.Close()
 
-	m := createTimelineManager(false)
+	m := createTimelineManager(false, defaultTransportSize, time.Second)
 	defer m.Shutdown()
 
 	number := newNumberPoint(1.0)
@@ -326,7 +327,7 @@ func TestSendCustomNumber(t *testing.T) {
 
 	<-time.After(2 * time.Second)
 
-	requestData := gotest.WaitForHTTPServerRequest(s)
+	requestData := gotest.WaitForHTTPServerRequest(s, time.Second, 10*time.Second)
 	testRequestData(t, requestData, []*serializer.NumberPoint{number}, true, false)
 }
 
@@ -336,7 +337,7 @@ func TestSendCustomText(t *testing.T) {
 	s := createTimeseriesBackend()
 	defer s.Close()
 
-	m := createTimelineManager(false)
+	m := createTimelineManager(false, defaultTransportSize, time.Second)
 	defer m.Shutdown()
 
 	text := newTextPoint("woohoo")
@@ -362,14 +363,14 @@ func TestSendCustomText(t *testing.T) {
 
 	<-time.After(2 * time.Second)
 
-	requestData := gotest.WaitForHTTPServerRequest(s)
+	requestData := gotest.WaitForHTTPServerRequest(s, time.Second, 10*time.Second)
 	testRequestData(t, requestData, []*serializer.TextPoint{text}, false, false)
 }
 
 // TestNumberSerialization - tests configuring the json variables
 func TestNumberSerialization(t *testing.T) {
 
-	m := createTimelineManager(false)
+	m := createTimelineManager(false, defaultTransportSize, time.Second)
 	defer m.Shutdown()
 
 	number := newNumberPoint(15)
@@ -385,7 +386,7 @@ func TestNumberSerialization(t *testing.T) {
 // TestTextSerialization - tests configuring the json variables
 func TestTextSerialization(t *testing.T) {
 
-	m := createTimelineManager(false)
+	m := createTimelineManager(false, defaultTransportSize, time.Second)
 	defer m.Shutdown()
 
 	text := newTextPoint("serialization")
@@ -396,4 +397,55 @@ func TestTextSerialization(t *testing.T) {
 	}
 
 	testSerializeCompareText(t, fmt.Sprintf("[%s]", serialized), []*serializer.TextPoint{text})
+}
+
+// TestExceedingBufferSize - tests when the buffer exceeds its size
+func TestExceedingBufferSize(t *testing.T) {
+
+	s := createTimeseriesBackend()
+	defer s.Close()
+
+	bufferSize := 2
+	numPoints := 6
+	numRequests := numPoints / bufferSize
+	requests := make([]*gotest.RequestData, numRequests)
+	batchSendInterval := 5 * time.Second
+	wc := sync.WaitGroup{}
+	wc.Add(numRequests)
+
+	go func() {
+		for i := 0; i < numRequests; i++ {
+			requests[i] = <-s.RequestChannel()
+			wc.Done()
+		}
+	}()
+
+	m := createTimelineManager(true, bufferSize, batchSendInterval)
+	defer m.Shutdown()
+
+	numbers := make([]*serializer.NumberPoint, numPoints)
+	firstPointTime := time.Now().Unix()
+
+	for i := 0; i < numPoints; i++ {
+
+		numbers[i] = newNumberPoint(float64(i))
+
+		err := m.SendHTTP(numberPoint, toGenericParametersN(numbers[i])...)
+		if !assert.NoError(t, err, "no error expected when sending number") {
+			return
+		}
+	}
+
+	wc.Wait()
+
+	// the time between requests must be minimal and the last request will be $batchSendDuration
+	for i := 0; i < numRequests-1; i++ {
+		if !assert.LessOrEqual(t, requests[i].Date.Unix()-firstPointTime, int64(10), "expected less than 10 milisecond") {
+			return
+		}
+	}
+
+	// the last time will be the same as $batchSendDuration
+	assert.GreaterOrEqual(t, requests[numRequests-1].Date.Unix()-firstPointTime, int64(batchSendInterval.Seconds()), "expected greater than batch interval")
+	assert.Less(t, requests[numRequests-1].Date.Unix()-firstPointTime, int64(batchSendInterval.Seconds()+1), "expected less than batch interval plus one second")
 }

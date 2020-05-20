@@ -154,6 +154,7 @@ DelayedMetricsThreshold = 3000
   reconnectionTimeout = "3s"
   dataTTL = "2m"
   readBufferSize = 64
+  maxReconnectionRetries = 5
   #debugOutput = true
   #debugInput = true
 

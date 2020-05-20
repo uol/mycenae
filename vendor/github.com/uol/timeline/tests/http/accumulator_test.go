@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/uol/funks"
 	"github.com/uol/gotest"
 	"github.com/uol/hashing"
 	serializer "github.com/uol/serializer/json"
@@ -19,20 +20,24 @@ import (
 * @author rnojiri
 **/
 
+const defaultTransportSize int = 100
+
 // createTimelineManagerA - creates a new timeline manager
-func createTimelineManagerA() *timeline.Manager {
+func createTimelineManagerA(transportBufferSize int) *timeline.Manager {
 
 	rand.Seed(time.Now().Unix())
 
 	backend := timeline.Backend{
-		Host: gotest.TestServerHost,
-		Port: gotest.TestServerPort,
+		Host: testServerHost,
+		Port: testServerPort,
 	}
 
-	transport := createHTTPTransport()
+	transport := createHTTPTransport(transportBufferSize, time.Second)
 
 	conf := &timeline.DataTransformerConf{
-		CycleDuration:    time.Millisecond * 100,
+		CycleDuration: funks.Duration{
+			Duration: time.Millisecond * 100,
+		},
 		HashingAlgorithm: hashing.SHAKE128,
 		HashSize:         12,
 	}
@@ -77,7 +82,7 @@ func genCustomHash() string {
 
 func testStorage(t *testing.T, customStorage bool) {
 
-	m := createTimelineManagerA()
+	m := createTimelineManagerA(defaultTransportSize)
 	defer m.Shutdown()
 
 	n := newNumberPoint(0)
@@ -130,7 +135,7 @@ func testAdd(t *testing.T, params ...accumParam) {
 	s := createTimeseriesBackend()
 	defer s.Close()
 
-	m := createTimelineManagerA()
+	m := createTimelineManagerA(defaultTransportSize)
 	defer m.Shutdown()
 
 	expected := []*serializer.NumberPoint{}
@@ -153,7 +158,7 @@ func testAdd(t *testing.T, params ...accumParam) {
 
 	<-time.After(2 * time.Second)
 
-	requestData := gotest.WaitForHTTPServerRequest(s)
+	requestData := gotest.WaitForHTTPServerRequest(s, time.Second, 10*time.Second)
 	testRequestData(t, requestData, expected, true, true)
 }
 
@@ -244,7 +249,7 @@ func testDataTTL(t *testing.T, customHash bool) {
 	s := createTimeseriesBackend()
 	defer s.Close()
 
-	m := createTimelineManagerA()
+	m := createTimelineManagerA(defaultTransportSize)
 	defer m.Shutdown()
 
 	n1 := newNumberPoint(0)
@@ -307,7 +312,7 @@ func testDataNoTTL(t *testing.T, customHash bool) {
 	s := createTimeseriesBackend()
 	defer s.Close()
 
-	m := createTimelineManagerA()
+	m := createTimelineManagerA(defaultTransportSize)
 	defer m.Shutdown()
 
 	n1 := newNumberPoint(0)

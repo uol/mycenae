@@ -12,7 +12,7 @@ func (t *OpenTSDBTransport) extractData(instance interface{}, operation *FlatOpe
 
 	item, ok := instance.(*serializer.ArrayItem)
 	if !ok {
-		return nil, nil, fmt.Errorf("error casting instance to data channel item")
+		return nil, nil, fmt.Errorf("error casting instance to data channel item: %+v", instance)
 	}
 
 	hashParameters := []interface{}{}
@@ -56,7 +56,7 @@ func (t *OpenTSDBTransport) FlattenerPointToDataChannelItem(point *FlattenerPoin
 
 	item, ok := point.dataChannelItem.(*serializer.ArrayItem)
 	if !ok {
-		return nil, fmt.Errorf("error casting point's data channel item")
+		return nil, fmt.Errorf("error casting point's data channel item: %+v", point)
 	}
 
 	item.Value = point.value
@@ -90,7 +90,7 @@ func (t *OpenTSDBTransport) AccumulatedDataToDataChannelItem(point *AccumulatedD
 
 	item, ok := point.data.(*serializer.ArrayItem)
 	if !ok {
-		return nil, fmt.Errorf("error casting accumulated data to data channel item")
+		return nil, fmt.Errorf("error casting accumulated data to data channel item: %+v", point)
 	}
 
 	item.Timestamp = time.Now().Unix()

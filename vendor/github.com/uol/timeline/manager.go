@@ -68,10 +68,10 @@ func (m *Manager) SendHTTP(schemaName string, parameters ...interface{}) error {
 		return fmt.Errorf("this transport does not accepts http messages")
 	}
 
-	m.transport.DataChannel() <- &jsonSerializer.ArrayItem{
+	m.transport.DataChannel(&jsonSerializer.ArrayItem{
 		Name:       schemaName,
 		Parameters: parameters,
-	}
+	})
 
 	return nil
 }
@@ -115,12 +115,12 @@ func (m *Manager) SendOpenTSDB(value float64, timestamp int64, metric string, ta
 		timestamp = time.Now().Unix()
 	}
 
-	m.transport.DataChannel() <- &openTSDBSerializer.ArrayItem{
+	m.transport.DataChannel(&openTSDBSerializer.ArrayItem{
 		Metric:    metric,
 		Tags:      tags,
 		Timestamp: timestamp,
 		Value:     value,
-	}
+	})
 
 	return nil
 }

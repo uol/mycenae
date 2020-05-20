@@ -59,13 +59,15 @@ func (d *dataProcessorCore) Stop() {
 // Start - starts the processor cycle
 func (d *dataProcessorCore) Start() {
 
+	d.terminateChan = make(chan struct{}, 1)
+
 	go func() {
 		if logh.InfoEnabled {
 			d.loggers.Info().Msgf("starting %s cycle", d.parent.GetName())
 		}
 
 		for {
-			<-time.After(d.configuration.CycleDuration)
+			<-time.After(d.configuration.CycleDuration.Duration)
 
 			select {
 			case <-d.terminateChan:

@@ -1,10 +1,13 @@
 package funks_test
 
 import (
+	"fmt"
+	"math/rand"
 	"strconv"
 	"sync"
 	"testing"
 
+	"github.com/BurntSushi/toml"
 	"github.com/stretchr/testify/assert"
 	"github.com/uol/funks"
 )
@@ -38,4 +41,24 @@ func TestSyncMapSize(t *testing.T) {
 	m.Delete("b")
 
 	assert.Equal(t, 101, funks.GetSyncMapSize(&m), "expected 101")
+}
+
+// TeTestTOMLDurationParse - tests the toml duration parse for configurations
+func TestTOMLDurationParse(t *testing.T) {
+
+	type Config struct {
+		SomeDuration funks.Duration
+	}
+
+	strDuration := fmt.Sprintf("%ds", rand.Int63n(59))
+	strConf := fmt.Sprintf("SomeDuration = \"%s\"", strDuration)
+
+	c := &Config{}
+
+	_, err := toml.Decode(strConf, c)
+	if !assert.NoError(t, err, "unexpected error parsing toml string") {
+		return
+	}
+
+	assert.Equal(t, strDuration, c.SomeDuration.String())
 }
