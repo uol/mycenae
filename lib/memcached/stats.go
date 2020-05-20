@@ -1,8 +1,6 @@
 package memcached
 
-import (
-	"github.com/uol/mycenae/lib/stats"
-)
+import tlmanager "github.com/uol/timeline-manager"
 
 const (
 	countFuncName string = "memcached.Count"
@@ -13,11 +11,11 @@ const (
 type metricsCollector struct {
 
 	// must be replaced with timeline
-	timelineManager *stats.TimelineManager
+	timelineManager *tlmanager.TimelineManager
 }
 
 // newMetricsCollector - creates a new metrics collector for memcached
-func newMetricsCollector(timelineManager *stats.TimelineManager) *metricsCollector {
+func newMetricsCollector(timelineManager *tlmanager.TimelineManager) *metricsCollector {
 
 	return &metricsCollector{
 		timelineManager: timelineManager,

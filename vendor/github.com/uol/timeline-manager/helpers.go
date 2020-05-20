@@ -1,6 +1,8 @@
-package stats
+package tlmanager
 
 import (
+	"time"
+
 	"github.com/uol/timeline"
 )
 
@@ -57,4 +59,14 @@ func (tm *TimelineManager) StoreCustomHashN(hash string, metric string, tags ...
 // StoreNoTTLCustomHashN - calls the store hash function using normal storage with no ttl
 func (tm *TimelineManager) StoreNoTTLCustomHashN(hash string, metric string, tags ...interface{}) error {
 	return tm.StoreHashedData(Normal, hash, 0, metric, tags...)
+}
+
+// StoreDefaultTTLCustomHash - stores with default configured ttl
+func (tm *TimelineManager) StoreDefaultTTLCustomHash(storage StorageType, hash string, metric string, tags ...interface{}) error {
+	return tm.StoreHashedData(storage, hash, tm.configuration.DataTTL.Duration, metric, tags...)
+}
+
+// GetConfiguredDataTTL - returns the configured data ttl
+func (tm *TimelineManager) GetConfiguredDataTTL() time.Duration {
+	return tm.configuration.DataTTL.Duration
 }

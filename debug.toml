@@ -26,13 +26,13 @@ MaxAllowedTTL = 90
 DefaultPaginationSize = 1000
 
 # Mandatory keysets to create on app startup
-DefaultKeysets = ["pdeng_stats", "pdeng_collectd", "pdeng_analytics"]
+DefaultKeysets = ["pdeng_validation_errors", "pdeng_stats", "pdeng_collectd", "pdeng_analytics"]
 
 # Maximum size of bytes for each query processing
 MaxBytesOnQueryProcessing = 104857600
 
 # Allows these keysets to do queries with more than "MaxBytesOnQueryProcessing" bytes
-UnlimitedQueryBytesKeysetWhiteList = ["pdeng_stats", "pdeng_collectd", "pdeng_analytics"]
+UnlimitedQueryBytesKeysetWhiteList = ["pdeng_validation_errors", "pdeng_stats", "pdeng_collectd", "pdeng_analytics"]
 
 # Silences all point validation errors from the logs
 SilencePointValidationErrors = false
@@ -179,6 +179,17 @@ DelayedMetricsThreshold = 3000
       service = "mycenae"
       ttl = "1"
       ksid = "pdeng_stats"
+
+  [[stats.backends]]
+    host = "loghost"
+    port = 8123
+    type = "validation"
+    cycleDuration = "15s"
+    addHostTag = true
+    [stats.backends.commonTags]
+      service = "mycenae"
+      ttl = "1"
+      ksid = "pdeng_validation_errors"
 
 [metadataSettings]
   numShards = 1

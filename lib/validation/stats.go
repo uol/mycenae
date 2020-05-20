@@ -6,6 +6,7 @@ import (
 	"github.com/uol/gobol"
 	"github.com/uol/logh"
 	"github.com/uol/mycenae/lib/constants"
+	tlmanager "github.com/uol/timeline-manager"
 )
 
 //
@@ -16,13 +17,14 @@ import (
 type idType string
 
 const (
-	metricValidationError string = "point.validation"
-	metricValidationCount string = "point.validation.count"
-	tagErrorCode          string = "code"
-	tagIDType             string = "id_type"
-	idTypeKeyset          idType = "keyset"
-	idTypeIP              idType = "ip"
-	idTypeBoth            idType = "keyset_ip"
+	metricValidationError string                = "point.validation"
+	metricValidationCount string                = "point.validation.count"
+	tagErrorCode          string                = "code"
+	tagIDType             string                = "id_type"
+	idTypeKeyset          idType                = "keyset"
+	idTypeIP              idType                = "ip"
+	idTypeBoth            idType                = "keyset_ip"
+	validationStorage     tlmanager.StorageType = "validation"
 )
 
 var (
@@ -95,7 +97,7 @@ func (v *Service) StatsValidationError(function, keyset, ip string, sourceType *
 
 	tags = append(tags, tagIDType, metricIDType, tagErrorCode, fullErrorCode, constants.StringsTargetKSID, keyset)
 
-	stored, err := v.timelineManager.AccumulateCustomHashN(key)
+	stored, err := v.timelineManager.AccumulateHashedData(validationStorage, key)
 	if err != nil {
 
 		if logh.ErrorEnabled {
@@ -120,13 +122,12 @@ func (v *Service) StatsValidationError(function, keyset, ip string, sourceType *
 		return
 	}
 
-	err = v.timelineManager.StoreCustomHashN(
+	err = v.timelineManager.StoreDefaultTTLCustomHash(
+		validationStorage,
 		key,
 		metricValidationError,
 		tags...,
 	)
-
-	v.logger.Debug().Msgf("TAGS: %+v", tags)
 
 	if err != nil {
 
@@ -151,8 +152,10 @@ func (v *Service) StatsValidationError(function, keyset, ip string, sourceType *
 // storeValidationErrorCount - stores the global validation error counter
 func (v *Service) storeValidationErrorCount() {
 
-	v.timelineManager.StoreNoTTLCustomHashN(
+	v.timelineManager.StoreHashedData(
+		validationStorage,
 		metricValidationCount,
+		0,
 		metricValidationCount,
 		noTags...,
 	)
@@ -165,5 +168,8 @@ func (v *Service) storeValidationErrorCount() {
 // incValidationErrorCount - increments the validation error counter
 func (v *Service) incValidationErrorCount() {
 
-	v.timelineManager.AccumulateCustomHashN(metricValidationCount)
+	v.timelineManager.AccumulateHashedData(
+		validationStorage,
+		metricValidationCount,
+	)
 }

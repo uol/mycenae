@@ -1,16 +1,14 @@
 package rest
 
-import (
-	"github.com/uol/mycenae/lib/stats"
-)
+import tlmanager "github.com/uol/timeline-manager"
 
 // restStatistics - implements the interface rip.Statistics
 type restStatistics struct {
-	timelineManager *stats.TimelineManager
+	timelineManager *tlmanager.TimelineManager
 }
 
 // newRestStatistics - creates a new rest statistics
-func newRestStatistics(timelineManager *stats.TimelineManager) *restStatistics {
+func newRestStatistics(timelineManager *tlmanager.TimelineManager) *restStatistics {
 
 	return &restStatistics{
 		timelineManager: timelineManager,

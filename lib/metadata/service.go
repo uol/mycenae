@@ -12,7 +12,7 @@ import (
 
 	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/memcached"
-	"github.com/uol/mycenae/lib/stats"
+	tlmanager "github.com/uol/timeline-manager"
 
 	"github.com/uol/go-solr/solr"
 	"github.com/uol/gobol"
@@ -25,7 +25,7 @@ type SolrBackend struct {
 	numShards                     int
 	replicationFactor             int
 	regexPattern                  *regexp.Regexp
-	timelineManager               *stats.TimelineManager
+	timelineManager               *tlmanager.TimelineManager
 	logger                        *logh.ContextualLogger
 	memcached                     *memcached.Memcached
 	idCacheTTL                    []byte
@@ -44,7 +44,7 @@ type SolrBackend struct {
 }
 
 // NewSolrBackend - creates a new instance
-func NewSolrBackend(settings *Settings, mc *stats.TimelineManager, memcached *memcached.Memcached) (*SolrBackend, error) {
+func NewSolrBackend(settings *Settings, mc *tlmanager.TimelineManager, memcached *memcached.Memcached) (*SolrBackend, error) {
 
 	ss, err := solar.NewSolrService(settings.URL)
 	if err != nil {

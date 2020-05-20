@@ -6,10 +6,10 @@ import (
 
 	"github.com/uol/logh"
 	"github.com/uol/mycenae/lib/constants"
-	"github.com/uol/mycenae/lib/stats"
 	"github.com/uol/mycenae/lib/utils"
 
 	"github.com/uol/mycenae/lib/structs"
+	tlmanager "github.com/uol/timeline-manager"
 )
 
 type udpHandler interface {
@@ -18,7 +18,7 @@ type udpHandler interface {
 }
 
 // New - creates a new udp server instance
-func New(setUDP structs.SettingsUDP, handler udpHandler, timelineManager *stats.TimelineManager) *UDPserver {
+func New(setUDP structs.SettingsUDP, handler udpHandler, timelineManager *tlmanager.TimelineManager) *UDPserver {
 
 	return &UDPserver{
 		handler:         handler,
@@ -33,7 +33,7 @@ type UDPserver struct {
 	handler         udpHandler
 	settings        structs.SettingsUDP
 	sock            *net.UDPConn
-	timelineManager *stats.TimelineManager
+	timelineManager *tlmanager.TimelineManager
 	logger          *logh.ContextualLogger
 }
 

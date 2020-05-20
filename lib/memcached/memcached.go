@@ -7,8 +7,9 @@ import (
 	"strings"
 	"time"
 
+	tlmanager "github.com/uol/timeline-manager"
+
 	"github.com/uol/logh"
-	"github.com/uol/mycenae/lib/stats"
 	"github.com/uol/zencached"
 )
 
@@ -54,7 +55,7 @@ type Memcached struct {
 }
 
 // New - initializes
-func New(tm *stats.TimelineManager, configuration *Configuration) (*Memcached, error) {
+func New(tm *tlmanager.TimelineManager, configuration *Configuration) (*Memcached, error) {
 
 	if configuration == nil {
 		return nil, fmt.Errorf("no memcached configuration found")

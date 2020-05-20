@@ -9,9 +9,9 @@ import (
 	"github.com/uol/logh"
 	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/metadata"
-	"github.com/uol/mycenae/lib/stats"
 	"github.com/uol/mycenae/lib/structs"
 	"github.com/uol/mycenae/lib/utils"
+	tlmanager "github.com/uol/timeline-manager"
 )
 
 //
@@ -41,11 +41,11 @@ type Service struct {
 	defaultTTLStr   string
 	defaultTTLTag   structs.TSDBTag
 	keysetRegexp    *regexp.Regexp
-	timelineManager *stats.TimelineManager
+	timelineManager *tlmanager.TimelineManager
 }
 
 // New - creates a new validation instance
-func New(configuration *structs.ValidationConfiguration, metadataStorage *metadata.Storage, keyspaceTTLMap map[int]string, timelineManager *stats.TimelineManager) (*Service, error) {
+func New(configuration *structs.ValidationConfiguration, metadataStorage *metadata.Storage, keyspaceTTLMap map[int]string, timelineManager *tlmanager.TimelineManager) (*Service, error) {
 
 	if configuration == nil {
 		return nil, fmt.Errorf("validation configuration is null")

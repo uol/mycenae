@@ -382,9 +382,8 @@ func TestCheckExpressionInvalidQueryGroupByKeyspaceNotFound(t *testing.T) {
 	expression := url.QueryEscape(
 		`groupBy({host=*})|rate(true, null, 0, merge(sum, downsample(1m, min, none,query(os.cpu, {app=test}, 5m))))`)
 
-	statusCode, resp, _ := mycenaeTools.HTTP.GET(fmt.Sprintf(`keysets/fake/expression/expand?exp=%v`, expression))
+	statusCode, _, _ := mycenaeTools.HTTP.GET(fmt.Sprintf(`keysets/fake/expression/expand?exp=%v`, expression))
 	assert.Equal(t, 404, statusCode)
-	assert.Equal(t, 0, len(resp))
 }
 
 func TestCheckExpressionInvalidQueryGroupByKeyspaceNotSent(t *testing.T) {
