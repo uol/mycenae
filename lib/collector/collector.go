@@ -7,7 +7,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/uol/mycenae/lib/stats"
 	"github.com/uol/mycenae/lib/structs"
 	"github.com/uol/mycenae/lib/validation"
 
@@ -18,10 +17,11 @@ import (
 	"github.com/uol/logh"
 	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/metadata"
+	tlmanager "github.com/uol/timeline-manager"
 )
 
 var (
-	timelineManager *stats.TimelineManager
+	timelineManager *tlmanager.TimelineManager
 )
 
 const (
@@ -32,7 +32,7 @@ const (
 
 // New - creates a new Collector
 func New(
-	tm *stats.TimelineManager,
+	tm *tlmanager.TimelineManager,
 	cass *gocql.Session,
 	metaStorage *metadata.Storage,
 	set *structs.Settings,

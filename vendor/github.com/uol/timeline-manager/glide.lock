@@ -1,0 +1,35 @@
+hash: 0a3a11cb0520e27313a3d89c8a76088ef0eae0046531dc5f26b54d1c8e28bd22
+updated: 2020-05-19T21:22:11.411762898-03:00
+imports:
+- name: github.com/rs/zerolog
+  version: f1dd50b8c64d79be1392edf1d8fda5cedea4916d
+  subpackages:
+  - internal/cbor
+  - internal/json
+- name: github.com/uol/funks
+  version: f269ed14e2d4a926c50b15abc1b8280691a72142
+- name: github.com/uol/hashing
+  version: 520f9fe195e130976599e3a495044b6b9aabfcd4
+- name: github.com/uol/logh
+  version: 04611a676395e92babe6a4e3f5d0aa517ec0b0d5
+- name: github.com/uol/scheduler
+  version: 3edd7d67bcde61e731d53144259cb50dd0f9931e
+- name: github.com/uol/serializer
+  version: 97927ecda92eee84fc36f6db384c1ccea8fd32a2
+  subpackages:
+  - json
+  - opentsdb
+  - serializer
+- name: github.com/uol/timeline
+  version: 05b2095c30d354d4517f12ed131b425541be0626
+  subpackages:
+  - buffer
+- name: golang.org/x/crypto
+  version: 06a226fb4e3765ef3f48aa2852b401bc7b98e981
+  subpackages:
+  - sha3
+- name: golang.org/x/sys
+  version: fe76b779f299728f3bd63f77ea2c815504229c3b
+  subpackages:
+  - cpu
+testImports: []

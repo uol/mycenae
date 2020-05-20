@@ -1,4 +1,4 @@
-package stats
+package tlmanager
 
 import (
 	"errors"
@@ -9,7 +9,6 @@ import (
 	"github.com/uol/funks"
 	"github.com/uol/hashing"
 	"github.com/uol/logh"
-	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/timeline"
 )
 
@@ -27,6 +26,10 @@ const (
 
 	// Archive - archive storage backend
 	Archive StorageType = "archive"
+
+	cFunction string = "func"
+	cType     string = "type"
+	cHost     string = "host"
 )
 
 // BackendItem - one backend configuration
@@ -69,7 +72,7 @@ func New(configuration *Configuration) (*TimelineManager, error) {
 		return nil, fmt.Errorf("no backends configured")
 	}
 
-	logger := logh.CreateContextualLogger(constants.StringsPKG, "stats")
+	logger := logh.CreateContextualLogger("pkg", "stats")
 
 	hostName, err := os.Hostname()
 	if err != nil {
@@ -95,7 +98,7 @@ func (tm *TimelineManager) storageTypeNotFound(function string, stype StorageTyp
 	if logErr && logh.ErrorEnabled {
 		ev := tm.logger.Error()
 		if len(function) > 0 {
-			ev = ev.Str(constants.StringsFunc, function)
+			ev = ev.Str(cFunction, function)
 		}
 
 		ev.Msg(msg)
@@ -128,7 +131,7 @@ func (tm *TimelineManager) Flatten(caller string, stype StorageType, op timeline
 		if logh.ErrorEnabled {
 			ev := tm.logger.Error().Err(err)
 			if len(caller) > 0 {
-				ev = ev.Str(constants.StringsFunc, caller)
+				ev = ev.Str(cFunction, caller)
 			}
 			ev.Msg("flattening operation error")
 		}
@@ -140,7 +143,7 @@ func (tm *TimelineManager) AccumulateHashedData(stype StorageType, hash string) 
 
 	backend, ok := tm.backendMap[stype]
 	if !ok {
-		return false, tm.storageTypeNotFound(constants.StringsEmpty, stype, false, true)
+		return false, tm.storageTypeNotFound("", stype, false, true)
 	}
 
 	err := backend.manager.IncrementAccumulatedData(hash)
@@ -160,7 +163,7 @@ func (tm *TimelineManager) StoreHashedData(stype StorageType, hash string, ttl t
 
 	backend, ok := tm.backendMap[stype]
 	if !ok {
-		return tm.storageTypeNotFound(constants.StringsEmpty, stype, false, true)
+		return tm.storageTypeNotFound("", stype, false, true)
 	}
 
 	tags = append(tags, backend.commonTags...)
@@ -237,7 +240,7 @@ func (tm *TimelineManager) Start() error {
 		}
 
 		if tm.configuration.Backends[i].AddHostTag {
-			tags[tagIndex] = constants.StringsHost
+			tags[tagIndex] = cHost
 			tagIndex++
 			tags[tagIndex] = tm.hostName
 		}
@@ -253,7 +256,7 @@ func (tm *TimelineManager) Start() error {
 		}
 
 		if logh.InfoEnabled {
-			tm.logger.Info().Str(constants.StringsType, string(tm.configuration.Backends[i].Type)).Msgf("timeline manager created: %s:%d (%+v)", b.Host, b.Port, tags)
+			tm.logger.Info().Str(cType, string(tm.configuration.Backends[i].Type)).Msgf("timeline manager created: %s:%d (%+v)", b.Host, b.Port, tags)
 		}
 	}
 

@@ -14,9 +14,9 @@ import (
 
 	"github.com/uol/mycenae/lib/collector"
 	"github.com/uol/mycenae/lib/constants"
-	"github.com/uol/mycenae/lib/stats"
 	"github.com/uol/mycenae/lib/structs"
 	"github.com/uol/mycenae/lib/utils"
+	tlmanager "github.com/uol/timeline-manager"
 )
 
 //
@@ -58,7 +58,7 @@ type Server struct {
 	maxBufferSize                    int64
 	collector                        *collector.Collector
 	logger                           *logh.ContextualLogger
-	timelineManager                  *stats.TimelineManager
+	timelineManager                  *tlmanager.TimelineManager
 	telnetHandler                    TelnetDataHandler
 	statsConnectionTags              []interface{}
 	sharedConnectionCounter          *uint32
@@ -78,7 +78,7 @@ type Server struct {
 }
 
 // New - creates a new telnet server
-func New(serverConfiguration *structs.TelnetServerConfiguration, globalTelnetConfigs *structs.GlobalTelnetServerConfiguration, sharedConnectionCounter *uint32, maxConnections uint32, closeConnectionChannel *chan struct{}, collector *collector.Collector, timelineManager *stats.TimelineManager, telnetHandler TelnetDataHandler) (*Server, error) {
+func New(serverConfiguration *structs.TelnetServerConfiguration, globalTelnetConfigs *structs.GlobalTelnetServerConfiguration, sharedConnectionCounter *uint32, maxConnections uint32, closeConnectionChannel *chan struct{}, collector *collector.Collector, timelineManager *tlmanager.TimelineManager, telnetHandler TelnetDataHandler) (*Server, error) {
 
 	onErrorTimeoutDuration, err := time.ParseDuration(serverConfiguration.OnErrorTimeout)
 	if err != nil {

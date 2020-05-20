@@ -1,5 +1,5 @@
-hash: ab96360dfd0868815e7ab13807528c153ea24fb87219e3cef81453b1b562455f
-updated: 2020-05-19T18:06:57.788441072-03:00
+hash: 8973d829bd0547b8525cb3d5e59bfecb1cff0d4a5458a4904dcca75ec58e6bec
+updated: 2020-05-19T23:46:29.112647022-03:00
 imports:
 - name: github.com/buger/jsonparser
   version: 5754b3eaeae78aeca49528d2ab980c0f26ca707c
@@ -41,7 +41,7 @@ imports:
   subpackages:
   - solr
 - name: github.com/uol/gobol
-  version: 7e8c457c922a2b7ed3509908fef73c3b98d82902
+  version: 07eb0aa6d8b102a887a6566108f5cbdf72eeee7a
   subpackages:
   - cassandra
   - loader
@@ -63,6 +63,8 @@ imports:
   version: 05b2095c30d354d4517f12ed131b425541be0626
   subpackages:
   - buffer
+- name: github.com/uol/timeline-manager
+  version: 9e479a9a013d6ed79e6631db93a34365fed41c6a
 - name: github.com/uol/zencached
   version: d18f0dfa196e584cf82e52297f619987cf9dc4e8
 - name: golang.org/x/crypto

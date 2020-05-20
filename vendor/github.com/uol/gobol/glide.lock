@@ -1,10 +1,10 @@
-hash: 19a1a5683e939e620521ddbabb069c9e0a86415f25b321170b7937f2f733546b
-updated: 2020-05-18T13:05:25.163909229-03:00
+hash: 389d4e5bc532f777ee371d73dcaf249b0d2d7c502b40dac1ac9345efb6e65792
+updated: 2020-05-19T23:42:34.43627618-03:00
 imports:
 - name: github.com/BurntSushi/toml
   version: 3012a1dbe2e4bd1391d42b32f0577cb7bbc7f005
 - name: github.com/gocql/gocql
-  version: 0714040f3e35885cd24d406cd3de9356ab0c9504
+  version: 799061058e31817a0de512fe16a747171be9dd95
   subpackages:
   - internal/lru
   - internal/murmur
@@ -13,28 +13,16 @@ imports:
   version: 2a8bb927dd31d8daada140a5d09578521ce5c36a
 - name: github.com/hailocab/go-hostpool
   version: e80d13ce29ede4452c43dea11e79b9bc8a15b478
-- name: github.com/json-iterator/go
-  version: acfec88f7a0d5140ace3dcdbee10184e3684a9e1
 - name: github.com/julienschmidt/httprouter
   version: 348b672cd90d8190f8240323e372ecd1e66b59dc
-- name: github.com/modern-go/concurrent
-  version: bacd9c7ef1dd9b15be4a9909b8ac7a4e313eec94
-- name: github.com/modern-go/reflect2
-  version: 94122c33edd36123c84d5368cfb2b69df93a0ec8
 - name: github.com/pborman/uuid
   version: adf5a7427709b9deb95d29d3fa8a2bf9cfd388f1
-- name: github.com/robfig/cron
-  version: b41be1df696709bb6395fe435af20370037c0b4c
 - name: github.com/rs/zerolog
   version: f7c93dce1c970bb6e76646ef657fd55b066d0b45
   subpackages:
   - internal/cbor
   - internal/json
   - log
-- name: github.com/samuel/go-zookeeper
-  version: 2cc03de413da42869e2db7ce7965d3e978d917eb
-  subpackages:
-  - zk
 - name: github.com/uol/go-solr
   version: 88954f7f66307d572c5fc59d6ba31d19a0ca9888
   subpackages:

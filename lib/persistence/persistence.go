@@ -10,7 +10,7 @@ import (
 	"github.com/uol/gobol"
 	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/metadata"
-	"github.com/uol/mycenae/lib/stats"
+	tlmanager "github.com/uol/timeline-manager"
 )
 
 // Backend hides the underlying implementation of the persistence
@@ -49,7 +49,7 @@ func NewStorage(
 	grantUser string,
 	session *gocql.Session,
 	metadata *metadata.Storage,
-	timelineManager *stats.TimelineManager,
+	timelineManager *tlmanager.TimelineManager,
 	devMode bool,
 	defaultTTL int,
 ) (*Storage, error) {

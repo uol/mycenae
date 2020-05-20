@@ -22,7 +22,7 @@ memcachedIPs=$(docker inspect --format "{{ .NetworkSettings.Networks.timeseriesN
 solrIP=$(docker inspect --format "{{ .NetworkSettings.Networks.timeseriesNetwork.IPAddress }}" solr1)
 
 sed -i 's/nodes = \[[^]]*\]/nodes = \['$scyllaIPs'\]/' ../config.toml
-sed -i 's/Nodes = \[1[^]]*\]/Nodes = \['$memcachedIPs'\]/' ../config.toml
+sed -i 's/Nodes = \["[0-9\.,:"]*"\]/Nodes = \['$memcachedIPs'\]/' ../config.toml
 sed -i 's/http\:\/\/[^\:]*\:8983/http\:\/\/'$solrIP'\:8983/' ../config.toml
 
 ./start_mycenae.sh 1 2

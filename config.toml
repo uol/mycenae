@@ -26,13 +26,13 @@ MaxAllowedTTL = 90
 DefaultPaginationSize = 1000
 
 # Mandatory keysets to create on app startup
-DefaultKeysets = ["pdeng_stats", "pdeng_collectd", "pdeng_analytics"]
+DefaultKeysets = ["pdeng_validation_errors", "pdeng_stats", "pdeng_collectd", "pdeng_analytics"]
 
 # Maximum size of bytes for each query processing
 MaxBytesOnQueryProcessing = 104857600
 
 # Allows these keysets to do queries with more than "MaxBytesOnQueryProcessing" bytes
-UnlimitedQueryBytesKeysetWhiteList = ["pdeng_stats", "pdeng_collectd", "pdeng_analytics"]
+UnlimitedQueryBytesKeysetWhiteList = ["pdeng_validation_errors", "pdeng_stats", "pdeng_collectd", "pdeng_analytics"]
 
 # Silences all point validation errors from the logs
 SilencePointValidationErrors = true
@@ -180,6 +180,17 @@ DelayedMetricsThreshold = 3000
       ttl = "1"
       ksid = "pdeng_stats"
 
+  [[stats.backends]]
+    host = "loghost"
+    port = 8123
+    type = "validation"
+    cycleDuration = "15s"
+    addHostTag = true
+    [stats.backends.commonTags]
+      service = "mycenae"
+      ttl = "1"
+      ksid = "pdeng_validation_errors"
+
 [metadataSettings]
   numShards = 1
   replicationFactor = 1
@@ -194,7 +205,7 @@ DelayedMetricsThreshold = 3000
 
 [memcached]
   # the nodes
-  Nodes = ["182.168.0.10:11211","182.168.0.11:11211","182.168.0.12:11211"]
+  Nodes = ["182.168.0.9:11211","182.168.0.10:11211","182.168.0.11:11211"]
 	
   # the number of idle connections per host
   NumConnectionsPerNode = 5

@@ -11,7 +11,7 @@ import (
 
 	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/metadata"
-	"github.com/uol/mycenae/lib/stats"
+	tlmanager "github.com/uol/timeline-manager"
 )
 
 type persistence struct {
@@ -21,7 +21,7 @@ type persistence struct {
 	constPartBytesFromTextPoint   uintptr
 	stringSize                    uintptr
 	maxBytesErr                   error
-	timelineManager               *stats.TimelineManager
+	timelineManager               *tlmanager.TimelineManager
 	unlimitedBytesKeysetWhiteList map[string]bool
 	logger                        *logh.ContextualLogger
 }
@@ -36,7 +36,7 @@ func New(
 	defaultMaxResults int,
 	maxBytesLimit uint32,
 	unlimitedBytesKeysetWhiteList []string,
-	timelineManager *stats.TimelineManager,
+	timelineManager *tlmanager.TimelineManager,
 ) (*Plot, gobol.Error) {
 
 	if maxTimeseries < 1 {
@@ -85,7 +85,7 @@ type Plot struct {
 	defaultTTL          int
 	defaultMaxResults   int
 	maxBytesLimit       uint32
-	timelineManager     *stats.TimelineManager
+	timelineManager     *tlmanager.TimelineManager
 	logger              *logh.ContextualLogger
 }
 

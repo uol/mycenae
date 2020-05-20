@@ -6,7 +6,7 @@ import (
 	"github.com/uol/mycenae/lib/keyspace"
 	"github.com/uol/mycenae/lib/memcached"
 	"github.com/uol/mycenae/lib/metadata"
-	"github.com/uol/mycenae/lib/stats"
+	tlmanager "github.com/uol/timeline-manager"
 )
 
 type SettingsHTTP struct {
@@ -87,7 +87,7 @@ type Settings struct {
 	Cassandra                          cassandra.Settings
 	Memcached                          memcached.Configuration
 	Logs                               LoggerSettings
-	Stats                              stats.Configuration
+	Stats                              tlmanager.Configuration
 	MetadataSettings                   metadata.Settings
 	Validation                         ValidationConfiguration
 }
