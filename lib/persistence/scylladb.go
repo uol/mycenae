@@ -9,7 +9,7 @@ import (
 	"github.com/gocql/gocql"
 	"github.com/uol/gobol"
 	"github.com/uol/mycenae/lib/constants"
-	tlmanager "github.com/uol/timeline-manager"
+	tlmanager "github.com/uol/timelinemanager"
 )
 
 const structName string = "scylladb"
@@ -17,7 +17,7 @@ const structName string = "scylladb"
 type scylladb struct {
 	session         *gocql.Session
 	logger          *logh.ContextualLogger
-	timelineManager *tlmanager.TimelineManager
+	timelineManager *tlmanager.Instance
 	ksMngr          string
 	grantUsername   string
 	devMode         bool
@@ -28,7 +28,7 @@ func newScyllaPersistence(
 	ksAdmin string,
 	grantUsername string,
 	session *gocql.Session,
-	timelineManager *tlmanager.TimelineManager,
+	timelineManager *tlmanager.Instance,
 	devMode bool,
 	defaultTTL int,
 ) (Backend, error) {

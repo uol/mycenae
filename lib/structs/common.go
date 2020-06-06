@@ -6,7 +6,7 @@ import (
 	"github.com/uol/mycenae/lib/keyspace"
 	"github.com/uol/mycenae/lib/memcached"
 	"github.com/uol/mycenae/lib/metadata"
-	tlmanager "github.com/uol/timeline-manager"
+	tlmanager "github.com/uol/timelinemanager"
 )
 
 type SettingsHTTP struct {
@@ -50,6 +50,7 @@ type GlobalTelnetServerConfiguration struct {
 	Nodes                             []string
 	SilenceLogs                       bool
 	MultipleConnsAllowedHosts         []string
+	RemoveMultipleConnsRestriction    bool
 }
 
 // ValidationConfiguration - validation configurations

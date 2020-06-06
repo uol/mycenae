@@ -5,7 +5,7 @@ import (
 	"github.com/uol/logh"
 	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/memcached"
-	tlmanager "github.com/uol/timeline-manager"
+	tlmanager "github.com/uol/timelinemanager"
 )
 
 // Backend hides the underlying implementation of the metadata storage
@@ -106,7 +106,7 @@ type QueryTag struct {
 }
 
 // Create creates a metadata handler
-func Create(settings *Settings, mc *tlmanager.TimelineManager, memcached *memcached.Memcached) (*Storage, error) {
+func Create(settings *Settings, mc *tlmanager.Instance, memcached *memcached.Memcached) (*Storage, error) {
 
 	backend, err := NewSolrBackend(settings, mc, memcached)
 	if err != nil {

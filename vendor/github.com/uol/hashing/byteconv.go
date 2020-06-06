@@ -135,6 +135,8 @@ func getByteArray(v reflect.Value) ([]byte, error) {
 		return mapToByteArray(v)
 	case reflect.Array, reflect.Slice:
 		return arrayToByteArray(v)
+	case reflect.Interface:
+		return getByteArray(v.Elem())
 	default:
 		return nil, fmt.Errorf("type is not mapped to get byte array: %s", v.Kind().String())
 	}

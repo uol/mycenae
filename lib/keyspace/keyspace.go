@@ -4,14 +4,14 @@ import (
 	"regexp"
 
 	"github.com/uol/mycenae/lib/persistence"
-	tlmanager "github.com/uol/timeline-manager"
+	tlmanager "github.com/uol/timelinemanager"
 )
 
 var validKey = regexp.MustCompile(`^[0-9A-Za-z][0-9A-Za-z_]+$`)
 
 // New creates a new keyspace manager
 func New(
-	timelineManager *tlmanager.TimelineManager,
+	timelineManager *tlmanager.Instance,
 	storage *persistence.Storage,
 	devMode bool,
 	defaultTTL int,
@@ -29,7 +29,7 @@ func New(
 // Keyspace is a structure that represents the functionality of this module
 type Keyspace struct {
 	*persistence.Storage
-	timelineManager *tlmanager.TimelineManager
+	timelineManager *tlmanager.Instance
 	devMode         bool
 	defaultTTL      int
 	maxAllowedTTL   int

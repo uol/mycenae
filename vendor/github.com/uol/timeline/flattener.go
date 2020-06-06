@@ -70,11 +70,16 @@ func NewFlattener(configuration *DataTransformerConf) *Flattener {
 
 	configuration.isSHAKE = isShakeAlgorithm(configuration.HashingAlgorithm)
 
+	logContext := []string{"pkg", "timeline/flattener"}
+	if len(configuration.Name) > 0 {
+		logContext = append(logContext, "name", configuration.Name)
+	}
+
 	f := &Flattener{
 		dataProcessorCore: dataProcessorCore{
 			configuration: configuration,
 			pointMap:      sync.Map{},
-			loggers:       logh.CreateContextualLogger("pkg", "timeline/flattener"),
+			loggers:       logh.CreateContextualLogger(logContext...),
 		},
 	}
 
@@ -113,7 +118,11 @@ func (f *Flattener) ProcessMapEntry(entry interface{}) bool {
 	newValue, err := f.flatten(entry.(*mapEntry))
 	if err != nil {
 		if logh.ErrorEnabled {
-			f.loggers.Error().Err(err).Msg("error on flatten operation")
+			ev := f.loggers.Error()
+			if f.transport.PrintStackOnError() {
+				ev = ev.Caller()
+			}
+			ev.Err(err).Msg("error on flatten operation")
 		}
 
 		return false
@@ -122,7 +131,11 @@ func (f *Flattener) ProcessMapEntry(entry interface{}) bool {
 	item, err := f.transport.FlattenerPointToDataChannelItem(newValue)
 	if err != nil {
 		if logh.ErrorEnabled {
-			f.loggers.Error().Err(err).Msg("error on casting operation")
+			ev := f.loggers.Error()
+			if f.transport.PrintStackOnError() {
+				ev = ev.Caller()
+			}
+			ev.Err(err).Msg("error on casting operation")
 		}
 
 		return false

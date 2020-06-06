@@ -159,7 +159,24 @@ func (t *HTTPTransport) AccumulatedDataToDataChannelItem(point *AccumulatedData)
 		return nil, fmt.Errorf("error casting accumulated data to data channel item: %+v", *point)
 	}
 
-	item.Parameters = append(item.Parameters, t.configuration.TimestampProperty, time.Now().Unix(), t.configuration.ValueProperty, float64(point.count))
+	numParameters := len(item.Parameters)
+	fullParameters := make([]interface{}, numParameters+4)
 
-	return item, nil
+	i := 0
+	for ; i < numParameters; i++ {
+		fullParameters[i] = item.Parameters[i]
+	}
+
+	fullParameters[i] = t.configuration.TimestampProperty
+	i++
+	fullParameters[i] = time.Now().Unix()
+	i++
+	fullParameters[i] = t.configuration.ValueProperty
+	i++
+	fullParameters[i] = float64(point.count)
+
+	return &serializer.ArrayItem{
+		Name:       item.Name,
+		Parameters: fullParameters,
+	}, nil
 }

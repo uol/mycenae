@@ -17,7 +17,7 @@ import (
 	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/structs"
 	"github.com/uol/mycenae/lib/telnetsrv"
-	tlmanager "github.com/uol/timeline-manager"
+	tlmanager "github.com/uol/timelinemanager"
 )
 
 //
@@ -29,7 +29,7 @@ import (
 type Manager struct {
 	collector                         *collector.Collector
 	logger                            *logh.ContextualLogger
-	timelineManager                   *tlmanager.TimelineManager
+	timelineManager                   *tlmanager.Instance
 	terminate                         bool
 	connectionBalanceCheckTimeout     time.Duration
 	maxWaitForDropTelnetConnsInterval time.Duration
@@ -47,7 +47,7 @@ type Manager struct {
 }
 
 // New - creates a new manager instance
-func New(globalConfiguration *structs.GlobalTelnetServerConfiguration, httpListenPort int, collector *collector.Collector, timelineManager *tlmanager.TimelineManager) (*Manager, error) {
+func New(globalConfiguration *structs.GlobalTelnetServerConfiguration, httpListenPort int, collector *collector.Collector, timelineManager *tlmanager.Instance) (*Manager, error) {
 
 	connectionBalanceCheckTimeoutDuration, err := time.ParseDuration(globalConfiguration.TelnetConnsBalanceCheckInterval)
 	if err != nil {

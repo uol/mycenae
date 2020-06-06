@@ -3,12 +3,12 @@ package timeline_opentsdb_test
 import (
 	"math/rand"
 	"strconv"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/uol/funks"
+	gotesttelnet "github.com/uol/gotest/telnet"
 	"github.com/uol/hashing"
 	serializer "github.com/uol/serializer/opentsdb"
 	"github.com/uol/timeline"
@@ -25,7 +25,7 @@ const defaultTransportSize int = 50
 func createTimelineManagerA(port, transportSize int) *timeline.Manager {
 
 	backend := timeline.Backend{
-		Host: telnetHost,
+		Host: defaultConf.Host,
 		Port: port,
 	}
 
@@ -33,7 +33,7 @@ func createTimelineManagerA(port, transportSize int) *timeline.Manager {
 
 	conf := &timeline.DataTransformerConf{
 		CycleDuration: funks.Duration{
-			Duration: time.Millisecond * 900,
+			Duration: time.Millisecond * 200,
 		},
 		HashingAlgorithm: hashing.SHAKE256,
 		HashSize:         12,
@@ -60,10 +60,8 @@ func genCustomHash() string {
 
 func testStorage(t *testing.T, customHash bool) {
 
-	port := generatePort()
-
-	c := make(chan string, 100)
-	go listenTelnet(t, c, port, 1, time.Second)
+	s, port := gotesttelnet.NewServer(&defaultConf, true)
+	defer s.Stop()
 
 	m := createTimelineManagerA(port, defaultTransportSize)
 	defer m.Shutdown()
@@ -81,7 +79,7 @@ func testStorage(t *testing.T, customHash bool) {
 
 	n.Value = 1
 
-	testItemsAgainstReceivedLines(t, c, []serializer.ArrayItem{n})
+	testItemsAgainstReceivedLines(t, s, []serializer.ArrayItem{n})
 }
 
 // TestStorage - tests the hash storage operation
@@ -94,6 +92,63 @@ func TestStorage(t *testing.T) {
 func TestStorageCustomHash(t *testing.T) {
 
 	testStorage(t, true)
+}
+
+func testDataNoTTL(t *testing.T, customHash bool) {
+
+	s, port := gotesttelnet.NewServer(&defaultConf, true)
+	defer s.Stop()
+
+	m := createTimelineManagerA(port, defaultTransportSize)
+	defer m.Shutdown()
+
+	metricPrefix := "metric"
+	if customHash {
+		metricPrefix += "-hashed-no-ttl"
+	}
+
+	n1 := newArrayItem(metricPrefix+"1", 0)
+	n2 := newArrayItem(metricPrefix+"2", 0)
+
+	var hash1, hash2 string
+	var ok bool
+
+	if hash1, ok = storeNumber(t, 0, m, &n1, customHash); !ok {
+		return
+	}
+
+	if hash2, ok = storeNumber(t, 600*time.Millisecond, m, &n2, customHash); !ok {
+		return
+	}
+
+	err := m.IncrementAccumulatedData(hash1)
+	if !assert.NoError(t, err, "error was not expected incrementing hash1") {
+		return
+	}
+
+	<-time.After(1 * time.Second)
+
+	err = m.IncrementAccumulatedData(hash2)
+	if !assert.Equal(t, timeline.ErrNotStored, err, "expected hash2 to be expired") {
+		return
+	}
+
+	err = m.IncrementAccumulatedData(hash1)
+	if !assert.NoError(t, err, "error was not expected incrementing hash1") {
+		return
+	}
+}
+
+// TestDataNoTTL - test storing data with no expiration ttl
+func TestDataNoTTL(t *testing.T) {
+
+	testDataNoTTL(t, false)
+}
+
+// TestDataNoTTLCustomHash - test storing data with no expiration ttl (with custom hash)
+func TestDataNoTTLCustomHash(t *testing.T) {
+
+	testDataNoTTL(t, true)
 }
 
 // storeNumber - stores a new number
@@ -118,18 +173,12 @@ func storeNumber(t *testing.T, ttl time.Duration, m *timeline.Manager, item *ser
 // incAccumulatedData - increments the accumulated data N times
 func incAccumulatedData(t *testing.T, m *timeline.Manager, hash string, times int) {
 
-	wg := sync.WaitGroup{}
-
 	for i := 0; i < times; i++ {
-		wg.Add(1)
-		go func() {
-			err := m.IncrementAccumulatedData(hash)
-			wg.Done()
-			assert.NoError(t, err, "error incrementing accumulated data")
-		}()
+		err := m.IncrementAccumulatedData(hash)
+		if !assert.NoError(t, err, "error incrementing accumulated data") {
+			return
+		}
 	}
-
-	wg.Wait()
 }
 
 type accumParam struct {
@@ -141,10 +190,8 @@ type accumParam struct {
 // testAdd - tests the add operation
 func testAdd(t *testing.T, params ...accumParam) {
 
-	port := generatePort()
-
-	c := make(chan string, 100)
-	go listenTelnet(t, c, port, 1, time.Second)
+	s, port := gotesttelnet.NewServer(&defaultConf, true)
+	defer s.Stop()
 
 	m := createTimelineManagerA(port, defaultTransportSize)
 	defer m.Shutdown()
@@ -165,7 +212,7 @@ func testAdd(t *testing.T, params ...accumParam) {
 		expected = append(expected, params[i].point)
 	}
 
-	testItemsAgainstReceivedLines(t, c, expected)
+	testItemsAgainstReceivedLines(t, s, expected)
 }
 
 // TestAccumulateOneTypeOneTime - tests the add operation
@@ -252,10 +299,8 @@ func TestAccumulateMultipleTypesMultipleTimesCustomHash(t *testing.T) {
 
 func testDataTTL(t *testing.T, customHash bool) {
 
-	port := generatePort()
-
-	c := make(chan string, 100)
-	go listenTelnet(t, c, port, 1, time.Second)
+	s, port := gotesttelnet.NewServer(&defaultConf, true)
+	defer s.Stop()
 
 	m := createTimelineManagerA(port, defaultTransportSize)
 	defer m.Shutdown()
@@ -315,63 +360,4 @@ func TestDataTTL(t *testing.T) {
 func TestDataTTLCustomHash(t *testing.T) {
 
 	testDataTTL(t, true)
-}
-
-func testDataNoTTL(t *testing.T, customHash bool) {
-
-	port := generatePort()
-
-	c := make(chan string, 100)
-	go listenTelnet(t, c, port, 1, time.Second)
-
-	m := createTimelineManagerA(port, defaultTransportSize)
-	defer m.Shutdown()
-
-	metricPrefix := "metric"
-	if customHash {
-		metricPrefix += "-hashed-no-ttl"
-	}
-
-	n1 := newArrayItem(metricPrefix+"1", 0)
-	n2 := newArrayItem(metricPrefix+"2", 0)
-
-	var hash1, hash2 string
-	var ok bool
-
-	if hash1, ok = storeNumber(t, 0, m, &n1, customHash); !ok {
-		return
-	}
-
-	if hash2, ok = storeNumber(t, time.Second, m, &n2, customHash); !ok {
-		return
-	}
-
-	err := m.IncrementAccumulatedData(hash1)
-	if !assert.NoError(t, err, "error was not expected incrementing hash1") {
-		return
-	}
-
-	<-time.After(2 * time.Second)
-
-	err = m.IncrementAccumulatedData(hash2)
-	if !assert.Equal(t, timeline.ErrNotStored, err, "expected hash2 to be expired") {
-		return
-	}
-
-	err = m.IncrementAccumulatedData(hash1)
-	if !assert.NoError(t, err, "error was not expected incrementing hash1") {
-		return
-	}
-}
-
-// TestDataNoTTL - test storing data with no expiration ttl
-func TestDataNoTTL(t *testing.T) {
-
-	testDataNoTTL(t, false)
-}
-
-// TestDataNoTTLCustomHash - test storing data with no expiration ttl (with custom hash)
-func TestDataNoTTLCustomHash(t *testing.T) {
-
-	testDataNoTTL(t, true)
 }

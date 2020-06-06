@@ -17,11 +17,11 @@ import (
 	"github.com/uol/logh"
 	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/metadata"
-	tlmanager "github.com/uol/timeline-manager"
+	tlmanager "github.com/uol/timelinemanager"
 )
 
 var (
-	timelineManager *tlmanager.TimelineManager
+	timelineManager *tlmanager.Instance
 )
 
 const (
@@ -32,7 +32,7 @@ const (
 
 // New - creates a new Collector
 func New(
-	tm *tlmanager.TimelineManager,
+	tm *tlmanager.Instance,
 	cass *gocql.Session,
 	metaStorage *metadata.Storage,
 	set *structs.Settings,

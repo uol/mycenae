@@ -16,4 +16,5 @@ type DataTransformerConf struct {
 	HashingAlgorithm hashing.Algorithm
 	HashSize         int
 	isSHAKE          bool
+	Name             string
 }

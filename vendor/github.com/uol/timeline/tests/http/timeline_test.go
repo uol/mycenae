@@ -11,7 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/uol/gotest"
+	gotesthttp "github.com/uol/gotest/http"
 	serializer "github.com/uol/serializer/json"
 	"github.com/uol/timeline"
 )
@@ -72,7 +72,7 @@ func testSerializeCompareText(t *testing.T, text string, expected interface{}) b
 }
 
 // testRequestData - tests the request data
-func testRequestData(t *testing.T, requestData *gotest.RequestData, expected interface{}, isNumber, ignoreTimestamp bool) bool {
+func testRequestData(t *testing.T, requestData *gotesthttp.RequestData, expected interface{}, isNumber, ignoreTimestamp bool) bool {
 
 	result := true
 
@@ -227,7 +227,7 @@ func TestSendNumber(t *testing.T) {
 
 	<-time.After(2 * time.Second)
 
-	requestData := gotest.WaitForHTTPServerRequest(s, time.Second, 10*time.Second)
+	requestData := gotesthttp.WaitForServerRequest(s, time.Second, 10*time.Second)
 	testRequestData(t, requestData, []*serializer.NumberPoint{number}, true, false)
 }
 
@@ -247,7 +247,7 @@ func TestSendText(t *testing.T) {
 
 	<-time.After(2 * time.Second)
 
-	requestData := gotest.WaitForHTTPServerRequest(s, time.Second, 10*time.Second)
+	requestData := gotesthttp.WaitForServerRequest(s, time.Second, 10*time.Second)
 	testRequestData(t, requestData, []*serializer.TextPoint{text}, false, false)
 }
 
@@ -269,7 +269,7 @@ func TestSendNumberArray(t *testing.T) {
 
 	<-time.After(2 * time.Second)
 
-	requestData := gotest.WaitForHTTPServerRequest(s, time.Second, 10*time.Second)
+	requestData := gotesthttp.WaitForServerRequest(s, time.Second, 10*time.Second)
 	testRequestData(t, requestData, numbers, true, false)
 }
 
@@ -291,7 +291,7 @@ func TestSendTextArray(t *testing.T) {
 
 	<-time.After(2 * time.Second)
 
-	requestData := gotest.WaitForHTTPServerRequest(s, time.Second, 10*time.Second)
+	requestData := gotesthttp.WaitForServerRequest(s, time.Second, 10*time.Second)
 	testRequestData(t, requestData, texts, false, false)
 }
 
@@ -327,7 +327,7 @@ func TestSendCustomNumber(t *testing.T) {
 
 	<-time.After(2 * time.Second)
 
-	requestData := gotest.WaitForHTTPServerRequest(s, time.Second, 10*time.Second)
+	requestData := gotesthttp.WaitForServerRequest(s, time.Second, 10*time.Second)
 	testRequestData(t, requestData, []*serializer.NumberPoint{number}, true, false)
 }
 
@@ -363,7 +363,7 @@ func TestSendCustomText(t *testing.T) {
 
 	<-time.After(2 * time.Second)
 
-	requestData := gotest.WaitForHTTPServerRequest(s, time.Second, 10*time.Second)
+	requestData := gotesthttp.WaitForServerRequest(s, time.Second, 10*time.Second)
 	testRequestData(t, requestData, []*serializer.TextPoint{text}, false, false)
 }
 
@@ -408,7 +408,7 @@ func TestExceedingBufferSize(t *testing.T) {
 	bufferSize := 2
 	numPoints := 6
 	numRequests := numPoints / bufferSize
-	requests := make([]*gotest.RequestData, numRequests)
+	requests := make([]*gotesthttp.RequestData, numRequests)
 	batchSendInterval := 5 * time.Second
 	wc := sync.WaitGroup{}
 	wc.Add(numRequests)

@@ -6,7 +6,7 @@ import (
 	"github.com/uol/gobol"
 	"github.com/uol/logh"
 	"github.com/uol/mycenae/lib/constants"
-	tlmanager "github.com/uol/timeline-manager"
+	tlmanager "github.com/uol/timelinemanager"
 )
 
 //

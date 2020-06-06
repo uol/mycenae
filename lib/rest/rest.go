@@ -22,12 +22,12 @@ import (
 	"github.com/uol/mycenae/lib/memcached"
 	"github.com/uol/mycenae/lib/plot"
 	"github.com/uol/mycenae/lib/structs"
-	tlmanager "github.com/uol/timeline-manager"
+	tlmanager "github.com/uol/timelinemanager"
 )
 
 // New returns http handler to the endpoints
 func New(
-	timelineManager *tlmanager.TimelineManager,
+	timelineManager *tlmanager.Instance,
 	p *plot.Plot,
 	keyspace *keyspace.Keyspace,
 	mc *memcached.Memcached,
@@ -56,7 +56,7 @@ type REST struct {
 	probeStatus int
 
 	logger          *logh.ContextualLogger
-	timelineManager *tlmanager.TimelineManager
+	timelineManager *tlmanager.Instance
 	reader          *plot.Plot
 	kspace          *keyspace.Keyspace
 	memcached       *memcached.Memcached
