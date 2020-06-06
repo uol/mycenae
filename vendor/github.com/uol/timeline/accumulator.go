@@ -70,12 +70,17 @@ func NewAccumulator(configuration *DataTransformerConf) *Accumulator {
 
 	configuration.isSHAKE = isShakeAlgorithm(configuration.HashingAlgorithm)
 
+	logContext := []string{"pkg", "timeline/accumulator"}
+	if len(configuration.Name) > 0 {
+		logContext = append(logContext, "name", configuration.Name)
+	}
+
 	a := &Accumulator{
 		ttlManager: scheduler.New(),
 		dataProcessorCore: dataProcessorCore{
 			configuration: configuration,
 			pointMap:      sync.Map{},
-			loggers:       logh.CreateContextualLogger("pkg", "timeline/accumulator"),
+			loggers:       logh.CreateContextualLogger(logContext...),
 		},
 	}
 
@@ -93,7 +98,11 @@ func (a *Accumulator) ProcessMapEntry(entry interface{}) bool {
 		item, err := a.transport.AccumulatedDataToDataChannelItem(data)
 		if err != nil {
 			if logh.ErrorEnabled {
-				a.loggers.Error().Msg(err.Error())
+				ev := a.loggers.Error()
+				if a.transport.PrintStackOnError() {
+					ev = ev.Caller()
+				}
+				ev.Err(err).Msg(err.Error())
 			}
 		}
 
@@ -160,6 +169,10 @@ func (a *Accumulator) store(hash string, instance Hashable, ttl time.Duration) e
 	if _, loaded := a.pointMap.LoadOrStore(hash, instance); loaded {
 		if logh.WarnEnabled {
 			a.loggers.Warn().Msgf("a key was replaced on storage operation: %s", hash)
+		}
+
+		if a.ttlManager.Exists(hash) {
+			a.ttlManager.RemoveTask(hash)
 		}
 	}
 

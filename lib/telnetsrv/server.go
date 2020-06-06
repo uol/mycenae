@@ -16,7 +16,7 @@ import (
 	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/structs"
 	"github.com/uol/mycenae/lib/utils"
-	tlmanager "github.com/uol/timeline-manager"
+	tlmanager "github.com/uol/timelinemanager"
 )
 
 //
@@ -58,7 +58,7 @@ type Server struct {
 	maxBufferSize                    int64
 	collector                        *collector.Collector
 	logger                           *logh.ContextualLogger
-	timelineManager                  *tlmanager.TimelineManager
+	timelineManager                  *tlmanager.Instance
 	telnetHandler                    TelnetDataHandler
 	statsConnectionTags              []interface{}
 	sharedConnectionCounter          *uint32
@@ -78,7 +78,7 @@ type Server struct {
 }
 
 // New - creates a new telnet server
-func New(serverConfiguration *structs.TelnetServerConfiguration, globalTelnetConfigs *structs.GlobalTelnetServerConfiguration, sharedConnectionCounter *uint32, maxConnections uint32, closeConnectionChannel *chan struct{}, collector *collector.Collector, timelineManager *tlmanager.TimelineManager, telnetHandler TelnetDataHandler) (*Server, error) {
+func New(serverConfiguration *structs.TelnetServerConfiguration, globalTelnetConfigs *structs.GlobalTelnetServerConfiguration, sharedConnectionCounter *uint32, maxConnections uint32, closeConnectionChannel *chan struct{}, collector *collector.Collector, timelineManager *tlmanager.Instance, telnetHandler TelnetDataHandler) (*Server, error) {
 
 	onErrorTimeoutDuration, err := time.ParseDuration(serverConfiguration.OnErrorTimeout)
 	if err != nil {
@@ -205,21 +205,24 @@ func (server *Server) Listen() error {
 			server.statsNetworkIP(cFuncListen, remoteAddressIP)
 			server.statsNetworkConnectionOpen(cFuncListen)
 
-			if _, stored := server.connectedIPMap.LoadOrStore(remoteAddressIP, struct{}{}); stored {
+			if !server.globalTelnetConfigs.RemoveMultipleConnsRestriction {
 
-				if _, ok := server.multipleConnsAllowedHostsMap[remoteAddressIP]; !ok {
+				if _, stored := server.connectedIPMap.LoadOrStore(remoteAddressIP, struct{}{}); stored {
 
-					if logh.InfoEnabled {
-						server.logger.Info().Str(constants.StringsFunc, cFuncListen).Msgf(cMsgfSpecificDenyNewConns, remoteAddressIP)
+					if _, ok := server.multipleConnsAllowedHostsMap[remoteAddressIP]; !ok {
+
+						if logh.InfoEnabled {
+							server.logger.Info().Str(constants.StringsFunc, cFuncListen).Msgf(cMsgfSpecificDenyNewConns, remoteAddressIP)
+						}
+
+						go server.closeConnection(conn, ccrMultiple, false)
+
+						continue
 					}
 
-					go server.closeConnection(conn, ccrMultiple, false)
-
-					continue
-				}
-
-				if logh.InfoEnabled {
-					server.logger.Info().Str(constants.StringsFunc, cFuncListen).Msgf(cMsgfAllowingMultipleConns, remoteAddressIP)
+					if logh.InfoEnabled {
+						server.logger.Info().Str(constants.StringsFunc, cFuncListen).Msgf(cMsgfAllowingMultipleConns, remoteAddressIP)
+					}
 				}
 			}
 
@@ -304,8 +307,8 @@ ConnLoop:
 			}
 
 			go server.closeConnection(conn, ccrWUnknown, true)
-			if logh.ErrorEnabled {
-				server.logger.Error().Err(err).Msg("telnet connection write: unexpected error")
+			if logh.WarnEnabled {
+				server.logger.Warn().Err(err).Msg("telnet connection write: unexpected error")
 			}
 			break ConnLoop
 		}
@@ -329,8 +332,8 @@ ConnLoop:
 			}
 
 			go server.closeConnection(conn, ccrUnknown, true)
-			if logh.ErrorEnabled {
-				server.logger.Error().Err(err).Msg("telnet connection read: unexpected error")
+			if logh.WarnEnabled {
+				server.logger.Warn().Err(err).Msg("telnet connection read: unexpected error")
 			}
 			break ConnLoop
 		}
@@ -404,7 +407,9 @@ func (server *Server) closeConnection(conn net.Conn, reason connCloseReason, sub
 
 	conn = nil
 
-	server.connectedIPMap.Delete(remoteAddressIP)
+	if reason != ccrMultiple {
+		server.connectedIPMap.Delete(remoteAddressIP)
+	}
 
 	server.statsNetworkConnectionClose(cFuncCloseConnection, reason)
 

@@ -69,6 +69,10 @@ func (d *dataProcessorCore) Start() {
 		for {
 			<-time.After(d.configuration.CycleDuration.Duration)
 
+			if logh.DebugEnabled {
+				d.loggers.Debug().Msg("entering a new process cycle")
+			}
+
 			select {
 			case <-d.terminateChan:
 				if logh.InfoEnabled {

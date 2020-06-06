@@ -1,14 +1,14 @@
 package rest
 
-import tlmanager "github.com/uol/timeline-manager"
+import tlmanager "github.com/uol/timelinemanager"
 
 // restStatistics - implements the interface rip.Statistics
 type restStatistics struct {
-	timelineManager *tlmanager.TimelineManager
+	timelineManager *tlmanager.Instance
 }
 
 // newRestStatistics - creates a new rest statistics
-func newRestStatistics(timelineManager *tlmanager.TimelineManager) *restStatistics {
+func newRestStatistics(timelineManager *tlmanager.Instance) *restStatistics {
 
 	return &restStatistics{
 		timelineManager: timelineManager,

@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/uol/funks"
+	gotesttelnet "github.com/uol/gotest/telnet"
 	"github.com/uol/hashing"
 	serializer "github.com/uol/serializer/opentsdb"
 	"github.com/uol/timeline"
@@ -23,7 +24,7 @@ import (
 func createTimelineManagerF(start bool, port, transportSize int) *timeline.Manager {
 
 	backend := timeline.Backend{
-		Host: telnetHost,
+		Host: defaultConf.Host,
 		Port: port,
 	}
 
@@ -81,7 +82,7 @@ func buildOpenTSDBCmd(items []serializer.ArrayItem) []string {
 }
 
 // testFlattenedValue - tests some inputed values
-func testFlattenedValue(t *testing.T, c chan string, m *timeline.Manager, operation timeline.FlatOperation, items []serializer.ArrayItem, expectedItems []serializer.ArrayItem) {
+func testFlattenedValue(t *testing.T, s *gotesttelnet.Server, m *timeline.Manager, operation timeline.FlatOperation, items []serializer.ArrayItem, expectedItems []serializer.ArrayItem) {
 
 	numItems := len(items)
 	for i := 0; i < numItems; i++ {
@@ -91,17 +92,17 @@ func testFlattenedValue(t *testing.T, c chan string, m *timeline.Manager, operat
 		}
 	}
 
-	testItemsAgainstReceivedLines(t, c, expectedItems)
+	testItemsAgainstReceivedLines(t, s, expectedItems)
 }
 
 // testItemsAgainstReceivedLines - test the expected items againt the received lines
-func testItemsAgainstReceivedLines(t *testing.T, c chan string, expectedItems []serializer.ArrayItem) {
+func testItemsAgainstReceivedLines(t *testing.T, s *gotesttelnet.Server, expectedItems []serializer.ArrayItem) {
 
 	expectedLines := buildOpenTSDBCmd(expectedItems)
 
-	receivedText := <-c
+	receivedText := <-s.MessageChannel()
 
-	split := strings.Split(receivedText, "\n")
+	split := strings.Split(receivedText.Message, "\n")
 	lines := []string{}
 
 	for i := 0; i < len(split); i++ {
@@ -128,10 +129,8 @@ func testItemsAgainstReceivedLines(t *testing.T, c chan string, expectedItems []
 // TestSum - tests the sum operation
 func TestSum(t *testing.T) {
 
-	port := generatePort()
-
-	c := make(chan string, 100)
-	go listenTelnet(t, c, port, 1, time.Second)
+	s, port := gotesttelnet.NewServer(&defaultConf, true)
+	defer s.Stop()
 
 	m := createTimelineManagerF(true, port, defaultTransportSize)
 	defer m.Shutdown()
@@ -141,7 +140,7 @@ func TestSum(t *testing.T) {
 	expected := item
 	expected.Value = 30.0
 
-	testFlattenedValue(t, c, m,
+	testFlattenedValue(t, s, m,
 		timeline.Sum,
 		[]serializer.ArrayItem{item, item, item},
 		[]serializer.ArrayItem{expected},
@@ -151,12 +150,11 @@ func TestSum(t *testing.T) {
 // TestAvg - tests the avg operation
 func TestAvg(t *testing.T) {
 
-	port := generatePort()
-
-	c := make(chan string, 100)
-	go listenTelnet(t, c, port, 1, time.Second)
+	s, port := gotesttelnet.NewServer(&defaultConf, true)
+	defer s.Stop()
 
 	m := createTimelineManagerF(true, port, defaultTransportSize)
+	defer m.Shutdown()
 
 	item1 := newArrayItem("avg", 10.0)
 
@@ -166,7 +164,7 @@ func TestAvg(t *testing.T) {
 	expected := item1
 	expected.Value = 8.0
 
-	testFlattenedValue(t, c, m,
+	testFlattenedValue(t, s, m,
 		timeline.Avg,
 		[]serializer.ArrayItem{item1, item1, item2},
 		[]serializer.ArrayItem{expected},
@@ -176,12 +174,11 @@ func TestAvg(t *testing.T) {
 // TestMax - tests the max operation
 func TestMax(t *testing.T) {
 
-	port := generatePort()
-
-	c := make(chan string, 100)
-	go listenTelnet(t, c, port, 1, time.Second)
+	s, port := gotesttelnet.NewServer(&defaultConf, true)
+	defer s.Stop()
 
 	m := createTimelineManagerF(true, port, defaultTransportSize)
+	defer m.Shutdown()
 
 	item1 := newArrayItem("max", 1.0)
 
@@ -194,7 +191,7 @@ func TestMax(t *testing.T) {
 	expected := item1
 	expected.Value = 7.0
 
-	testFlattenedValue(t, c, m,
+	testFlattenedValue(t, s, m,
 		timeline.Max,
 		[]serializer.ArrayItem{item1, item2, item3},
 		[]serializer.ArrayItem{expected},
@@ -204,12 +201,11 @@ func TestMax(t *testing.T) {
 // TestMin - tests the min operation
 func TestMin(t *testing.T) {
 
-	port := generatePort()
-
-	c := make(chan string, 100)
-	go listenTelnet(t, c, port, 1, time.Second)
+	s, port := gotesttelnet.NewServer(&defaultConf, true)
+	defer s.Stop()
 
 	m := createTimelineManagerF(true, port, defaultTransportSize)
+	defer m.Shutdown()
 
 	item1 := newArrayItem("min", 1.0)
 
@@ -222,7 +218,7 @@ func TestMin(t *testing.T) {
 	expected := item1
 	expected.Value = 1.0
 
-	testFlattenedValue(t, c, m,
+	testFlattenedValue(t, s, m,
 		timeline.Min,
 		[]serializer.ArrayItem{item1, item2, item3},
 		[]serializer.ArrayItem{expected},
@@ -232,12 +228,11 @@ func TestMin(t *testing.T) {
 // TestCount - tests the count operation
 func TestCount(t *testing.T) {
 
-	port := generatePort()
-
-	c := make(chan string, 100)
-	go listenTelnet(t, c, port, 1, time.Second)
+	s, port := gotesttelnet.NewServer(&defaultConf, true)
+	defer s.Stop()
 
 	m := createTimelineManagerF(true, port, defaultTransportSize)
+	defer m.Shutdown()
 
 	item1 := newArrayItem("count", 1.0)
 
@@ -250,7 +245,7 @@ func TestCount(t *testing.T) {
 	expected := item1
 	expected.Value = 3.0
 
-	testFlattenedValue(t, c, m,
+	testFlattenedValue(t, s, m,
 		timeline.Count,
 		[]serializer.ArrayItem{item1, item2, item3},
 		[]serializer.ArrayItem{expected},

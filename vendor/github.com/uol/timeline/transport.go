@@ -56,6 +56,9 @@ type Transport interface {
 
 	// AccumulatedDataToDataChannelItem - converts the accumulated data to the data channel item
 	AccumulatedDataToDataChannelItem(item *AccumulatedData) (interface{}, error)
+
+	// PrintStackOnError - enables the stack print to the log
+	PrintStackOnError() bool
 }
 
 // Hashable - a struct with hash function
@@ -83,6 +86,9 @@ type DefaultTransportConfiguration struct {
 	SerializerBufferSize int
 	DebugInput           bool
 	DebugOutput          bool
+	TimeBetweenBatches   funks.Duration
+	PrintStackOnError    bool
+	Name                 string
 }
 
 // Validate - validates the default itens from the configuration
@@ -180,13 +186,19 @@ func (t *transportCore) releaseBuffer() {
 		err := t.transport.TransferData(batchBuffer)
 		if err != nil {
 			if logh.ErrorEnabled {
-				t.loggers.Error().Err(err).Msg("error transferring data")
+				ev := t.loggers.Error()
+				if t.transport.PrintStackOnError() {
+					ev = ev.Caller()
+				}
+				ev.Err(err).Msg("error transferring data")
 			}
 		} else {
 			if logh.InfoEnabled {
 				t.loggers.Info().Msgf("batch of %d points were sent!", numPoints)
 			}
 		}
+
+		<-time.After(t.defaultConfiguration.TimeBetweenBatches.Duration)
 	}
 
 	return

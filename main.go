@@ -32,7 +32,7 @@ import (
 	"github.com/uol/mycenae/lib/telnetmgr"
 	"github.com/uol/mycenae/lib/udp"
 	"github.com/uol/mycenae/lib/validation"
-	tlmanager "github.com/uol/timeline-manager"
+	tlmanager "github.com/uol/timelinemanager"
 )
 
 var (
@@ -175,7 +175,7 @@ func configureLogger(conf *structs.LoggerSettings) *logh.ContextualLogger {
 }
 
 // createTimelineManager - creates the timeline manager
-func createTimelineManager(settings *tlmanager.Configuration) *tlmanager.TimelineManager {
+func createTimelineManager(settings *tlmanager.Configuration) *tlmanager.Instance {
 
 	tm, err := tlmanager.New(settings)
 	if err != nil {
@@ -211,7 +211,7 @@ func createScyllaConnection(conf *cassandra.Settings) *gocql.Session {
 }
 
 // createMemcachedConnection - creates the memcached connection
-func createMemcachedConnection(conf *memcached.Configuration, timelineManager *tlmanager.TimelineManager) *memcached.Memcached {
+func createMemcachedConnection(conf *memcached.Configuration, timelineManager *tlmanager.Instance) *memcached.Memcached {
 
 	mc, err := memcached.New(timelineManager, conf)
 	if err != nil {
@@ -229,7 +229,7 @@ func createMemcachedConnection(conf *memcached.Configuration, timelineManager *t
 }
 
 // createMetadataStorageService - creates a new metadata storage
-func createMetadataStorageService(conf *metadata.Settings, timelineManager *tlmanager.TimelineManager, memcachedConn *memcached.Memcached) *metadata.Storage {
+func createMetadataStorageService(conf *metadata.Settings, timelineManager *tlmanager.Instance, memcachedConn *memcached.Memcached) *metadata.Storage {
 
 	metaStorage, err := metadata.Create(
 		conf,
@@ -252,7 +252,7 @@ func createMetadataStorageService(conf *metadata.Settings, timelineManager *tlma
 }
 
 // createScyllaStorageService - creates the scylla storage service
-func createScyllaStorageService(conf *structs.Settings, devMode bool, timelineManager *tlmanager.TimelineManager, scyllaConn *gocql.Session, metadataStorage *metadata.Storage) (*persistence.Storage, map[int]string) {
+func createScyllaStorageService(conf *structs.Settings, devMode bool, timelineManager *tlmanager.Instance, scyllaConn *gocql.Session, metadataStorage *metadata.Storage) (*persistence.Storage, map[int]string) {
 
 	storage, err := persistence.NewStorage(
 		conf.Cassandra.Keyspace,
@@ -305,7 +305,7 @@ func createScyllaStorageService(conf *structs.Settings, devMode bool, timelineMa
 }
 
 // createKeyspaceManager - creates the keyspace manager
-func createKeyspaceManager(conf *structs.Settings, devMode bool, timelineManager *tlmanager.TimelineManager, scyllaStorageService *persistence.Storage) *keyspace.Keyspace {
+func createKeyspaceManager(conf *structs.Settings, devMode bool, timelineManager *tlmanager.Instance, scyllaStorageService *persistence.Storage) *keyspace.Keyspace {
 
 	keyspaceManager := keyspace.New(
 		timelineManager,
@@ -356,7 +356,7 @@ func createKeysetManager(conf *structs.Settings, metadataStorage *metadata.Stora
 }
 
 // createCollectorService - creates a new collector service
-func createCollectorService(conf *structs.Settings, timelineManager *tlmanager.TimelineManager, metadataStorage *metadata.Storage, scyllaConn *gocql.Session, validationService *validation.Service, keyspaceTTLMap map[int]string) *collector.Collector {
+func createCollectorService(conf *structs.Settings, timelineManager *tlmanager.Instance, metadataStorage *metadata.Storage, scyllaConn *gocql.Session, validationService *validation.Service, keyspaceTTLMap map[int]string) *collector.Collector {
 
 	collector, err := collector.New(
 		timelineManager,
@@ -382,7 +382,7 @@ func createCollectorService(conf *structs.Settings, timelineManager *tlmanager.T
 }
 
 // createPlotService - creates the plot service
-func createPlotService(conf *structs.Settings, timelineManager *tlmanager.TimelineManager, metadataStorage *metadata.Storage, scyllaConn *gocql.Session, keyspaceTTLMap map[int]string) *plot.Plot {
+func createPlotService(conf *structs.Settings, timelineManager *tlmanager.Instance, metadataStorage *metadata.Storage, scyllaConn *gocql.Session, keyspaceTTLMap map[int]string) *plot.Plot {
 
 	plotService, err := plot.New(
 		scyllaConn,
@@ -412,7 +412,7 @@ func createPlotService(conf *structs.Settings, timelineManager *tlmanager.Timeli
 }
 
 // createUDPServer - creates the UDP server and starts it
-func createUDPServer(conf *structs.SettingsUDP, collectorService *collector.Collector, timelineManager *tlmanager.TimelineManager) *udp.UDPserver {
+func createUDPServer(conf *structs.SettingsUDP, collectorService *collector.Collector, timelineManager *tlmanager.Instance) *udp.UDPserver {
 
 	udpServer := udp.New(*conf, collectorService, timelineManager)
 	udpServer.Start()
@@ -425,7 +425,7 @@ func createUDPServer(conf *structs.SettingsUDP, collectorService *collector.Coll
 }
 
 // createRESTserver - creates the REST server and starts it
-func createRESTserver(conf *structs.Settings, timelineManager *tlmanager.TimelineManager, plotService *plot.Plot, collectorService *collector.Collector, keyspaceManager *keyspace.Keyspace, keysetManager *keyset.Manager, memcachedConn *memcached.Memcached, telnetManager *telnetmgr.Manager) *rest.REST {
+func createRESTserver(conf *structs.Settings, timelineManager *tlmanager.Instance, plotService *plot.Plot, collectorService *collector.Collector, keyspaceManager *keyspace.Keyspace, keysetManager *keyset.Manager, memcachedConn *memcached.Memcached, telnetManager *telnetmgr.Manager) *rest.REST {
 
 	restServer := rest.New(
 		timelineManager,
@@ -448,7 +448,7 @@ func createRESTserver(conf *structs.Settings, timelineManager *tlmanager.Timelin
 }
 
 // createTelnetManager - creates a new telnet manager
-func createTelnetManager(conf *structs.Settings, collectorService *collector.Collector, timelineManager *tlmanager.TimelineManager, validationService *validation.Service) *telnetmgr.Manager {
+func createTelnetManager(conf *structs.Settings, collectorService *collector.Collector, timelineManager *tlmanager.Instance, validationService *validation.Service) *telnetmgr.Manager {
 
 	telnetManager, err := telnetmgr.New(
 		&conf.GlobalTelnetServerConfiguration,
@@ -481,7 +481,7 @@ func createTelnetManager(conf *structs.Settings, collectorService *collector.Col
 }
 
 // createValidation - creates a new validation service
-func createValidation(conf *structs.Settings, metadataStorage *metadata.Storage, keyspaceTTLMap map[int]string, timelineManager *tlmanager.TimelineManager) *validation.Service {
+func createValidation(conf *structs.Settings, metadataStorage *metadata.Storage, keyspaceTTLMap map[int]string, timelineManager *tlmanager.Instance) *validation.Service {
 
 	service, err := validation.New(
 		&conf.Validation,

@@ -24,7 +24,7 @@ const (
 
 func (server *Server) statsNetworkConnection(function string) {
 
-	server.timelineManager.FlattenCountN(
+	server.timelineManager.FlattenAvgN(
 		function,
 		(float64)(server.numLocalConnections),
 		constants.StringsMetricNetworkConnection,

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/uol/funks"
-	"github.com/uol/gotest"
+	gotesthttp "github.com/uol/gotest/http"
 	serializer "github.com/uol/serializer/json"
 	"github.com/uol/timeline"
 )
@@ -18,16 +18,17 @@ import (
 const (
 	testServerHost string = "localhost"
 	testServerPort int    = 18080
+	channelSize    int    = 10
 )
 
 // createTimeseriesBackend - creates a new test server simulating a timeseries backend
-func createTimeseriesBackend() *gotest.HTTPServer {
+func createTimeseriesBackend() *gotesthttp.Server {
 
 	headers := http.Header{}
 	headers.Add("Content-type", "application/json")
 
-	responses := gotest.ResponseData{
-		RequestData: gotest.RequestData{
+	responses := gotesthttp.ResponseData{
+		RequestData: gotesthttp.RequestData{
 			URI:     "/api/put",
 			Method:  "PUT",
 			Headers: headers,
@@ -35,10 +36,11 @@ func createTimeseriesBackend() *gotest.HTTPServer {
 		Status: 201,
 	}
 
-	return gotest.CreateNewTestHTTPServer(
+	return gotesthttp.NewServer(
 		testServerHost,
 		testServerPort,
-		[]gotest.ResponseData{responses},
+		channelSize,
+		[]gotesthttp.ResponseData{responses},
 	)
 }
 
@@ -60,6 +62,7 @@ func createHTTPTransport(transportBufferSize int, batchSendInterval time.Duratio
 			},
 			TransportBufferSize:  transportBufferSize,
 			SerializerBufferSize: 256,
+			TimeBetweenBatches:   funks.Duration{Duration: 100 * time.Millisecond},
 		},
 		ServiceEndpoint:        "/api/put",
 		Method:                 "PUT",

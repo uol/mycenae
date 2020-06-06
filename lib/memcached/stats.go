@@ -1,6 +1,6 @@
 package memcached
 
-import tlmanager "github.com/uol/timeline-manager"
+import tlmanager "github.com/uol/timelinemanager"
 
 const (
 	countFuncName string = "memcached.Count"
@@ -11,11 +11,11 @@ const (
 type metricsCollector struct {
 
 	// must be replaced with timeline
-	timelineManager *tlmanager.TimelineManager
+	timelineManager *tlmanager.Instance
 }
 
 // newMetricsCollector - creates a new metrics collector for memcached
-func newMetricsCollector(timelineManager *tlmanager.TimelineManager) *metricsCollector {
+func newMetricsCollector(timelineManager *tlmanager.Instance) *metricsCollector {
 
 	return &metricsCollector{
 		timelineManager: timelineManager,

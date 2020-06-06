@@ -1,5 +1,5 @@
-hash: b1c2549a1c829791e366463f949c03ed139d4e59106f59b893d0035f51a1ad14
-updated: 2020-05-18T20:52:02.501161462-03:00
+hash: c6d96ef34f36415f7905220224b09e2ab53a264ed944fb3e75985f35c2460657
+updated: 2020-06-01T21:43:53.591927839-03:00
 imports:
 - name: github.com/rs/zerolog
   version: f1dd50b8c64d79be1392edf1d8fda5cedea4916d
@@ -25,7 +25,7 @@ imports:
   subpackages:
   - sha3
 - name: golang.org/x/sys
-  version: 1151b9dac4a98d49ef7f80f07ddd826ff51e0b36
+  version: 05986578812163b26672dabd9b425240ae2bb0ad
   subpackages:
   - cpu
 testImports:
@@ -42,6 +42,10 @@ testImports:
   subpackages:
   - assert
 - name: github.com/uol/gotest
-  version: 722ab493fff3af02df304ce64b32e353a730197e
+  version: b94df555148ad97bc7b864b127454cb49630b79e
+  subpackages:
+  - http
+  - telnet
+  - utils
 - name: gopkg.in/yaml.v2
   version: 0b1645d91e851e735d3e23330303ce81f70adbe3

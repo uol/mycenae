@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/uol/funks"
-	"github.com/uol/gotest"
+	gotesthttp "github.com/uol/gotest/http"
 	"github.com/uol/hashing"
 	serializer "github.com/uol/serializer/json"
 	"github.com/uol/timeline"
@@ -83,7 +83,7 @@ func testFlatOperation(t *testing.T, operation timeline.FlatOperation, expectedV
 
 	number.Value = expectedValue
 
-	requestData := gotest.WaitForHTTPServerRequest(s, time.Second, 10*time.Second)
+	requestData := gotesthttp.WaitForServerRequest(s, time.Second, 10*time.Second)
 	testRequestData(t, requestData, []*serializer.NumberPoint{number}, true, false)
 }
 
