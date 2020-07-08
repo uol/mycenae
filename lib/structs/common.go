@@ -77,8 +77,8 @@ type Settings struct {
 	GlobalTelnetServerConfiguration    GlobalTelnetServerConfiguration
 	HTTPserver                         SettingsHTTP
 	UDPserver                          SettingsUDP
-	TELNETserver                       TelnetServerConfiguration
-	NetdataServer                      TelnetServerConfiguration
+	TELNETserver                       []TelnetServerConfiguration
+	NetdataServer                      []TelnetServerConfiguration
 	MaxAllowedTTL                      int
 	DefaultKeysets                     []string
 	BlacklistedKeysets                 []string

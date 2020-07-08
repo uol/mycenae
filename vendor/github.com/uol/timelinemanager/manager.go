@@ -5,10 +5,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/uol/funks"
-	"github.com/uol/hashing"
+	"github.com/jinzhu/copier"
 	"github.com/uol/logh"
 	jsonSerializer "github.com/uol/serializer/json"
+	"github.com/uol/serializer/serializer"
 	"github.com/uol/timeline"
 )
 
@@ -17,90 +17,11 @@ import (
 // @author: rnojiri
 //
 
-// StorageType - the storage type constant
-type StorageType string
-
-// TransportType - the transport type constant
-type TransportType string
-
-const (
-	// Normal - normal storage backend
-	Normal StorageType = "normal"
-
-	// Archive - archive storage backend
-	Archive StorageType = "archive"
-
-	// HTTP - http transport type
-	HTTP TransportType = "http"
-
-	// OpenTSDB - opentsdb transport type
-	OpenTSDB TransportType = "opentsdb"
-
-	cFunction  string = "func"
-	cType      string = "type"
-	cOperation string = "operation"
-	cHost      string = "host"
-
-	cHTTPNumberFormat string = "httpNumberFormat"
-	cHTTPTextFormat   string = "httpTextFormat"
-)
-
-// ErrStorageNotFound - raised when a storage type was not found
-var ErrStorageNotFound error = fmt.Errorf("storage type not found")
-
-// ErrTransportNotSupported - raised when a transport is not supported for the specified storage
-var ErrTransportNotSupported error = fmt.Errorf("transport not supported")
-
-// BackendItem - one backend configuration
-type BackendItem struct {
-	timeline.Backend
-	Storage       StorageType
-	Type          TransportType
-	CycleDuration funks.Duration
-	AddHostTag    bool
-	CommonTags    map[string]string
-}
-
 // backendManager - internal type
 type backendManager struct {
 	manager    *timeline.Manager
 	commonTags []interface{}
 	ttype      TransportType
-}
-
-// Configuration - configuration
-type Configuration struct {
-	Backends         []BackendItem
-	HashingAlgorithm hashing.Algorithm
-	HashSize         int
-	DataTTL          funks.Duration
-	timeline.DefaultTransportConfiguration
-	OpenTSDBTransport *timeline.OpenTSDBTransportConfig
-	HTTPTransport     *timeline.HTTPTransportConfig
-}
-
-// Validate - validates the configuration
-func (c *Configuration) Validate() error {
-
-	if len(c.Backends) == 0 {
-		return fmt.Errorf("no backends configured")
-	}
-
-	var hasOpenTSDB, hasHTTP bool
-
-	if hasOpenTSDB = c.OpenTSDBTransport != nil; hasOpenTSDB {
-		c.OpenTSDBTransport.DefaultTransportConfiguration = c.DefaultTransportConfiguration
-	}
-
-	if hasHTTP = c.HTTPTransport != nil; hasHTTP {
-		c.HTTPTransport.DefaultTransportConfiguration = c.DefaultTransportConfiguration
-	}
-
-	if !hasOpenTSDB && !hasHTTP {
-		return fmt.Errorf("no transports configured")
-	}
-
-	return nil
 }
 
 // Instance - manages the configured number of timeline manager instances
@@ -156,83 +77,194 @@ func (tm *Instance) storageTypeNotFound(function string, stype StorageType) erro
 	return ErrStorageNotFound
 }
 
+func (tm *Instance) createSerializer(conf *TransportExt, bufferSize int) (serializer.Serializer, error) {
+
+	if len(conf.Serializer) == 0 {
+		conf.Serializer = JSONSerializer
+	}
+
+	if conf.Serializer == JSONSerializer {
+
+		js := jsonSerializer.New(bufferSize)
+
+		err := js.Add(
+			cHTTPNumberFormat,
+			jsonSerializer.NumberPoint{},
+			cMetric,
+			cValue,
+			cTimestamp,
+			cTags,
+		)
+
+		if err != nil {
+			return nil, err
+		}
+
+		err = js.Add(
+			cHTTPTextFormat,
+			jsonSerializer.TextPoint{},
+			cMetric,
+			cText,
+			cTimestamp,
+			cTags,
+		)
+
+		if err != nil {
+			return nil, err
+		}
+
+		if len(conf.JSONMappings) > 0 {
+			for _, mapping := range conf.JSONMappings {
+				err = js.Add(
+					mapping.MappingName,
+					mapping.Instance,
+					mapping.Variables...,
+				)
+
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+
+		return js, nil
+	}
+
+	if conf.Serializer == OpenTSDBSerializer {
+
+		return jsonSerializer.New(bufferSize), nil
+	}
+
+	return nil, fmt.Errorf(`serializer named "%s" is not configured`, conf.Serializer)
+}
+
+func (tm *Instance) createHTTPTransport(conf *HTTPTransportConfigExt) (*timeline.HTTPTransport, error) {
+
+	s, err := tm.createSerializer(&conf.TransportExt, conf.SerializerBufferSize)
+	if err != nil {
+		return nil, err
+	}
+
+	httpTransport, err := timeline.NewHTTPTransport(&conf.HTTPTransportConfig, s)
+	if err != nil {
+		return nil, err
+	}
+
+	return httpTransport, nil
+}
+
+func (tm *Instance) createUDPTransport(conf *UDPTransportConfigExt) (*timeline.UDPTransport, error) {
+
+	s, err := tm.createSerializer(&conf.TransportExt, conf.SerializerBufferSize)
+	if err != nil {
+		return nil, err
+	}
+
+	httpTransport, err := timeline.NewUDPTransport(&conf.UDPTransportConfig, s)
+	if err != nil {
+		return nil, err
+	}
+
+	return httpTransport, nil
+}
+
 // Start - starts the timeline manager
 func (tm *Instance) Start() error {
+
+	type transportRef struct {
+		transport timeline.Transport
+		ttype     TransportType
+	}
+
+	transportMap := map[string]transportRef{}
+
+	for k, v := range tm.configuration.HTTPTransports {
+
+		if _, exists := transportMap[k]; exists {
+			return fmt.Errorf(`error creating http transport, name is duplicated: %s`, k)
+		}
+
+		confCopy := HTTPTransportConfigExt{}
+		copier.Copy(&confCopy, v)
+
+		t, err := tm.createHTTPTransport(&confCopy)
+		if err != nil {
+			return err
+		}
+
+		transportMap[k] = transportRef{
+			transport: t,
+			ttype:     HTTPTransport,
+		}
+	}
+
+	for k, v := range tm.configuration.OpenTSDBTransports {
+
+		if _, exists := transportMap[k]; exists {
+			return fmt.Errorf(`error creating opentsdb transport, name is duplicated: %s`, k)
+		}
+
+		confCopy := timeline.OpenTSDBTransportConfig{}
+		copier.Copy(&confCopy, &v.OpenTSDBTransportConfig)
+
+		t, err := timeline.NewOpenTSDBTransport(&confCopy)
+		if err != nil {
+			return err
+		}
+
+		transportMap[k] = transportRef{
+			transport: t,
+			ttype:     OpenTSDBTransport,
+		}
+	}
+
+	for k, v := range tm.configuration.UDPTransports {
+
+		if _, exists := transportMap[k]; exists {
+			return fmt.Errorf(`error creating udp transport, name is duplicated: %s`, k)
+		}
+
+		confCopy := UDPTransportConfigExt{}
+		copier.Copy(&confCopy, v)
+
+		t, err := tm.createUDPTransport(&confCopy)
+		if err != nil {
+			return err
+		}
+
+		transportMap[k] = transportRef{
+			transport: t,
+			ttype:     UDPTransport,
+		}
+	}
 
 	tm.backendMap = map[StorageType]backendManager{}
 
 	for i := 0; i < len(tm.configuration.Backends); i++ {
 
-		b := timeline.Backend{
-			Host: tm.configuration.Backends[i].Host,
-			Port: tm.configuration.Backends[i].Port,
-		}
+		b := &tm.configuration.Backends[i].Backend
 
-		name := fmt.Sprintf(
-			"%s-%s:%d",
-			tm.configuration.Backends[i].Storage,
-			b.Host,
-			b.Port,
-		)
-
-		dtc := timeline.DataTransformerConf{
+		dtc := timeline.DataTransformerConfig{
 			CycleDuration:    tm.configuration.Backends[i].CycleDuration,
 			HashSize:         tm.configuration.HashSize,
 			HashingAlgorithm: tm.configuration.HashingAlgorithm,
-			Name:             name,
 		}
 
 		f := timeline.NewFlattener(&dtc)
 		a := timeline.NewAccumulator(&dtc)
 
 		var manager *timeline.Manager
+		var reference transportRef
 		var err error
+		var ok bool
 
-		if tm.configuration.Backends[i].Type == OpenTSDB {
+		if reference, ok = transportMap[tm.configuration.Backends[i].Transport]; ok {
 
-			conf := *tm.configuration.OpenTSDBTransport
-			conf.Name = name
-
-			opentsdbTransport, err := timeline.NewOpenTSDBTransport(&conf)
-			if err != nil {
-				return err
-			}
-
-			manager, err = timeline.NewManager(opentsdbTransport, f, a, &b)
-
-		} else if tm.configuration.Backends[i].Type == HTTP {
-
-			conf := *tm.configuration.HTTPTransport
-			conf.Name = name
-
-			httpTransport, err := timeline.NewHTTPTransport(&conf)
-			if err != nil {
-				return err
-			}
-
-			httpTransport.AddJSONMapping(
-				cHTTPNumberFormat,
-				jsonSerializer.NumberPoint{},
-				cMetric,
-				cValue,
-				cTimestamp,
-				cTags,
-			)
-
-			httpTransport.AddJSONMapping(
-				cHTTPTextFormat,
-				jsonSerializer.TextPoint{},
-				cMetric,
-				cText,
-				cTimestamp,
-				cTags,
-			)
-
-			manager, err = timeline.NewManager(httpTransport, f, a, &b)
+			manager, err = timeline.NewManager(reference.transport, f, a, b, cLoggerStorage, string(tm.configuration.Backends[i].Storage))
 
 		} else {
 
-			err = fmt.Errorf("transport type %s is undefined", tm.configuration.Backends[i].Type)
+			err = fmt.Errorf("transport name is undefined: %s", tm.configuration.Backends[i].Transport)
 		}
 
 		if err != nil {
@@ -267,7 +299,7 @@ func (tm *Instance) Start() error {
 		tm.backendMap[tm.configuration.Backends[i].Storage] = backendManager{
 			manager:    manager,
 			commonTags: tags,
-			ttype:      tm.configuration.Backends[i].Type,
+			ttype:      reference.ttype,
 		}
 
 		err = manager.Start()
@@ -276,7 +308,7 @@ func (tm *Instance) Start() error {
 		}
 
 		if logh.InfoEnabled {
-			tm.logger.Info().Str(cType, string(tm.configuration.Backends[i].Type)).Msgf("timeline manager created: %s:%d (%+v)", b.Host, b.Port, tags)
+			tm.logger.Info().Str(cType, string(reference.ttype)).Msgf("timeline manager created: %s:%d (%+v)", b.Host, b.Port, tags)
 		}
 	}
 
@@ -303,5 +335,6 @@ func (tm *Instance) Shutdown() {
 
 // GetConfiguredDataTTL - returns the configured data ttl
 func (tm *Instance) GetConfiguredDataTTL() time.Duration {
+
 	return tm.configuration.DataTTL.Duration
 }

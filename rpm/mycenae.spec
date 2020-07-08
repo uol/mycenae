@@ -5,7 +5,7 @@
 %define projectname mycenae
 %define build_timestamp %(date +"%Y%m%d%H%M")
 Name:      %{projectname}
-Version:   2.28.2
+Version:   2.29.0
 Release:   %{build_timestamp}
 
 Packager:  UOL - Universo Online S.A.

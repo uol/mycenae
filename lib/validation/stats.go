@@ -114,9 +114,9 @@ func (v *Service) StatsValidationError(function, keyset, ip string, sourceType *
 	}
 
 	if stored {
-		if logh.DebugEnabled {
-			v.logger.Debug().Str(constants.StringsFunc, function).Msgf("validation error incremented: %s, %s, %s", keyset, ip, errorCode)
-		}
+		// if logh.DebugEnabled {
+		// 	v.logger.Debug().Str(constants.StringsFunc, function).Msgf("validation error incremented: %s, %s, %s", keyset, ip, errorCode)
+		// }
 
 		v.incValidationErrorCount()
 		return
@@ -144,9 +144,9 @@ func (v *Service) StatsValidationError(function, keyset, ip string, sourceType *
 		return
 	}
 
-	if logh.DebugEnabled {
-		v.logger.Debug().Str(constants.StringsFunc, function).Msgf("accumulated metric stored with success: %s, %s, %s", keyset, ip, errorCode)
-	}
+	// if logh.DebugEnabled {
+	// 	v.logger.Debug().Str(constants.StringsFunc, function).Msgf("accumulated metric stored with success: %s, %s, %s", keyset, ip, errorCode)
+	// }
 }
 
 // storeValidationErrorCount - stores the global validation error counter

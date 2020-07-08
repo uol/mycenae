@@ -177,6 +177,10 @@ func configureLogger(conf *structs.LoggerSettings) *logh.ContextualLogger {
 // createTimelineManager - creates the timeline manager
 func createTimelineManager(settings *tlmanager.Configuration) *tlmanager.Instance {
 
+	if logh.DebugEnabled {
+		logger.Debug().Msgf("%+v", *settings)
+	}
+
 	tm, err := tlmanager.New(settings)
 	if err != nil {
 		if logh.FatalEnabled {
@@ -457,20 +461,24 @@ func createTelnetManager(conf *structs.Settings, collectorService *collector.Col
 		timelineManager,
 	)
 
-	err = telnetManager.AddServer(&conf.NetdataServer, &conf.GlobalTelnetServerConfiguration, telnet.NewNetdataHandler(conf.NetdataServer.CacheDuration, collectorService, &conf.GlobalTelnetServerConfiguration, validationService))
-	if err != nil {
-		if logh.FatalEnabled {
-			logger.Fatal().Err(err).Msg("error creating telnet server 'netdata'")
+	for i := 0; i < len(conf.NetdataServer); i++ {
+		err = telnetManager.AddServer(&conf.NetdataServer[i], &conf.GlobalTelnetServerConfiguration, telnet.NewNetdataHandler(conf.NetdataServer[i].CacheDuration, collectorService, &conf.GlobalTelnetServerConfiguration, validationService))
+		if err != nil {
+			if logh.FatalEnabled {
+				logger.Fatal().Err(err).Msg("error creating telnet server 'netdata'")
+			}
+			os.Exit(1)
 		}
-		os.Exit(1)
 	}
 
-	err = telnetManager.AddServer(&conf.TELNETserver, &conf.GlobalTelnetServerConfiguration, telnet.NewOpenTSDBHandler(collectorService, &conf.GlobalTelnetServerConfiguration, validationService))
-	if err != nil {
-		if logh.FatalEnabled {
-			logger.Fatal().Err(err).Msg("error creating telnet server 'telnet'")
+	for i := 0; i < len(conf.TELNETserver); i++ {
+		err = telnetManager.AddServer(&conf.TELNETserver[i], &conf.GlobalTelnetServerConfiguration, telnet.NewOpenTSDBHandler(collectorService, &conf.GlobalTelnetServerConfiguration, validationService))
+		if err != nil {
+			if logh.FatalEnabled {
+				logger.Fatal().Err(err).Msg("error creating telnet server 'telnet'")
+			}
+			os.Exit(1)
 		}
-		os.Exit(1)
 	}
 
 	if logh.InfoEnabled {

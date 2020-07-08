@@ -1,9 +1,0 @@
-package: github.com/uol/funks
-import: []
-testImport:
-- package: github.com/stretchr/testify
-  version: ~1.4.0
-  subpackages:
-  - assert
-- package: github.com/BurntSushi/toml
-  version: ~v0.3.1

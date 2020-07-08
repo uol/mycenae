@@ -13,7 +13,7 @@ const (
 )
 
 // getHash - returns the hash
-func getHash(config *DataTransformerConf, hashParameters ...interface{}) (string, error) {
+func getHash(config *DataTransformerConfig, hashParameters ...interface{}) (string, error) {
 
 	var hashBytes []byte
 	var err error

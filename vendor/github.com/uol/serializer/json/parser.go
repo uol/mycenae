@@ -312,6 +312,9 @@ func (s *Serializer) getValueFromField(field *reflect.StructField, value *reflec
 		return strconv.FormatBool(value.Bool()), nil
 	case reflect.Interface:
 		iface := value.Interface()
+		if serializer.InterfaceHasZeroValue(iface) {
+			return serializer.Null, nil
+		}
 		internalValue := reflect.ValueOf(iface)
 		return s.getValueFromField(nil, &internalValue)
 	default:

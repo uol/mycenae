@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	// RawHTTP - defines a no flattened operation
-	RawHTTP timeline.FlatOperation = 100
+	// RawJSON - defines a no flattened operation
+	RawJSON timeline.FlatOperation = 100
 	// RawOpenTSDB - defines a no flattened operation
 	RawOpenTSDB timeline.FlatOperation = 101
 
@@ -21,6 +21,20 @@ const (
 	cTags      string = "tags"
 	cEmpty     string = ""
 )
+
+func (tm *Instance) logSendOperationError(caller string, err error) {
+
+	if err != nil {
+		if logh.ErrorEnabled {
+			ev := tm.logger.Error().Err(err)
+			if len(caller) > 0 {
+				ev = ev.Str(cFunction, caller)
+			}
+			ev = ev.Str(cFunction, caller)
+			ev.Msg("operation error")
+		}
+	}
+}
 
 // Send - send a point or do a flatten operation
 func (tm *Instance) Send(caller string, stype StorageType, op timeline.FlatOperation, value float64, metric string, tags ...interface{}) error {
@@ -37,7 +51,7 @@ func (tm *Instance) Send(caller string, stype StorageType, op timeline.FlatOpera
 	tags = append(tags, backend.commonTags...)
 
 	var err error
-	if backend.ttype == OpenTSDB {
+	if backend.ttype == OpenTSDBTransport {
 
 		if op == RawOpenTSDB {
 			err = backend.manager.SendOpenTSDB(value, time.Now().Unix(), metric, tags...)
@@ -47,10 +61,10 @@ func (tm *Instance) Send(caller string, stype StorageType, op timeline.FlatOpera
 			err = ErrTransportNotSupported
 		}
 
-	} else if backend.ttype == HTTP {
+	} else if backend.ttype == HTTPTransport || backend.ttype == UDPTransport {
 
-		if op == RawHTTP {
-			err = backend.manager.SendHTTP(
+		if op == RawJSON {
+			err = backend.manager.SendJSON(
 				cHTTPNumberFormat,
 				[]interface{}{
 					cMetric, metric,
@@ -60,7 +74,7 @@ func (tm *Instance) Send(caller string, stype StorageType, op timeline.FlatOpera
 				}...,
 			)
 		} else if op >= timeline.Avg && op <= timeline.Min {
-			err = backend.manager.FlattenHTTP(
+			err = backend.manager.FlattenJSON(
 				op,
 				cHTTPNumberFormat,
 				[]interface{}{
@@ -78,16 +92,7 @@ func (tm *Instance) Send(caller string, stype StorageType, op timeline.FlatOpera
 		err = ErrTransportNotSupported
 	}
 
-	if err != nil {
-		if logh.ErrorEnabled {
-			ev := tm.logger.Error().Err(err)
-			if len(caller) > 0 {
-				ev = ev.Str(cFunction, caller)
-			}
-			ev = ev.Str(cFunction, caller)
-			ev.Msg("operation error")
-		}
-	}
+	tm.logSendOperationError(caller, err)
 
 	return err
 }
@@ -107,9 +112,9 @@ func (tm *Instance) SendText(caller string, stype StorageType, value, metric str
 	tags = append(tags, backend.commonTags...)
 
 	var err error
-	if backend.ttype == HTTP {
+	if backend.ttype == HTTPTransport || backend.ttype == UDPTransport {
 
-		err = backend.manager.SendHTTP(
+		err = backend.manager.SendJSON(
 			cHTTPTextFormat,
 			[]interface{}{
 				cMetric, metric,
@@ -123,16 +128,7 @@ func (tm *Instance) SendText(caller string, stype StorageType, value, metric str
 		err = ErrTransportNotSupported
 	}
 
-	if err != nil {
-		if logh.ErrorEnabled {
-			ev := tm.logger.Error().Err(err)
-			if len(caller) > 0 {
-				ev = ev.Str(cFunction, caller)
-			}
-			ev = ev.Str(cFunction, caller)
-			ev.Msg("operation error")
-		}
-	}
+	tm.logSendOperationError(caller, err)
 
 	return err
 }
@@ -167,7 +163,7 @@ func (tm *Instance) StoreHashedData(stype StorageType, hash string, ttl time.Dur
 
 	tags = append(tags, backend.commonTags...)
 
-	if backend.ttype == OpenTSDB {
+	if backend.ttype == OpenTSDBTransport {
 
 		return backend.manager.StoreHashedDataToAccumulateOpenTSDB(
 			hash,
@@ -178,9 +174,9 @@ func (tm *Instance) StoreHashedData(stype StorageType, hash string, ttl time.Dur
 			tags...,
 		)
 
-	} else if backend.ttype == HTTP {
+	} else if backend.ttype == HTTPTransport || backend.ttype == UDPTransport {
 
-		return backend.manager.StoreHashedDataToAccumulateHTTP(
+		return backend.manager.StoreHashedDataToAccumulateJSON(
 			hash,
 			ttl,
 			cHTTPNumberFormat,
@@ -205,4 +201,28 @@ func (tm *Instance) toTagMap(tags []interface{}) map[string]interface{} {
 	}
 
 	return tagMap
+}
+
+// SendCustomJSON - send a custom json point
+func (tm *Instance) SendCustomJSON(caller string, stype StorageType, mappingName string, variables ...interface{}) error {
+
+	if !tm.ready {
+		return nil
+	}
+
+	backend, ok := tm.backendMap[stype]
+	if !ok {
+		return tm.storageTypeNotFound(caller, stype)
+	}
+
+	var err error
+	if backend.ttype == HTTPTransport || backend.ttype == UDPTransport {
+		err = backend.manager.SendJSON(mappingName, variables...)
+	} else {
+		err = ErrTransportNotSupported
+	}
+
+	tm.logSendOperationError(caller, err)
+
+	return err
 }

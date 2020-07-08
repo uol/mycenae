@@ -13,7 +13,7 @@ import (
 
 // FlattenAvgN - calls the Flatten function using normal storage and average operation
 func (tm *Instance) FlattenAvgN(caller string, value float64, metric string, tags ...interface{}) {
-	tm.Send(caller, Normal, timeline.Avg, value, metric, tags...)
+	tm.Send(caller, NormalStorage, timeline.Avg, value, metric, tags...)
 }
 
 // FlattenCountN - calls the Flatten function using normal storage and count operation
@@ -21,42 +21,43 @@ func (tm *Instance) FlattenCountN(caller string, value float64, metric string, t
 	if value == 0 {
 		return
 	}
-	tm.Send(caller, Normal, timeline.Count, value, metric, tags...)
+	// WARNING!!! this operation must be sum because count only sums the number of occurrences and not their values
+	tm.Send(caller, NormalStorage, timeline.Sum, value, metric, tags...)
 }
 
 // FlattenCountIncN - calls the Flatten function using normal storage and count operation (adds 1 to the value)
 func (tm *Instance) FlattenCountIncN(caller string, metric string, tags ...interface{}) {
-	tm.Send(caller, Normal, timeline.Count, 1, metric, tags...)
+	tm.Send(caller, NormalStorage, timeline.Count, 1, metric, tags...)
 }
 
 // FlattenMaxN - calls the Flatten function using normal storage and maximum operation
 func (tm *Instance) FlattenMaxN(caller string, value float64, metric string, tags ...interface{}) {
-	tm.Send(caller, Normal, timeline.Max, value, metric, tags...)
+	tm.Send(caller, NormalStorage, timeline.Max, value, metric, tags...)
 }
 
 // FlattenMinN - calls the Flatten function using normal storage and minimum operation
 func (tm *Instance) FlattenMinN(caller string, value float64, metric string, tags ...interface{}) {
-	tm.Send(caller, Normal, timeline.Min, value, metric, tags...)
+	tm.Send(caller, NormalStorage, timeline.Min, value, metric, tags...)
 }
 
 // FlattenCountIncA - calls the Flatten function using archive storage and count operation (adds 1 to the value)
 func (tm *Instance) FlattenCountIncA(caller string, metric string, tags ...interface{}) {
-	tm.Send(caller, Archive, timeline.Count, 1, metric, tags...)
+	tm.Send(caller, ArchiveStorage, timeline.Count, 1, metric, tags...)
 }
 
 // AccumulateCustomHashN - calls the accumulate function using normal storage
 func (tm *Instance) AccumulateCustomHashN(hash string) (bool, error) {
-	return tm.AccumulateHashedData(Normal, hash)
+	return tm.AccumulateHashedData(NormalStorage, hash)
 }
 
 // StoreCustomHashN - calls the store hash function using normal storage
 func (tm *Instance) StoreCustomHashN(hash string, metric string, tags ...interface{}) error {
-	return tm.StoreHashedData(Normal, hash, tm.configuration.DataTTL.Duration, metric, tags...)
+	return tm.StoreHashedData(NormalStorage, hash, tm.configuration.DataTTL.Duration, metric, tags...)
 }
 
 // StoreNoTTLCustomHashN - calls the store hash function using normal storage with no ttl
 func (tm *Instance) StoreNoTTLCustomHashN(hash string, metric string, tags ...interface{}) error {
-	return tm.StoreHashedData(Normal, hash, 0, metric, tags...)
+	return tm.StoreHashedData(NormalStorage, hash, 0, metric, tags...)
 }
 
 // StoreDefaultTTLCustomHash - stores with default configured ttl

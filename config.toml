@@ -123,7 +123,7 @@ DelayedMetricsThreshold = 10000
   # allows the same host to connect multiple times
   RemoveMultipleConnsRestriction = false
 
-[NetdataServer]
+[[NetdataServer]]
   port = 8023
   bind = "loghost"
   onErrorTimeout = "5s"
@@ -133,14 +133,23 @@ DelayedMetricsThreshold = 10000
   cacheDuration = "1m"
   ServerName = "Netdata Telnet Server"
 
-[TELNETserver]
+[[TELNETserver]]
   port = 8123
   bind = "loghost"
   onErrorTimeout = "5s" 
   sendStatsTimeout = "10s"
   maxIdleConnectionTimeout = "30s"
   maxBufferSize = 2048
-  ServerName = "OpenTSDB Telnet Server"
+  ServerName = "OpenTSDB Telnet Server 1"
+
+[[TELNETserver]]
+  port = 8223
+  bind = "loghost"
+  onErrorTimeout = "5s" 
+  sendStatsTimeout = "10s"
+  maxIdleConnectionTimeout = "30s"
+  maxBufferSize = 2048
+  ServerName = "OpenTSDB Telnet Server 2"
 
 [logs]
   level = "debug"
@@ -156,19 +165,19 @@ DelayedMetricsThreshold = 10000
   serializerBufferSize = 2048
   debugInput = false
   debugOutput = false
-  timeBetweenBatches = "1s"
+  timeBetweenBatches = "100ms"
   printStackOnError = false
 
-  [stats.openTSDBTransport]
+  [stats.openTSDBTransports.opentsdb]
     readBufferSize = 64
     maxReadTimeout = "100ms"
     reconnectionTimeout = "3s"
     maxReconnectionRetries = 5
     disconnectAfterWrites = false
 
-  [stats.httpTransport]
+  [stats.httpTransports.number]
     serviceEndpoint = "/api/put"
-    method = "POST"
+    method = "PUT"
     expectedResponseStatus = 204
     timestampProperty = "timestamp"
     valueProperty = "value"
@@ -177,9 +186,9 @@ DelayedMetricsThreshold = 10000
     addHostTag    = true
     cycleDuration = "15s"
     host          = "10.128.5.208"
-    port          = 80
+    port          = 8082
     storage       = "normal"
-    type          = "http"
+    transport     = "number"
 
     [stats.backends.commonTags]
       ksid    = "pdeng_stats"
@@ -190,9 +199,9 @@ DelayedMetricsThreshold = 10000
     addHostTag    = true
     cycleDuration = "15s"
     host          = "10.128.5.208"
-    port          = 80
+    port          = 8082
     storage       = "archive"
-    type          = "http"
+    transport     = "number"
 
     [stats.backends.commonTags]
       ksid    = "pdeng_analytics"
@@ -203,9 +212,9 @@ DelayedMetricsThreshold = 10000
     addHostTag    = false
     cycleDuration = "15s"
     host          = "loghost"
-    port          = 80
+    port          = 8082
     storage       = "validation"
-    type          = "http"
+    transport     = "number"
 
     [stats.backends.commonTags]
       ksid    = "pdeng_validation_errors"
