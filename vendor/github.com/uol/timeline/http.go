@@ -8,11 +8,11 @@ import (
 
 	"github.com/uol/funks"
 	"github.com/uol/logh"
-	serializer "github.com/uol/serializer/json"
+	"github.com/uol/serializer/serializer"
 )
 
 /**
-* The HTTP JSON transport implementation.
+* The HTTP transport implementation.
 * @author rnojiri
 **/
 
@@ -22,22 +22,13 @@ type HTTPTransport struct {
 	httpClient           *http.Client
 	serviceURL           string
 	configuration        *HTTPTransportConfig
-	serializer           *serializer.Serializer
 	useCustomJSONMapping bool
+	serializer           serializer.Serializer
+	serializerTransport  *customSerializerTransport
 }
 
-// HTTPTransportConfig - has all HTTP event manager configurations
-type HTTPTransportConfig struct {
-	DefaultTransportConfiguration
-	ServiceEndpoint        string
-	Method                 string
-	ExpectedResponseStatus int
-	TimestampProperty      string
-	ValueProperty          string
-}
-
-// NewHTTPTransport - creates a new HTTP event manager
-func NewHTTPTransport(configuration *HTTPTransportConfig) (*HTTPTransport, error) {
+// NewHTTPTransport - creates a new HTTP event manager with a customized serializer
+func NewHTTPTransport(configuration *HTTPTransportConfig, customSerializer serializer.Serializer) (*HTTPTransport, error) {
 
 	if configuration == nil {
 		return nil, fmt.Errorf("null configuration found")
@@ -55,22 +46,17 @@ func NewHTTPTransport(configuration *HTTPTransportConfig) (*HTTPTransport, error
 		return nil, fmt.Errorf("value property is not configured")
 	}
 
-	s := serializer.New(configuration.SerializerBufferSize)
-
-	logContext := []string{"pkg", "timeline/http"}
-	if len(configuration.Name) > 0 {
-		logContext = append(logContext, "name", configuration.Name)
-	}
-
 	t := &HTTPTransport{
 		core: transportCore{
 			batchSendInterval:    configuration.BatchSendInterval.Duration,
-			loggers:              logh.CreateContextualLogger(logContext...),
-			defaultConfiguration: &configuration.DefaultTransportConfiguration,
+			defaultConfiguration: &configuration.DefaultTransportConfig,
 		},
+		serializerTransport: &customSerializerTransport{
+			configuration: &configuration.CustomSerializerConfig,
+		},
+		serializer:    customSerializer,
 		configuration: configuration,
 		httpClient:    funks.CreateHTTPClient(configuration.RequestTimeout.Duration, true),
-		serializer:    s,
 	}
 
 	t.core.transport = t
@@ -78,10 +64,16 @@ func NewHTTPTransport(configuration *HTTPTransportConfig) (*HTTPTransport, error
 	return t, nil
 }
 
-// AddJSONMapping - overrides the default generic property mappings
-func (t *HTTPTransport) AddJSONMapping(name string, p interface{}, variables ...string) error {
+// BuildContextualLogger - build the contextual logger using more info
+func (t *HTTPTransport) BuildContextualLogger(path ...string) {
 
-	return t.serializer.Add(name, p, variables...)
+	logContext := []string{"pkg", "timeline/http"}
+
+	if len(path) > 0 {
+		logContext = append(logContext, path...)
+	}
+
+	t.core.loggers = logh.CreateContextualLogger(logContext...)
 }
 
 // ConfigureBackend - configures the backend
@@ -100,73 +92,43 @@ func (t *HTTPTransport) ConfigureBackend(backend *Backend) error {
 	return nil
 }
 
+// SerializePayload - serializes a list of generic data
+func (t *HTTPTransport) SerializePayload(dataList []interface{}) (payload []string, err error) {
+
+	serialized, err := t.serializer.SerializeGenericArray(dataList...)
+	if err != nil {
+		return nil, err
+	}
+
+	payload = append(payload, serialized)
+
+	return
+}
+
 // DataChannel - send a new point
 func (t *HTTPTransport) DataChannel(item interface{}) {
 
-	t.core.pointBuffer.Add(item)
+	t.core.dataChannel(item)
 }
 
 // TransferData - transfers the data to the backend throught this transport
-func (t *HTTPTransport) TransferData(dataList []interface{}) error {
+func (t *HTTPTransport) TransferData(payload []string) error {
 
-	numPoints := len(dataList)
-	if numPoints == 0 {
-
-		if logh.WarnEnabled {
-			t.core.loggers.Warn().Msg("no points to transfer")
-		}
-
-		return nil
+	size := len(payload)
+	if size == 0 || size > 1 {
+		return ErrInvalidPayloadSize
 	}
 
-	points := make([]*serializer.ArrayItem, numPoints)
-
-	var ok bool
-	for i := 0; i < numPoints; i++ {
-
-		if dataList[i] == nil {
-
-			if logh.ErrorEnabled {
-				ev := t.core.loggers.Error()
-				if t.PrintStackOnError() {
-					ev = ev.Caller()
-				}
-				ev.Msgf("null point at buffer index: %d", i)
-			}
-
-			continue
-		}
-
-		points[i], ok = dataList[i].(*serializer.ArrayItem)
-		if !ok {
-
-			if logh.ErrorEnabled {
-				ev := t.core.loggers.Error()
-				if t.PrintStackOnError() {
-					ev = ev.Caller()
-				}
-				ev.Msgf("could not cast object: %+v", dataList[i])
-			}
-
-			return fmt.Errorf("error casting data to serializer.ArrayItem: %+v", dataList[i])
-		}
-	}
-
-	t.core.debugInput(dataList)
-
-	payload, err := t.serializer.SerializeArray(points...)
+	req, err := http.NewRequest(t.configuration.Method, t.serviceURL, bytes.NewBuffer([]byte(payload[0])))
 	if err != nil {
 		return err
 	}
 
-	t.core.debugOutput(payload)
-
-	req, err := http.NewRequest(t.configuration.Method, t.serviceURL, bytes.NewBuffer([]byte(payload)))
-	if err != nil {
-		return err
+	if len(t.configuration.Headers) > 0 {
+		for k, v := range t.configuration.Headers {
+			req.Header.Set(k, v)
+		}
 	}
-
-	req.Header.Set("Content-type", "application/json")
 
 	res, err := t.httpClient.Do(req)
 	if err != nil {
@@ -204,16 +166,4 @@ func (t *HTTPTransport) Start() error {
 func (t *HTTPTransport) Close() {
 
 	t.core.Close()
-}
-
-// Serialize - renders the text using the configured serializer
-func (t *HTTPTransport) Serialize(item interface{}) (string, error) {
-
-	return t.serializer.SerializeGeneric(item)
-}
-
-// PrintStackOnError - enables the stack print to the log
-func (t *HTTPTransport) PrintStackOnError() bool {
-
-	return t.configuration.PrintStackOnError
 }

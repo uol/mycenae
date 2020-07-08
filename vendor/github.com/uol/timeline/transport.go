@@ -1,10 +1,11 @@
 package timeline
 
 import (
+	"errors"
 	"fmt"
+	"reflect"
 	"time"
 
-	"github.com/uol/funks"
 	"github.com/uol/logh"
 	"github.com/uol/timeline/buffer"
 )
@@ -17,8 +18,14 @@ import (
 type transportType uint8
 
 const (
-	typeHTTP transportType = 0
-	typeOpenTSDB
+	typeHTTP     transportType = 1
+	typeOpenTSDB transportType = 2
+	typeUDP      transportType = 3
+)
+
+var (
+	// ErrInvalidPayloadSize - raised when the transport receives an invalid payload size
+	ErrInvalidPayloadSize error = errors.New("invalid payload size")
 )
 
 // Transport - the implementation type to send a event
@@ -31,7 +38,10 @@ type Transport interface {
 	ConfigureBackend(backend *Backend) error
 
 	// TransferData - transfers the data using this specific implementation
-	TransferData(dataList []interface{}) error
+	TransferData(payload []string) error
+
+	// SerializePayload - serializes a list of generic data
+	SerializePayload(dataList []interface{}) (payload []string, err error)
 
 	// Start - starts this transport
 	Start() error
@@ -46,19 +56,19 @@ type Transport interface {
 	Serialize(item interface{}) (string, error)
 
 	// DataChannelItemToFlattenerPoint - converts the data channel item to the flattened point
-	DataChannelItemToFlattenerPoint(configuration *DataTransformerConf, item interface{}, operation FlatOperation) (Hashable, error)
+	DataChannelItemToFlattenerPoint(configuration *DataTransformerConfig, item interface{}, operation FlatOperation) (Hashable, error)
 
 	// FlattenerPointToDataChannelItem - converts the flattened point to the data channel item
 	FlattenerPointToDataChannelItem(item *FlattenerPoint) (interface{}, error)
 
 	// DataChannelItemToAccumulatedData - converts the data channel item to the accumulated data
-	DataChannelItemToAccumulatedData(configuration *DataTransformerConf, item interface{}, calculateHash bool) (Hashable, error)
+	DataChannelItemToAccumulatedData(configuration *DataTransformerConfig, item interface{}, calculateHash bool) (Hashable, error)
 
 	// AccumulatedDataToDataChannelItem - converts the accumulated data to the data channel item
 	AccumulatedDataToDataChannelItem(item *AccumulatedData) (interface{}, error)
 
-	// PrintStackOnError - enables the stack print to the log
-	PrintStackOnError() bool
+	// BuildContextualLogger - build the contextual logger using more info
+	BuildContextualLogger(path ...string)
 }
 
 // Hashable - a struct with hash function
@@ -75,24 +85,11 @@ type transportCore struct {
 	pointBuffer          *buffer.Buffer
 	loggers              *logh.ContextualLogger
 	started              bool
-	defaultConfiguration *DefaultTransportConfiguration
-}
-
-// DefaultTransportConfiguration - the default fields used by the transport configuration
-type DefaultTransportConfiguration struct {
-	TransportBufferSize  int
-	BatchSendInterval    funks.Duration
-	RequestTimeout       funks.Duration
-	SerializerBufferSize int
-	DebugInput           bool
-	DebugOutput          bool
-	TimeBetweenBatches   funks.Duration
-	PrintStackOnError    bool
-	Name                 string
+	defaultConfiguration *DefaultTransportConfig
 }
 
 // Validate - validates the default itens from the configuration
-func (c *DefaultTransportConfiguration) Validate() error {
+func (c *DefaultTransportConfig) Validate() error {
 
 	if c.TransportBufferSize <= 0 {
 		return fmt.Errorf("invalid buffer size: %d", c.TransportBufferSize)
@@ -183,23 +180,82 @@ func (t *transportCore) releaseBuffer() {
 			batchBuffer = points[start:end]
 		}
 
-		err := t.transport.TransferData(batchBuffer)
+		payload, size, err := t.serialize(batchBuffer)
 		if err != nil {
 			if logh.ErrorEnabled {
 				ev := t.loggers.Error()
-				if t.transport.PrintStackOnError() {
+				if t.defaultConfiguration.PrintStackOnError {
+					ev = ev.Caller()
+				}
+				ev.Err(err).Msg("error serializing data")
+			}
+			return
+		}
+
+		err = t.transport.TransferData(payload)
+		if err != nil {
+			if logh.ErrorEnabled {
+				ev := t.loggers.Error()
+				if t.defaultConfiguration.PrintStackOnError {
 					ev = ev.Caller()
 				}
 				ev.Err(err).Msg("error transferring data")
 			}
 		} else {
 			if logh.InfoEnabled {
-				t.loggers.Info().Msgf("batch of %d points were sent!", numPoints)
+				t.loggers.Info().Msgf("batch of %d points were sent! (%d bytes)", size, len(payload))
 			}
 		}
 
 		<-time.After(t.defaultConfiguration.TimeBetweenBatches.Duration)
 	}
+
+	return
+}
+
+// serialize - serializes the sent data
+func (t *transportCore) serialize(dataList []interface{}) (payload []string, size int, err error) {
+
+	numItems := len(dataList)
+	if numItems == 0 {
+
+		if logh.WarnEnabled {
+			t.loggers.Warn().Msg("no points to transfer")
+		}
+
+		return
+	}
+
+	filtered := []interface{}{}
+
+	for i := 0; i < numItems; i++ {
+
+		if dataList[i] == nil {
+
+			if logh.ErrorEnabled {
+				ev := t.loggers.Error()
+				if t.defaultConfiguration.PrintStackOnError {
+					ev = ev.Caller()
+				}
+				ev.Msgf("null point at buffer index: %d", i)
+			}
+
+			continue
+		}
+
+		filtered = append(filtered, dataList[i])
+	}
+
+	size = len(filtered)
+
+	t.debugInput(dataList)
+
+	payload, err = t.transport.SerializePayload(filtered)
+	if err != nil {
+		return
+	}
+
+	t.debugOutput(payload)
 
 	return
 }
@@ -228,10 +284,29 @@ func (t *transportCore) debugInput(array []interface{}) {
 }
 
 // debugOutput - print the outcoming points if enabled
-func (t *transportCore) debugOutput(serialized string) {
+func (t *transportCore) debugOutput(serialized []string) {
 
 	if t.defaultConfiguration.DebugOutput && logh.DebugEnabled {
 
-		t.loggers.Debug().Str("point", "output").Msgf("--content-start--\n%s\n--content-end--\n", serialized)
+		for _, s := range serialized {
+			t.loggers.Debug().Str("point", "output").Msgf("--content-start--\n%s\n--content-end--\n", s)
+		}
+	}
+}
+
+func (t *transportCore) dataChannel(item interface{}) {
+
+	if item == nil {
+		return
+	}
+
+	k := reflect.TypeOf(item).Kind()
+	if k == reflect.Array || k == reflect.Slice {
+		v := reflect.ValueOf(item)
+		for i := 0; i < v.Len(); i++ {
+			t.pointBuffer.Add(v.Index(i).Interface())
+		}
+	} else {
+		t.pointBuffer.Add(item)
 	}
 }

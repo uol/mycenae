@@ -66,26 +66,32 @@ type mapEntry struct {
 }
 
 // NewFlattener - creates a new flattener
-func NewFlattener(configuration *DataTransformerConf) *Flattener {
+func NewFlattener(configuration *DataTransformerConfig) *Flattener {
 
 	configuration.isSHAKE = isShakeAlgorithm(configuration.HashingAlgorithm)
-
-	logContext := []string{"pkg", "timeline/flattener"}
-	if len(configuration.Name) > 0 {
-		logContext = append(logContext, "name", configuration.Name)
-	}
 
 	f := &Flattener{
 		dataProcessorCore: dataProcessorCore{
 			configuration: configuration,
 			pointMap:      sync.Map{},
-			loggers:       logh.CreateContextualLogger(logContext...),
 		},
 	}
 
 	f.parent = f
 
 	return f
+}
+
+// BuildContextualLogger - build the contextual logger using more info
+func (f *Flattener) BuildContextualLogger(path ...string) {
+
+	logContext := []string{"pkg", "timeline/flattener"}
+
+	if len(path) > 0 {
+		logContext = append(logContext, path...)
+	}
+
+	f.loggers = logh.CreateContextualLogger(logContext...)
 }
 
 // Add - adds a new entry to the flattening process
@@ -119,7 +125,7 @@ func (f *Flattener) ProcessMapEntry(entry interface{}) bool {
 	if err != nil {
 		if logh.ErrorEnabled {
 			ev := f.loggers.Error()
-			if f.transport.PrintStackOnError() {
+			if f.dataProcessorCore.configuration.PrintStackOnError {
 				ev = ev.Caller()
 			}
 			ev.Err(err).Msg("error on flatten operation")
@@ -132,7 +138,7 @@ func (f *Flattener) ProcessMapEntry(entry interface{}) bool {
 	if err != nil {
 		if logh.ErrorEnabled {
 			ev := f.loggers.Error()
-			if f.transport.PrintStackOnError() {
+			if f.dataProcessorCore.configuration.PrintStackOnError {
 				ev = ev.Caller()
 			}
 			ev.Err(err).Msg("error on casting operation")

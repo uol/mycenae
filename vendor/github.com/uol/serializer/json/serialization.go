@@ -52,6 +52,8 @@ func (s *Serializer) SerializeGenericArray(items ...interface{}) (string, error)
 // SerializeArray - serializes an array of jsons
 func (s *Serializer) SerializeArray(items ...*ArrayItem) (string, error) {
 
+	defer serializer.PanicHandler()
+
 	numItems := len(items)
 	if numItems == 0 {
 		return serializer.Empty, nil
@@ -91,6 +93,8 @@ func (s *Serializer) SerializeArray(items ...*ArrayItem) (string, error) {
 // Serialize - serializes a mapped JSON
 func (s *Serializer) Serialize(name string, parameters ...interface{}) (string, error) {
 
+	defer serializer.PanicHandler()
+
 	m, ok := s.mapping[name]
 	if !ok {
 		return serializer.Empty, fmt.Errorf("no json mapping with name \"%s\"", name)
@@ -103,12 +107,20 @@ func (s *Serializer) Serialize(name string, parameters ...interface{}) (string, 
 	params := make([]interface{}, m.numVariables)
 	for i := 0; i < len(parameters); i += 2 {
 
+		if serializer.InterfaceHasZeroValue(parameters[i]) {
+			return serializer.Null, fmt.Errorf("variable name is null on index %d", i)
+		}
+
 		varName, ok := parameters[i].(string)
 		if !ok {
 			return serializer.Empty, fmt.Errorf("error casting variable index %d to string", i)
 		}
 
 		genericValue := parameters[i+1]
+		if serializer.InterfaceHasZeroValue(genericValue) {
+			return serializer.Null, fmt.Errorf("value is null on index %d", i+1)
+		}
+
 		value := reflect.ValueOf(genericValue)
 		kind := value.Kind()
 

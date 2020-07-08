@@ -1,5 +1,0 @@
-# imported dependencies
-/vendor
-
-# debug binary files from vscode
-debug.test

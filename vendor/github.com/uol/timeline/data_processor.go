@@ -29,13 +29,16 @@ type DataProcessor interface {
 
 	// ProcessMapEntry - process a map entry and return true to delete the entry
 	ProcessMapEntry(entry interface{}) (deleteAfter bool)
+
+	// BuildContextualLogger - build the contextual logger using more info
+	BuildContextualLogger(path ...string)
 }
 
 // dataProcessorCore - contains the common data
 type dataProcessorCore struct {
 	pointMap      sync.Map
 	transport     Transport
-	configuration *DataTransformerConf
+	configuration *DataTransformerConfig
 	terminateChan chan struct{}
 	loggers       *logh.ContextualLogger
 	parent        DataProcessor

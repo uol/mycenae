@@ -9,12 +9,11 @@ pod_arguments=(
 	'-it'
     '--detach'
     '--name' "${POD_NAME}"
-    '--volume' "${GOPATH}/src:/var/go/src"
+    '--volume' "${GOPATH}/src:/go/src"
     '--network=timeseriesNetwork'
 )
 
-# build it using: "docker build -t centos7-go:v1 ."
-docker run "${pod_arguments[@]}" centos7-go:v1
+docker run "${pod_arguments[@]}" golang:1.14.4
 
 scylla1=$(docker inspect --format "{{ .NetworkSettings.Networks.timeseriesNetwork.IPAddress }}" scylla1)
 scylla2=$(docker inspect --format "{{ .NetworkSettings.Networks.timeseriesNetwork.IPAddress }}" scylla2)
@@ -34,4 +33,4 @@ docker exec testMycenae /bin/sh -c "echo $scylla3 scylla3 >> /etc/hosts"
 docker exec testMycenae /bin/sh -c "echo $solr solr >> /etc/hosts"
 docker exec testMycenae /bin/sh -c "echo $mycenae mycenae >> /etc/hosts"
 
-docker exec testMycenae go test -timeout 20m -v '/var/go/src/github.com/uol/mycenae/tests/'
+docker exec testMycenae go test -timeout 20m -v '/go/src/github.com/uol/mycenae/tests/'

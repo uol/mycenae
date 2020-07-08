@@ -307,7 +307,7 @@ ConnLoop:
 			}
 
 			go server.closeConnection(conn, ccrWUnknown, true)
-			if logh.WarnEnabled {
+			if !server.globalTelnetConfigs.SilenceLogs && logh.WarnEnabled {
 				server.logger.Warn().Err(err).Msg("telnet connection write: unexpected error")
 			}
 			break ConnLoop
@@ -332,7 +332,7 @@ ConnLoop:
 			}
 
 			go server.closeConnection(conn, ccrUnknown, true)
-			if logh.WarnEnabled {
+			if !server.globalTelnetConfigs.SilenceLogs && logh.WarnEnabled {
 				server.logger.Warn().Err(err).Msg("telnet connection read: unexpected error")
 			}
 			break ConnLoop
@@ -423,12 +423,10 @@ func (server *Server) closeConnection(conn net.Conn, reason connCloseReason, sub
 		sharedConns = *server.sharedConnectionCounter
 	}
 
-	if !server.globalTelnetConfigs.SilenceLogs {
+	if !server.globalTelnetConfigs.SilenceLogs && logh.InfoEnabled {
 
-		if logh.InfoEnabled {
-			server.logger.Info().Str(constants.StringsFunc, cFuncCloseConnection).Msgf(cMsgfConnectionClosed, remoteAddressIP, reason, localConns)
-			server.logger.Info().Str(constants.StringsFunc, cFuncCloseConnection).Msgf(cMsgfClosedConnsStats, localConns, sharedConns, server.telnetHandler.GetSourceType().Name)
-		}
+		server.logger.Info().Str(constants.StringsFunc, cFuncCloseConnection).Msgf(cMsgfConnectionClosed, remoteAddressIP, reason, localConns)
+		server.logger.Info().Str(constants.StringsFunc, cFuncCloseConnection).Msgf(cMsgfClosedConnsStats, localConns, sharedConns, server.telnetHandler.GetSourceType().Name)
 	}
 
 	server.statsNetworkConnectionCloseTime(cFuncCloseConnection, reason, startTime)

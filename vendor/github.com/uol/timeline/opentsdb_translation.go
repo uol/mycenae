@@ -27,7 +27,7 @@ func (t *OpenTSDBTransport) extractData(instance interface{}, operation *FlatOpe
 }
 
 // DataChannelItemToFlattenerPoint - converts the data channel item to the flattened point one
-func (t *OpenTSDBTransport) DataChannelItemToFlattenerPoint(configuration *DataTransformerConf, instance interface{}, operation FlatOperation) (Hashable, error) {
+func (t *OpenTSDBTransport) DataChannelItemToFlattenerPoint(configuration *DataTransformerConfig, instance interface{}, operation FlatOperation) (Hashable, error) {
 
 	item, hashParameters, err := t.extractData(instance, &operation)
 
@@ -65,7 +65,7 @@ func (t *OpenTSDBTransport) FlattenerPointToDataChannelItem(point *FlattenerPoin
 }
 
 // DataChannelItemToAccumulatedData - converts the data channel item to the accumulated data
-func (t *OpenTSDBTransport) DataChannelItemToAccumulatedData(configuration *DataTransformerConf, instance interface{}, calculateHash bool) (Hashable, error) {
+func (t *OpenTSDBTransport) DataChannelItemToAccumulatedData(configuration *DataTransformerConfig, instance interface{}, calculateHash bool) (Hashable, error) {
 
 	item, hashParameters, err := t.extractData(instance, nil)
 
@@ -97,4 +97,10 @@ func (t *OpenTSDBTransport) AccumulatedDataToDataChannelItem(point *AccumulatedD
 	item.Value = float64(point.count)
 
 	return item, nil
+}
+
+// Serialize - renders the text using the configured serializer
+func (t *OpenTSDBTransport) Serialize(item interface{}) (string, error) {
+
+	return t.serializer.SerializeGeneric(item)
 }

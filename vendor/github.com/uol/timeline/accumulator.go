@@ -66,27 +66,33 @@ type Accumulator struct {
 }
 
 // NewAccumulator - creates a new instance
-func NewAccumulator(configuration *DataTransformerConf) *Accumulator {
+func NewAccumulator(configuration *DataTransformerConfig) *Accumulator {
 
 	configuration.isSHAKE = isShakeAlgorithm(configuration.HashingAlgorithm)
-
-	logContext := []string{"pkg", "timeline/accumulator"}
-	if len(configuration.Name) > 0 {
-		logContext = append(logContext, "name", configuration.Name)
-	}
 
 	a := &Accumulator{
 		ttlManager: scheduler.New(),
 		dataProcessorCore: dataProcessorCore{
 			configuration: configuration,
 			pointMap:      sync.Map{},
-			loggers:       logh.CreateContextualLogger(logContext...),
 		},
 	}
 
 	a.parent = a
 
 	return a
+}
+
+// BuildContextualLogger - build the contextual logger using more info
+func (a *Accumulator) BuildContextualLogger(path ...string) {
+
+	logContext := []string{"pkg", "timeline/accumulator"}
+
+	if len(path) > 0 {
+		logContext = append(logContext, path...)
+	}
+
+	a.loggers = logh.CreateContextualLogger(logContext...)
 }
 
 // ProcessMapEntry - sends the data to the transport
@@ -99,7 +105,7 @@ func (a *Accumulator) ProcessMapEntry(entry interface{}) bool {
 		if err != nil {
 			if logh.ErrorEnabled {
 				ev := a.loggers.Error()
-				if a.transport.PrintStackOnError() {
+				if a.dataProcessorCore.configuration.PrintStackOnError {
 					ev = ev.Caller()
 				}
 				ev.Err(err).Msg(err.Error())
