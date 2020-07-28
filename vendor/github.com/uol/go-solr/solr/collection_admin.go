@@ -2,6 +2,7 @@ package solr
 
 import (
 	"fmt"
+	"net/http"
 	"net/url"
 	"strings"
 )
@@ -11,16 +12,17 @@ type CollectionsAdmin struct {
 	url      *url.URL
 	username string
 	password string
+	client   *http.Client
 }
 
 // NewCollectionsAdmin - creates a new collection api connection
-func NewCollectionsAdmin(solrURL string) (*CollectionsAdmin, error) {
+func NewCollectionsAdmin(solrURL string, client *http.Client) (*CollectionsAdmin, error) {
 	u, err := url.ParseRequestURI(strings.TrimRight(solrURL, "/"))
 	if err != nil {
 		return nil, err
 	}
 
-	return &CollectionsAdmin{url: u}, nil
+	return &CollectionsAdmin{url: u, client: client}, nil
 }
 
 // SetBasicAuth - Set basic auth in case solr require login
@@ -32,7 +34,7 @@ func (ca *CollectionsAdmin) SetBasicAuth(username, password string) {
 // Get - Method for making GET-request to any relative path to /admin/collections
 func (ca *CollectionsAdmin) Get(params *url.Values) (*SolrResponse, error) {
 	params.Set("wt", "json")
-	r, err := HTTPGet(fmt.Sprintf("%s/admin/collections?%s", ca.url.String(), params.Encode()), nil, ca.username, ca.password)
+	r, err := HTTPGet(ca.client, fmt.Sprintf("%s/admin/collections?%s", ca.url.String(), params.Encode()), nil, ca.username, ca.password)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +133,7 @@ func (ca *CollectionsAdmin) Action(action string, params *url.Values) (*SolrResp
 
 // CollectionsAdmin - Return new instance of CollectionsAdmin with provided solrUrl and basic auth
 func (si *SolrInterface) CollectionsAdmin() (*CollectionsAdmin, error) {
-	ca, err := NewCollectionsAdmin(si.conn.url.String())
+	ca, err := NewCollectionsAdmin(si.conn.url.String(), si.client)
 	if err != nil {
 		return nil, err
 	}

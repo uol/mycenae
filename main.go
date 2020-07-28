@@ -455,14 +455,14 @@ func createRESTserver(conf *structs.Settings, timelineManager *tlmanager.Instanc
 func createTelnetManager(conf *structs.Settings, collectorService *collector.Collector, timelineManager *tlmanager.Instance, validationService *validation.Service) *telnetmgr.Manager {
 
 	telnetManager, err := telnetmgr.New(
-		&conf.GlobalTelnetServerConfiguration,
+		&conf.TelnetManagerConfiguration,
 		conf.HTTPserver.Port,
 		collectorService,
 		timelineManager,
 	)
 
 	for i := 0; i < len(conf.NetdataServer); i++ {
-		err = telnetManager.AddServer(&conf.NetdataServer[i], &conf.GlobalTelnetServerConfiguration, telnet.NewNetdataHandler(conf.NetdataServer[i].CacheDuration, collectorService, &conf.GlobalTelnetServerConfiguration, validationService))
+		err = telnetManager.AddServer(&conf.NetdataServer[i], &conf.TelnetManagerConfiguration, telnet.NewNetdataHandler(conf.NetdataServer[i].CacheDuration, collectorService, &conf.NetdataServer[i], validationService))
 		if err != nil {
 			if logh.FatalEnabled {
 				logger.Fatal().Err(err).Msg("error creating telnet server 'netdata'")
@@ -472,7 +472,7 @@ func createTelnetManager(conf *structs.Settings, collectorService *collector.Col
 	}
 
 	for i := 0; i < len(conf.TELNETserver); i++ {
-		err = telnetManager.AddServer(&conf.TELNETserver[i], &conf.GlobalTelnetServerConfiguration, telnet.NewOpenTSDBHandler(collectorService, &conf.GlobalTelnetServerConfiguration, validationService))
+		err = telnetManager.AddServer(&conf.TELNETserver[i], &conf.TelnetManagerConfiguration, telnet.NewOpenTSDBHandler(collectorService, &conf.TELNETserver[i], validationService))
 		if err != nil {
 			if logh.FatalEnabled {
 				logger.Fatal().Err(err).Msg("error creating telnet server 'telnet'")

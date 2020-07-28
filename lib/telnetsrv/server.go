@@ -52,9 +52,6 @@ const (
 type Server struct {
 	listenAddress                    string
 	listener                         net.Listener
-	onErrorTimeout                   time.Duration
-	sendStatsTimeout                 time.Duration
-	maxIdleConnectionTimeout         time.Duration
 	maxBufferSize                    int64
 	collector                        *collector.Collector
 	logger                           *logh.ContextualLogger
@@ -71,37 +68,23 @@ type Server struct {
 	closeConnectionChannel           *chan struct{}
 	connectedIPMap                   sync.Map
 	multipleConnsAllowedHostsMap     map[string]bool
-	globalTelnetConfigs              *structs.GlobalTelnetServerConfiguration
+	globalTelnetConfiguration        *structs.TelnetManagerConfiguration
+	telnetServerConfiguration        *structs.TelnetServerConfiguration
 	hashMetricTelnetCommandCount     string
 	hashMetricTelnetCommandFailures  string
 	hashMetricTelnetCommandSuccesses string
 }
 
 // New - creates a new telnet server
-func New(serverConfiguration *structs.TelnetServerConfiguration, globalTelnetConfigs *structs.GlobalTelnetServerConfiguration, sharedConnectionCounter *uint32, maxConnections uint32, closeConnectionChannel *chan struct{}, collector *collector.Collector, timelineManager *tlmanager.Instance, telnetHandler TelnetDataHandler) (*Server, error) {
-
-	onErrorTimeoutDuration, err := time.ParseDuration(serverConfiguration.OnErrorTimeout)
-	if err != nil {
-		return nil, err
-	}
-
-	sendStatsTimeoutDuration, err := time.ParseDuration(serverConfiguration.SendStatsTimeout)
-	if err != nil {
-		return nil, err
-	}
-
-	maxIdleConnectionTimeoutDuration, err := time.ParseDuration(serverConfiguration.MaxIdleConnectionTimeout)
-	if err != nil {
-		return nil, err
-	}
+func New(telnetServerConfiguration *structs.TelnetServerConfiguration, globalTelnetConfiguration *structs.TelnetManagerConfiguration, sharedConnectionCounter *uint32, maxConnections uint32, closeConnectionChannel *chan struct{}, collector *collector.Collector, timelineManager *tlmanager.Instance, telnetHandler TelnetDataHandler) (*Server, error) {
 
 	logger := logh.CreateContextualLogger(constants.StringsPKG, "telnetsrv")
 
 	multipleConnsAllowedHostsMap := map[string]bool{}
 
-	if len(globalTelnetConfigs.MultipleConnsAllowedHosts) > 0 {
+	if len(telnetServerConfiguration.MultipleConnsAllowedHosts) > 0 {
 
-		for _, host := range globalTelnetConfigs.MultipleConnsAllowedHosts {
+		for _, host := range telnetServerConfiguration.MultipleConnsAllowedHosts {
 
 			multipleConnsAllowedHostsMap[host] = true
 
@@ -111,14 +94,11 @@ func New(serverConfiguration *structs.TelnetServerConfiguration, globalTelnetCon
 		}
 	}
 
-	strPort := fmt.Sprintf("%d", serverConfiguration.Port)
+	strPort := fmt.Sprintf("%d", telnetServerConfiguration.Port)
 
 	return &Server{
-		listenAddress:                fmt.Sprintf("%s:%d", serverConfiguration.Host, serverConfiguration.Port),
-		onErrorTimeout:               onErrorTimeoutDuration,
-		sendStatsTimeout:             sendStatsTimeoutDuration,
-		maxIdleConnectionTimeout:     maxIdleConnectionTimeoutDuration,
-		maxBufferSize:                serverConfiguration.MaxBufferSize,
+		listenAddress:                fmt.Sprintf("%s:%d", telnetServerConfiguration.Host, telnetServerConfiguration.Port),
+		maxBufferSize:                telnetServerConfiguration.MaxBufferSize,
 		collector:                    collector,
 		logger:                       logger,
 		timelineManager:              timelineManager,
@@ -129,9 +109,10 @@ func New(serverConfiguration *structs.TelnetServerConfiguration, globalTelnetCon
 		maxConnections:               maxConnections,
 		denyNewConnections:           0,
 		closeConnectionChannel:       closeConnectionChannel,
-		name:                         serverConfiguration.ServerName,
+		name:                         telnetServerConfiguration.ServerName,
 		connectedIPMap:               sync.Map{},
-		globalTelnetConfigs:          globalTelnetConfigs,
+		globalTelnetConfiguration:    globalTelnetConfiguration,
+		telnetServerConfiguration:    telnetServerConfiguration,
 		multipleConnsAllowedHostsMap: multipleConnsAllowedHostsMap,
 		statsConnectionTags: []interface{}{
 			"type", "tcp",
@@ -195,7 +176,7 @@ func (server *Server) Listen() error {
 				if logh.ErrorEnabled {
 					server.logger.Error().Str(constants.StringsFunc, cFuncListen).Err(err).Send()
 				}
-				<-time.After(server.onErrorTimeout)
+
 				continue
 			}
 
@@ -205,7 +186,7 @@ func (server *Server) Listen() error {
 			server.statsNetworkIP(cFuncListen, remoteAddressIP)
 			server.statsNetworkConnectionOpen(cFuncListen)
 
-			if !server.globalTelnetConfigs.RemoveMultipleConnsRestriction {
+			if !server.telnetServerConfiguration.RemoveMultipleConnsRestriction {
 
 				if _, stored := server.connectedIPMap.LoadOrStore(remoteAddressIP, struct{}{}); stored {
 
@@ -249,13 +230,13 @@ func (server *Server) Listen() error {
 			server.increaseCounter(server.sharedConnectionCounter)
 			server.increaseCounter(&server.numLocalConnections)
 
-			if !server.globalTelnetConfigs.SilenceLogs {
+			if !server.telnetServerConfiguration.SilenceLogs {
 				if logh.InfoEnabled {
 					server.logger.Info().Str(constants.StringsFunc, cFuncListen).Msgf(cMsgfReceivingNewConn, remoteAddressIP)
 				}
 			}
 
-			err = conn.SetDeadline(time.Now().Add(server.maxIdleConnectionTimeout))
+			err = conn.SetDeadline(time.Now().Add(server.telnetServerConfiguration.MaxIdleConnectionTimeout.Duration))
 			if err != nil {
 				go server.closeConnection(conn, ccrDeadline, true)
 				continue
@@ -288,7 +269,7 @@ ConnLoop:
 		default:
 		}
 
-		err = conn.SetWriteDeadline(time.Now().Add(server.maxIdleConnectionTimeout))
+		err = conn.SetWriteDeadline(time.Now().Add(server.telnetServerConfiguration.MaxIdleConnectionTimeout.Duration))
 		if err != nil {
 			go server.closeConnection(conn, ccrWDeadline, true)
 			break ConnLoop
@@ -307,13 +288,13 @@ ConnLoop:
 			}
 
 			go server.closeConnection(conn, ccrWUnknown, true)
-			if !server.globalTelnetConfigs.SilenceLogs && logh.WarnEnabled {
+			if !server.telnetServerConfiguration.SilenceLogs && logh.WarnEnabled {
 				server.logger.Warn().Err(err).Msg("telnet connection write: unexpected error")
 			}
 			break ConnLoop
 		}
 
-		err = conn.SetReadDeadline(time.Now().Add(server.maxIdleConnectionTimeout))
+		err = conn.SetReadDeadline(time.Now().Add(server.telnetServerConfiguration.MaxIdleConnectionTimeout.Duration))
 		if err != nil {
 			go server.closeConnection(conn, ccrDeadline, true)
 			break ConnLoop
@@ -332,7 +313,7 @@ ConnLoop:
 			}
 
 			go server.closeConnection(conn, ccrUnknown, true)
-			if !server.globalTelnetConfigs.SilenceLogs && logh.WarnEnabled {
+			if !server.telnetServerConfiguration.SilenceLogs && logh.WarnEnabled {
 				server.logger.Warn().Err(err).Msg("telnet connection read: unexpected error")
 			}
 			break ConnLoop
@@ -363,7 +344,7 @@ ConnLoop:
 
 	server.statsNetworkConnectionOpenTime(cFuncListen, startTime)
 
-	if !server.globalTelnetConfigs.SilenceLogs {
+	if !server.telnetServerConfiguration.SilenceLogs {
 		if err != nil {
 			if logh.ErrorEnabled {
 				server.logger.Error().Str(constants.StringsFunc, cFuncListen).Err(err).Msgf("connection loop was broken")
@@ -401,7 +382,7 @@ func (server *Server) closeConnection(conn net.Conn, reason connCloseReason, sub
 	remoteAddressIP := server.extractIP(conn)
 
 	err := conn.Close()
-	if err != nil && !server.globalTelnetConfigs.SilenceLogs && logh.ErrorEnabled {
+	if err != nil && !server.telnetServerConfiguration.SilenceLogs && logh.ErrorEnabled {
 		server.logger.Error().Str(constants.StringsFunc, cFuncCloseConnection).Err(err).Msgf(cMsgfErrorClosingConn, remoteAddressIP, server.telnetHandler.GetSourceType().Name)
 	}
 
@@ -423,7 +404,7 @@ func (server *Server) closeConnection(conn net.Conn, reason connCloseReason, sub
 		sharedConns = *server.sharedConnectionCounter
 	}
 
-	if !server.globalTelnetConfigs.SilenceLogs && logh.InfoEnabled {
+	if !server.telnetServerConfiguration.SilenceLogs && logh.InfoEnabled {
 
 		server.logger.Info().Str(constants.StringsFunc, cFuncCloseConnection).Msgf(cMsgfConnectionClosed, remoteAddressIP, reason, localConns)
 		server.logger.Info().Str(constants.StringsFunc, cFuncCloseConnection).Msgf(cMsgfClosedConnsStats, localConns, sharedConns, server.telnetHandler.GetSourceType().Name)
@@ -464,7 +445,7 @@ func (server *Server) collectStats() {
 		server.logger.Info().Str(constants.StringsFunc, cFuncCollectStats).Msg("starting telnet server stats")
 	}
 
-	<-time.After(server.sendStatsTimeout)
+	<-time.After(server.globalTelnetConfiguration.SendStatsTimeout.Duration)
 
 	err := server.statsTelnetAccumulationHashes()
 	if err != nil {
@@ -483,7 +464,7 @@ func (server *Server) collectStats() {
 
 		server.statsNetworkConnection(cFuncCollectStats)
 
-		<-time.After(server.sendStatsTimeout)
+		<-time.After(server.globalTelnetConfiguration.SendStatsTimeout.Duration)
 	}
 }
 

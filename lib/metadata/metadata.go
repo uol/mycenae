@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"github.com/uol/gobol"
+	"github.com/uol/gobol/solar"
 	"github.com/uol/logh"
 	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/memcached"
@@ -69,7 +70,6 @@ type Storage struct {
 type Settings struct {
 	NumShards                     int
 	ReplicationFactor             int
-	URL                           string
 	IDCacheTTL                    int
 	QueryCacheTTL                 int
 	MaxReturnedMetadata           int
@@ -77,6 +77,7 @@ type Settings struct {
 	BlacklistedKeysets            []string
 	CacheKeyHashSize              int
 	KeysetCacheAutoUpdateInterval string
+	solar.Configuration
 }
 
 // Metadata document

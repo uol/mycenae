@@ -17,6 +17,7 @@ import (
 	"github.com/uol/mycenae/lib/constants"
 	"github.com/uol/mycenae/lib/structs"
 	"github.com/uol/mycenae/lib/telnetsrv"
+
 	tlmanager "github.com/uol/timelinemanager"
 )
 
@@ -27,47 +28,24 @@ import (
 
 // Manager - controls the telnet servers
 type Manager struct {
-	collector                         *collector.Collector
-	logger                            *logh.ContextualLogger
-	timelineManager                   *tlmanager.Instance
-	terminate                         bool
-	connectionBalanceCheckTimeout     time.Duration
-	maxWaitForDropTelnetConnsInterval time.Duration
-	maxWaitForOtherNodeConnsBalancing time.Duration
-	connectionBalanceStarted          bool
-	globalConfiguration               *structs.GlobalTelnetServerConfiguration
-	sharedConnectionCounter           uint32
-	haltBalancingProcess              uint32
-	otherNodes                        []string
-	numOtherNodes                     int
-	httpListenPort                    int
-	closeConnectionChannel            chan struct{}
-	httpClient                        *http.Client
-	servers                           []*telnetsrv.Server
+	collector                *collector.Collector
+	logger                   *logh.ContextualLogger
+	timelineManager          *tlmanager.Instance
+	terminate                bool
+	connectionBalanceStarted bool
+	globalConfiguration      *structs.TelnetManagerConfiguration
+	sharedConnectionCounter  uint32
+	haltBalancingProcess     uint32
+	otherNodes               []string
+	numOtherNodes            int
+	httpListenPort           int
+	closeConnectionChannel   chan struct{}
+	httpClient               *http.Client
+	servers                  []*telnetsrv.Server
 }
 
 // New - creates a new manager instance
-func New(globalConfiguration *structs.GlobalTelnetServerConfiguration, httpListenPort int, collector *collector.Collector, timelineManager *tlmanager.Instance) (*Manager, error) {
-
-	connectionBalanceCheckTimeoutDuration, err := time.ParseDuration(globalConfiguration.TelnetConnsBalanceCheckInterval)
-	if err != nil {
-		return nil, err
-	}
-
-	maxWaitForDropTelnetConnsIntervalDuration, err := time.ParseDuration(globalConfiguration.MaxWaitForDropTelnetConnsInterval)
-	if err != nil {
-		return nil, err
-	}
-
-	httpRequestTimeoutDuration, err := time.ParseDuration(globalConfiguration.HTTPRequestTimeout)
-	if err != nil {
-		return nil, err
-	}
-
-	maxWaitForOtherNodeConnsBalancingDuration, err := time.ParseDuration(globalConfiguration.MaxWaitForOtherNodeConnsBalancing)
-	if err != nil {
-		return nil, err
-	}
+func New(globalConfiguration *structs.TelnetManagerConfiguration, httpListenPort int, collector *collector.Collector, timelineManager *tlmanager.Instance) (*Manager, error) {
 
 	hostName, err := os.Hostname()
 	if err != nil {
@@ -87,32 +65,29 @@ func New(globalConfiguration *structs.GlobalTelnetServerConfiguration, httpListe
 				InsecureSkipVerify: true,
 			},
 		},
-		Timeout: httpRequestTimeoutDuration,
+		Timeout: globalConfiguration.NodeToNodeRequestTimeout.Duration,
 	}
 
 	return &Manager{
-		connectionBalanceCheckTimeout:     connectionBalanceCheckTimeoutDuration,
-		maxWaitForDropTelnetConnsInterval: maxWaitForDropTelnetConnsIntervalDuration,
-		maxWaitForOtherNodeConnsBalancing: maxWaitForOtherNodeConnsBalancingDuration,
-		connectionBalanceStarted:          false,
-		collector:                         collector,
-		logger:                            logh.CreateContextualLogger(constants.StringsPKG, "telnetmgr"),
-		timelineManager:                   timelineManager,
-		terminate:                         false,
-		httpListenPort:                    httpListenPort,
-		sharedConnectionCounter:           0,
-		haltBalancingProcess:              0,
-		globalConfiguration:               globalConfiguration,
-		otherNodes:                        otherNodes,
-		numOtherNodes:                     len(otherNodes),
-		closeConnectionChannel:            make(chan struct{}, globalConfiguration.ConnectionCloseChannelSize),
-		httpClient:                        httpClient,
-		servers:                           []*telnetsrv.Server{},
+		connectionBalanceStarted: false,
+		collector:                collector,
+		logger:                   logh.CreateContextualLogger(constants.StringsPKG, "telnetmgr"),
+		timelineManager:          timelineManager,
+		terminate:                false,
+		httpListenPort:           httpListenPort,
+		sharedConnectionCounter:  0,
+		haltBalancingProcess:     0,
+		globalConfiguration:      globalConfiguration,
+		otherNodes:               otherNodes,
+		numOtherNodes:            len(otherNodes),
+		closeConnectionChannel:   make(chan struct{}, globalConfiguration.ConnectionCloseChannelSize),
+		httpClient:               httpClient,
+		servers:                  []*telnetsrv.Server{},
 	}, nil
 }
 
 // AddServer - adds a new server
-func (manager *Manager) AddServer(serverConfiguration *structs.TelnetServerConfiguration, globalTelnetConfig *structs.GlobalTelnetServerConfiguration, telnetHandler telnetsrv.TelnetDataHandler) error {
+func (manager *Manager) AddServer(serverConfiguration *structs.TelnetServerConfiguration, globalTelnetConfig *structs.TelnetManagerConfiguration, telnetHandler telnetsrv.TelnetDataHandler) error {
 
 	server, err := telnetsrv.New(
 		serverConfiguration,
@@ -177,7 +152,7 @@ func (manager *Manager) startConnectionBalancer() {
 	}
 
 	for {
-		<-time.After(manager.connectionBalanceCheckTimeout)
+		<-time.After(manager.globalConfiguration.TelnetConnsBalanceCheckInterval.Duration)
 
 		if manager.terminate {
 			if logh.InfoEnabled {
@@ -237,7 +212,7 @@ func (manager *Manager) startConnectionBalancer() {
 
 				if !manager.dropConnections(excess) {
 
-					<-time.After(manager.maxWaitForOtherNodeConnsBalancing)
+					<-time.After(manager.globalConfiguration.MaxWaitForOtherNodeConnsBalancing.Duration)
 
 					if atomic.CompareAndSwapUint32(&manager.haltBalancingProcess, 1, 0) {
 						if logh.InfoEnabled {
@@ -283,7 +258,7 @@ func (manager *Manager) dropConnections(excess uint32) bool {
 	}
 
 	if logh.InfoEnabled {
-		manager.logger.Info().Str(constants.StringsFunc, cFuncDropConnections).Msgf("waiting for connections to drop: %s", manager.maxWaitForDropTelnetConnsInterval)
+		manager.logger.Info().Str(constants.StringsFunc, cFuncDropConnections).Msgf("waiting for connections to drop: %s", manager.globalConfiguration.MaxWaitForDropTelnetConnsInterval.Duration)
 	}
 
 	numServers := len(manager.servers)
@@ -294,7 +269,7 @@ func (manager *Manager) dropConnections(excess uint32) bool {
 		manager.servers[i].DenyNewConnections(true)
 	}
 
-	<-time.After(manager.maxWaitForDropTelnetConnsInterval)
+	<-time.After(manager.globalConfiguration.MaxWaitForDropTelnetConnsInterval.Duration)
 
 	if logh.InfoEnabled {
 		manager.logger.Info().Str(constants.StringsFunc, cFuncDropConnections).Msg("draining close connection channel...")
@@ -316,7 +291,7 @@ func (manager *Manager) dropConnections(excess uint32) bool {
 	}
 
 	if logh.InfoEnabled {
-		manager.logger.Info().Str(constants.StringsFunc, cFuncDropConnections).Msgf("waiting time for dropping connections is done: %s", manager.maxWaitForDropTelnetConnsInterval)
+		manager.logger.Info().Str(constants.StringsFunc, cFuncDropConnections).Msgf("waiting time for dropping connections is done: %s", manager.globalConfiguration.MaxWaitForDropTelnetConnsInterval.Duration)
 	}
 
 	for i := 0; i < numServers; i++ {

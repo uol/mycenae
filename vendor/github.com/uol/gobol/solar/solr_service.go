@@ -3,8 +3,11 @@ package solar
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"sync"
+
+	"github.com/uol/funks"
 
 	"github.com/uol/go-solr/solr"
 	"github.com/uol/logh"
@@ -21,6 +24,8 @@ type SolrService struct {
 	loggers              *logh.ContextualLogger
 	url                  string
 	solrInterfaceCache   sync.Map
+	queryClient          *http.Client
+	updateClient         *http.Client
 }
 
 // recoverFromFailure - recovers from a failure
@@ -32,10 +37,30 @@ func (ss *SolrService) recoverFromFailure() {
 	}
 }
 
-// NewSolrService - creates a new instance
-func NewSolrService(url string) (*SolrService, error) {
+// HTTPClient - the http client configuration
+type HTTPClient struct {
+	Timeout                    funks.Duration
+	NumSimultaneousConnections int
+}
 
-	sca, err := solr.NewCollectionsAdmin(url)
+// Configuration - the configuration
+type Configuration struct {
+	URL          string
+	QueryClient  HTTPClient
+	UpdateClient HTTPClient
+}
+
+// NewSolrService - creates a new instance
+func NewSolrService(configuration *Configuration) (*SolrService, error) {
+
+	if configuration == nil {
+		return nil, errors.New("null configuration")
+	}
+
+	queryClient := funks.CreateHTTPClientAdv(configuration.QueryClient.Timeout.Duration, true, configuration.QueryClient.NumSimultaneousConnections)
+	updateClient := funks.CreateHTTPClientAdv(configuration.UpdateClient.Timeout.Duration, true, configuration.UpdateClient.NumSimultaneousConnections)
+
+	sca, err := solr.NewCollectionsAdmin(configuration.URL, queryClient)
 	if err != nil {
 		return nil, err
 	}
@@ -43,8 +68,10 @@ func NewSolrService(url string) (*SolrService, error) {
 	return &SolrService{
 		solrCollectionsAdmin: sca,
 		loggers:              logh.CreateContextualLogger("pkg", "solar"),
-		url:                  url,
+		url:                  configuration.URL,
 		solrInterfaceCache:   sync.Map{},
+		queryClient:          queryClient,
+		updateClient:         updateClient,
 	}, nil
 }
 
@@ -55,7 +82,7 @@ func (ss *SolrService) getSolrInterface(collection string) (*solr.SolrInterface,
 		return si.(*solr.SolrInterface), nil
 	}
 
-	si, err := solr.NewSolrInterface(ss.url, collection)
+	si, err := solr.NewSolrInterface(ss.url, collection, ss.queryClient, ss.updateClient)
 	if err != nil {
 		if logh.ErrorEnabled {
 			ss.loggers.Error().Err(err).Msg("error creating a new instance of solr interface")

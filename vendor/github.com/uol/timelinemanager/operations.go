@@ -36,8 +36,8 @@ func (tm *Instance) logSendOperationError(caller string, err error) {
 	}
 }
 
-// Send - send a point or do a flatten operation
-func (tm *Instance) Send(caller string, stype StorageType, op timeline.FlatOperation, value float64, metric string, tags ...interface{}) error {
+// SendT - send a point or do a flatten operation with specific timestamp
+func (tm *Instance) SendT(caller string, stype StorageType, op timeline.FlatOperation, value float64, metric string, timestamp int64, tags ...interface{}) error {
 
 	if !tm.ready {
 		return nil
@@ -54,9 +54,9 @@ func (tm *Instance) Send(caller string, stype StorageType, op timeline.FlatOpera
 	if backend.ttype == OpenTSDBTransport {
 
 		if op == RawOpenTSDB {
-			err = backend.manager.SendOpenTSDB(value, time.Now().Unix(), metric, tags...)
+			err = backend.manager.SendOpenTSDB(value, timestamp, metric, tags...)
 		} else if op >= timeline.Avg && op <= timeline.Min {
-			err = backend.manager.FlattenOpenTSDB(op, value, time.Now().Unix(), metric, tags...)
+			err = backend.manager.FlattenOpenTSDB(op, value, timestamp, metric, tags...)
 		} else {
 			err = ErrTransportNotSupported
 		}
@@ -69,7 +69,7 @@ func (tm *Instance) Send(caller string, stype StorageType, op timeline.FlatOpera
 				[]interface{}{
 					cMetric, metric,
 					cValue, value,
-					cTimestamp, time.Now().Unix(),
+					cTimestamp, timestamp,
 					cTags, tm.toTagMap(tags),
 				}...,
 			)
@@ -80,7 +80,7 @@ func (tm *Instance) Send(caller string, stype StorageType, op timeline.FlatOpera
 				[]interface{}{
 					cMetric, metric,
 					cValue, value,
-					cTimestamp, time.Now().Unix(),
+					cTimestamp, timestamp,
 					cTags, tm.toTagMap(tags),
 				}...,
 			)
@@ -97,8 +97,15 @@ func (tm *Instance) Send(caller string, stype StorageType, op timeline.FlatOpera
 	return err
 }
 
-// SendText - send a text point
-func (tm *Instance) SendText(caller string, stype StorageType, value, metric string, tags ...interface{}) error {
+// Send - send a point or do a flatten operation
+func (tm *Instance) Send(caller string, stype StorageType, op timeline.FlatOperation, value float64, metric string, tags ...interface{}) error {
+
+	return tm.SendT(caller, stype, op, value, metric, time.Now().Unix(), tags...)
+
+}
+
+// SendTextT - send a text point with specific timestamp
+func (tm *Instance) SendTextT(caller string, stype StorageType, value, metric string, timestamp int64, tags ...interface{}) error {
 
 	if !tm.ready {
 		return nil
@@ -119,7 +126,7 @@ func (tm *Instance) SendText(caller string, stype StorageType, value, metric str
 			[]interface{}{
 				cMetric, metric,
 				cText, value,
-				cTimestamp, time.Now().Unix(),
+				cTimestamp, timestamp,
 				cTags, tm.toTagMap(tags),
 			}...,
 		)
@@ -131,6 +138,13 @@ func (tm *Instance) SendText(caller string, stype StorageType, value, metric str
 	tm.logSendOperationError(caller, err)
 
 	return err
+}
+
+// SendText - send a text point
+func (tm *Instance) SendText(caller string, stype StorageType, value, metric string, tags ...interface{}) error {
+
+	return tm.SendTextT(caller, stype, value, metric, time.Now().Unix(), tags...)
+
 }
 
 // AccumulateHashedData - accumulates a hashed data
