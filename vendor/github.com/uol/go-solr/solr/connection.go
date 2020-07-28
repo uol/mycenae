@@ -12,8 +12,6 @@ import (
 
 var userAgent = fmt.Sprintf("Go-solr/%s (+https://github.com/vanng822/go-solr)", VERSION)
 
-var transport = http.Transport{}
-
 // Solr imposes a limit on the size of a URL send to it using GET requests. Thus
 // this library will switch to use to POST requests as the user query's grow up.
 // If you need, you can charge this value, but be aware of the URL limit in
@@ -21,13 +19,12 @@ var transport = http.Transport{}
 var MaximumSolrUrlLengthSupported = 2083
 
 // HTTPPost make a POST request to path which also includes domain, headers are optional
-func HTTPPost(path string, data *[]byte, headers [][]string, username, password string) ([]byte, error) {
+func HTTPPost(client *http.Client, path string, data *[]byte, headers [][]string, username, password string) ([]byte, error) {
 	var (
 		req *http.Request
 		err error
 	)
 
-	client := &http.Client{Transport: &transport}
 	if data == nil {
 		req, err = http.NewRequest("POST", path, nil)
 	} else {
@@ -51,8 +48,8 @@ func HTTPPost(path string, data *[]byte, headers [][]string, username, password 
 }
 
 // HTTPGet make a GET request to url, headers are optional
-func HTTPGet(url string, headers [][]string, username, password string) ([]byte, error) {
-	client := &http.Client{Transport: &transport}
+func HTTPGet(client *http.Client, url string, headers [][]string, username, password string) ([]byte, error) {
+
 	req, err := http.NewRequest("GET", url, nil)
 
 	if err != nil {
@@ -118,20 +115,27 @@ func successStatus(response map[string]interface{}) bool {
 }
 
 type Connection struct {
-	url      *url.URL
-	core     string
-	username string
-	password string
-	headers [][]string
+	url          *url.URL
+	core         string
+	username     string
+	password     string
+	headers      [][]string
+	queryClient  *http.Client
+	updateClient *http.Client
 }
 
 // NewConnection will parse solrUrl and return a connection object, solrUrl must be a absolute url or path
-func NewConnection(solrUrl, core string) (*Connection, error) {
+func NewConnection(solrUrl, core string, queryClient, updateClient *http.Client) (*Connection, error) {
 	u, err := url.ParseRequestURI(strings.TrimRight(solrUrl, "/"))
 	if err != nil {
 		return nil, err
 	}
-	return &Connection{url: u, core: core}, nil
+	return &Connection{
+		url:          u,
+		core:         core,
+		queryClient:  queryClient,
+		updateClient: updateClient,
+	}, nil
 }
 
 // Set to a new core
@@ -155,14 +159,14 @@ func (c *Connection) Resource(source string, params *url.Values) (*[]byte, error
 	encodedParameters := params.Encode()
 	var r []byte
 	var err error
-	if len(baseUrl) + len(encodedParameters) >= MaximumSolrUrlLengthSupported {
+	if len(baseUrl)+len(encodedParameters) >= MaximumSolrUrlLengthSupported {
 		data := []byte(encodedParameters)
 		var headers [][]string
 		copy(headers, c.headers)
 		headers = append(headers, []string{"Content-Type", "application/x-www-form-urlencoded"})
-		r, err = HTTPPost(baseUrl, &data, headers, c.username, c.password)
+		r, err = HTTPPost(c.queryClient, baseUrl, &data, headers, c.username, c.password)
 	} else {
-		r, err = HTTPGet(fmt.Sprintf("%s?%s", baseUrl, encodedParameters), c.headers, c.username, c.password)
+		r, err = HTTPGet(c.queryClient, fmt.Sprintf("%s?%s", baseUrl, encodedParameters), c.headers, c.username, c.password)
 	}
 	return &r, err
 
@@ -183,7 +187,7 @@ func (c *Connection) Update(data interface{}, params *url.Values) (*SolrUpdateRe
 
 	params.Set("wt", "json")
 
-	r, err := HTTPPost(fmt.Sprintf("%s/%s/update/?%s", c.url.String(), c.core, params.Encode()), b, [][]string{{"Content-Type", "application/json"}}, c.username, c.password)
+	r, err := HTTPPost(c.updateClient, fmt.Sprintf("%s/%s/update/?%s", c.url.String(), c.core, params.Encode()), b, [][]string{{"Content-Type", "application/json"}}, c.username, c.password)
 
 	if err != nil {
 		return nil, err

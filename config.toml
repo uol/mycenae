@@ -26,13 +26,13 @@ MaxAllowedTTL = 90
 DefaultPaginationSize = 1000
 
 # Mandatory keysets to create on app startup
-DefaultKeysets = ["pdeng_validation_errors", "pdeng_stats", "pdeng_collectd", "pdeng_analytics"]
+DefaultKeysets = ["pdeng_validation_errors", "pdeng_stats", "pdeng_analytics", "pdeng_events"]
 
 # Maximum size of bytes for each query processing
 MaxBytesOnQueryProcessing = 1548576
 
 # Allows these keysets to do queries with more than "MaxBytesOnQueryProcessing" bytes
-UnlimitedQueryBytesKeysetWhiteList = ["pdeng_validation_errors", "pdeng_stats", "pdeng_collectd", "pdeng_analytics"]
+UnlimitedQueryBytesKeysetWhiteList = ["pdeng_validation_errors", "pdeng_stats", "pdeng_analytics", "pdeng_events"]
 
 # Silences all point validation errors from the logs
 SilencePointValidationErrors = true
@@ -54,9 +54,6 @@ DelayedMetricsThreshold = 10000
   one_day = 1
   three_days = 3
   one_week = 7
-  two_weeks = 14
-  one_month = 30
-  three_months = 90
 
 #The default keyspace data used to create all default keyspaces
 [DefaultKeyspaceData]
@@ -67,7 +64,7 @@ DelayedMetricsThreshold = 10000
 [cassandra]
   keyspace = "mycenae"
   consistency = "one"
-  nodes = ["182.168.0.2","182.168.0.3","182.168.0.4"]
+  nodes = ["182.168.0.5","182.168.0.6","182.168.0.7"]
   username = "cassandra"
   password = "cassandra"
   connections = 3
@@ -89,7 +86,7 @@ DelayedMetricsThreshold = 10000
   ForceErrorAsDebug = false
   AllowCORS = false
 
-[GlobalTelnetServerConfiguration]
+[TelnetManagerConfiguration]
   # The maximum request time to reach other nodes
   HTTPRequestTimeout = "120s"
 
@@ -114,42 +111,39 @@ DelayedMetricsThreshold = 10000
   # the available timeseries nodes
   Nodes = ["mycenae1", "mycenae2"]
 
-  # silence all info logs
-  SilenceLogs = true
-
-  # allows the listed host to connect multiple times
-  MultipleConnsAllowedHosts = ["127.0.0.1"]
-
-  # allows the same host to connect multiple times
-  RemoveMultipleConnsRestriction = false
+  # statistics collect timeout
+  sendStatsTimeout = "10s"
 
 [[NetdataServer]]
   port = 8023
   bind = "loghost"
-  onErrorTimeout = "5s"
-  sendStatsTimeout = "10s"
+  cacheDuration = "1m"
   maxIdleConnectionTimeout = "30s"
   maxBufferSize = 2048
-  cacheDuration = "1m"
   ServerName = "Netdata Telnet Server"
+  SilenceLogs = true
+  MultipleConnsAllowedHosts = ["127.0.0.1"]
+  RemoveMultipleConnsRestriction = false
 
 [[TELNETserver]]
   port = 8123
   bind = "loghost"
-  onErrorTimeout = "5s" 
-  sendStatsTimeout = "10s"
   maxIdleConnectionTimeout = "30s"
   maxBufferSize = 2048
   ServerName = "OpenTSDB Telnet Server 1"
+  SilenceLogs = true
+  MultipleConnsAllowedHosts = ["127.0.0.1"]
+  RemoveMultipleConnsRestriction = false
 
 [[TELNETserver]]
   port = 8223
   bind = "loghost"
-  onErrorTimeout = "5s" 
-  sendStatsTimeout = "10s"
   maxIdleConnectionTimeout = "30s"
   maxBufferSize = 2048
   ServerName = "OpenTSDB Telnet Server 2"
+  SilenceLogs = true
+  MultipleConnsAllowedHosts = ["127.0.0.1"]
+  RemoveMultipleConnsRestriction = false
 
 [logs]
   level = "debug"
@@ -181,6 +175,8 @@ DelayedMetricsThreshold = 10000
     expectedResponseStatus = 204
     timestampProperty = "timestamp"
     valueProperty = "value"
+    [httpTransports.number.headers]
+        "content-type" = "application/json"
 
   [[stats.backends]]
     addHostTag    = true
@@ -224,7 +220,7 @@ DelayedMetricsThreshold = 10000
 [metadataSettings]
   numShards = 1
   replicationFactor = 1
-  url = "http://182.168.0.6:8983/solr"
+  url = "http://182.168.0.3:8983/solr"
   IDCacheTTL = -1
   QueryCacheTTL = -1
   MaxReturnedMetadata = 10000
@@ -232,6 +228,12 @@ DelayedMetricsThreshold = 10000
   BlacklistedKeysets = ["chimera", "blacklist"]
   CacheKeyHashSize = 16
   KeysetCacheAutoUpdateInterval = "5m"
+  [metadataSettings.queryClient]
+    Timeout = "10s"
+    NumSimultaneousConnections = 20
+  [metadataSettings.updateClient]
+    Timeout = "10s"
+    NumSimultaneousConnections = 0
 
 [memcached]
   # the nodes

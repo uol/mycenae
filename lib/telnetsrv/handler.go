@@ -3,6 +3,7 @@ package telnetsrv
 import (
 	"github.com/uol/logh"
 	"github.com/uol/mycenae/lib/constants"
+	"github.com/uol/mycenae/lib/structs"
 	"github.com/uol/mycenae/lib/validation"
 )
 
@@ -26,6 +27,6 @@ type TelnetDataHandler interface {
 	// GetValidationService - returns the validation service instance
 	GetValidationService() *validation.Service
 
-	// SilenceLogs - checks the configuration to silence all validation logs
-	SilenceLogs() bool
+	// GetConfiguration - returns this handler configuration
+	GetConfiguration() *structs.TelnetServerConfiguration
 }

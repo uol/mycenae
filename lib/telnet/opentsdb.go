@@ -29,19 +29,19 @@ type OpenTSDBHandler struct {
 	tagsRegexp        *regexp.Regexp
 	collector         *collector.Collector
 	logger            *logh.ContextualLogger
-	telnetConfig      *structs.GlobalTelnetServerConfiguration
+	configuration     *structs.TelnetServerConfiguration
 	validationService *validation.Service
 }
 
 // NewOpenTSDBHandler - creates the new handler
-func NewOpenTSDBHandler(collector *collector.Collector, telnetConfig *structs.GlobalTelnetServerConfiguration, validationService *validation.Service) *OpenTSDBHandler {
+func NewOpenTSDBHandler(collector *collector.Collector, configuration *structs.TelnetServerConfiguration, validationService *validation.Service) *OpenTSDBHandler {
 
 	return &OpenTSDBHandler{
 		formatRegexp:      regexp.MustCompile(`put ([0-9A-Za-z-\._\%\&\#\;\/]+) ([0-9]+) ([0-9Ee\.\-\,]+) ([0-9A-Za-z-\._\%\&\#\;\/ =]+)`),
 		tagsRegexp:        regexp.MustCompile(`([0-9A-Za-z-\._\%\&\#\;\/]+)=([0-9A-Za-z-\._\%\&\#\;\/]+)`),
 		collector:         collector,
 		logger:            logh.CreateContextualLogger(constants.StringsPKG, "telnet", constants.StringsFunc, "Handle"),
-		telnetConfig:      telnetConfig,
+		configuration:     configuration,
 		validationService: validationService,
 	}
 }
@@ -50,7 +50,7 @@ func NewOpenTSDBHandler(collector *collector.Collector, telnetConfig *structs.Gl
 func (otsdbh *OpenTSDBHandler) Handle(line string, ip string) bool {
 
 	if len(line) == 0 {
-		if !otsdbh.telnetConfig.SilenceLogs && logh.DebugEnabled {
+		if !otsdbh.configuration.SilenceLogs && logh.DebugEnabled {
 			otsdbh.logger.Debug().Msg(cMsgEmptyLine)
 		}
 		return true
@@ -192,5 +192,10 @@ func (otsdbh *OpenTSDBHandler) GetValidationService() *validation.Service {
 
 // SilenceLogs - checks the configuration to silence all validation logs
 func (otsdbh *OpenTSDBHandler) SilenceLogs() bool {
-	return otsdbh.telnetConfig.SilenceLogs
+	return otsdbh.configuration.SilenceLogs
+}
+
+// GetConfiguration - returns this handler configuration
+func (otsdbh *OpenTSDBHandler) GetConfiguration() *structs.TelnetServerConfiguration {
+	return otsdbh.configuration
 }

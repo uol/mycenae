@@ -137,12 +137,12 @@ type NetdataHandler struct {
 	cacheDuration     time.Duration
 	collector         *collector.Collector
 	logger            *logh.ContextualLogger
-	telnetConfig      *structs.GlobalTelnetServerConfiguration
+	configuration     *structs.TelnetServerConfiguration
 	validationService *validation.Service
 }
 
 // NewNetdataHandler - creates the new handler
-func NewNetdataHandler(regexpCacheDuration string, collector *collector.Collector, telnetConfig *structs.GlobalTelnetServerConfiguration, validationService *validation.Service) *NetdataHandler {
+func NewNetdataHandler(regexpCacheDuration string, collector *collector.Collector, configuration *structs.TelnetServerConfiguration, validationService *validation.Service) *NetdataHandler {
 
 	netdataTags := map[string]bool{
 		propChartID:      true,
@@ -168,7 +168,7 @@ func NewNetdataHandler(regexpCacheDuration string, collector *collector.Collecto
 		regexpCache:       sync.Map{},
 		mutex:             &sync.Mutex{},
 		logger:            logh.CreateContextualLogger(constants.StringsPKG, "telnet", constants.StringsFunc, "Handle"),
-		telnetConfig:      telnetConfig,
+		configuration:     configuration,
 		validationService: validationService,
 	}
 }
@@ -195,7 +195,7 @@ func (nh *NetdataHandler) expireCachedRegexp(regexp string) {
 func (nh *NetdataHandler) Handle(line, ip string) bool {
 
 	if len(line) == 0 {
-		if !nh.telnetConfig.SilenceLogs && logh.DebugEnabled {
+		if !nh.configuration.SilenceLogs && logh.DebugEnabled {
 			nh.logger.Debug().Msg(cMsgEmptyLine)
 		}
 		return false
@@ -204,7 +204,7 @@ func (nh *NetdataHandler) Handle(line, ip string) bool {
 	var gerr gobol.Error
 	pointJSON := netdataJSON{}
 
-	gerr = pointJSON.Parse([]byte(line), nh.telnetConfig.SilenceLogs, nh.logger)
+	gerr = pointJSON.Parse([]byte(line), nh.configuration.SilenceLogs, nh.logger)
 	if gerr != nil {
 		logAndStats(nh, gerr, cFuncParse, pointJSON.Keyset, ip, cMsgFInvalidLineContent, line)
 		return false
@@ -386,7 +386,7 @@ func (nh *NetdataHandler) GetValidationService() *validation.Service {
 	return nh.validationService
 }
 
-// SilenceLogs - checks the configuration to silence all validation logs
-func (nh *NetdataHandler) SilenceLogs() bool {
-	return nh.telnetConfig.SilenceLogs
+// GetConfiguration - returns this handler configuration
+func (nh *NetdataHandler) GetConfiguration() *structs.TelnetServerConfiguration {
+	return nh.configuration
 }

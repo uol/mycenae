@@ -50,7 +50,7 @@ func logAndStats(handler interface{}, gerr gobol.Error, funcName, keyset, ip, me
 
 	h.GetValidationService().StatsValidationError(funcName, keyset, ip, h.GetSourceType(), gerr)
 
-	if !h.SilenceLogs() && logh.ErrorEnabled {
+	if !h.GetConfiguration().SilenceLogs && logh.ErrorEnabled {
 		ev := h.GetLogger().Error().Err(gerr)
 
 		if len(funcName) > 0 {

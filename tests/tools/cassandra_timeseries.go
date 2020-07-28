@@ -63,12 +63,9 @@ const (
 
 var (
 	TTLKeyspaceMap = map[int]string{
-		1:  "one_day",
-		3:  "three_days",
-		7:  "one_week",
-		14: "two_weeks",
-		30: "one_month",
-		90: "three_months",
+		1: "one_day",
+		3: "three_days",
+		7: "one_week",
 	}
 )
 

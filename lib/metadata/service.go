@@ -46,7 +46,7 @@ type SolrBackend struct {
 // NewSolrBackend - creates a new instance
 func NewSolrBackend(settings *Settings, mc *tlmanager.Instance, memcached *memcached.Memcached) (*SolrBackend, error) {
 
-	ss, err := solar.NewSolrService(settings.URL)
+	ss, err := solar.NewSolrService(&settings.Configuration)
 	if err != nil {
 		return nil, err
 	}
