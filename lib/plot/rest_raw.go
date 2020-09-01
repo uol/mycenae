@@ -24,6 +24,7 @@ type queryParameters struct {
 	tsids        []string
 	metadataMap  map[string]RawDataMetadata
 	estimateSize bool
+	last         bool
 }
 
 // RawDataQuery - returns the raw query
@@ -60,20 +61,27 @@ func (plot *Plot) RawDataQuery(w http.ResponseWriter, r *http.Request, ps httpro
 		return
 	}
 
-	qp.since, gerr = plot.getNowMinusDuration(rawQuery.Since)
-	if gerr != nil {
-		rip.Fail(w, gerr)
-		return
+	if rawQuery.Since == rawDataQueryLast {
+		qp.last = true
 	}
 
-	if rawQuery.Until != constants.StringsEmpty {
-		qp.until, gerr = plot.getNowMinusDuration(rawQuery.Until)
+	if !qp.last {
+
+		qp.since, gerr = plot.getNowMinusDuration(rawQuery.Since)
 		if gerr != nil {
 			rip.Fail(w, gerr)
 			return
 		}
-	} else {
-		qp.until = utils.GetTimeNoMillis()
+
+		if rawQuery.Until != constants.StringsEmpty {
+			qp.until, gerr = plot.getNowMinusDuration(rawQuery.Until)
+			if gerr != nil {
+				rip.Fail(w, gerr)
+				return
+			}
+		} else {
+			qp.until = utils.GetTimeNoMillis()
+		}
 	}
 
 	metadataQuery := metadata.Query{
@@ -102,6 +110,11 @@ func (plot *Plot) RawDataQuery(w http.ResponseWriter, r *http.Request, ps httpro
 	}
 
 	qp.keyset = rawQuery.Tags[rawDataQueryKSID]
+	gerr = plot.validateKeyset(qp.keyset)
+	if gerr != nil {
+		rip.Fail(w, gerr)
+		return
+	}
 
 	metadataArray, _, gerr := plot.persist.metaStorage.FilterMetadata(rawQuery.Tags[rawDataQueryKSID], &metadataQuery, 0, plot.MaxTimeseries)
 	if gerr != nil {
@@ -127,9 +140,17 @@ func (plot *Plot) RawDataQuery(w http.ResponseWriter, r *http.Request, ps httpro
 	var results interface{}
 	var numBytes uint32
 	if rawQuery.Type == rawDataQueryTextType {
-		results, numBytes, gerr = plot.getRawTextPoints(&qp)
+		if qp.last {
+			results, numBytes, gerr = plot.getLastRawTextPoint(&qp)
+		} else {
+			results, numBytes, gerr = plot.getRawTextPoints(&qp)
+		}
 	} else {
-		results, numBytes, gerr = plot.getRawNumberPoints(&qp)
+		if qp.last {
+			results, numBytes, gerr = plot.getLastRawNumberPoint(&qp)
+		} else {
+			results, numBytes, gerr = plot.getRawNumberPoints(&qp)
+		}
 	}
 
 	addProcessedBytesHeader(w, numBytes)
@@ -216,10 +237,47 @@ func (plot *Plot) getRawTextPoints(qp *queryParameters) (interface{}, uint32, go
 	return mainResult, bytes, nil
 }
 
+// getLastRawTextPoint - returns the last text point filtered by the query
+func (plot *Plot) getLastRawTextPoint(qp *queryParameters) (interface{}, uint32, gobol.Error) {
+
+	textTSMap, bytes, err := plot.persist.GetLastTST(qp.keyspace, qp.tsids, nil, qp.estimateSize, plot.maxBytesLimit, qp.keyset)
+	if err != nil {
+		return nil, 0, errInternalServer("getLastRawTextPoint", err)
+	}
+
+	if bytes == 0 {
+		return nil, 0, nil
+	}
+
+	mainResult := RawDataQueryTextResults{}
+	total := len(textTSMap)
+	mainResult.Results = make([]RawDataQueryTextPoints, total)
+
+	i := 0
+	for tsid, point := range textTSMap {
+
+		mainResult.Results[i] = RawDataQueryTextPoints{
+			Metadata: qp.metadataMap[tsid],
+			Texts:    make([]RawDataTextPoint, 1),
+		}
+
+		mainResult.Results[i].Texts[0] = RawDataTextPoint{
+			Timestamp: point.Date,
+			Text:      point.Value,
+		}
+
+		i++
+	}
+
+	mainResult.Total = total
+
+	return mainResult, bytes, nil
+}
+
 // getRawNumberPoints - returns all number points filtered by the query
 func (plot *Plot) getRawNumberPoints(qp *queryParameters) (interface{}, uint32, gobol.Error) {
 
-	textTSMap, bytes, err := plot.persist.GetTS(qp.keyspace, qp.tsids, qp.since, qp.until, false, qp.estimateSize, plot.maxBytesLimit, qp.keyset)
+	numberTSMap, bytes, err := plot.persist.GetTS(qp.keyspace, qp.tsids, qp.since, qp.until, false, qp.estimateSize, plot.maxBytesLimit, qp.keyset)
 	if err != nil {
 		return nil, 0, errInternalServer("getRawNumberPoints", err)
 	}
@@ -233,7 +291,7 @@ func (plot *Plot) getRawNumberPoints(qp *queryParameters) (interface{}, uint32, 
 
 	i := 0
 	total := 0
-	for tsid, points := range textTSMap {
+	for tsid, points := range numberTSMap {
 
 		numPoints := len(points)
 		if numPoints == 0 {
@@ -255,6 +313,43 @@ func (plot *Plot) getRawNumberPoints(qp *queryParameters) (interface{}, uint32, 
 		}
 
 		mainResult.Results = append(mainResult.Results, rawNumberPoint)
+
+		i++
+	}
+
+	mainResult.Total = total
+
+	return mainResult, bytes, nil
+}
+
+// getLastRawNumberPoint - returns the last number point filtered by the query
+func (plot *Plot) getLastRawNumberPoint(qp *queryParameters) (interface{}, uint32, gobol.Error) {
+
+	numberTSMap, bytes, err := plot.persist.GetLastTS(qp.keyspace, qp.tsids, false, qp.estimateSize, plot.maxBytesLimit, qp.keyset)
+	if err != nil {
+		return nil, 0, errInternalServer("getLastRawNumberPoint", err)
+	}
+
+	if bytes == 0 {
+		return nil, 0, nil
+	}
+
+	mainResult := RawDataQueryNumberResults{}
+	total := len(numberTSMap)
+	mainResult.Results = make([]RawDataQueryNumberPoints, total)
+
+	i := 0
+	for tsid, point := range numberTSMap {
+
+		mainResult.Results[i] = RawDataQueryNumberPoints{
+			Metadata: qp.metadataMap[tsid],
+			Values:   make([]RawDataNumberPoint, 1),
+		}
+
+		mainResult.Results[i].Values[0] = RawDataNumberPoint{
+			Timestamp: point.Date,
+			Value:     point.Value,
+		}
 
 		i++
 	}

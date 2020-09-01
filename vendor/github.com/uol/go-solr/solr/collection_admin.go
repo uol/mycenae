@@ -2,9 +2,10 @@ package solr
 
 import (
 	"fmt"
-	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/uol/restrictedhttpclient"
 )
 
 // CollectionsAdmin - type definition
@@ -12,11 +13,11 @@ type CollectionsAdmin struct {
 	url      *url.URL
 	username string
 	password string
-	client   *http.Client
+	client   *restrictedhttpclient.Instance
 }
 
 // NewCollectionsAdmin - creates a new collection api connection
-func NewCollectionsAdmin(solrURL string, client *http.Client) (*CollectionsAdmin, error) {
+func NewCollectionsAdmin(solrURL string, client *restrictedhttpclient.Instance) (*CollectionsAdmin, error) {
 	u, err := url.ParseRequestURI(strings.TrimRight(solrURL, "/"))
 	if err != nil {
 		return nil, err

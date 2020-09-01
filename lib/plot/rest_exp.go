@@ -107,6 +107,12 @@ func (plot *Plot) ExpressionQueryGET(w http.ResponseWriter, r *http.Request, ps 
 
 func (plot *Plot) expressionQuery(w http.ResponseWriter, r *http.Request, keyset string, expQuery ExpQuery) {
 
+	gerr := plot.validateKeyset(keyset)
+	if gerr != nil {
+		rip.Fail(w, gerr)
+		return
+	}
+
 	if expQuery.Expression == constants.StringsEmpty {
 		gerr := errEmptyExpression("expressionQuery")
 		rip.Fail(w, gerr)
@@ -331,6 +337,12 @@ func (plot *Plot) ExpressionExpandGET(w http.ResponseWriter, r *http.Request, ps
 
 func (plot *Plot) expressionExpand(w http.ResponseWriter, keyset string, expQuery ExpQuery) {
 
+	gerr := plot.validateKeyset(keyset)
+	if gerr != nil {
+		rip.Fail(w, gerr)
+		return
+	}
+
 	if expQuery.Expression == constants.StringsEmpty {
 		gerr := errEmptyExpression("expressionExpand")
 		rip.Fail(w, gerr)
@@ -339,7 +351,7 @@ func (plot *Plot) expressionExpand(w http.ResponseWriter, keyset string, expQuer
 
 	found := plot.persist.metaStorage.CheckKeyset(keyset)
 	if !found {
-		gerr := errNotFound("expressionExpand")
+		gerr := errKeysetNotFound("expressionExpand")
 		rip.Fail(w, gerr)
 		return
 	}

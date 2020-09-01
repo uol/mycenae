@@ -46,6 +46,10 @@ func errNotFound(f string) gobol.Error {
 	return errBasic(f, "status not found", http.StatusNotFound, errors.New("status not found"))
 }
 
+func errKeysetNotFound(f string) gobol.Error {
+	return errBasic(f, "keyset not found", http.StatusNotFound, errors.New("keyset not found"))
+}
+
 func errValidation(f, m string, e error) gobol.Error {
 	return errBasic(f, m, http.StatusBadRequest, e)
 }

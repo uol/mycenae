@@ -3,9 +3,10 @@ package solar
 import (
 	"errors"
 	"fmt"
-	"net/http"
 	"net/url"
 	"sync"
+
+	"github.com/uol/restrictedhttpclient"
 
 	"github.com/uol/funks"
 
@@ -24,8 +25,8 @@ type SolrService struct {
 	loggers              *logh.ContextualLogger
 	url                  string
 	solrInterfaceCache   sync.Map
-	queryClient          *http.Client
-	updateClient         *http.Client
+	queryClient          *restrictedhttpclient.Instance
+	updateClient         *restrictedhttpclient.Instance
 }
 
 // recoverFromFailure - recovers from a failure
@@ -46,8 +47,8 @@ type HTTPClient struct {
 // Configuration - the configuration
 type Configuration struct {
 	URL          string
-	QueryClient  HTTPClient
-	UpdateClient HTTPClient
+	QueryClient  *restrictedhttpclient.Configuration
+	UpdateClient *restrictedhttpclient.Configuration
 }
 
 // NewSolrService - creates a new instance
@@ -57,8 +58,15 @@ func NewSolrService(configuration *Configuration) (*SolrService, error) {
 		return nil, errors.New("null configuration")
 	}
 
-	queryClient := funks.CreateHTTPClientAdv(configuration.QueryClient.Timeout.Duration, true, configuration.QueryClient.NumSimultaneousConnections)
-	updateClient := funks.CreateHTTPClientAdv(configuration.UpdateClient.Timeout.Duration, true, configuration.UpdateClient.NumSimultaneousConnections)
+	queryClient, err := restrictedhttpclient.New(configuration.QueryClient)
+	if err != nil {
+		return nil, err
+	}
+
+	updateClient, err := restrictedhttpclient.New(configuration.UpdateClient)
+	if err != nil {
+		return nil, err
+	}
 
 	sca, err := solr.NewCollectionsAdmin(configuration.URL, queryClient)
 	if err != nil {

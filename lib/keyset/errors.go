@@ -38,3 +38,7 @@ func errInternalServerError(function string, e error) gobol.Error {
 func errNotFound(function string) gobol.Error {
 	return errBasic(function, constants.StringsEmpty, http.StatusNotFound, errors.New(constants.StringsEmpty))
 }
+
+func errKeysetNotFound(f string) gobol.Error {
+	return errBasic(f, "keyset not found", http.StatusNotFound, errors.New("keyset not found"))
+}

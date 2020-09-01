@@ -5,8 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"net/http"
 	"net/url"
+
+	"github.com/uol/restrictedhttpclient"
 )
 
 var TypeCastingError = errors.New("solr type cast error")
@@ -105,11 +106,11 @@ type SolrMltResult struct {
 
 type SolrInterface struct {
 	conn   *Connection
-	client *http.Client
+	client *restrictedhttpclient.Instance
 }
 
 // Return a new instance of SolrInterface
-func NewSolrInterface(solrUrl, core string, queryClient, updateClient *http.Client) (*SolrInterface, error) {
+func NewSolrInterface(solrUrl, core string, queryClient, updateClient *restrictedhttpclient.Instance) (*SolrInterface, error) {
 	c, err := NewConnection(solrUrl, core, queryClient, updateClient)
 	if err != nil {
 		return nil, err

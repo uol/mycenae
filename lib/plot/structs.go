@@ -413,6 +413,7 @@ const (
 	rawDataQueryFunc         string = "Parse"
 	rawDataQueryKSID         string = "ksid"
 	rawDataQueryTTL          string = "ttl"
+	rawDataQueryLast         string = "last"
 )
 
 // Parse - parses the bytes tol JSON

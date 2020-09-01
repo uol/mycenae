@@ -52,10 +52,10 @@ github.com/stretchr/testify/assert
 # github.com/uol/funks v1.3.1
 ## explicit
 github.com/uol/funks
-# github.com/uol/go-solr v0.10.1
+# github.com/uol/go-solr v0.11.0
 ## explicit
 github.com/uol/go-solr/solr
-# github.com/uol/gobol v1.34.1
+# github.com/uol/gobol v1.35.0
 ## explicit
 github.com/uol/gobol
 github.com/uol/gobol/cassandra
@@ -68,6 +68,9 @@ github.com/uol/hashing
 # github.com/uol/logh v1.0.1
 ## explicit
 github.com/uol/logh
+# github.com/uol/restrictedhttpclient v1.0.0
+## explicit
+github.com/uol/restrictedhttpclient
 # github.com/uol/scheduler v1.0.0
 github.com/uol/scheduler
 # github.com/uol/serializer v1.3.2

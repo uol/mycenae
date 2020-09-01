@@ -45,7 +45,10 @@ func (hT *httpTool) Init(hostname string, port string, timeout time.Duration) {
 }
 
 func (hT *httpTool) POSTstring(url string, payload string) (statusCode int, respData []byte) {
-	statusCode, respData, _ = hT.POST(url, []byte(payload))
+	statusCode, respData, err := hT.POST(url, []byte(payload))
+	if err != nil {
+		panic(err)
+	}
 	return
 }
 
@@ -56,7 +59,10 @@ func (hT *httpTool) POSTjson(url string, postData interface{}, respData interfac
 		return
 	}
 	headers := map[string]string{"Content-Type": "application/json"}
-	statusCode, respBytes, _ := hT.request("POST", url, payload, headers)
+	statusCode, respBytes, err := hT.request("POST", url, payload, headers)
+	if err != nil {
+		panic(err)
+	}
 
 	if len(respBytes) > 0 {
 		err = json.Unmarshal(respBytes, respData)
