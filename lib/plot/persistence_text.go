@@ -15,7 +15,7 @@ const (
 	funcGetTST      string = "GetTST"
 	queryGetTST     string = `SELECT id, date, value FROM %s.ts_text_stamp WHERE id in (%s) AND date > ? AND date < ? ALLOW FILTERING`
 	funcGetLastTST  string = "GetLastTST"
-	queryGetLastTST string = `SELECT id, date, value FROM %s.ts_text_stamp where id = ? order by date desc limit 1`
+	queryGetLastTST string = `SELECT id, date, value FROM %s.ts_text_stamp where id = ? limit 1` // given that clustering order MUST be date desc
 )
 
 func (persist *persistence) GetTST(keyspace string, keys []string, start, end int64, search *regexp.Regexp, allowFullFetch bool, maxBytesLimit uint32, keyset string) (map[string][]TextPnt, uint32, gobol.Error) {
