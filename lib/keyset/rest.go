@@ -91,7 +91,7 @@ func (ks *Manager) Check(w http.ResponseWriter, r *http.Request, ps httprouter.P
 
 	found := ks.storage.CheckKeyset(keyset)
 	if !found {
-		rip.Fail(w, errNotFound(
+		rip.Fail(w, errKeysetNotFound(
 			"Check",
 		))
 		return

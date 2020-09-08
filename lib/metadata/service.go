@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/uol/restrictedhttpclient"
+
 	"github.com/rs/zerolog"
 	"github.com/uol/logh"
 
@@ -218,6 +220,9 @@ func (sb *SolrBackend) filterFieldValues(function, collection, field, value stri
 	facets, err := sb.getCachedFacets(collection, q)
 	if err != nil {
 		sb.statsError(function, collection, constants.StringsAll, solrFacetQuery)
+		if err == restrictedhttpclient.ErrMaxRequestsReached {
+			return nil, 0, errServiceUnavailable(function, err)
+		}
 		return nil, 0, errInternalServer(function, err)
 	}
 
@@ -229,6 +234,9 @@ func (sb *SolrBackend) filterFieldValues(function, collection, field, value stri
 	r, e := sb.solrService.Facets(collection, q, constants.StringsEmpty, 0, 0, nil, facetFields, childFacetFields, true, sb.maxReturnedMetadata, 1)
 	if e != nil {
 		sb.statsError(function, collection, constants.StringsAll, solrFacetQuery)
+		if err == restrictedhttpclient.ErrMaxRequestsReached {
+			return nil, 0, errServiceUnavailable(function, err)
+		}
 		return nil, 0, errInternalServer(function, e)
 	}
 
@@ -237,6 +245,9 @@ func (sb *SolrBackend) filterFieldValues(function, collection, field, value stri
 	err = sb.cacheFacets(facets, collection, q)
 	if err != nil {
 		sb.statsError(function, collection, constants.StringsAll, solrFacetQuery)
+		if err == restrictedhttpclient.ErrMaxRequestsReached {
+			return nil, 0, errServiceUnavailable(function, err)
+		}
 		return nil, 0, errInternalServer(function, err)
 	}
 
@@ -254,6 +265,9 @@ func (sb *SolrBackend) FilterTagValues(collection, prefix string, maxResults int
 
 	tags, total, err := sb.filterFieldValues(funcFilterTagValues, collection, "tag_value", prefix, maxResults)
 	if err != nil {
+		if err == restrictedhttpclient.ErrMaxRequestsReached {
+			return nil, 0, errServiceUnavailable(funcFilterTagValues, err)
+		}
 		return nil, 0, errInternalServer(funcFilterTagValues, err)
 	}
 
@@ -267,7 +281,10 @@ func (sb *SolrBackend) FilterTagKeys(collection, prefix string, maxResults int) 
 
 	tags, total, err := sb.filterFieldValues(funcFilterTagKeys, collection, "tag_key", prefix, maxResults)
 	if err != nil {
-		return nil, 0, errInternalServer("FilterTagKeys", err)
+		if err == restrictedhttpclient.ErrMaxRequestsReached {
+			return nil, 0, errServiceUnavailable(funcFilterTagKeys, err)
+		}
+		return nil, 0, errInternalServer(funcFilterTagKeys, err)
 	}
 
 	return tags, total, nil
@@ -280,7 +297,10 @@ func (sb *SolrBackend) FilterMetrics(collection, prefix string, maxResults int) 
 
 	metrics, total, err := sb.filterFieldValues(funcFilterMetrics, collection, "metric", prefix, maxResults)
 	if err != nil {
-		return nil, 0, errInternalServer("FilterMetrics", err)
+		if err == restrictedhttpclient.ErrMaxRequestsReached {
+			return nil, 0, errServiceUnavailable(funcFilterMetrics, err)
+		}
+		return nil, 0, errInternalServer(funcFilterMetrics, err)
 	}
 
 	return metrics, total, nil
@@ -475,6 +495,9 @@ func (sb *SolrBackend) FilterMetadata(collection string, query *Query, from, max
 	r, err := sb.solrService.FilteredQuery(collection, q, sb.fieldListQuery, from, maxResults, qfs)
 	if err != nil {
 		sb.statsError(funcFilterMetadata, collection, query.MetaType, solrQuery)
+		if err == restrictedhttpclient.ErrMaxRequestsReached {
+			return nil, 0, errServiceUnavailable(funcFilterMetadata, err)
+		}
 		return nil, 0, errInternalServer(funcFilterMetadata, err)
 	}
 
@@ -598,6 +621,9 @@ func (sb *SolrBackend) AddDocument(collection string, m *Metadata) gobol.Error {
 	err := sb.solrService.AddDocument(collection, true, doc)
 	if err != nil {
 		sb.statsError(funcAddDocument, collection, m.MetaType, solrNewDoc)
+		if err == restrictedhttpclient.ErrMaxRequestsReached {
+			return errServiceUnavailable(funcAddDocument, err)
+		}
 		return errInternalServer(funcAddDocument, err)
 	}
 
@@ -618,6 +644,9 @@ func (sb *SolrBackend) CheckMetadata(collection, tsType, tsid string, tsidBytes 
 
 	isCached, err := sb.isIDCached(collection, tsType, tsid, tsidBytes)
 	if err != nil {
+		if err == restrictedhttpclient.ErrMaxRequestsReached {
+			return false, errServiceUnavailable(funcCheckMetadata, err)
+		}
 		return false, errInternalServer(funcCheckMetadata, err)
 	}
 
@@ -632,6 +661,9 @@ func (sb *SolrBackend) CheckMetadata(collection, tsType, tsid string, tsidBytes 
 
 	if e != nil {
 		sb.statsError(funcCheckMetadata, collection, tsType, solrDocID)
+		if err == restrictedhttpclient.ErrMaxRequestsReached {
+			return false, errServiceUnavailable(funcCheckMetadata, err)
+		}
 		return false, errInternalServer(funcCheckMetadata, err)
 	}
 
@@ -660,6 +692,9 @@ func (sb *SolrBackend) DeleteDocumentByID(collection, tsType, id string) gobol.E
 	err := sb.solrService.DeleteDocumentByID(collection, true, queryID)
 	if err != nil {
 		sb.statsError(funcDeleteDocumentByID, collection, tsType, solrDelete)
+		if err == restrictedhttpclient.ErrMaxRequestsReached {
+			return errServiceUnavailable(funcDeleteDocumentByID, err)
+		}
 		return errInternalServer(funcDeleteDocumentByID, err)
 	}
 
@@ -680,6 +715,9 @@ func (sb *SolrBackend) DeleteCachedIDifExist(collection, tsType, id string) gobo
 		if logh.ErrorEnabled {
 			sb.log(sb.logger.Error(), funcDeleteCachedIDifExist, collection).Err(err).Msg("error getting tsid from the cache")
 		}
+		if err == restrictedhttpclient.ErrMaxRequestsReached {
+			return errServiceUnavailable(funcDeleteCachedIDifExist, err)
+		}
 		return errInternalServer(funcDeleteCachedIDifExist, err)
 	}
 
@@ -688,6 +726,9 @@ func (sb *SolrBackend) DeleteCachedIDifExist(collection, tsType, id string) gobo
 		if err != nil {
 			if logh.ErrorEnabled {
 				sb.log(sb.logger.Error(), funcDeleteCachedIDifExist, collection).Err(err).Msg("error deleting tsid from cache")
+			}
+			if err == restrictedhttpclient.ErrMaxRequestsReached {
+				return errServiceUnavailable(funcDeleteCachedIDifExist, err)
 			}
 			return errInternalServer(funcDeleteCachedIDifExist, err)
 		}
@@ -748,10 +789,13 @@ func (sb *SolrBackend) filterTagsByMetric(collection, tsType, metric, childrenQu
 
 	start := time.Now()
 
-	facets, gerr := sb.getCachedFacets(collection, strBuilder.String())
-	if gerr != nil {
+	facets, err := sb.getCachedFacets(collection, strBuilder.String())
+	if err != nil {
 		sb.statsError(functionName, collection, tsType, solrQuery)
-		return nil, 0, errInternalServer(functionName, gerr)
+		if err == restrictedhttpclient.ErrMaxRequestsReached {
+			return nil, 0, errServiceUnavailable(functionName, err)
+		}
+		return nil, 0, errInternalServer(functionName, err)
 	}
 
 	if facets != nil && len(facets) > 0 {
@@ -762,6 +806,9 @@ func (sb *SolrBackend) filterTagsByMetric(collection, tsType, metric, childrenQu
 	r, err := sb.solrService.Facets(collection, query, constants.StringsEmpty, 0, 0, filterQueries, nil, []string{field}, true, maxResults, 0)
 	if err != nil {
 		sb.statsError(functionName, collection, tsType, solrQuery)
+		if err == restrictedhttpclient.ErrMaxRequestsReached {
+			return nil, 0, errServiceUnavailable(functionName, err)
+		}
 		return nil, 0, errInternalServer(functionName, err)
 	}
 
@@ -770,6 +817,9 @@ func (sb *SolrBackend) filterTagsByMetric(collection, tsType, metric, childrenQu
 	err = sb.cacheFacets(facets, collection, strBuilder.String())
 	if err != nil {
 		sb.statsError(functionName, collection, tsType, solrQuery)
+		if err == restrictedhttpclient.ErrMaxRequestsReached {
+			return nil, 0, errServiceUnavailable(functionName, err)
+		}
 		return nil, 0, errInternalServer(functionName, err)
 	}
 

@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/uol/restrictedhttpclient"
 )
 
 var userAgent = fmt.Sprintf("Go-solr/%s (+https://github.com/vanng822/go-solr)", VERSION)
@@ -19,7 +21,7 @@ var userAgent = fmt.Sprintf("Go-solr/%s (+https://github.com/vanng822/go-solr)",
 var MaximumSolrUrlLengthSupported = 2083
 
 // HTTPPost make a POST request to path which also includes domain, headers are optional
-func HTTPPost(client *http.Client, path string, data *[]byte, headers [][]string, username, password string) ([]byte, error) {
+func HTTPPost(client *restrictedhttpclient.Instance, path string, data *[]byte, headers [][]string, username, password string) ([]byte, error) {
 	var (
 		req *http.Request
 		err error
@@ -48,7 +50,7 @@ func HTTPPost(client *http.Client, path string, data *[]byte, headers [][]string
 }
 
 // HTTPGet make a GET request to url, headers are optional
-func HTTPGet(client *http.Client, url string, headers [][]string, username, password string) ([]byte, error) {
+func HTTPGet(client *restrictedhttpclient.Instance, url string, headers [][]string, username, password string) ([]byte, error) {
 
 	req, err := http.NewRequest("GET", url, nil)
 
@@ -68,7 +70,7 @@ func HTTPGet(client *http.Client, url string, headers [][]string, username, pass
 	return makeRequest(client, req)
 }
 
-func makeRequest(client *http.Client, req *http.Request) ([]byte, error) {
+func makeRequest(client *restrictedhttpclient.Instance, req *http.Request) ([]byte, error) {
 	req.Header.Set("User-Agent", userAgent)
 
 	resp, err := client.Do(req)
@@ -120,12 +122,12 @@ type Connection struct {
 	username     string
 	password     string
 	headers      [][]string
-	queryClient  *http.Client
-	updateClient *http.Client
+	queryClient  *restrictedhttpclient.Instance
+	updateClient *restrictedhttpclient.Instance
 }
 
 // NewConnection will parse solrUrl and return a connection object, solrUrl must be a absolute url or path
-func NewConnection(solrUrl, core string, queryClient, updateClient *http.Client) (*Connection, error) {
+func NewConnection(solrUrl, core string, queryClient, updateClient *restrictedhttpclient.Instance) (*Connection, error) {
 	u, err := url.ParseRequestURI(strings.TrimRight(solrUrl, "/"))
 	if err != nil {
 		return nil, err

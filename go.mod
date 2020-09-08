@@ -16,10 +16,11 @@ require (
 	github.com/rs/zerolog v1.19.0
 	github.com/stretchr/testify v1.6.1
 	github.com/uol/funks v1.3.1
-	github.com/uol/go-solr v0.10.1
-	github.com/uol/gobol v1.34.1
+	github.com/uol/go-solr v0.11.0
+	github.com/uol/gobol v1.35.0
 	github.com/uol/hashing v1.0.1
 	github.com/uol/logh v1.0.1
+	github.com/uol/restrictedhttpclient v1.0.0 // indirect
 	github.com/uol/serializer v1.3.2 // indirect
 	github.com/uol/timeline v1.8.1 // indirect
 	github.com/uol/timelinemanager v1.6.2

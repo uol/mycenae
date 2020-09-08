@@ -87,7 +87,10 @@ func tsPointsV2(keyspace string) {
 			log.Fatal(test, err, jsonPoints)
 		}
 
-		code, _, _ := mycenaeTools.HTTP.POST("api/put", jsonPoints)
+		code, _, err := mycenaeTools.HTTP.POST("api/put", jsonPoints)
+		if err != nil {
+			panic(err)
+		}
 		if code != http.StatusNoContent {
 			log.Fatal(test, code)
 		}
@@ -150,7 +153,10 @@ func ts10(keyspace string) {
 		log.Fatal(err, jsonPoints)
 	}
 
-	code, _, _ := mycenaeTools.HTTP.POST("api/put", jsonPoints)
+	code, _, err := mycenaeTools.HTTP.POST("api/put", jsonPoints)
+	if err != nil {
+		panic(err)
+	}
 	if code != http.StatusNoContent {
 		log.Fatal(code)
 	}

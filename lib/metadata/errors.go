@@ -31,3 +31,7 @@ func errConflict(function string, err error) gobol.Error {
 func errInternalServer(function string, err error) gobol.Error {
 	return errBasic(function, constants.StringsEmpty, http.StatusInternalServerError, err)
 }
+
+func errServiceUnavailable(function string, err error) gobol.Error {
+	return errBasic(function, constants.StringsEmpty, http.StatusServiceUnavailable, err)
+}

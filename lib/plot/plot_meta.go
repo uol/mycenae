@@ -12,7 +12,7 @@ func (plot *Plot) validateKeyset(keyset string) gobol.Error {
 
 	found := plot.persist.metaStorage.CheckKeyset(keyset)
 	if !found {
-		return errNotFound("validateKeyset")
+		return errKeysetNotFound("validateKeyset")
 	}
 
 	return nil

@@ -2,16 +2,17 @@ package solr
 
 import (
 	"fmt"
-	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/uol/restrictedhttpclient"
 )
 
 type CoreAdmin struct {
 	url      *url.URL
 	username string
 	password string
-	client   *http.Client
+	client   *restrictedhttpclient.Instance
 }
 
 // solrUrl should look like this http://0.0.0.0:8983/solr[/admin/cores] ie /admin/cores will append automatically

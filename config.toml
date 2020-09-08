@@ -64,7 +64,7 @@ DelayedMetricsThreshold = 10000
 [cassandra]
   keyspace = "mycenae"
   consistency = "one"
-  nodes = ["182.168.0.5","182.168.0.6","182.168.0.7"]
+  nodes = ["182.168.0.2","182.168.0.3","182.168.0.4"]
   username = "cassandra"
   password = "cassandra"
   connections = 3
@@ -220,7 +220,7 @@ DelayedMetricsThreshold = 10000
 [metadataSettings]
   numShards = 1
   replicationFactor = 1
-  url = "http://182.168.0.3:8983/solr"
+  url = "http://182.168.0.6:8983/solr"
   IDCacheTTL = -1
   QueryCacheTTL = -1
   MaxReturnedMetadata = 10000
@@ -229,11 +229,19 @@ DelayedMetricsThreshold = 10000
   CacheKeyHashSize = 16
   KeysetCacheAutoUpdateInterval = "5m"
   [metadataSettings.queryClient]
-    Timeout = "10s"
-    NumSimultaneousConnections = 20
+    # the maximum number of simultaneous running requests
+    MaxSimultaneousRequests = 2000
+    # the maximum request time
+    RequestTimeout = "2m"
+    # enable/disable certificate validation check
+    SkipCertificateValidation = true
   [metadataSettings.updateClient]
-    Timeout = "10s"
-    NumSimultaneousConnections = 0
+    # the maximum number of simultaneous running requests
+    MaxSimultaneousRequests = 2000
+    # the maximum request time
+    RequestTimeout = "2m"
+    # enable/disable certificate validation check
+    SkipCertificateValidation = true
 
 [memcached]
   # the nodes

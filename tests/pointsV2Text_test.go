@@ -185,7 +185,10 @@ func tsText6(keyspace string) bool {
 		log.Fatal("tsText6b", err, jsonPoints)
 	}
 
-	mycenaeTools.HTTP.POST("api/put", jsonPoints)
+	_, _, err = mycenaeTools.HTTP.POST("api/put", jsonPoints)
+	if err != nil {
+		panic(err)
+	}
 	hashMapPV2T["tsText6_1"] = tools.GetHashFromMetricAndTags(metric, map[string]string{tagKey: tagValue, "ksid": keyspace, "ttl": "1"})
 
 	return true

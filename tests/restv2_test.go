@@ -128,7 +128,10 @@ func TestRESTv2MultiplePointsSameIDAndTimestampsGreaterThanDay(t *testing.T) {
 
 		ps := tools.PayloadSlice{PS: []tools.Payload{*p}}
 
-		statusCode, _, _ := mycenaeTools.HTTP.POST("api/put", ps.Marshal())
+		statusCode, _, err := mycenaeTools.HTTP.POST("api/put", ps.Marshal())
+		if err != nil {
+			panic(err)
+		}
 		assert.Equal(t, http.StatusNoContent, statusCode)
 	}
 
@@ -159,7 +162,10 @@ func TestRESTv2MultiplePointsSameIDAndNoTimestamp(t *testing.T) {
 
 		ps := tools.PayloadSlice{PS: []tools.Payload{*p}}
 
-		statusCode, _, _ := mycenaeTools.HTTP.POST("api/put", ps.Marshal())
+		statusCode, _, err := mycenaeTools.HTTP.POST("api/put", ps.Marshal())
+		if err != nil {
+			panic(err)
+		}
 		assert.Equal(t, http.StatusNoContent, statusCode)
 
 		time.Sleep(tools.Sleep3)
@@ -223,7 +229,10 @@ func TestRESTv2PayloadWithSpecialChars(t *testing.T) {
 
 			ps := tools.PayloadSlice{PS: []tools.Payload{*p}}
 
-			statusCode, _, _ := mycenaeTools.HTTP.POST("api/put", ps.Marshal())
+			statusCode, _, err := mycenaeTools.HTTP.POST("api/put", ps.Marshal())
+			if err != nil {
+				panic(err)
+			}
 			assert.Equal(t, http.StatusNoContent, statusCode)
 
 			// special chars take longer to be saved
@@ -293,7 +302,10 @@ func TestRESTv2PayloadsWithSameMetricTagsTimestamp(t *testing.T) {
 
 	ps := tools.PayloadSlice{PS: []tools.Payload{*p}}
 
-	statusCode, _, _ := mycenaeTools.HTTP.POST("api/put", ps.Marshal())
+	statusCode, _, err := mycenaeTools.HTTP.POST("api/put", ps.Marshal())
+	if err != nil {
+		panic(err)
+	}
 	assert.Equal(t, http.StatusNoContent, statusCode)
 	time.Sleep(tools.Sleep3)
 
@@ -574,8 +586,7 @@ func TestRESTv2PayloadWithInvalidCharsAtOnce(t *testing.T) {
 
 	statusCode, _, err := mycenaeTools.HTTP.POST("api/put", ps.Marshal())
 	if err != nil {
-		t.Error(err)
-		t.SkipNow()
+		panic(err)
 	}
 
 	assert.Equal(t, 400, statusCode)
@@ -900,7 +911,10 @@ func sendRESTPayloadAndAssertPoint(t *testing.T, payload *tools.Payload, start, 
 
 	ps := tools.PayloadSlice{PS: []tools.Payload{*payload}}
 
-	statusCode, _, _ := mycenaeTools.HTTP.POST("api/put", ps.Marshal())
+	statusCode, _, err := mycenaeTools.HTTP.POST("api/put", ps.Marshal())
+	if err != nil {
+		panic(err)
+	}
 	assert.Equal(t, http.StatusNoContent, statusCode)
 
 	time.Sleep(tools.Sleep3)
@@ -915,7 +929,10 @@ func sendRESTPayloadAndAssertPoint(t *testing.T, payload *tools.Payload, start, 
 // payload must be composed by point(s) with Timestamp(s) != nil
 func sendRESTPayloadWithMoreThanAPointAndAssertPoints(t *testing.T, payload tools.PayloadSlice) {
 
-	statusCode, _, _ := mycenaeTools.HTTP.POST("api/put", payload.Marshal())
+	statusCode, _, err := mycenaeTools.HTTP.POST("api/put", payload.Marshal())
+	if err != nil {
+		panic(err)
+	}
 	assert.Equal(t, http.StatusNoContent, statusCode)
 
 	time.Sleep(tools.Sleep3)
@@ -961,7 +978,10 @@ func sendRESTPayloadStringAndAssertErrorAndEmpty(t *testing.T, errMessage, paylo
 
 func sendRESTPayloadWithMoreThanAPointAndAssertError(t *testing.T, errMessage string, payload tools.PayloadSlice, invalidPointPosition int) {
 
-	statusCode, _, _ := mycenaeTools.HTTP.POST("api/put", payload.Marshal())
+	statusCode, _, err := mycenaeTools.HTTP.POST("api/put", payload.Marshal())
+	if err != nil {
+		panic(err)
+	}
 	assert.Equal(t, 400, statusCode)
 
 	invalidPoint := &payload.PS[invalidPointPosition]

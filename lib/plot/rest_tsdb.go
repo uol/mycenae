@@ -25,6 +25,12 @@ func (plot *Plot) Lookup(w http.ResponseWriter, r *http.Request, ps httprouter.P
 		return
 	}
 
+	gerr := plot.validateKeyset(keyset)
+	if gerr != nil {
+		rip.Fail(w, gerr)
+		return
+	}
+
 	m := r.URL.Query().Get("m")
 
 	if m == constants.StringsEmpty {
@@ -80,6 +86,12 @@ func (plot *Plot) Suggest(w http.ResponseWriter, r *http.Request, ps httprouter.
 		return
 	}
 
+	gerr := plot.validateKeyset(keyset)
+	if gerr != nil {
+		rip.Fail(w, gerr)
+		return
+	}
+
 	queryString := r.URL.Query()
 
 	maxStr := queryString.Get("max")
@@ -97,8 +109,6 @@ func (plot *Plot) Suggest(w http.ResponseWriter, r *http.Request, ps httprouter.
 			return
 		}
 	}
-
-	var gerr gobol.Error
 
 	switch queryString.Get("type") {
 	case constants.StringsEmpty:
@@ -138,9 +148,15 @@ func (plot *Plot) Query(w http.ResponseWriter, r *http.Request, ps httprouter.Pa
 		return
 	}
 
+	gerr := plot.validateKeyset(keyset)
+	if gerr != nil {
+		rip.Fail(w, gerr)
+		return
+	}
+
 	query := structs.TSDBqueryPayload{}
 
-	gerr := rip.FromJSON(r, &query)
+	gerr = rip.FromJSON(r, &query)
 	if gerr != nil {
 		rip.Fail(w, gerr)
 		return

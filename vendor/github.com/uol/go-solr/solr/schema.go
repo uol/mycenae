@@ -2,9 +2,10 @@ package solr
 
 import (
 	"fmt"
-	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/uol/restrictedhttpclient"
 )
 
 type Schema struct {
@@ -12,7 +13,7 @@ type Schema struct {
 	core     string
 	username string
 	password string
-	client   *http.Client
+	client   *restrictedhttpclient.Instance
 }
 
 // NewSchema will parse solrUrl and return a schema object, solrUrl must be a absolute url or path

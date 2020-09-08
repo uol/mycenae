@@ -12,8 +12,9 @@ require (
 	github.com/rs/zerolog v1.18.0
 	github.com/stretchr/testify v1.6.1
 	github.com/uol/funks v1.3.1
-	github.com/uol/go-solr v0.10.1
+	github.com/uol/go-solr v0.11.0
 	github.com/uol/logh v1.0.1
+	github.com/uol/restrictedhttpclient v1.0.0
 	github.com/uol/serializer v1.3.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.3.0

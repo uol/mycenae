@@ -142,7 +142,10 @@ func sendPointsExpandExp(keyset string) {
 	  }
 	]`
 
-	code, resp, _ := mycenaeTools.HTTP.POST("api/put", []byte(points))
+	code, resp, err := mycenaeTools.HTTP.POST("api/put", []byte(points))
+	if err != nil {
+		panic(err)
+	}
 	if code != http.StatusNoContent {
 		log.Fatal("Error sending points! - expandExpression_test.go, Code: ", code, " ", string(resp))
 	}
