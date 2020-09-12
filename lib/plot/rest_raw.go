@@ -72,16 +72,16 @@ func (plot *Plot) RawDataQuery(w http.ResponseWriter, r *http.Request, ps httpro
 			rip.Fail(w, gerr)
 			return
 		}
+	}
 
-		if rawQuery.Until != constants.StringsEmpty {
-			qp.until, gerr = plot.getNowMinusDuration(rawQuery.Until)
-			if gerr != nil {
-				rip.Fail(w, gerr)
-				return
-			}
-		} else {
-			qp.until = utils.GetTimeNoMillis()
+	if rawQuery.Until != constants.StringsEmpty {
+		qp.until, gerr = plot.getNowMinusDuration(rawQuery.Until)
+		if gerr != nil {
+			rip.Fail(w, gerr)
+			return
 		}
+	} else {
+		qp.until = utils.GetTimeNoMillis()
 	}
 
 	metadataQuery := metadata.Query{
@@ -240,7 +240,7 @@ func (plot *Plot) getRawTextPoints(qp *queryParameters) (interface{}, uint32, go
 // getLastRawTextPoint - returns the last text point filtered by the query
 func (plot *Plot) getLastRawTextPoint(qp *queryParameters) (interface{}, uint32, gobol.Error) {
 
-	textTSMap, bytes, err := plot.persist.GetLastTST(qp.keyspace, qp.tsids, nil, qp.estimateSize, plot.maxBytesLimit, qp.keyset)
+	textTSMap, bytes, err := plot.persist.GetLastTST(qp.keyspace, qp.tsids, qp.until, nil, qp.estimateSize, plot.maxBytesLimit, qp.keyset)
 	if err != nil {
 		return nil, 0, errInternalServer("getLastRawTextPoint", err)
 	}
@@ -325,7 +325,7 @@ func (plot *Plot) getRawNumberPoints(qp *queryParameters) (interface{}, uint32, 
 // getLastRawNumberPoint - returns the last number point filtered by the query
 func (plot *Plot) getLastRawNumberPoint(qp *queryParameters) (interface{}, uint32, gobol.Error) {
 
-	numberTSMap, bytes, err := plot.persist.GetLastTS(qp.keyspace, qp.tsids, false, qp.estimateSize, plot.maxBytesLimit, qp.keyset)
+	numberTSMap, bytes, err := plot.persist.GetLastTS(qp.keyspace, qp.tsids, qp.until, false, qp.estimateSize, plot.maxBytesLimit, qp.keyset)
 	if err != nil {
 		return nil, 0, errInternalServer("getLastRawNumberPoint", err)
 	}

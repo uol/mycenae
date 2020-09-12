@@ -12,10 +12,11 @@ import (
 )
 
 const (
-	funcGetTST      string = "GetTST"
-	queryGetTST     string = `SELECT id, date, value FROM %s.ts_text_stamp WHERE id in (%s) AND date > ? AND date < ? ALLOW FILTERING`
-	funcGetLastTST  string = "GetLastTST"
-	queryGetLastTST string = `SELECT id, date, value FROM %s.ts_text_stamp where id = ? limit 1` // given that clustering order MUST be date desc
+	funcGetTST                 string = "GetTST"
+	queryGetTST                string = `SELECT id, date, value FROM %s.ts_text_stamp WHERE id in (%s) AND date > ? AND date < ? ALLOW FILTERING`
+	funcGetLastTST             string = "GetLastTST"
+	queryGetLastTSTNoTimestamp string = `SELECT id, date, value FROM %s.ts_text_stamp WHERE id = ? limit 1`              // given that clustering order MUST be date desc
+	queryGetLastTST            string = `SELECT id, date, value FROM %s.ts_text_stamp WHERE id = ? AND date < ? limit 1` // given that clustering order MUST be date desc
 )
 
 func (persist *persistence) GetTST(keyspace string, keys []string, start, end int64, search *regexp.Regexp, allowFullFetch bool, maxBytesLimit uint32, keyset string) (map[string][]TextPnt, uint32, gobol.Error) {
@@ -102,7 +103,7 @@ func (persist *persistence) GetTST(keyspace string, keys []string, start, end in
 	return tsMap, numBytes, nil
 }
 
-func (persist *persistence) GetLastTST(keyspace string, keys []string, search *regexp.Regexp, allowFullFetch bool, maxBytesLimit uint32, keyset string) (map[string]TextPnt, uint32, gobol.Error) {
+func (persist *persistence) GetLastTST(keyspace string, keys []string, end int64, search *regexp.Regexp, allowFullFetch bool, maxBytesLimit uint32, keyset string) (map[string]TextPnt, uint32, gobol.Error) {
 
 	var tsid string
 	var date int64
@@ -120,13 +121,19 @@ mainLoop:
 
 		track := time.Now()
 
-		iter := persist.cassandra.Query(
-			fmt.Sprintf(
-				queryGetLastTST,
-				keyspace,
-			),
-			id,
-		).Iter()
+		var iter *gocql.Iter
+		if end == 0 {
+			iter = persist.cassandra.Query(
+				fmt.Sprintf(queryGetLastTSTNoTimestamp, keyspace),
+				id).
+				Iter()
+		} else {
+			iter = persist.cassandra.Query(
+				fmt.Sprintf(queryGetLastTST, keyspace),
+				id,
+				end).
+				Iter()
+		}
 
 		if iter.Scan(&tsid, &date, &value) {
 
