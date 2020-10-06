@@ -24,6 +24,7 @@ type persistence struct {
 	timelineManager               *tlmanager.Instance
 	unlimitedBytesKeysetWhiteList map[string]bool
 	logger                        *logh.ContextualLogger
+	clusteringOrder               constants.ClusteringOrder
 }
 
 func New(
@@ -37,6 +38,7 @@ func New(
 	maxBytesLimit uint32,
 	unlimitedBytesKeysetWhiteList []string,
 	timelineManager *tlmanager.Instance,
+	clusteringOrder constants.ClusteringOrder,
 ) (*Plot, gobol.Error) {
 
 	if maxTimeseries < 1 {
@@ -67,6 +69,7 @@ func New(
 			maxBytesErr:                   errors.New("payload too large"),
 			unlimitedBytesKeysetWhiteList: unlimitedBytesKeysetWhiteMap,
 			logger:                        logh.CreateContextualLogger(constants.StringsPKG, "plot/persistence"),
+			clusteringOrder:               clusteringOrder,
 		},
 		keyspaceTTLMap:    keyspaceTTLMap,
 		defaultTTL:        defaultTTL,

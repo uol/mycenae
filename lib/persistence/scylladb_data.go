@@ -11,7 +11,7 @@ const formatCreateKeyspace = `
 
 const formatCreateTable = `
 	CREATE TABLE IF NOT EXISTS %s.%s (id text, date timestamp, value %s, PRIMARY KEY (id, date))
-	WITH CLUSTERING ORDER BY (date DESC)
+	WITH CLUSTERING ORDER BY (date %s)
 	AND bloom_filter_fp_chance = 0.01
 	AND caching = {'keys':'ALL', 'rows_per_partition':'ALL'}
 	AND comment = ''

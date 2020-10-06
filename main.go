@@ -266,6 +266,7 @@ func createScyllaStorageService(conf *structs.Settings, devMode bool, timelineMa
 		timelineManager,
 		devMode,
 		conf.Validation.DefaultTTL,
+		conf.ClusteringOrder,
 	)
 
 	if err != nil {
@@ -399,6 +400,7 @@ func createPlotService(conf *structs.Settings, timelineManager *tlmanager.Instan
 		conf.MaxBytesOnQueryProcessing,
 		conf.UnlimitedQueryBytesKeysetWhiteList,
 		timelineManager,
+		constants.ClusteringOrder(conf.ClusteringOrder),
 	)
 
 	if err != nil {

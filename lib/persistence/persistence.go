@@ -52,9 +52,10 @@ func NewStorage(
 	timelineManager *tlmanager.Instance,
 	devMode bool,
 	defaultTTL int,
+	clusteringOrder string,
 ) (*Storage, error) {
 	backend, err := newScyllaPersistence(
-		ksAdmin, grantUser, session, timelineManager, devMode, defaultTTL,
+		ksAdmin, grantUser, session, timelineManager, devMode, defaultTTL, clusteringOrder,
 	)
 	if err != nil {
 		return nil, err

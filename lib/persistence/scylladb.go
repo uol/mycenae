@@ -22,6 +22,7 @@ type scylladb struct {
 	grantUsername   string
 	devMode         bool
 	defaultTTL      int
+	clusteringOrder string
 }
 
 func newScyllaPersistence(
@@ -31,6 +32,7 @@ func newScyllaPersistence(
 	timelineManager *tlmanager.Instance,
 	devMode bool,
 	defaultTTL int,
+	clusteringOrder string,
 ) (Backend, error) {
 	return &scylladb{
 		session:         session,
@@ -40,6 +42,7 @@ func newScyllaPersistence(
 		grantUsername:   grantUsername,
 		devMode:         devMode,
 		defaultTTL:      defaultTTL,
+		clusteringOrder: clusteringOrder,
 	}, nil
 }
 

@@ -5,16 +5,16 @@ github.com/BurntSushi/toml
 github.com/buger/jsonparser
 # github.com/davecgh/go-spew v1.1.1
 github.com/davecgh/go-spew/spew
-# github.com/gocql/gocql v0.0.0-20200624222514-34081eda590e
+# github.com/gocql/gocql v0.0.0-20200926162733-393f0c961220
 ## explicit
 github.com/gocql/gocql
 github.com/gocql/gocql/internal/lru
 github.com/gocql/gocql/internal/murmur
 github.com/gocql/gocql/internal/streams
-# github.com/golang/snappy v0.0.1
+# github.com/golang/snappy v0.0.2
 ## explicit
 github.com/golang/snappy
-# github.com/google/uuid v1.1.1
+# github.com/google/uuid v1.1.2
 ## explicit
 github.com/google/uuid
 # github.com/hailocab/go-hostpool v0.0.0-20160125115350-e80d13ce29ed
@@ -28,12 +28,10 @@ github.com/json-iterator/go
 ## explicit
 github.com/julienschmidt/httprouter
 # github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
-## explicit
 github.com/modern-go/concurrent
 # github.com/modern-go/reflect2 v1.0.1
-## explicit
 github.com/modern-go/reflect2
-# github.com/pborman/uuid v1.2.0
+# github.com/pborman/uuid v1.2.1
 ## explicit
 github.com/pborman/uuid
 # github.com/pmezard/go-difflib v1.0.0
@@ -41,7 +39,7 @@ github.com/pmezard/go-difflib/difflib
 # github.com/rs/cors v1.7.0
 ## explicit
 github.com/rs/cors
-# github.com/rs/zerolog v1.19.0
+# github.com/rs/zerolog v1.20.0
 ## explicit
 github.com/rs/zerolog
 github.com/rs/zerolog/internal/cbor
@@ -55,7 +53,7 @@ github.com/uol/funks
 # github.com/uol/go-solr v0.11.0
 ## explicit
 github.com/uol/go-solr/solr
-# github.com/uol/gobol v1.35.0
+# github.com/uol/gobol v1.36.0
 ## explicit
 github.com/uol/gobol
 github.com/uol/gobol/cassandra
@@ -74,30 +72,26 @@ github.com/uol/restrictedhttpclient
 # github.com/uol/scheduler v1.0.0
 github.com/uol/scheduler
 # github.com/uol/serializer v1.3.2
-## explicit
 github.com/uol/serializer/json
 github.com/uol/serializer/opentsdb
 github.com/uol/serializer/serializer
-# github.com/uol/timeline v1.8.1
-## explicit
+# github.com/uol/timeline v1.9.1
 github.com/uol/timeline
 github.com/uol/timeline/buffer
-# github.com/uol/timelinemanager v1.6.2
+# github.com/uol/timelinemanager v1.7.1
 ## explicit
 github.com/uol/timelinemanager
 # github.com/uol/zencached v1.3.2
 ## explicit
 github.com/uol/zencached
-# golang.org/x/crypto v0.0.0-20200709230013-948cd5f35899
-## explicit
+# golang.org/x/crypto v0.0.0-20201002170205-7f63de1d35b0
 golang.org/x/crypto/sha3
-# golang.org/x/sys v0.0.0-20200722175500-76b94024e4b6
+# golang.org/x/sys v0.0.0-20201006155630-ac719f4daadf
 ## explicit
 golang.org/x/sys/cpu
 # gopkg.in/inf.v0 v0.9.1
 gopkg.in/inf.v0
 # gopkg.in/yaml.v2 v2.3.0
-## explicit
 gopkg.in/yaml.v2
 # gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776
 gopkg.in/yaml.v3

@@ -384,7 +384,7 @@ func TestTagKeysByMetricAllTags(t *testing.T) {
 		"TestTagKeysByMetricAllTags-tag-0": true,
 		"TestTagKeysByMetricAllTags-tag-1": true,
 		"TestTagKeysByMetricAllTags-tag-2": true,
-		"ttl": true,
+		"ttl":                              true,
 	}
 
 	for _, v := range resp.Payload {

@@ -65,7 +65,7 @@ type Transport interface {
 	DataChannelItemToAccumulatedData(configuration *DataTransformerConfig, item interface{}, calculateHash bool) (Hashable, error)
 
 	// AccumulatedDataToDataChannelItem - converts the accumulated data to the data channel item
-	AccumulatedDataToDataChannelItem(item *AccumulatedData) (interface{}, error)
+	AccumulatedDataToDataChannelItem(item *accumulatedData) (interface{}, error)
 
 	// BuildContextualLogger - build the contextual logger using more info
 	BuildContextualLogger(path ...string)
@@ -203,7 +203,11 @@ func (t *transportCore) releaseBuffer() {
 			}
 		} else {
 			if logh.InfoEnabled {
-				t.loggers.Info().Msgf("batch of %d points were sent! (%d bytes)", size, len(payload))
+				byteCount := 0
+				for _, p := range payload {
+					byteCount += len(p)
+				}
+				t.loggers.Info().Msgf("batch of %d points were sent! (%d bytes)", size, byteCount)
 			}
 		}
 

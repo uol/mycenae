@@ -10,12 +10,14 @@ import (
 
 	"github.com/uol/logh"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/uol/gobol"
 )
 
 var (
 	logErrorAsDebug bool
 	logger          *logh.ContextualLogger
+	jsonMarshaller  = jsoniter.ConfigCompatibleWithStandardLibrary
 )
 
 type customError struct {
@@ -130,7 +132,7 @@ func FromJSON(r *http.Request, t Validator) gobol.Error {
 
 func SuccessJSON(w http.ResponseWriter, statusCode int, payload interface{}) {
 
-	b, err := json.Marshal(payload)
+	b, err := jsonMarshaller.Marshal(payload)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
@@ -183,7 +185,7 @@ func Fail(w http.ResponseWriter, gerr gobol.Error) {
 
 			w.WriteHeader(gerr.StatusCode())
 
-			e := json.NewEncoder(w)
+			e := jsonMarshaller.NewEncoder(w)
 			err := e.Encode(ej)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
@@ -209,7 +211,7 @@ func Fail(w http.ResponseWriter, gerr gobol.Error) {
 
 	w.WriteHeader(gerr.StatusCode())
 
-	e := json.NewEncoder(w)
+	e := jsonMarshaller.NewEncoder(w)
 	err := e.Encode(ej)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)

@@ -56,16 +56,22 @@ func (persist *persistence) GetTST(keyspace string, keys []string, start, end in
 		}
 
 		if add {
-			point := TextPnt{
-				Date:  date,
-				Value: value,
-			}
 
 			if _, ok := tsMap[tsid]; !ok {
 				numBytes += uint32(persist.getStringSize(tsid))
 			}
 
-			tsMap[tsid] = append(tsMap[tsid], point)
+			if persist.clusteringOrder == constants.ClusteringOrderDESC {
+				tsMap[tsid] = append(tsMap[tsid], TextPnt{})
+				copy(tsMap[tsid][1:], tsMap[tsid])
+				tsMap[tsid][0].Date = date
+				tsMap[tsid][0].Value = value
+			} else {
+				tsMap[tsid] = append(tsMap[tsid], TextPnt{
+					Date:  date,
+					Value: value,
+				})
+			}
 
 			numBytes += uint32(persist.constPartBytesFromTextPoint + persist.getStringSize(value))
 

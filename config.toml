@@ -49,6 +49,9 @@ EnableAutoKeyspaceCreation = true
 # Report metrics sent in the past (everything before the time bellow in miliseconds)
 DelayedMetricsThreshold = 10000
 
+# Defines the scylla tables clustering order 
+ClusteringOrder = "DESC"
+
 # All default keyspaces
 [DefaultKeyspaces]
   one_day = 1
@@ -64,7 +67,7 @@ DelayedMetricsThreshold = 10000
 [cassandra]
   keyspace = "mycenae"
   consistency = "one"
-  nodes = ["182.168.0.2","182.168.0.3","182.168.0.4"]
+  nodes = ["182.168.0.5","182.168.0.6","182.168.0.7"]
   username = "cassandra"
   password = "cassandra"
   connections = 3
@@ -161,6 +164,7 @@ DelayedMetricsThreshold = 10000
   debugOutput = false
   timeBetweenBatches = "100ms"
   printStackOnError = false
+  pointValueBufferSize= 4096
 
   [stats.openTSDBTransports.opentsdb]
     readBufferSize = 64
@@ -220,7 +224,7 @@ DelayedMetricsThreshold = 10000
 [metadataSettings]
   numShards = 1
   replicationFactor = 1
-  url = "http://182.168.0.6:8983/solr"
+  url = "http://182.168.0.3:8983/solr"
   IDCacheTTL = -1
   QueryCacheTTL = -1
   MaxReturnedMetadata = 10000

@@ -18,11 +18,12 @@ type Backend struct {
 
 // DataTransformerConfig - flattener configuration
 type DataTransformerConfig struct {
-	CycleDuration     funks.Duration    `json:"cycleDuration,omitempty"`
-	HashingAlgorithm  hashing.Algorithm `json:"hashingAlgorithm,omitempty"`
-	HashSize          int               `json:"hashSize,omitempty"`
-	PrintStackOnError bool              `json:"printStackOnError,omitempty"`
-	isSHAKE           bool
+	CycleDuration        funks.Duration    `json:"cycleDuration,omitempty"`
+	HashingAlgorithm     hashing.Algorithm `json:"hashingAlgorithm,omitempty"`
+	HashSize             int               `json:"hashSize,omitempty"`
+	PrintStackOnError    bool              `json:"printStackOnError,omitempty"`
+	PointValueBufferSize int               `json:"pointValueBufferSize,omitempty"` // only flattener uses it
+	isSHAKE              bool
 }
 
 // DefaultTransportConfig - the default fields used by the transport configuration
