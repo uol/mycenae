@@ -7,7 +7,10 @@ require (
 	github.com/gocql/gocql v0.0.0-20200519160334-799061058e31
 	github.com/golang/snappy v0.0.1 // indirect
 	github.com/hailocab/go-hostpool v0.0.0-20160125115350-e80d13ce29ed
+	github.com/json-iterator/go v1.1.10
 	github.com/julienschmidt/httprouter v1.2.0
+	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
+	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/pborman/uuid v0.0.0-20180906182336-adf5a7427709 // indirect
 	github.com/rs/zerolog v1.18.0
 	github.com/stretchr/testify v1.6.1

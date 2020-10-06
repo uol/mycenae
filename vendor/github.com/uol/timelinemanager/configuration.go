@@ -99,10 +99,11 @@ type OpenTSDBTransportConfigExt struct {
 
 // Configuration - configuration
 type Configuration struct {
-	Backends         []BackendItem     `json:"backends,omitempty"`
-	HashingAlgorithm hashing.Algorithm `json:"hashingAlgorithm,omitempty"`
-	HashSize         int               `json:"hashSize,omitempty"`
-	DataTTL          funks.Duration    `json:"dataTTL,omitempty"`
+	Backends             []BackendItem     `json:"backends,omitempty"`
+	HashingAlgorithm     hashing.Algorithm `json:"hashingAlgorithm,omitempty"`
+	HashSize             int               `json:"hashSize,omitempty"`
+	DataTTL              funks.Duration    `json:"dataTTL,omitempty"`
+	PointValueBufferSize int               `json:"pointValueBufferSize,omitempty"`
 	timeline.DefaultTransportConfig
 	OpenTSDBTransports map[string]OpenTSDBTransportConfigExt `json:"openTSDBTransports,omitempty"`
 	HTTPTransports     map[string]HTTPTransportConfigExt     `json:"httpTransports,omitempty"`

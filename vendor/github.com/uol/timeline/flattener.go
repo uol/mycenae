@@ -62,7 +62,26 @@ type Flattener struct {
 // mapEntry - a map entry containing all values from a point
 type mapEntry struct {
 	flattenerPointData
-	values []float64
+	values chan float64
+}
+
+// Clone - does a struct copy
+func (me *mapEntry) Clone() interface{} {
+
+	return &mapEntry{
+		flattenerPointData: flattenerPointData{
+			operation:       me.operation,
+			timestamp:       me.timestamp,
+			dataChannelItem: me.dataChannelItem,
+		},
+		values: me.values,
+	}
+}
+
+// ReleaseResources - release this item resources
+func (me *mapEntry) ReleaseResources() {
+
+	close(me.values)
 }
 
 // NewFlattener - creates a new flattener
@@ -100,12 +119,12 @@ func (f *Flattener) Add(point *FlattenerPoint) error {
 	item, ok := f.pointMap.Load(point.hash)
 	if ok {
 		entry := item.(*mapEntry)
-		entry.values = append(entry.values, point.value)
+		entry.values <- point.value
 		return nil
 	}
 
 	entry := &mapEntry{
-		values: []float64{point.value},
+		values: make(chan float64, f.configuration.PointValueBufferSize),
 		flattenerPointData: flattenerPointData{
 			operation:       point.operation,
 			timestamp:       point.timestamp,
@@ -113,15 +132,19 @@ func (f *Flattener) Add(point *FlattenerPoint) error {
 		},
 	}
 
+	entry.values <- point.value
+
 	f.pointMap.Store(point.hash, entry)
 
 	return nil
 }
 
 // ProcessMapEntry - process the values from an entry
-func (f *Flattener) ProcessMapEntry(entry interface{}) bool {
+func (f *Flattener) ProcessMapEntry(entry dataProcessorEntry) bool {
 
-	newValue, err := f.flatten(entry.(*mapEntry))
+	copy := entry.Clone()
+
+	newValue, err := f.flatten(copy.(*mapEntry))
 	if err != nil {
 		if logh.ErrorEnabled {
 			ev := f.loggers.Error()
@@ -156,52 +179,73 @@ func (f *Flattener) ProcessMapEntry(entry interface{}) bool {
 func (f *Flattener) flatten(entry *mapEntry) (*FlattenerPoint, error) {
 
 	var flatValue float64
+	var size float64
 
 	switch entry.operation {
 
-	case Avg:
+	case Avg, Sum, Count:
 
-		for _, v := range entry.values {
-			flatValue += v
+	fAvgSumCount:
+		for {
+			select {
+			case v := <-(entry.values):
+				flatValue += v
+				size++
+			default:
+				break fAvgSumCount
+			}
 		}
-
-		flatValue /= (float64)(len(entry.values))
-
-	case Sum:
-
-		for _, v := range entry.values {
-			flatValue += v
-		}
-
-	case Count:
-
-		flatValue = (float64)(len(entry.values))
 
 	case Min:
 
-		flatValue = entry.values[0]
+		select {
+		case v := <-(entry.values):
+			flatValue = v
+		default:
+		}
 
-		for i := 1; i < len(entry.values); i++ {
-
-			if entry.values[i] < flatValue {
-				flatValue = entry.values[i]
+	fMin:
+		for {
+			select {
+			case v := <-(entry.values):
+				if v < flatValue {
+					flatValue = v
+				}
+			default:
+				break fMin
 			}
 		}
 
 	case Max:
 
-		flatValue = entry.values[0]
+		select {
+		case v := <-(entry.values):
+			flatValue = v
+		default:
+		}
 
-		for i := 1; i < len(entry.values); i++ {
-
-			if entry.values[i] > flatValue {
-				flatValue = entry.values[i]
+	fMax:
+		for {
+			select {
+			case v := <-(entry.values):
+				if v > flatValue {
+					flatValue = v
+				}
+			default:
+				break fMax
 			}
 		}
 
 	default:
 
 		return nil, fmt.Errorf("operation id %d is not mapped", entry.operation)
+	}
+
+	switch entry.operation {
+	case Avg:
+		flatValue /= size
+	case Count:
+		flatValue = size
 	}
 
 	return &FlattenerPoint{

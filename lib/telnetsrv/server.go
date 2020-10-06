@@ -326,8 +326,11 @@ ConnLoop:
 		data = append(data, buffer[0:n]...)
 
 		if data[len(data)-1] == lineSeparator {
-			byteLines := bytes.Split(data, lineSplitter)
+			dataCopy := append(make([]byte, 0, len(data)), data...)
+			data = make([]byte, 0)
+
 			go func() {
+				byteLines := bytes.Split(dataCopy, lineSplitter)
 				for _, byteLine := range byteLines {
 					if ok := server.telnetHandler.Handle(string(byteLine), ip); ok {
 						server.statsTelnetCommandSuccessesInc()
@@ -338,7 +341,7 @@ ConnLoop:
 					server.statsTelnetCommandCountInc()
 				}
 			}()
-			data = make([]byte, 0)
+
 		}
 	}
 

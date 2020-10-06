@@ -120,3 +120,14 @@ const (
 	// CRUDOperationDrop - CRUD operation
 	CRUDOperationDrop CRUDOperation = "drop"
 )
+
+// ClusteringOrder - defines the table clustering order
+type ClusteringOrder string
+
+const (
+	// ClusteringOrderASC - clustering order
+	ClusteringOrderASC ClusteringOrder = "ASC"
+
+	// ClusteringOrderDESC - clustering order
+	ClusteringOrderDESC ClusteringOrder = "DESC"
+)

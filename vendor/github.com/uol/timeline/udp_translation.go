@@ -19,7 +19,7 @@ func (t *UDPTransport) DataChannelItemToAccumulatedData(configuration *DataTrans
 }
 
 // AccumulatedDataToDataChannelItem - converts the accumulated data to the data channel item
-func (t *UDPTransport) AccumulatedDataToDataChannelItem(point *AccumulatedData) (interface{}, error) {
+func (t *UDPTransport) AccumulatedDataToDataChannelItem(point *accumulatedData) (interface{}, error) {
 
 	return t.serializerTransport.accumulatedDataToDataChannelItem(point)
 }

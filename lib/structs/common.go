@@ -76,6 +76,7 @@ type Settings struct {
 	GarbageCollectorPercentage         int
 	TSIDKeySize                        int
 	DelayedMetricsThreshold            int64
+	ClusteringOrder                    string
 	TelnetManagerConfiguration         TelnetManagerConfiguration
 	HTTPserver                         SettingsHTTP
 	UDPserver                          SettingsUDP

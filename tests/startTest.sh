@@ -33,4 +33,4 @@ docker exec testMycenae /bin/sh -c "echo $scylla3 scylla3 >> /etc/hosts"
 docker exec testMycenae /bin/sh -c "echo $solr solr >> /etc/hosts"
 docker exec testMycenae /bin/sh -c "echo $mycenae mycenae >> /etc/hosts"
 
-docker exec testMycenae go test -timeout 20m -v '/go/src/github.com/uol/mycenae/tests/'
+docker exec testMycenae go test -timeout 20m -parallel 2 -v '/go/src/github.com/uol/mycenae/tests/'

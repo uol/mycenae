@@ -51,7 +51,7 @@ func (backend *scylladb) createKeyspace(ks Keyspace) gobol.Error {
 	return nil
 }
 
-func (backend *scylladb) createTable(keyset, valueColumnType, tableName, functionName string, ttl int) gobol.Error {
+func (backend *scylladb) createTable(keyset, valueColumnType, tableName, clusteringOrder, functionName string, ttl int) gobol.Error {
 
 	tableTTL := uint64(ttl) * 86400
 
@@ -60,6 +60,7 @@ func (backend *scylladb) createTable(keyset, valueColumnType, tableName, functio
 		keyset,
 		tableName,
 		valueColumnType,
+		clusteringOrder,
 		tableTTL,
 	)
 
@@ -76,11 +77,11 @@ func (backend *scylladb) createTable(keyset, valueColumnType, tableName, functio
 }
 
 func (backend *scylladb) createNumericTable(ks Keyspace) gobol.Error {
-	return backend.createTable(ks.Name, "double", "ts_number_stamp", "createNumericTable", ks.TTL)
+	return backend.createTable(ks.Name, "double", "ts_number_stamp", backend.clusteringOrder, "createNumericTable", ks.TTL)
 }
 
 func (backend *scylladb) createTextTable(ks Keyspace) gobol.Error {
-	return backend.createTable(ks.Name, "text", "ts_text_stamp", "createTextTable", ks.TTL)
+	return backend.createTable(ks.Name, "text", "ts_text_stamp", backend.clusteringOrder, "createTextTable", ks.TTL)
 }
 
 func (backend *scylladb) setPermissions(ks Keyspace) gobol.Error {

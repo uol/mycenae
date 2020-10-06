@@ -25,8 +25,8 @@ var (
 	ErrNotStored error = fmt.Errorf("hash is not stored")
 )
 
-// AccumulatedData - an accumulated point
-type AccumulatedData struct {
+// accumulatedData - an accumulated point
+type accumulatedData struct {
 	count      uint64
 	hash       string
 	data       interface{}
@@ -38,12 +38,12 @@ type AccumulatedData struct {
 }
 
 // GetHash - returns the hash
-func (ad *AccumulatedData) GetHash() string {
+func (ad *accumulatedData) GetHash() string {
 	return ad.hash
 }
 
 // Execute - implements the Job interface
-func (ad *AccumulatedData) Execute() {
+func (ad *accumulatedData) Execute() {
 
 	if time.Now().Sub(ad.lastUpdate) > ad.ttl {
 
@@ -57,6 +57,19 @@ func (ad *AccumulatedData) Execute() {
 	} else if logh.DebugEnabled {
 		ad.logger.Debug().Str("hash", ad.hash).Msgf("ttl still valid")
 	}
+}
+
+// Clone - does a struct copy
+func (ad *accumulatedData) Clone() interface{} {
+
+	// no need
+	return nil
+}
+
+// ReleaseResources - release this item resources
+func (ad *accumulatedData) ReleaseResources() {
+
+	// no need
 }
 
 // Accumulator - the struct
@@ -96,9 +109,9 @@ func (a *Accumulator) BuildContextualLogger(path ...string) {
 }
 
 // ProcessMapEntry - sends the data to the transport
-func (a *Accumulator) ProcessMapEntry(entry interface{}) bool {
+func (a *Accumulator) ProcessMapEntry(entry dataProcessorEntry) bool {
 
-	data := entry.(*AccumulatedData)
+	data := entry.(*accumulatedData)
 
 	if data.count > 0 {
 		item, err := a.transport.AccumulatedDataToDataChannelItem(data)
@@ -129,7 +142,7 @@ func (a *Accumulator) Add(hash string) error {
 		return ErrNotStored
 	}
 
-	stored := item.(*AccumulatedData)
+	stored := item.(*accumulatedData)
 	atomic.AddUint64(&stored.count, 1)
 
 	return nil
@@ -182,7 +195,7 @@ func (a *Accumulator) store(hash string, instance Hashable, ttl time.Duration) e
 		}
 	}
 
-	data := instance.(*AccumulatedData)
+	data := instance.(*accumulatedData)
 	data.lastUpdate = time.Now()
 	data.logger = a.loggers
 	data.pointMap = &a.pointMap

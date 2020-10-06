@@ -75,6 +75,10 @@ func NewOpenTSDBTransport(configuration *OpenTSDBTransportConfig) (*OpenTSDBTran
 // BuildContextualLogger - build the contextual logger using more info
 func (t *OpenTSDBTransport) BuildContextualLogger(path ...string) {
 
+	if t.core.loggers != nil {
+		return
+	}
+
 	logContext := []string{"pkg", "timeline/opentsdb"}
 
 	if len(path) > 0 {

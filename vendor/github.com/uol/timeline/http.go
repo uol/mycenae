@@ -67,6 +67,10 @@ func NewHTTPTransport(configuration *HTTPTransportConfig, customSerializer seria
 // BuildContextualLogger - build the contextual logger using more info
 func (t *HTTPTransport) BuildContextualLogger(path ...string) {
 
+	if t.core.loggers != nil {
+		return
+	}
+
 	logContext := []string{"pkg", "timeline/http"}
 
 	if len(path) > 0 {

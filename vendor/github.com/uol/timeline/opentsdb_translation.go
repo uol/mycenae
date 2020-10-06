@@ -78,7 +78,7 @@ func (t *OpenTSDBTransport) DataChannelItemToAccumulatedData(configuration *Data
 		}
 	}
 
-	return &AccumulatedData{
+	return &accumulatedData{
 		count: 0,
 		hash:  hash,
 		data:  item,
@@ -86,7 +86,7 @@ func (t *OpenTSDBTransport) DataChannelItemToAccumulatedData(configuration *Data
 }
 
 // AccumulatedDataToDataChannelItem - converts the accumulated data to the data channel item
-func (t *OpenTSDBTransport) AccumulatedDataToDataChannelItem(point *AccumulatedData) (interface{}, error) {
+func (t *OpenTSDBTransport) AccumulatedDataToDataChannelItem(point *accumulatedData) (interface{}, error) {
 
 	item, ok := point.data.(*serializer.ArrayItem)
 	if !ok {

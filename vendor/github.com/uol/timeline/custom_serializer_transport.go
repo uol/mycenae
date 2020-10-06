@@ -153,7 +153,7 @@ func (t *customSerializerTransport) dataChannelItemToAccumulatedData(configurati
 		}
 	}
 
-	return &AccumulatedData{
+	return &accumulatedData{
 		count: 0,
 		hash:  hash,
 		data:  casted,
@@ -161,7 +161,7 @@ func (t *customSerializerTransport) dataChannelItemToAccumulatedData(configurati
 }
 
 // accumulatedDataToDataChannelItem - converts the accumulated data to the data channel item
-func (t *customSerializerTransport) accumulatedDataToDataChannelItem(point *AccumulatedData) (interface{}, error) {
+func (t *customSerializerTransport) accumulatedDataToDataChannelItem(point *accumulatedData) (interface{}, error) {
 
 	item, ok := point.data.(*serializer.ArrayItem)
 	if !ok {
