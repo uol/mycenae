@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/uol/logh"
+	"github.com/uol/timeline/buffer"
 )
 
 /**
@@ -62,26 +63,14 @@ type Flattener struct {
 // mapEntry - a map entry containing all values from a point
 type mapEntry struct {
 	flattenerPointData
-	values chan float64
+	values buffer.Buffer
+	sync.Mutex
 }
 
-// Clone - does a struct copy
-func (me *mapEntry) Clone() interface{} {
-
-	return &mapEntry{
-		flattenerPointData: flattenerPointData{
-			operation:       me.operation,
-			timestamp:       me.timestamp,
-			dataChannelItem: me.dataChannelItem,
-		},
-		values: me.values,
-	}
-}
-
-// ReleaseResources - release this item resources
-func (me *mapEntry) ReleaseResources() {
-
-	close(me.values)
+// Release - releases the resources
+func (ad *mapEntry) Release() {
+	ad.values.Release()
+	return
 }
 
 // NewFlattener - creates a new flattener
@@ -119,12 +108,12 @@ func (f *Flattener) Add(point *FlattenerPoint) error {
 	item, ok := f.pointMap.Load(point.hash)
 	if ok {
 		entry := item.(*mapEntry)
-		entry.values <- point.value
+		entry.values.Add(point.value)
 		return nil
 	}
 
 	entry := &mapEntry{
-		values: make(chan float64, f.configuration.PointValueBufferSize),
+		values: buffer.Buffer{},
 		flattenerPointData: flattenerPointData{
 			operation:       point.operation,
 			timestamp:       point.timestamp,
@@ -132,7 +121,7 @@ func (f *Flattener) Add(point *FlattenerPoint) error {
 		},
 	}
 
-	entry.values <- point.value
+	entry.values.Add(point.value)
 
 	f.pointMap.Store(point.hash, entry)
 
@@ -140,11 +129,9 @@ func (f *Flattener) Add(point *FlattenerPoint) error {
 }
 
 // ProcessMapEntry - process the values from an entry
-func (f *Flattener) ProcessMapEntry(entry dataProcessorEntry) bool {
+func (f *Flattener) ProcessMapEntry(entry DataProcessorEntry) bool {
 
-	copy := entry.Clone()
-
-	newValue, err := f.flatten(copy.(*mapEntry))
+	newValue, err := f.flatten(entry.(*mapEntry))
 	if err != nil {
 		if logh.ErrorEnabled {
 			ev := f.loggers.Error()
@@ -180,60 +167,39 @@ func (f *Flattener) flatten(entry *mapEntry) (*FlattenerPoint, error) {
 
 	var flatValue float64
 	var size float64
+	values := entry.values.GetAll()
 
 	switch entry.operation {
 
 	case Avg, Sum, Count:
 
-	fAvgSumCount:
-		for {
-			select {
-			case v := <-(entry.values):
-				flatValue += v
-				size++
-			default:
-				break fAvgSumCount
-			}
+		for i := 0; i < len(values); i++ {
+			flatValue += values[i].(float64)
+			size++
 		}
 
 	case Min:
 
-		select {
-		case v := <-(entry.values):
-			flatValue = v
-		default:
-		}
+		flatValue = values[0].(float64)
 
-	fMin:
-		for {
-			select {
-			case v := <-(entry.values):
-				if v < flatValue {
-					flatValue = v
-				}
-			default:
-				break fMin
+		for i := 1; i < len(values); i++ {
+			current := values[i].(float64)
+			if current < flatValue {
+				flatValue = current
 			}
+			size++
 		}
 
 	case Max:
 
-		select {
-		case v := <-(entry.values):
-			flatValue = v
-		default:
-		}
+		flatValue = values[0].(float64)
 
-	fMax:
-		for {
-			select {
-			case v := <-(entry.values):
-				if v > flatValue {
-					flatValue = v
-				}
-			default:
-				break fMax
+		for i := 1; i < len(values); i++ {
+			current := values[i].(float64)
+			if current > flatValue {
+				flatValue = current
 			}
+			size++
 		}
 
 	default:

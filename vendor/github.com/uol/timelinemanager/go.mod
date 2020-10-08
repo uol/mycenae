@@ -12,7 +12,7 @@ require (
 	github.com/uol/hashing v1.0.1
 	github.com/uol/logh v1.0.1
 	github.com/uol/serializer v1.3.2
-	github.com/uol/timeline v1.9.1
+	github.com/uol/timeline v1.9.3
 	golang.org/x/crypto v0.0.0-20201002170205-7f63de1d35b0 // indirect
-	golang.org/x/sys v0.0.0-20201005172224-997123666555 // indirect
+	golang.org/x/sys v0.0.0-20201007165808-a893ed343c85 // indirect
 )

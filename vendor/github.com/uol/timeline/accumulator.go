@@ -35,6 +35,12 @@ type accumulatedData struct {
 	pointMap   *sync.Map
 	ttlManager *scheduler.Manager
 	logger     *logh.ContextualLogger
+	sync.Mutex
+}
+
+// Release - releases the resources
+func (ad *accumulatedData) Release() {
+	return
 }
 
 // GetHash - returns the hash
@@ -44,6 +50,9 @@ func (ad *accumulatedData) GetHash() string {
 
 // Execute - implements the Job interface
 func (ad *accumulatedData) Execute() {
+
+	ad.Lock()
+	defer ad.Unlock()
 
 	if time.Now().Sub(ad.lastUpdate) > ad.ttl {
 
@@ -59,23 +68,11 @@ func (ad *accumulatedData) Execute() {
 	}
 }
 
-// Clone - does a struct copy
-func (ad *accumulatedData) Clone() interface{} {
-
-	// no need
-	return nil
-}
-
-// ReleaseResources - release this item resources
-func (ad *accumulatedData) ReleaseResources() {
-
-	// no need
-}
-
 // Accumulator - the struct
 type Accumulator struct {
 	dataProcessorCore
 	ttlManager *scheduler.Manager
+	sync.Mutex
 }
 
 // NewAccumulator - creates a new instance
@@ -109,11 +106,11 @@ func (a *Accumulator) BuildContextualLogger(path ...string) {
 }
 
 // ProcessMapEntry - sends the data to the transport
-func (a *Accumulator) ProcessMapEntry(entry dataProcessorEntry) bool {
+func (a *Accumulator) ProcessMapEntry(entry DataProcessorEntry) bool {
 
 	data := entry.(*accumulatedData)
 
-	if data.count > 0 {
+	if atomic.LoadUint64(&data.count) > 0 {
 		item, err := a.transport.AccumulatedDataToDataChannelItem(data)
 		if err != nil {
 			if logh.ErrorEnabled {
@@ -143,6 +140,10 @@ func (a *Accumulator) Add(hash string) error {
 	}
 
 	stored := item.(*accumulatedData)
+
+	stored.Lock()
+	defer stored.Unlock()
+
 	atomic.AddUint64(&stored.count, 1)
 
 	return nil
@@ -150,6 +151,9 @@ func (a *Accumulator) Add(hash string) error {
 
 // Store - stores a reference
 func (a *Accumulator) Store(item interface{}, ttl time.Duration) (string, error) {
+
+	a.Lock()
+	defer a.Unlock()
 
 	instance, err := a.transport.DataChannelItemToAccumulatedData(a.configuration, item, true)
 	if err != nil {
@@ -168,6 +172,9 @@ func (a *Accumulator) Store(item interface{}, ttl time.Duration) (string, error)
 
 // StoreCustomHash - stores a custom reference
 func (a *Accumulator) StoreCustomHash(item interface{}, ttl time.Duration, hash string) error {
+
+	a.Lock()
+	defer a.Unlock()
 
 	instance, err := a.transport.DataChannelItemToAccumulatedData(a.configuration, item, false)
 	if err != nil {

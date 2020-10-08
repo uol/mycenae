@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"sync/atomic"
 	"time"
 )
 
@@ -19,7 +20,7 @@ type Task struct {
 	ID       string
 	Duration time.Duration
 	Job      job
-	running  bool
+	running  uint32
 }
 
 // NewTask - creates a new task
@@ -29,14 +30,14 @@ func NewTask(id string, duration time.Duration, job job) *Task {
 		ID:       id,
 		Duration: duration,
 		Job:      job,
-		running:  false,
+		running:  0,
 	}
 }
 
 // Start - starts to run this task
 func (t *Task) Start() {
 
-	if t.running {
+	if atomic.LoadUint32(&t.running) == 1 {
 		return
 	}
 
@@ -44,7 +45,7 @@ func (t *Task) Start() {
 		for {
 			<-time.After(t.Duration)
 
-			if !t.running {
+			if atomic.LoadUint32(&t.running) == 0 {
 				return
 			}
 
@@ -52,11 +53,11 @@ func (t *Task) Start() {
 		}
 	}()
 
-	t.running = true
+	atomic.StoreUint32(&t.running, 1)
 }
 
 // Stop - stops the task
 func (t *Task) Stop() {
 
-	t.running = false
+	atomic.StoreUint32(&t.running, 0)
 }

@@ -2,6 +2,7 @@ package buffer
 
 import (
 	"sync"
+	"sync/atomic"
 )
 
 /**
@@ -19,7 +20,7 @@ type node struct {
 type Buffer struct {
 	first    *node
 	last     *node
-	numItems int
+	numItems uint64
 	lock     sync.Mutex
 }
 
@@ -76,10 +77,12 @@ func (b *Buffer) GetAll() []interface{} {
 
 	b.lock.Lock()
 
-	items := make([]interface{}, b.numItems)
+	size := (int)(atomic.LoadUint64(&b.numItems))
+
+	items := make([]interface{}, size)
 	pointer := b.first
 
-	for i := 0; i < b.numItems; i++ {
+	for i := 0; i < size; i++ {
 
 		items[i] = pointer.value
 		pointer = pointer.next
@@ -101,13 +104,23 @@ func (b *Buffer) Release() {
 		return
 	}
 
+	b.lock.Lock()
+
 	b.first = nil
 	b.last = nil
-	b.numItems = 0
+	atomic.StoreUint64(&b.numItems, 0)
+
+	b.lock.Unlock()
 }
 
 // GetSize - returns the buffer's size
 func (b *Buffer) GetSize() int {
 
-	return b.numItems
+	b.lock.Lock()
+
+	size := atomic.LoadUint64(&b.numItems)
+
+	b.lock.Unlock()
+
+	return (int)(size)
 }

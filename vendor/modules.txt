@@ -69,16 +69,17 @@ github.com/uol/logh
 # github.com/uol/restrictedhttpclient v1.0.0
 ## explicit
 github.com/uol/restrictedhttpclient
-# github.com/uol/scheduler v1.0.0
+# github.com/uol/scheduler v1.1.0
 github.com/uol/scheduler
 # github.com/uol/serializer v1.3.2
 github.com/uol/serializer/json
 github.com/uol/serializer/opentsdb
 github.com/uol/serializer/serializer
-# github.com/uol/timeline v1.9.1
+# github.com/uol/timeline v1.9.3
+## explicit
 github.com/uol/timeline
 github.com/uol/timeline/buffer
-# github.com/uol/timelinemanager v1.7.1
+# github.com/uol/timelinemanager v1.7.2
 ## explicit
 github.com/uol/timelinemanager
 # github.com/uol/zencached v1.3.2
@@ -86,7 +87,7 @@ github.com/uol/timelinemanager
 github.com/uol/zencached
 # golang.org/x/crypto v0.0.0-20201002170205-7f63de1d35b0
 golang.org/x/crypto/sha3
-# golang.org/x/sys v0.0.0-20201006155630-ac719f4daadf
+# golang.org/x/sys v0.0.0-20201007165808-a893ed343c85
 ## explicit
 golang.org/x/sys/cpu
 # gopkg.in/inf.v0 v0.9.1

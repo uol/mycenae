@@ -6,3 +6,4 @@ mycenae
 *.iml
 debug
 run-test
+vendor
