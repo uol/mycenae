@@ -11,7 +11,7 @@ require (
 	github.com/uol/gotest v1.8.2
 	github.com/uol/hashing v1.0.1
 	github.com/uol/logh v1.0.1
-	github.com/uol/scheduler v1.0.0
+	github.com/uol/scheduler v1.1.0
 	github.com/uol/serializer v1.3.2
 	golang.org/x/crypto v0.0.0-20200930160638-afb6bcd081ae // indirect
 	golang.org/x/sys v0.0.0-20200929083018-4d22bbb62b3c // indirect

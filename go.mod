@@ -19,7 +19,8 @@ require (
 	github.com/uol/hashing v1.0.1
 	github.com/uol/logh v1.0.1
 	github.com/uol/restrictedhttpclient v1.0.0
-	github.com/uol/timelinemanager v1.7.1
+	github.com/uol/timeline v1.9.3 // indirect
+	github.com/uol/timelinemanager v1.7.2
 	github.com/uol/zencached v1.3.2
-	golang.org/x/sys v0.0.0-20201006155630-ac719f4daadf // indirect
+	golang.org/x/sys v0.0.0-20201007165808-a893ed343c85 // indirect
 )

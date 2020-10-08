@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sync/atomic"
 	"time"
 
 	"github.com/uol/logh"
@@ -43,7 +44,7 @@ type rawNetworkConnection struct {
 	configuration          *TCPUDPTransportConfig
 	loggers                *logh.ContextualLogger
 	connection             net.Conn
-	connected              bool
+	connected              uint32
 	custom                 customNetworkBehaviour
 }
 
@@ -87,7 +88,7 @@ func (t *rawNetworkConnection) transferData(payload string) error {
 // writePayload - writes the payload
 func (t *rawNetworkConnection) writePayload(payload string) bool {
 
-	if !t.connected {
+	if atomic.LoadUint32(&t.connected) == 0 {
 		if logh.InfoEnabled {
 			t.loggers.Info().Msg("connection is not ready...")
 		}
@@ -197,7 +198,7 @@ func (t *rawNetworkConnection) closeConnection() {
 	}
 
 	t.connection = nil
-	t.connected = false
+	atomic.StoreUint32(&t.connected, 0)
 }
 
 // MatchType - checks if this transport implementation matches the given type
@@ -213,12 +214,12 @@ func (t *rawNetworkConnection) retryConnect() {
 		t.loggers.Info().Msgf("starting a new connection to: %s:", t.custom.getAddress().String())
 	}
 
-	t.connected = false
+	atomic.StoreUint32(&t.connected, 0)
 
 	for {
 
 		if t.connect() {
-			t.connected = true
+			atomic.StoreUint32(&t.connected, 1)
 			break
 		}
 

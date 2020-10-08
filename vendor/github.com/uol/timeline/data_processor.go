@@ -28,20 +28,23 @@ type DataProcessor interface {
 	SetTransport(transport Transport)
 
 	// ProcessMapEntry - process a map entry and return true to delete the entry
-	ProcessMapEntry(entry dataProcessorEntry) (deleteAfter bool)
+	ProcessMapEntry(entry DataProcessorEntry) (deleteAfter bool)
 
 	// BuildContextualLogger - build the contextual logger using more info
 	BuildContextualLogger(path ...string)
 }
 
-// dataProcessorEntry - an item from the data processor
-type dataProcessorEntry interface {
+// DataProcessorEntry - an item from the data processor
+type DataProcessorEntry interface {
 
-	// Clone - does a struct copy
-	Clone() interface{}
+	// Lock - locks this resource
+	Lock()
 
-	// ReleaseResources - release this item resources
-	ReleaseResources()
+	// Unlock - unlocks this resource
+	Unlock()
+
+	// Release - release the stored resources
+	Release()
 }
 
 // dataProcessorCore - contains the common data
@@ -99,14 +102,18 @@ func (d *dataProcessorCore) Start() {
 
 			d.pointMap.Range(func(k, v interface{}) bool {
 
-				casted, ok := v.(dataProcessorEntry)
+				casted, ok := v.(DataProcessorEntry)
 				if !ok && logh.ErrorEnabled {
 					d.loggers.Error().Msgf("error casting object to DataProcessorEntry: %+v", v)
 					return false
 				}
 
+				casted.Lock()
+				defer casted.Unlock()
+
 				if delete := d.parent.ProcessMapEntry(casted); delete {
 					d.pointMap.Delete(k)
+					casted.Release()
 				}
 
 				count++

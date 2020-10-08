@@ -3,6 +3,7 @@ package scheduler
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 )
 
 //
@@ -35,7 +36,7 @@ func (m *Manager) AddTask(task *Task, autoStart bool) error {
 
 	if autoStart {
 
-		if task.running {
+		if atomic.LoadUint32(&task.running) == 1 {
 			return fmt.Errorf("task id %s already is running", task.ID)
 		}
 
@@ -60,7 +61,7 @@ func (m *Manager) IsRunning(id string) bool {
 
 	if exists {
 
-		return task.(*Task).running
+		return atomic.LoadUint32(&task.(*Task).running) == 1
 	}
 
 	return false
@@ -99,7 +100,7 @@ func (m *Manager) StopTask(id string) error {
 
 	if task, exists := m.taskMap.Load(id); exists {
 
-		if task.(*Task).running {
+		if atomic.LoadUint32(&task.(*Task).running) == 1 {
 			task.(*Task).Stop()
 		} else {
 			return fmt.Errorf("task id %s was not running (stop)", id)
@@ -116,7 +117,7 @@ func (m *Manager) StartTask(id string) error {
 
 	if task, exists := m.taskMap.Load(id); exists {
 
-		if !task.(*Task).running {
+		if atomic.LoadUint32(&task.(*Task).running) == 0 {
 			task.(*Task).Start()
 		} else {
 			return fmt.Errorf("task id %s is already running (start)", id)

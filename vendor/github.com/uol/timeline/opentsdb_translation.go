@@ -93,10 +93,12 @@ func (t *OpenTSDBTransport) AccumulatedDataToDataChannelItem(point *accumulatedD
 		return nil, fmt.Errorf("error casting accumulated data to data channel item: %+v", point)
 	}
 
-	item.Timestamp = time.Now().Unix()
-	item.Value = float64(point.count)
-
-	return item, nil
+	return &serializer.ArrayItem{
+		Metric:    item.Metric,
+		Tags:      item.Tags,
+		Timestamp: time.Now().Unix(),
+		Value:     float64(point.count),
+	}, nil
 }
 
 // Serialize - renders the text using the configured serializer

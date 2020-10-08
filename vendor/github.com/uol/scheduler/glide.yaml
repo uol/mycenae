@@ -1,7 +1,0 @@
-package: github.com/uol/scheduler
-import: []
-testImport:
-- package: github.com/stretchr/testify
-  version: ~1.4.0
-  subpackages:
-  - assert

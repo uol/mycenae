@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"sync/atomic"
 	"time"
 
 	"github.com/uol/logh"
@@ -84,7 +85,7 @@ type transportCore struct {
 	batchSendInterval    time.Duration
 	pointBuffer          *buffer.Buffer
 	loggers              *logh.ContextualLogger
-	started              bool
+	started              uint32
 	defaultConfiguration *DefaultTransportConfig
 }
 
@@ -113,7 +114,7 @@ func (c *DefaultTransportConfig) Validate() error {
 // Start - starts the transport
 func (t *transportCore) Start() error {
 
-	if t.started {
+	if atomic.LoadUint32(&t.started) == 1 {
 		return nil
 	}
 
@@ -122,7 +123,7 @@ func (t *transportCore) Start() error {
 	}
 
 	t.pointBuffer = buffer.New()
-	t.started = true
+	atomic.StoreUint32(&t.started, 1)
 
 	go t.transferDataLoop()
 
@@ -272,7 +273,7 @@ func (t *transportCore) Close() {
 	}
 
 	t.pointBuffer.Release()
-	t.started = false
+	atomic.StoreUint32(&t.started, 0)
 }
 
 // debugInput - print the incoming points if enabled
