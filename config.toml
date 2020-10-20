@@ -184,7 +184,7 @@ ClusteringOrder = "DESC"
   [[stats.backends]]
     addHostTag    = true
     cycleDuration = "15s"
-    host          = "10.128.5.208"
+    host          = "loghost"
     port          = 8082
     storage       = "normal"
     transport     = "number"
@@ -197,7 +197,7 @@ ClusteringOrder = "DESC"
   [[stats.backends]]
     addHostTag    = true
     cycleDuration = "15s"
-    host          = "10.128.5.208"
+    host          = "loghost"
     port          = 8082
     storage       = "archive"
     transport     = "number"
@@ -223,7 +223,7 @@ ClusteringOrder = "DESC"
 [metadataSettings]
   numShards = 1
   replicationFactor = 1
-  url = "http://182.168.0.6:8983/solr"
+  url = "http://182.168.0.7:8983/solr"
   IDCacheTTL = -1
   QueryCacheTTL = -1
   MaxReturnedMetadata = 10000

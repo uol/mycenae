@@ -21,6 +21,15 @@ const (
 
 	// metricSolrRequestError - metric name for solr request errors
 	metricSolrRequestError string = "solr.request.error"
+
+	// metricMissedKeyset - metric name for validate keyset fail
+	metricMissedKeyset string = "keyset.cache.miss"
+
+	// metricListCollectionsEmpty - metric name for collections returned on solr request to list collection with zero length or nil value
+	metricListCollectionsEmpty string = "solr.list.collections.empty"
+
+	// metricListCollectionsError - metric name for solr list collections request error
+	metricListCollectionsError string = "solr.list.collections.error"
 )
 
 // solrOperation - identifies some solr operation
@@ -64,5 +73,33 @@ func (sb *SolrBackend) statsRequest(function, collection, metaType string, opera
 		constants.StringsTargetKSID, utils.ValidateExpectedValue(collection),
 		constants.StringsType, metaType,
 		constants.StringsOperation, operation,
+	)
+}
+
+// statsMissedKeyset - stores a missed keyset statistics
+func (sb *SolrBackend) statsMissedKeyset(function, collection string) {
+
+	sb.timelineManager.FlattenCountIncN(
+		function,
+		metricMissedKeyset,
+		constants.StringsTargetKSID, utils.ValidateExpectedValue(collection),
+	)
+}
+
+// statsZeroKeysets - stores a listed collections length equal to zero statistics
+func (sb *SolrBackend) statsZeroKeysets(function string) {
+
+	sb.timelineManager.FlattenCountIncN(
+		function,
+		metricListCollectionsEmpty,
+	)
+}
+
+// statsListCollectionsError - stores a solr list collections request error
+func (sb *SolrBackend) statsListCollectionsError(function string) {
+
+	sb.timelineManager.FlattenCountIncN(
+		function,
+		metricListCollectionsError,
 	)
 }
