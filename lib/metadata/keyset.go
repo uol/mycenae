@@ -50,6 +50,8 @@ func (sb *SolrBackend) ListKeysets() []string {
 	return sb.getCachedKeysets()
 }
 
+const funcCheckKeyset string = "CheckKeyset"
+
 // CheckKeyset - verifies if an index exists
 func (sb *SolrBackend) CheckKeyset(keyset string) bool {
 
@@ -63,5 +65,6 @@ func (sb *SolrBackend) CheckKeyset(keyset string) bool {
 		}
 	}
 
+	sb.statsMissedKeyset(funcCheckKeyset, keyset)
 	return false
 }

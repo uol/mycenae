@@ -86,6 +86,8 @@ func (sb *SolrBackend) getCachedKeysets() []string {
 	return sb.cachedKeysets
 }
 
+const funcCacheKeysets string = "cacheKeysets"
+
 // cacheKeysets - caches the keyset map
 func (sb *SolrBackend) cacheKeysets() {
 
@@ -96,18 +98,25 @@ func (sb *SolrBackend) cacheKeysets() {
 	keysets, err := sb.solrService.ListCollections()
 	if err != nil {
 		if logh.ErrorEnabled {
-			sb.logger.Error().Err(err).Send()
+			sb.logger.Error().Err(err).Msg("error on updating cached keysets")
 		}
+
+		sb.statsListCollectionsError(funcCacheKeysets)
 	}
 
-	filteredKeysets := []string{}
-	for i := 0; i < len(keysets); i++ {
-		if _, ok := sb.blacklistedKeysetMap[keysets[i]]; !ok {
-			filteredKeysets = append(filteredKeysets, keysets[i])
+	if len(keysets) > 0 {
+		filteredKeysets := []string{}
+		for i := 0; i < len(keysets); i++ {
+			if _, ok := sb.blacklistedKeysetMap[keysets[i]]; !ok {
+				filteredKeysets = append(filteredKeysets, keysets[i])
+			}
 		}
-	}
 
-	sb.cachedKeysets = filteredKeysets
+		sb.cachedKeysets = filteredKeysets
+
+	} else {
+		sb.statsZeroKeysets(funcCacheKeysets)
+	}
 }
 
 // deleteKeysetMap - deletes the cached keyset map
