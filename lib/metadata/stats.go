@@ -23,10 +23,10 @@ const (
 	metricSolrRequestError string = "solr.request.error"
 
 	// metricMissedKeyset - metric name for validate keyset fail
-	metricMissedKeyset string = "missed.keyset"
+	metricMissedKeyset string = "keyset.cache.miss"
 
-	// metricZeroKeysets - metric name for collections returned on solr request to list collection with zero length or nil value
-	metricZeroKeysets string = "zero.keysets"
+	// metricListCollectionsEmpty - metric name for collections returned on solr request to list collection with zero length or nil value
+	metricListCollectionsEmpty string = "solr.list.collections.empty"
 
 	// metricListCollectionsError - metric name for solr list collections request error
 	metricListCollectionsError string = "solr.list.collections.error"
@@ -91,7 +91,7 @@ func (sb *SolrBackend) statsZeroKeysets(function string) {
 
 	sb.timelineManager.FlattenCountIncN(
 		function,
-		metricZeroKeysets,
+		metricListCollectionsEmpty,
 	)
 }
 
