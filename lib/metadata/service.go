@@ -38,6 +38,7 @@ type SolrBackend struct {
 	zookeeperConfig               string
 	maxReturnedMetadata           int
 	blacklistedKeysetMap          map[string]bool
+	solrGroupRegexp               *regexp.Regexp
 	solrSpecialCharRegexp         *regexp.Regexp
 	solrRegexpSpecialCharRegexp   *regexp.Regexp
 	cacheKeyHashSize              int
@@ -88,6 +89,7 @@ func NewSolrBackend(settings *Settings, mc *tlmanager.Instance, memcached *memca
 		zookeeperConfig:               settings.ZookeeperConfig,
 		maxReturnedMetadata:           settings.MaxReturnedMetadata,
 		blacklistedKeysetMap:          blacklistedKeysetMap,
+		solrGroupRegexp:               regexp.MustCompile(`\([a-zA-Z]+\|[a-zA-Z]+\)`),
 		solrSpecialCharRegexp:         regexp.MustCompile(`(\+|\-|\&|\||\!|\(|\)|\{|\}|\[|\]|\^|"|\~|\*|\?|\:|\/|\\)`),
 		solrRegexpSpecialCharRegexp:   regexp.MustCompile(`(\/)`),
 		cacheKeyHashSize:              settings.CacheKeyHashSize,
@@ -195,6 +197,7 @@ func (sb *SolrBackend) filterFieldValues(function, collection, field, value stri
 
 	var query Query
 	var facetFields, childFacetFields []string
+
 	isRegex := sb.regexPattern.MatchString(value)
 
 	if field == "metric" {
@@ -350,7 +353,11 @@ func (sb *SolrBackend) buildValuesGroup(field string, values []string, regexp bo
 		return qp + field + ":" + values[0]
 	}
 
-	qp += field + ":("
+	if regexp {
+		qp += field + ":"
+	} else {
+		qp += field + ":("
+	}
 
 	for i, value := range values {
 
@@ -367,7 +374,9 @@ func (sb *SolrBackend) buildValuesGroup(field string, values []string, regexp bo
 		}
 	}
 
-	qp += ")"
+	if !regexp {
+		qp += ")"
+	}
 
 	return qp
 }
