@@ -38,7 +38,6 @@ type SolrBackend struct {
 	zookeeperConfig               string
 	maxReturnedMetadata           int
 	blacklistedKeysetMap          map[string]bool
-	solrGroupRegexp               *regexp.Regexp
 	solrSpecialCharRegexp         *regexp.Regexp
 	solrRegexpSpecialCharRegexp   *regexp.Regexp
 	cacheKeyHashSize              int
@@ -89,7 +88,6 @@ func NewSolrBackend(settings *Settings, mc *tlmanager.Instance, memcached *memca
 		zookeeperConfig:               settings.ZookeeperConfig,
 		maxReturnedMetadata:           settings.MaxReturnedMetadata,
 		blacklistedKeysetMap:          blacklistedKeysetMap,
-		solrGroupRegexp:               regexp.MustCompile(`\([a-zA-Z]+\|[a-zA-Z]+\)`),
 		solrSpecialCharRegexp:         regexp.MustCompile(`(\+|\-|\&|\||\!|\(|\)|\{|\}|\[|\]|\^|"|\~|\*|\?|\:|\/|\\)`),
 		solrRegexpSpecialCharRegexp:   regexp.MustCompile(`(\/)`),
 		cacheKeyHashSize:              settings.CacheKeyHashSize,
