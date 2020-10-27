@@ -195,6 +195,7 @@ func (sb *SolrBackend) filterFieldValues(function, collection, field, value stri
 
 	var query Query
 	var facetFields, childFacetFields []string
+
 	isRegex := sb.regexPattern.MatchString(value)
 
 	if field == "metric" {
@@ -350,7 +351,11 @@ func (sb *SolrBackend) buildValuesGroup(field string, values []string, regexp bo
 		return qp + field + ":" + values[0]
 	}
 
-	qp += field + ":("
+	if regexp {
+		qp += field + ":"
+	} else {
+		qp += field + ":("
+	}
 
 	for i, value := range values {
 
@@ -367,7 +372,9 @@ func (sb *SolrBackend) buildValuesGroup(field string, values []string, regexp bo
 		}
 	}
 
-	qp += ")"
+	if !regexp {
+		qp += ")"
+	}
 
 	return qp
 }

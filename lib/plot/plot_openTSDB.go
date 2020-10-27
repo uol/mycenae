@@ -124,7 +124,12 @@ func (plot *Plot) MetaFilterOpenTSDB(keyset, metric string, filters []structs.TS
 			filter.Filter = strings.Replace(filter.Filter, "*", ".*", -1)
 		}
 
-		query.Tags[i].Values = plot.splitTagFilters(filter.Filter)
+		if !query.Tags[i].Regexp {
+			query.Tags[i].Values = plot.splitTagFilters(filter.Filter)
+		} else {
+			query.Tags[i].Values = []string{filter.Filter}
+		}
+
 	}
 
 	metadatas, total, gerr := plot.persist.metaStorage.FilterMetadata(keyset, query, from, size)
