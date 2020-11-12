@@ -621,10 +621,6 @@ func (sb *SolrBackend) AddDocument(collection string, m *Metadata) gobol.Error {
 
 	doc, id := sb.toDocument(m, collection)
 
-	if logh.InfoEnabled {
-		sb.log(sb.logger.Info(), funcAddDocument, collection).Msgf("adding document: %s", id)
-	}
-
 	err := sb.solrService.AddDocument(collection, true, doc)
 	if err != nil {
 		sb.statsError(funcAddDocument, collection, m.MetaType, solrNewDoc)
@@ -635,6 +631,10 @@ func (sb *SolrBackend) AddDocument(collection string, m *Metadata) gobol.Error {
 	}
 
 	go sb.cacheID(collection, m.MetaType, m.ID, []byte(m.ID))
+
+	if logh.InfoEnabled {
+		sb.log(sb.logger.Info(), funcAddDocument, collection).Msgf("adding document: %s", id)
+	}
 
 	sb.statsRequest(funcAddDocument, collection, m.MetaType, solrNewDoc, time.Since(start))
 
