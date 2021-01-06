@@ -2,6 +2,7 @@ package plot
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -307,6 +308,12 @@ func (plot *Plot) deleteTS(w http.ResponseWriter, r *http.Request, ps httprouter
 				rip.Fail(w, gerr)
 				return
 			}
+			ttl := key.Tags["ttl"]
+			gerr = plot.DeletePoint(key.TsId, ttl, *keyset, key.Metric)
+			if gerr != nil {
+				rip.Fail(w, gerr)
+				return
+			}
 		}
 
 		rip.SuccessJSON(w, http.StatusAccepted, out)
@@ -408,4 +415,25 @@ func (plot *Plot) listTagsByMetric(w http.ResponseWriter, r *http.Request, ps ht
 func addProcessedBytesHeader(w http.ResponseWriter, numBytes uint32) {
 
 	w.Header().Add("X-Processed-Bytes", strconv.FormatUint((uint64)(numBytes), 10))
+}
+
+const fmtDeleteQuery string = `DELETE FROM %v.ts_number_stamp WHERE id = ?`
+
+func (plot *Plot) DeletePoint(tsID, ttl, keyset, metric string) gobol.Error {
+
+	ttlInt, err := strconv.Atoi(ttl)
+	if err != nil {
+		return errPersist("DeletePoint", err)
+	}
+	keyspace := plot.keyspaceTTLMap[ttlInt]
+	if err := plot.persist.cassandra.Query(
+		fmt.Sprintf(fmtDeleteQuery, keyspace),
+		tsID,
+	).Exec(); err != nil {
+		plot.statsDeleteMetaError("DeletePoint", keyset, metric)
+		return errPersist("DeletePoint", err)
+	}
+
+	plot.statsDeleteMetaSuccess("DeletePoint", keyset, metric)
+	return nil
 }
