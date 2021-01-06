@@ -10,6 +10,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/uol/gobol"
 	"github.com/uol/gobol/rip"
+	"github.com/uol/logh"
 	"github.com/uol/mycenae/lib/constants"
 )
 
@@ -423,6 +424,9 @@ func (plot *Plot) DeletePoint(tsID, ttl, keyset, metric string) gobol.Error {
 
 	ttlInt, err := strconv.Atoi(ttl)
 	if err != nil {
+		if logh.ErrorEnabled {
+			plot.logger.Error().Str(constants.StringsFunc, "DeletePoint").Msgf("error when converting keyspace")
+		}
 		return errPersist("DeletePoint", err)
 	}
 	keyspace := plot.keyspaceTTLMap[ttlInt]
@@ -430,10 +434,16 @@ func (plot *Plot) DeletePoint(tsID, ttl, keyset, metric string) gobol.Error {
 		fmt.Sprintf(fmtDeleteQuery, keyspace),
 		tsID,
 	).Exec(); err != nil {
+		if logh.ErrorEnabled {
+			plot.logger.Error().Str(constants.StringsFunc, "DeletePoint").Err(err).Msgf("error deleting tsid %s", tsID)
+		}
 		plot.statsDeleteMetaError("DeletePoint", keyset, metric)
 		return errPersist("DeletePoint", err)
 	}
 
 	plot.statsDeleteMetaSuccess("DeletePoint", keyset, metric)
+	if logh.InfoEnabled {
+		plot.logger.Info().Str(constants.StringsFunc, "DeletePoint").Msgf("tsid %s successfully removed", tsID)
+	}
 	return nil
 }
