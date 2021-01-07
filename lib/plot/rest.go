@@ -2,6 +2,7 @@ package plot
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -9,6 +10,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/uol/gobol"
 	"github.com/uol/gobol/rip"
+	"github.com/uol/logh"
 	"github.com/uol/mycenae/lib/constants"
 )
 
@@ -307,6 +309,12 @@ func (plot *Plot) deleteTS(w http.ResponseWriter, r *http.Request, ps httprouter
 				rip.Fail(w, gerr)
 				return
 			}
+			ttl := key.Tags["ttl"]
+			gerr = plot.DeletePoint(key.TsId, ttl, *keyset, key.Metric)
+			if gerr != nil {
+				rip.Fail(w, gerr)
+				return
+			}
 		}
 
 		rip.SuccessJSON(w, http.StatusAccepted, out)
@@ -408,4 +416,34 @@ func (plot *Plot) listTagsByMetric(w http.ResponseWriter, r *http.Request, ps ht
 func addProcessedBytesHeader(w http.ResponseWriter, numBytes uint32) {
 
 	w.Header().Add("X-Processed-Bytes", strconv.FormatUint((uint64)(numBytes), 10))
+}
+
+const fmtDeleteQuery string = `DELETE FROM %v.ts_number_stamp WHERE id = ?`
+
+func (plot *Plot) DeletePoint(tsID, ttl, keyset, metric string) gobol.Error {
+
+	ttlInt, err := strconv.Atoi(ttl)
+	if err != nil {
+		if logh.ErrorEnabled {
+			plot.logger.Error().Str(constants.StringsFunc, "DeletePoint").Msgf("error when converting keyspace")
+		}
+		return errPersist("DeletePoint", err)
+	}
+	keyspace := plot.keyspaceTTLMap[ttlInt]
+	if err := plot.persist.cassandra.Query(
+		fmt.Sprintf(fmtDeleteQuery, keyspace),
+		tsID,
+	).Exec(); err != nil {
+		if logh.ErrorEnabled {
+			plot.logger.Error().Str(constants.StringsFunc, "DeletePoint").Err(err).Msgf("error deleting tsid %s", tsID)
+		}
+		plot.statsDeleteMetaError("DeletePoint", keyset, metric)
+		return errPersist("DeletePoint", err)
+	}
+
+	plot.statsDeleteMetaSuccess("DeletePoint", keyset, metric)
+	if logh.InfoEnabled {
+		plot.logger.Info().Str(constants.StringsFunc, "DeletePoint").Msgf("tsid %s successfully removed", tsID)
+	}
+	return nil
 }

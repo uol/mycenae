@@ -5,11 +5,13 @@ import (
 )
 
 const (
-	metricQueryThreshold  string = "mycenae.query.threshold"
-	metricQueryLimit      string = "mycenae.query.limit"
-	metricPlotCountPoints string = "plot.count.points"
-	metricPlotTotalPoints string = "plot.total.points"
-	metricActiveMetric    string = "mycenae.active.metric"
+	metricQueryThreshold    string = "mycenae.query.threshold"
+	metricQueryLimit        string = "mycenae.query.limit"
+	metricPlotCountPoints   string = "plot.count.points"
+	metricPlotTotalPoints   string = "plot.total.points"
+	metricActiveMetric      string = "mycenae.active.metric"
+	metricDeleteMetaError   string = "metadata.delete.error"
+	metricDeleteMetaSuccess string = "metadata.delete.success"
 )
 
 func (plot *Plot) statsQueryTSThreshold(function, keyset string, total int) {
@@ -54,6 +56,24 @@ func (plot *Plot) statsActiveMetric(function, keyset, metric string) {
 	plot.timelineManager.FlattenCountIncA(
 		function,
 		metricActiveMetric,
+		constants.StringsKeyset, keyset,
+		constants.StringsMetric, metric,
+	)
+}
+
+func (plot *Plot) statsDeleteMetaError(function, keyset, metric string) {
+	plot.timelineManager.FlattenCountIncA(
+		function,
+		metricDeleteMetaError,
+		constants.StringsKeyset, keyset,
+		constants.StringsMetric, metric,
+	)
+}
+
+func (plot *Plot) statsDeleteMetaSuccess(function, keyset, metric string) {
+	plot.timelineManager.FlattenCountIncA(
+		function,
+		metricDeleteMetaSuccess,
 		constants.StringsKeyset, keyset,
 		constants.StringsMetric, metric,
 	)
